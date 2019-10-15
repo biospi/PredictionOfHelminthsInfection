@@ -44,6 +44,8 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
+from os import listdir
+from os.path import isfile, join
 
 import os
 os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.0' #path to your R installation
@@ -301,12 +303,12 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     # activity_list = [a_i - b_i if a_i is not None and b_i is not None else None for a_i, b_i in
     #                  zip(activity_list, activity_mean)]
 
-    activity_list_np = np.array(activity_list, dtype=np.float)
-    activity_mean_np = np.array(activity_mean, dtype=np.float)
+    #activity_list_np = np.array(activity_list, dtype=np.float)
+    #activity_mean_np = np.array(activity_mean, dtype=np.float)
 
-    activity_list_np = np.divide(activity_list_np, activity_mean_np)
-    activity_list_np = np.where(np.isnan(activity_list_np), None, activity_list_np)
-    activity_list = activity_list_np.tolist()
+    #activity_list_np = np.divide(activity_list_np, activity_mean_np)
+    #activity_list_np = np.where(np.isnan(activity_list_np), None, activity_list_np)
+    # activity_list = activity_list_np.tolist()
 
     previous_famacha_score = get_previous_famacha_score(animal_id, famacha_test_date, data_famacha_dict, famacha_score)
     indexes.reverse()
@@ -826,8 +828,10 @@ def save_roc_curve(y_test, y_probas, title, options, folder, i=0):
     sub_folder = "%s_%s" % (title.split('\n')[0], '_'.join(options))
     sub_folder = sub_folder.replace(',', '-').replace(' ', '').replace(' ', '_').replace('-', '_')
     sub_folder = '_'.join(sub_folder.split('_')[0:2]) + '_' + '_'.join(options)
-    filename_i = "%d_%s_%s.png" % (i, title.split('\n')[0], '_'.join(options))
+    filename_i = "%d_%s_%s" % (i, title.split('\n')[0], '_'.join(options))
     filename_i = filename_i.replace(',', '-').replace(' ', '').replace(' ', '_').replace('-', '_')
+    filename_i = filename_i[0:47] #windows limits filename size by default
+    filename_i = "%s.png" % filename_i
     path = "%s/roc_curve/%s" % (folder, sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     final_path = '%s/%s' % (path, filename_i)
@@ -1502,7 +1506,7 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
 def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
     filename = init_result_file(dir)
     filename_s = init_result_file(dir, simplified_results=True)
-    print("classification...", inputs)
+    print("start classification...", inputs)
     start_time = time.time()
     for input in inputs:
         print(input)
@@ -1682,55 +1686,65 @@ if __name__ == '__main__':
             data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
             data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
             results = []
-            dir = "%s/resolution_%s_days_%d_indminusmean" % (os.getcwd(), resolution, days_before_famacha_test)
-            try:
-                shutil.rmtree(dir)
-            except (OSError, FileNotFoundError) as e:
-                print(e)
-                # exit(-1)
+            dir = "%s/resolution_%s_days_%d" % (os.getcwd(), resolution, days_before_famacha_test)
+            class_input_dict_file_path = dir + '/class_input_dict.json'
+            if os.path.exists(class_input_dict_file_path):
+                print('training sets already created skip to processing.')
+                with open(class_input_dict_file_path, "r") as read_file:
+                    class_input_dict = json.load(read_file)
+            else:
+                print('start training sets creation...')
+                try:
+                    shutil.rmtree(dir)
+                except (OSError, FileNotFoundError) as e:
+                    print(e)
+                    # exit(-1)
 
-            for curr_data_famacha in data_famacha_list:
-                result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
-                                           days_before_famacha_test, expected_sample_count)
-                if result is None:
-                    continue
+                for curr_data_famacha in data_famacha_list:
+                    result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
+                                               days_before_famacha_test, expected_sample_count)
+                    if result is None:
+                        continue
 
-                activity = result["activity"]
-                is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(activity, hreshold_nan_coef,
-                                                                                  threshold_zeros_coef)
-                result['is_valid'] = True
-                if not is_valid:
-                    result['is_valid'] = False
+                    activity = result["activity"]
+                    is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(activity, hreshold_nan_coef,
+                                                                                      threshold_zeros_coef)
+                    result['is_valid'] = True
+                    if not is_valid:
+                        result['is_valid'] = False
 
-                result["nan_threshold"] = nan_threshold
-                result["zeros_threshold"] = zeros_threshold
-                results.append(result)
+                    result["nan_threshold"] = nan_threshold
+                    result["zeros_threshold"] = zeros_threshold
+                    results.append(result)
 
-            skipped_class_false, skipped_class_true = process_famacha_var(results)
+                skipped_class_false, skipped_class_true = process_famacha_var(results)
 
-            file_paths = []
-            for result in results:
-                if not result['is_valid']:
-                    continue
-                pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-                filename = create_filename(result)
-                create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
+                class_input_dict = []
+                for result in results:
+                    if not result['is_valid']:
+                        continue
+                    pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+                    filename = create_filename(result)
+                    # create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
 
-                cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
+                    cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-                cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
+                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
 
-                # weight = process_weight(result["activity"], coef)
-                result["cwt"] = cwt
-                result["coef_shape"] = coef.shape
-                # result["cwt_weight"] = weight
-                result["indexes_cwt"] = indexes_cwt
+                    # weight = process_weight(result["activity"], coef)
+                    result["cwt"] = cwt
+                    result["coef_shape"] = coef.shape
+                    # result["cwt_weight"] = weight
+                    result["indexes_cwt"] = indexes_cwt
 
-                create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"))
+                    # create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"))
 
-                file_paths = create_training_sets(result, dir)
+                    class_input_dict = create_training_sets(result, dir) #warning! always returns the same result
+                    if not os.path.exists(class_input_dict_file_path):
+                        with open(class_input_dict_file_path, 'w') as fout:
+                            json.dump(class_input_dict, fout)
 
-            process_classifiers(file_paths, dir, resolution, days_before_famacha_test, nan_threshold, zeros_threshold)
+            process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold, zeros_threshold)
 
     print(get_elapsed_time_string(start_time, time.time()))
     merge_results(filename="results_simplified_report_%s.xlsx" % run_timestamp, filter='results_simplified.csv')
