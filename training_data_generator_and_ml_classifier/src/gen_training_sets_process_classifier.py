@@ -46,15 +46,38 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
 from os import listdir
 from os.path import isfile, join
+import tzlocal
+
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 import os
-os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.0' #path to your R installation
+os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1' #path to your R installation
 os.environ['R_USER'] = 'C:\\Users\\fo18103\\AppData\\Local\Continuum\\anaconda3\Lib\site-packages\\rpy2' #path depends on where you installed Python. Mine is the Anaconda distribution
 
 import rpy2
 import rpy2.robjects as robjects
-from rpy2.robjects.packages import importr
+from rpy2.robjects.packages import importr, isinstalled
+utils = importr('utils')
 R = robjects.r
+
+#need to be installed from Rstudio or other package installer
+print('e1071', isinstalled('e1071'))
+print('rgl', isinstalled('rgl'))
+print('misc3d', isinstalled('misc3d'))
+print('plot3D', isinstalled('plot3D'))
+print('plot3Drgl', isinstalled('plot3Drgl'))
+
+if not isinstalled('e1071'):
+    utils.install_packages('e1071')
+if not isinstalled('rgl'):
+    utils.install_packages('rgl')
+if not isinstalled('misc3d'):
+    utils.install_packages('misc3d')
+if not isinstalled('plot3D'):
+    utils.install_packages('plot3D')
+if not isinstalled('plot3Drgl'):
+    utils.install_packages('plot3Drgl')
 
 e1071 = importr('e1071')
 rgl = importr('rgl')
@@ -79,7 +102,7 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
                      "days_before_test,threshold_nan,threshold_zeros,processing_time,sample_count,set_size," \
                      "file_path,input,classifier, decision_bounderies_file"
 
-RESULT_FILE_HEADER_SIMPLIFIED = "accuracy,specificity,recall,precision,fscore,days,resolution,inputs"
+RESULT_FILE_HEADER_SIMPLIFIED = "classifier,accuracy,specificity,recall,precision,fscore,days,resolution,inputs"
 
 
 def purge_file(filename):
@@ -155,7 +178,7 @@ def pad(a, N):
 
 
 def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015",
-                            db_name="south_africa_test14",
+                            db_name="south_africa",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     global sql_db
@@ -191,44 +214,40 @@ def get_elapsed_time_string(time_initial, time_next):
     return '%02d:%02d:%02d:%02d' % (rd.days, rd.hours, rd.minutes, rd.seconds)
 
 
-def ascombe(value):
+def anscombe(value):
     try:
-        if value == 0:
-            return value
         return 2 * math.sqrt(value + (3 / 8))
-    except (ValueError, TypeError) as e:
-        # print("error while computing ascomb.", e, value)
-        return None
+    except TypeError as e:
+        print(e)
 
 
-def normalize_activity_array_ascomb(activity):
+def normalize_activity_array_anscomb(activity):
     result = []
     for i in range(0, len(activity)):
         try:
             result.append({'timestamp': activity[i]['timestamp'], 'serial_number': activity[i]['serial_number'],
-                           'first_sensor_value': ascombe(activity[i]['first_sensor_value'])})
+                           'first_sensor_value': anscombe(activity[i]['first_sensor_value'])})
         except (ValueError, TypeError) as e:
-            print('error while normalize_activity_array_ascomb', e)
+            print('error while normalize_activity_array_anscombe', e)
             result.append({'timestamp': activity[i]['timestamp'], 'serial_number': activity[i]['serial_number'],
                            'first_sensor_value': None})
     return result
 
 
 def normalize_histogram_mean_diff(activity_mean, activity, flag=False, serial=None):
-    scale = [1 for _ in range(0, len(activity))]
+    scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
         if a['first_sensor_value'] is None or a['first_sensor_value'] <= 0:
             continue
         if activity_mean[n] is None:
             continue
-        diff = (int(activity_mean[n]) / int(a['first_sensor_value']))
-        scale[n] = diff if diff > 0 else 1
+        r = (int(activity_mean[n]) / int(a['first_sensor_value']))
+        scale[n] = r
         idx.append(n)
     median = statistics.median(sorted(set(scale)))
     for i in idx:
-        activity[i]['first_sensor_value'] = activity[i]['first_sensor_value'] * median * (
-            1 if activity[i]['first_sensor_value'] > 0 else 0)
+        activity[i]['first_sensor_value'] = activity[i]['first_sensor_value'] * median
     return activity
 
 
@@ -267,16 +286,16 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
         ("delmas_70101200027", resolution, 50000000000, date2, date1))
 
-    activity_mean = normalize_activity_array_ascomb(rows_mean)
-    activity_mean = [(x['first_sensor_value']) for x in activity_mean]
+    # activity_mean = normalize_activity_array_anscomb(rows_mean)
+    activity_mean = [(x['first_sensor_value']) for x in rows_mean]
 
     if len(data_activity) != expected_sample_count:
         # filter out missing activity data
         print("absent activity records. skip.", len(data_activity), expected_sample_count)
         return
 
-    data_activity = normalize_activity_array_ascomb(data_activity)
-    data_activity = normalize_histogram_mean_diff(activity_mean, data_activity, True)
+    # data_activity = normalize_activity_array_anscomb(data_activity)
+    data_activity_n = normalize_histogram_mean_diff(activity_mean, data_activity, True)
 
     # print("mapping activity to famacha score progress=%d/%d ..." % (i, len(data_famacha_flattened)))
     idx = 0
@@ -287,7 +306,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     temperature_list = []
     dates_list_formated = []
 
-    for j, data_a in enumerate(data_activity):
+    for j, data_a in enumerate(data_activity_n):
         # transform date in time for comparaison
         curr_datetime = datetime.utcfromtimestamp(int(data_a['timestamp']))
         timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
@@ -300,6 +319,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         dates_list_formated.append(datetime.utcfromtimestamp(int(data_a['timestamp'])).strftime('%d/%m/%Y %H:%M'))
         idx += 1
 
+    activity_list = [anscombe(x) if x is not None else None for x in activity_list]
     # activity_list = [a_i - b_i if a_i is not None and b_i is not None else None for a_i, b_i in
     #                  zip(activity_list, activity_mean)]
 
@@ -316,7 +336,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
             "previous_famacha_score": previous_famacha_score, "animal_id": animal_id,
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
-            "indexes": indexes, "activity": activity_list, "activity_i": interpolate(activity_list),
+            "indexes": indexes, "activity": activity_list,
             "temperature": temperature_list, "humidity": humidity_list
             }
     return data
@@ -1139,11 +1159,11 @@ def compute_model(X, y, X_val, y_val, train_index, test_index, i, clf=None, dim=
     file_path = None
     if dim == 2:
         file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
-        plot_2D_decision_boundaries(X_val, y_val, X_val, title_val, clf, folder=folder, options=options, i=i)
+        #plot_2D_decision_boundaries(X_val, y_val, X_val, title_val, clf, folder=folder, options=options, i=i)
 
-    # if dim == 3 and clf_name is 'SVC':
-    #     file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
-    #                                             options=options, i=i)
+    if dim == 3 and clf_name is 'SVC':
+        file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
+                                                options=options, i=i)
 
     save_roc_curve(y_test, y_probas, title, options, folder, i=i)
 
@@ -1541,9 +1561,9 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
 
         for result in [
                        process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVC', folder=dir,
-                               options=input["options"], resolution=resolution),
-                       process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
                                options=input["options"], resolution=resolution)
+                       # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
+                       #         options=input["options"], resolution=resolution)
                        # process(data_frame, fold=10, dim_reduc='', clf_name='SVC', folder=dir,
                        #         options=input["options"], resolution=resolution),
                        ]:
@@ -1660,8 +1680,8 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
 
 if __name__ == '__main__':
     print("pandas", pd.__version__)
-    resolution_l = ['10min', '5min', 'hour', 'day']
-    days_before_famacha_test_l = [5, 6, 4, 3, 2, 1]
+    resolution_l = ['10min', 'day', 'hour', '5min']
+    days_before_famacha_test_l = [6, 5, 4, 3, 2, 1]
     hreshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
@@ -1673,14 +1693,14 @@ if __name__ == '__main__':
         if resolution == "min":
             hreshold_nan_coef = 1.5
             threshold_zeros_coef = 1.5
-        if resolution == "day":
-            days_before_famacha_test_l = [3, 4, 5, 6]
+        # if resolution == "day":
+        #     days_before_famacha_test_l = [3, 4, 5, 6]
 
         for days_before_famacha_test in days_before_famacha_test_l:
             expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
 
             # generate_training_sets(data_famacha_flattened)
-            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\Delmas_weather.json') as f:
+            with open(os.path.join(__location__, 'delmas_weather.json')) as f:
                 weather_data = json.load(f)
 
             data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
@@ -1688,7 +1708,7 @@ if __name__ == '__main__':
             results = []
             dir = "%s/resolution_%s_days_%d" % (os.getcwd(), resolution, days_before_famacha_test)
             class_input_dict_file_path = dir + '/class_input_dict.json'
-            if os.path.exists(class_input_dict_file_path):
+            if False: #os.path.exists(class_input_dict_file_path):
                 print('training sets already created skip to processing.')
                 with open(class_input_dict_file_path, "r") as read_file:
                     class_input_dict = json.load(read_file)
@@ -1725,11 +1745,11 @@ if __name__ == '__main__':
                         continue
                     pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                     filename = create_filename(result)
-                    # create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
+                    create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
 
                     cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
+                    # cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
 
                     # weight = process_weight(result["activity"], coef)
                     result["cwt"] = cwt
@@ -1737,14 +1757,16 @@ if __name__ == '__main__':
                     # result["cwt_weight"] = weight
                     result["indexes_cwt"] = indexes_cwt
 
-                    # create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"))
+                    create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"))
 
                     class_input_dict = create_training_sets(result, dir) #warning! always returns the same result
-                    if not os.path.exists(class_input_dict_file_path):
-                        with open(class_input_dict_file_path, 'w') as fout:
-                            json.dump(class_input_dict, fout)
-
-            process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold, zeros_threshold)
+                    # if not os.path.exists(class_input_dict_file_path):
+                    #     with open(class_input_dict_file_path, 'w') as fout:
+                    #         json.dump(class_input_dict, fout)
+            try:
+                process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold, zeros_threshold)
+            except ValueError as e:
+                print('error while processing classifier!', e)
 
     print(get_elapsed_time_string(start_time, time.time()))
     merge_results(filename="results_simplified_report_%s.xlsx" % run_timestamp, filter='results_simplified.csv')

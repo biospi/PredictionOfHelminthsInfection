@@ -3,6 +3,7 @@ import base64
 import glob
 import json
 import operator
+import os
 import statistics
 import sys
 from datetime import datetime, timedelta
@@ -26,6 +27,7 @@ from dash.dependencies import Input, Output
 from dateutil.relativedelta import *
 from ipython_genutils.py3compat import xrange
 from scipy import signal
+#import PyWavelets ?? for pywt
 import pywt
 import pywt.data
 import matplotlib.pyplot as plt
@@ -36,8 +38,11 @@ from scipy.stats import entropy
 from math import log, e
 from pylab import figure, show, legend, ylabel
 
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
 global sql_db
-db_name = "south_africa_test14"
+db_name = "south_africa"
 
 
 def get_date_range(layout_data, herd=False):
@@ -452,14 +457,11 @@ def get_resolution_string(value):
     return result
 
 
-def ascombe(value):
+def anscombe(value):
     try:
-        if value == 0:
-            return value
         return 2 * math.sqrt(value + (3 / 8))
-    except (ValueError, TypeError) as e:
-        # print("error while computing ascomb.", e, value)
-        return None
+    except TypeError as e:
+        print(e)
 
 
 def myround(x, base=5):
@@ -482,35 +484,34 @@ def compute_histogram(input_array, bin):
     return list(result.keys()), list(result.values())
 
 
-def normalize_activity_array_ascomb(activity):
-    result = []
-    for i in range(0, len(activity)):
-        try:
-            result.append(ascombe(activity[i]))
-        except (ValueError, TypeError) as e:
-            print('error while normalize_activity_array_ascomb', e)
-            result.append(None)
-    return result
+# def normalize_activity_array_anscomb(activity):
+#     result = []
+#     for i in range(0, len(activity)):
+#         try:
+#             result.append(ascombe(activity[i]))
+#         except (ValueError, TypeError) as e:
+#             print('error while normalize_activity_array_ascomb', e)
+#             result.append(None)
+#     return result
 
 
-def normalize_activity_matrix_hmeandiff(activity_mean_l, activity_list):
-    result = []
-    for activity in activity_list:
-        a = normalize_histogram_mean_diff(activity_mean_l, activity)
+# def normalize_activity_matrix_hmeandiff(activity_mean_l, activity_list):
+#     result = []
+#     for activity in activity_list:
+#         a = normalize_histogram_mean_diff(activity_mean_l, activity)
+#         result.append(a)
+#     return result
 
-        result.append(a)
-    return result
 
-
-def normalize_activity_matrix_ascombe(activity_list):
-    result = []
-    for activity in activity_list:
-        r = []
-        for i, item in enumerate(activity):
-            n = ascombe(item)
-            r.append(n)
-        result.append(r)
-    return result
+# def normalize_activity_matrix_ascombe(activity_list):
+#     result = []
+#     for activity in activity_list:
+#         r = []
+#         for i, item in enumerate(activity):
+#             n = ascombe(item)
+#             r.append(n)
+#         result.append(r)
+#     return result
 
 
 def parse_date_dange(range):
@@ -565,14 +566,14 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         file_path = raw["file_path"]
         farm_id = raw["farm_id"]
 
-        if sys.argv[3] == 'h5':
+        if 'sql' == 'h5':
             print("opening file in thread test")
             h5 = tables.open_file(file_path, "r")
             data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
                      x['first_sensor_value'])
                     for x in h5.root.resolution_month.data if x_min_epoch < x['timestamp'] < x_max_epoch]
 
-        if sys.argv[3] == 'sql':
+        if 'sql' == 'sql':
             if x_max_epoch is not None:
                 rows = execute_sql_query(
                     "SELECT timestamp_s, first_sensor_value, serial_number FROM %s_%s WHERE timestamp BETWEEN %s AND %s" %
@@ -639,12 +640,12 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         a = i[0]
         ids.append(i[1])
 
-        if 'Ascomb' in normalize:
-            a = normalize_activity_array_ascomb(a)
+        # if 'Ascomb' in normalize:
+        #     a = normalize_activity_array_ascomb(a)
 
-        if 'HMeanDiff' in normalize:
-            if i[1] != 50000000000 and i[1] != 60000000000:
-                a = normalize_histogram_mean_diff(activity_mean_l, a)
+        # if 'HMeanDiff' in normalize:
+        #     if i[1] != 50000000000 and i[1] != 60000000000:
+        #         a = normalize_histogram_mean_diff(activity_mean_l, a)
         activity_list.append(a)
         t, layout_histogram = build_histogram_graph(a, i[1])
         traces_histogram.append(t)
@@ -717,29 +718,20 @@ def normalize_histogram_mean_diff(activity_mean, activity, flag=False, serial=No
     #     plt.plot(activity)
     #     plt.ylabel(str(serial))
     #     plt.show()
-    scale = [1 for _ in range(0, len(activity))]
+    scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
         if a is None or a <= 0:
             continue
         if activity_mean[n] is None:
             continue
-        diff = (int(activity_mean[n]) / int(a))
-        scale[n] = diff if diff > 0 else 1
+        r = (int(activity_mean[n]) / int(a))
+        scale[n] = r
         idx.append(n)
     median = statistics.median(sorted(set(scale)))
     #print(scale)
     for i in idx:
-        activity[i] = activity[i] * median*(1 if activity[i] > 0 else 0)
-        #activity[m] = a_*scale[m] if a_ is not None else a_
-    # if flag:
-    #     plt.plot(scale)
-    #     plt.ylabel(str(serial)+"scale")
-    #     plt.show()
-    #     plt.plot(activity_mean)
-    #     plt.ylabel("avg")
-    #     plt.show()
-    #     print('5252', serial, median, sum(scale)/len(scale), scale)
+        activity[i] = activity[i] * median
     return activity
 
 
@@ -773,16 +765,16 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
             file_path = raw["file_path"]
             farm_id = raw["farm_id"]
 
-            if sys.argv[3] == 'h5':
+            if 'sql' == 'h5':
                 print("opening file in thread test")
                 h5 = tables.open_file(file_path, "r")
 
-            if sys.argv[3] == 'h5':
+            if 'sql' == 'h5':
                 data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
                          x['first_sensor_value'])
                         for x in h5.root.resolution_month.data if
                         x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
-            if sys.argv[3] == 'sql':
+            if 'sql' == 'sql':
                 if x_max_epoch is not None:
                     rows = execute_sql_query(
                         "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
@@ -801,12 +793,12 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
             # print(activity_s)
             # activity = activity_s
 
-            if 'Ascomb' in normalize:
-                activity = normalize_activity_array_ascomb(activity)
-
             if 'HMeanDiff' in normalize:
                 activity = normalize_histogram_mean_diff(activity_mean_l, activity, True, i)
             # activity, _ = compute_histogram(interpolate(activity))
+
+            if 'Anscombe' in normalize:
+                activity = [anscombe(x) if x is not None else None for x in activity]
 
             time = [(x[0]) for x in data]
 
@@ -815,7 +807,7 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
 
             activity, time = bin_data_to_screen_size(activity, time, 1000)
 
-            activity_without_herd = [a_i - b_i if a_i is not None and b_i is not None else None for a_i, b_i in zip(activity, activity_mean_l)]
+            # activity_without_herd = [a_i - b_i if a_i is not None and b_i is not None else None for a_i, b_i in zip(activity, activity_mean_l)]
 
             if len(activity) > 0:
 
@@ -843,14 +835,14 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
                 #     activity = interpolate(activity)
 
                 if idx == 1:
-                    fig = go.Bar(
-                        xaxis='x2',
-                        x=time,
-                        y=[-x if x is not None else None for x in activity_without_herd],
-                        name=str(i),
-                        opacity=0.8,
-                    )
-                    traces.append(fig)
+                    # fig = go.Bar(
+                    #     xaxis='x2',
+                    #     x=time,
+                    #     y=[-x if x is not None else None for x in activity_without_herd],
+                    #     name=str(i),
+                    #     opacity=0.8,
+                    # )
+                    # traces.append(fig)
 
                     fig = go.Bar(
                         xaxis='x2',
@@ -860,27 +852,27 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
                         opacity=0.8,
                     )
                     traces.append(fig)
-                    if resolution_string != 'resolution_min':
-                        fig_m = go.Scatter(
-                            xaxis='x2',
-                            x=time,
-                            y=[-x if x is not None else None for x in activity_mean_l],
-                            name='mean',
-                            opacity=0.7,
-                            mode='lines'
-                        )
-                        traces.append(fig_m)
+                    # if resolution_string != 'resolution_min':
+                    #     fig_m = go.Scatter(
+                    #         xaxis='x2',
+                    #         x=time,
+                    #         y=[-x if x is not None else None for x in activity_mean_l],
+                    #         name='mean',
+                    #         opacity=0.7,
+                    #         mode='lines'
+                    #     )
+                    #     traces.append(fig_m)
 
                 if idx == 0:
 
-                    fig = go.Bar(
-                        xaxis='x2',
-                        x=time,
-                        y=activity_without_herd,
-                        name=str(i),
-                        opacity=0.8,
-                    )
-                    traces.append(fig)
+                    # fig = go.Bar(
+                    #     xaxis='x2',
+                    #     x=time,
+                    #     y=activity_without_herd,
+                    #     name=str(i),
+                    #     opacity=0.8,
+                    # )
+                    # traces.append(fig)
 
                     fig = go.Bar(
                         xaxis='x2',
@@ -890,16 +882,16 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
                         opacity=0.8,
                     )
                     traces.append(fig)
-                    if resolution_string != 'resolution_min':
-                        fig_m = go.Scatter(
-                            xaxis='x2',
-                            x=time,
-                            y=activity_mean_l,
-                            name='mean',
-                            opacity=0.7,
-                            mode='lines'
-                        )
-                        traces.append(fig_m)
+                    # if resolution_string != 'resolution_min':
+                    #     fig_m = go.Scatter(
+                    #         xaxis='x2',
+                    #         x=time,
+                    #         y=activity_mean_l,
+                    #         name='mean',
+                    #         opacity=0.7,
+                    #         mode='lines'
+                    #     )
+                    #     traces.append(fig_m)
 
                 _d.append({"activity": activity,
                            "time": time,
@@ -945,16 +937,16 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
 
             file_path = raw["file_path"]
             farm_id = raw["farm_id"]
-            if sys.argv[3] == 'h5':
+            if 'sql' == 'h5':
                 print("opening file in thread signal")
                 h5 = tables.open_file(file_path, "r")
 
-            if sys.argv[3] == 'h5':
+            if 'sql' == 'h5':
                 data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
                          x['signal_strength_max'], x['signal_strength_min'])
                         for x in h5.root.resolution_month.data if
                         x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
-            if sys.argv[3] == 'sql':
+            if 'sql' == 'sql':
                 if resolution_string == 'resolution_min':
                     rows = execute_sql_query(
                         "SELECT timestamp, signal_strength FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
@@ -980,6 +972,7 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
             time = [(x[0]) for x in data]
             if idx == 0:
                 fig_humidity, fig_temperature = build_weather_trace(time, raw)
+                print(humidity, temperature)
                 if 'enabled' in humidity:
                     traces.append(fig_humidity)
                 if 'enabled' in temperature:
@@ -1050,8 +1043,8 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
                                 showlegend=False,
                                 # legend=dict(y=1, x=0),
                                 margin=go.layout.Margin(l=60, r=50, t=5, b=40)
-                                ),
-            'resolution': "resolution_day"
+                                )
+            # 'resolution': "resolution_day"
         })
     else:
         q_2.put({
@@ -1078,8 +1071,8 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
                                 showlegend=False,
                                 # legend=dict(y=1, x=0),
                                 margin=go.layout.Margin(l=60, r=50, t=5, b=40)
-                                ),
-            'resolution': "resolution_day"
+                                )
+            # 'resolution': "resolution_day"
         })
 
 
@@ -1339,7 +1332,7 @@ def build_dashboard_layout():
                     html.Div([html.Label('Animal selection:', style={'color': 'white', 'font-weight': 'bold'}),
                               dcc.Dropdown(
                                   id='serial-number-dropdown',
-                                  options=[],
+                                  options=[{'label': 'empty', 'value': 'empty'}],
                                   multi=True,
                                   placeholder="Select animal...",
                                   style={'width': '350px', 'margin-bottom': '20px'}
@@ -1360,7 +1353,7 @@ def build_dashboard_layout():
                             options=[
                                 {'label': 'Enabled', 'value': 'cubic'}
                             ],
-                            values=['cubic'],
+                            value=['cubic'],
                             style={'margin-top': '-50px', 'height': '20px', 'min-width': '100px', 'margin-left': '0px',
                                    'color': 'white',
                                    'font-weight': 'bold', 'display': 'inline-block'}
@@ -1377,10 +1370,10 @@ def build_dashboard_layout():
                         dcc.Checklist(
                             id='normalize',
                             options=[
-                                {'label': 'Ascomb', 'value': 'Ascomb'},
+                                {'label': 'Anscombe', 'value': 'Anscombe'},
                                 {'label': 'HMean', 'value': 'HMeanDiff'}
                             ],
-                            values=['Ascomb'],
+                            value=['HMeanDiff', 'Anscombe'],
                             labelStyle={'display': 'inline-block'},
                             style={'margin-top': '-50px', 'margin-left': '0px',
                                    'color': 'white',
@@ -1440,7 +1433,7 @@ def build_dashboard_layout():
                             options=[
                                 {'label': 'Enabled', 'value': 'enabled'}
                             ],
-                            values=['enabled'],
+                            value=['enabled'],
                             style={'margin-top': '-50px', 'height': '20px', 'min-width': '100px', 'margin-left': '0px',
                                    'color': 'white',
                                    'font-weight': 'bold', 'display': 'inline-block'}
@@ -1459,7 +1452,7 @@ def build_dashboard_layout():
                             options=[
                                 {'label': 'Enabled', 'value': 'enabled'}
                             ],
-                            values=['enabled'],
+                            value=['enabled'],
                             style={'margin-top': '-50px', 'height': '20px', 'min-width': '100px', 'margin-left': '0px',
                                    'color': 'white',
                                    'font-weight': 'bold', 'display': 'inline-block'}
@@ -1478,7 +1471,7 @@ def build_dashboard_layout():
                             options=[
                                 {'label': 'on', 'value': 'enabled'}
                             ],
-                            values=['enabled'],
+                            value=['enabled'],
                             style={'margin-top': '-50px', 'height': '20px', 'min-width': '10px', 'margin-left': '0px',
                                    'color': 'white',
                                    'font-weight': 'bold', 'display': 'inline-block'}
@@ -1754,9 +1747,9 @@ if __name__ == '__main__':
     con = False
     farm_array = []
 
-    if sys.argv[3] == 'h5':
-        h5_files_in_data_directory = glob.glob("%s\*.h5" % sys.argv[1])
-        json_files_in_data_directory = glob.glob("%s\*.json" % sys.argv[2])
+    if 'sql' == 'h5':
+        h5_files_in_data_directory = glob.glob("\*.h5")
+        json_files_in_data_directory = glob.glob("\*.json")
         print(h5_files_in_data_directory)
         print(json_files_in_data_directory)
         for s in h5_files_in_data_directory:
@@ -1764,7 +1757,7 @@ if __name__ == '__main__':
             farm_name = split[len(split) - 1]
             farm_array.append({'label': str(farm_name), 'value': farm_name})
 
-    if sys.argv[3] == 'sql':
+    if 'sql' == 'sql':
         db_server_name = "localhost"
         db_user = "axel"
         db_password = "Mojjo@2015"
@@ -1889,8 +1882,8 @@ if __name__ == '__main__':
     def clean_data(farm_id):
         if farm_id is not None:
             print("saving data in hidden div...")
-            path = sys.argv[1] + "\\" + farm_id
-            if sys.argv[3] == 'h5':
+            path = farm_id
+            if 'sql' == 'h5':
                 h5 = tables.open_file(path, "r")
                 serial_numbers = list(set([(x['serial_number']) for x in h5.root.resolution_month.data.iterrows()]))
                 print(serial_numbers)
@@ -1902,7 +1895,7 @@ if __name__ == '__main__':
                     map[serial_number] = len([x['signal_strength_min'] for x in h5.root.resolution_hour.data if
                                               x['serial_number'] == serial_number])
 
-            if sys.argv[3] == 'sql':
+            if 'sql' == 'sql':
                 serial_numbers_rows = execute_sql_query("SELECT DISTINCT(serial_number) FROM %s_resolution_month" % farm_id)
                 serial_numbers = [x['serial_number'] for x in serial_numbers_rows]
                 print("getting data in file...")
@@ -1920,22 +1913,24 @@ if __name__ == '__main__':
 
             sorted_serial_numbers.reverse()
             f_id = farm_id.split('.')[0]
-            path_json = sys.argv[2] + "\\" + f_id + ".json"
+            path_json = f_id + "_famacha_data.json"
             famacha_data = {}
 
             try:
-                with open(path_json) as f:
+                with open(os.path.join(__location__, path_json)) as f:
                     famacha_data = json.load(f)
             except FileNotFoundError as e:
                 print(e)
+                print(os.path.join(__location__, path_json))
 
-            path_json_weather = sys.argv[2] + "\\" + f_id.split('_')[0] + "_weather.json"
+            path_json_weather = f_id.split('_')[0] + "_weather.json"
             weather_data = {}
             try:
-                with open(path_json_weather) as f_w:
+                with open(os.path.join(__location__, path_json_weather)) as f_w:
                     weather_data = json.load(f_w)
             except FileNotFoundError as e:
                 print(e)
+                os.path.join(__location__, path_json_weather)
 
             data = {'serial_numbers': sorted_serial_numbers, 'file_path': path, 'farm_id': farm_id,
                     'famacha': famacha_data, 'weather': weather_data}
@@ -1974,14 +1969,14 @@ if __name__ == '__main__':
                         s_array.append({'label': str(serial), 'value': serial})
             return s_array
         else:
-            return [{}]
+            return [{'label': 'empty', 'value': 'empty'}]
 
     @app.callback(
         Output('figure-data', 'children'),
         [Input('serial-number-dropdown', 'value'),
          Input('intermediate-value', 'children'),
-         Input('normalize', 'values'),
-         Input('cubic-interpolation', 'values'),
+         Input('normalize', 'value'),
+         Input('cubic-interpolation', 'value'),
          Input('relayout-data', 'children'),
          Input('activity-mean-value', 'children')
          ])
@@ -2003,7 +1998,7 @@ if __name__ == '__main__':
         Output('activity-mean-value', 'children'),
         [Input('farm-dropdown', 'value'),
          Input('relayout-data', 'children'),
-         Input('normalize', 'values')])
+         Input('normalize', 'value')])
     def update_figure(farm_id, relayout_data, normalize):
         print(farm_id)
 
@@ -2026,8 +2021,8 @@ if __name__ == '__main__':
                     (farm_id, resolution_string, 50000000000))
 
             activity_m = [(x['first_sensor_value']) for x in rows_mean]
-            if 'Ascomb' in normalize:
-                activity_m = normalize_activity_array_ascomb(activity_m)
+            # if 'Anscombe' in normalize:
+            #     activity_m = normalize_activity_array_anscomb(activity_m)
 
             if len(activity_m) > 0:
                 return json.dumps(activity_m, cls=plotly.utils.PlotlyJSONEncoder)
@@ -2036,10 +2031,10 @@ if __name__ == '__main__':
     @app.callback(
         Output('figure-data-herd', 'children'),
         [Input('intermediate-value', 'children'),
-         Input('cubic-interpolation', 'values'),
+         Input('cubic-interpolation', 'value'),
          Input('serial-number-dropdown', 'value'),
          Input('relayout-data', 'children'),
-         Input('normalize', 'values'),
+         Input('normalize', 'value'),
          Input('activity-mean-value', 'children')])
     def update_figure(intermediate_value, cubic_interp, selected_seial_number, relayout_data, normalize, activity_mean):
         global sql_db
@@ -2189,7 +2184,7 @@ if __name__ == '__main__':
     @app.callback(
         Output('figure-data-spectogram', 'children'),
         [Input('figure-data', 'children'),
-         Input('cubic-interpolation', 'values'),
+         Input('cubic-interpolation', 'value'),
          Input('window-size-input', 'value'),
          Input('transform-radio', 'value'),
          Input('wavelet-radio', 'value'),
@@ -2220,9 +2215,9 @@ if __name__ == '__main__':
         [Input('serial-number-dropdown', 'value'),
          Input('intermediate-value', 'children'),
          Input('relayout-data', 'children'),
-         Input('temperature', 'values'),
-         Input('humidity', 'values'),
-         Input('signal_strength', 'values')])
+         Input('temperature', 'value'),
+         Input('humidity', 'value'),
+         Input('signal_strength', 'value')])
     def update_figure(selected_serial_number, intermediate_value, relayout_data, temperature, humidity, signal_strength):
         print("start thread_signal...")
         p = Process(target=thread_signal, args=(q_2, selected_serial_number, intermediate_value, relayout_data, temperature, humidity, signal_strength,))
@@ -2372,4 +2367,4 @@ if __name__ == '__main__':
                 return json.dumps(value, indent=2)
 
 
-    app.run_server(debug=True, use_reloader=False)
+    app.run_server(debug=False, use_reloader=False)

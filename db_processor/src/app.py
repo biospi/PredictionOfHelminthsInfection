@@ -31,6 +31,7 @@ from functools import partial
 from multiprocessing import Pool
 from openpyxl import load_workbook
 from pycel import ExcelCompiler
+import cryptography #need to be imported or pip install cryptography
 
 
 sql_db = None
@@ -55,7 +56,7 @@ class Animal2(IsDescription):
     first_sensor_value = Int32Col()
 
 
-def execute_sql_query(query, records=None, log_enabled=False):
+def execute_sql_query(query, records=None, log_enabled=True):
     try:
         global sql_db
         cursor = sql_db.cursor()
@@ -354,16 +355,16 @@ def format_farm_id(farm_id):
 
 def init_database(farm_id):
     print(sys.argv)
-    if sys.argv[1] == 'sql':
-        print("store data in sql database...")
-        create_sql_table("%s_resolution_min" % farm_id)
-        create_sql_table_("%s_resolution_5min" % farm_id)
-        create_sql_table_("%s_resolution_10min" % farm_id)
-        create_sql_table_("%s_resolution_month" % farm_id)
-        create_sql_table_("%s_resolution_week" % farm_id)
-        create_sql_table_("%s_resolution_day" % farm_id)
-        create_sql_table_("%s_resolution_hour" % farm_id)
-        return None, None, None, None, None, None, None
+
+    print("store data in sql database...")
+    create_sql_table("%s_resolution_min" % farm_id)
+    create_sql_table_("%s_resolution_5min" % farm_id)
+    create_sql_table_("%s_resolution_10min" % farm_id)
+    create_sql_table_("%s_resolution_month" % farm_id)
+    create_sql_table_("%s_resolution_week" % farm_id)
+    create_sql_table_("%s_resolution_day" % farm_id)
+    create_sql_table_("%s_resolution_hour" % farm_id)
+    return None, None, None, None, None, None, None
 
     if sys.argv[1] == 'h5':
         print("store data in h5 database...")
@@ -894,39 +895,39 @@ def process_raw_file(farm_id, data):
             data_resampled_5min.extend(r7)
     #save data in db
     print("saving data to db...")
-    if sys.argv[1] == 'sql':
-        insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
-        insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, create_mean_median_animal(data_resampled_month))
-        insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
-        insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, create_mean_median_animal(data_resampled_week))
-        insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
-        insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, create_mean_median_animal(data_resampled_day))
-        insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
-        insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, create_mean_median_animal(data_resampled_hour))
-        insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
-        insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, create_mean_median_animal(data_resampled_10min))
-        insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
-        insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, create_mean_median_animal(data_resampled_5min))
-        insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
-        insert_m_record_to_sql_table("%s_resolution_min" % farm_id, create_mean_median_animal_(data_resampled_min))
-        create_indexes(farm_id)
-        sql_db_flush()
 
-    if sys.argv[1] == 'h5':
-        table_m.append(data_resampled_month)
-        table_w.append(data_resampled_week)
-        table_d.append(data_resampled_day)
-        table_h.append(data_resampled_hour)
-        table_min.append(data_resampled_min)
-        table_10min.append(data_resampled_min)
-        table_5min.append(data_resampled_min)
-        table_m.flush()
-        table_w.flush()
-        table_d.flush()
-        table_h.flush()
-        table_min.flush()
-        table_10min.flush()
-        table_5min.flush()
+    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
+    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, create_mean_median_animal(data_resampled_month))
+    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
+    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, create_mean_median_animal(data_resampled_week))
+    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
+    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, create_mean_median_animal(data_resampled_day))
+    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
+    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, create_mean_median_animal(data_resampled_hour))
+    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
+    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, create_mean_median_animal(data_resampled_10min))
+    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
+    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, create_mean_median_animal(data_resampled_5min))
+    insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
+    insert_m_record_to_sql_table("%s_resolution_min" % farm_id, create_mean_median_animal_(data_resampled_min))
+    create_indexes(farm_id)
+    sql_db_flush()
+
+    # if sys.argv[1] == 'h5':
+    #     table_m.append(data_resampled_month)
+    #     table_w.append(data_resampled_week)
+    #     table_d.append(data_resampled_day)
+    #     table_h.append(data_resampled_hour)
+    #     table_min.append(data_resampled_min)
+    #     table_10min.append(data_resampled_min)
+    #     table_5min.append(data_resampled_min)
+    #     table_m.flush()
+    #     table_w.flush()
+    #     table_d.flush()
+    #     table_h.flush()
+    #     table_min.flush()
+    #     table_10min.flush()
+    #     table_5min.flush()
 
     print(len(data_resampled_min), len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour), len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
     print(get_elapsed_time_string(start_time, time.time()))
@@ -1071,10 +1072,9 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
 if __name__ == '__main__':
     # generate_raw_files_from_xlsx("C:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas_debug.h5")
-    if sys.argv[1] == 'sql':
-        print("start...")
-        db_name = "south_africa66"
-        create_and_connect_to_sql_db(db_name)
-        drop_all_tables(db_name)
+    print("start...")
+    db_name = "south_africa"
+    create_and_connect_to_sql_db(db_name)
+    drop_all_tables(db_name)
 
     process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")
