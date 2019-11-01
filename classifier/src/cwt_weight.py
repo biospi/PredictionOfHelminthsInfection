@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -19,9 +21,12 @@ import eli5
 import pycwt as wavelet
 from pycwt.helpers import find
 from scipy.signal import chirp
+import time
+from sys import exit
 
 L = 0
 F = None
+
 def create_cwt_graph(coefs, freq, lenght, title=None):
     # time = [x for x in range(0, lenght)]
     plt.matshow(coefs)
@@ -42,8 +47,8 @@ def interpolate(input_activity):
     try:
         i = np.array(input_activity, dtype=np.float)
         s = pd.Series(i)
-        s = s.interpolate(method='cubic', limit_direction='both')
         s = s.interpolate(method='linear', limit_direction='both')
+        # s = s.interpolate(method='spline', limit_direction='both')
         return s.tolist()
     except ValueError as e:
         print(e)
@@ -74,35 +79,52 @@ def dummy_sin():
 
 
 def compute_cwt(activity):
+    w = pywt.ContinuousWavelet('morl')
+    scales = even_list(40)
+    sampling_frequency = 1 / 60
+    sampling_period = 1 / sampling_frequency
+    activity_i = interpolate(activity)
+    coef, freqs = pywt.cwt(np.asarray(activity_i), scales, w, sampling_period=sampling_period)
+    cwt = [element for tupl in coef for element in tupl]
+    indexes = np.asarray(list(range(coef.shape[1])))
+    return cwt, coef, freqs, indexes, scales, 1, 'morlet'
+
+
+def compute_cwt_hd(activity):
     print("compute_cwt...")
     # t, activity = dummy_sin()
     num_steps = len(activity)
     x = np.arange(num_steps)
     y = activity
+    y = interpolate(y)
 
     delta_t = x[1] - x[0]
     scales = np.arange(1, num_steps + 1)/1
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     wavelet_type = 'morlet'
 
+    # y = [0 if x is np.nan else x for x in y] #todo fix
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
 
+    # print("*********************************************")
+    # print(y)
+    # print(coefs)
+    # print("*******************************************")
     # iwave = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
     # plt.plot(iwave)
     # plt.show()
     # plt.plot(activity)
     # plt.show()
     #
-    # plt.matshow(coefs.real)
+    # plt.matshow((coefs.real))
     # plt.show()
     # exit()
     cwt = [element for tupl in coefs.real for element in tupl]
-    indexes = list(range(len(cwt)))
-    indexes.reverse()
+    indexes = np.asarray(list(range(len(coefs.real))))
     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type
 
 
-def start(fname=''):
+def start(fname='', herd_data=None):
     print("loading dataset...")
     # print(fname)
     data_frame = pd.read_csv(fname, sep=",", header=None)
@@ -115,40 +137,135 @@ def start(fname=''):
     hearder[-2] = "date2"
     hearder[-1] = "serial"
     data_frame.columns = hearder
+    data_frame_0 = data_frame
     data_frame = data_frame.loc[:, :'class']
     np.random.seed(0)
     data_frame = data_frame.sample(frac=1).reset_index(drop=True)
-    data_frame = data_frame.fillna(-1)
+    # data_frame = data_frame.fillna(-1)
     data_frame = shuffle(data_frame)
     data_frame['class'] = data_frame['class'].map({True: 1, False: 0})
-    process(data_frame)
+    process(data_frame, data_frame_0, herd_data)
 
+
+def mean(a):
+    return sum(a) / len(a)
+
+
+def interpolate_(array):
+    nans, x = nan_helper(array)
+    array[nans] = np.interp(x(nans), x(~nans), array[~nans])
+    return array
+
+
+def to_list_of_nparray(l):
+    result = []
+    for array in l:
+        array = np.asarray(array, dtype=np.float16)
+        array = interpolate(array)
+        result.append(array)
+
+    return result
+
+
+def nan_helper(y):
+    return np.isnan(y), lambda z: z.nonzero()[0]
+
+
+def contains_negative(list):
+    for v in list:
+        if v is None:
+            continue
+        if v < 0:
+            print("negative number found!", v)
+            exit()
+            return True
+    return False
+
+
+def purge_file(filename):
+    print("purge %s..." % filename)
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        print("file not found.")
 
 data = []
-def process_data_frame(data_frame):
-    data_frame = data_frame.fillna(-1)
+def process_data_frame(data_frame, data_frame_0, herd_data):
+    # data_frame = data_frame.fillna(-1)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    X_date = data_frame_0[data_frame_0.columns[data_frame_0.shape[1] - 4:data_frame_0.shape[1]]].values
     cwt_list = []
     class0 = []
     class1 = []
-    for i, activity in enumerate(X):
-        print("%d/%d ..." % (i, len(X)))
-        cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
-        data.append({'coef': coefs, 'freqs': freqs, 'shape': activity.shape[0], 'title': str(i)})
-        # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
-        cwt_list.append(cwt)
-        target = data_frame.at[i, 'class']
-        if target == 0:
-            class0.append(activity)
-        if target == 1:
-            class1.append(activity)
+
+    herd_mean = np.average(herd_data, axis=0)
+    herd_mean = interpolate(herd_mean)
+    cwt_herd, coefs_herd_mean, _, _, _, _, _ = compute_cwt(herd_mean)
+
+    # herd_mean = minmax_scale(herd_mean, feature_range=(0, 1))
+    out_fname = 'cwt_.data'
+    purge_file(out_fname)
+    with open(out_fname, 'a') as outfile:
+        for i, activity in enumerate(X):
+            activity = interpolate(activity)
+            activity = np.asarray(activity)
+
+            # activity = minmax_scale(activity, feature_range=(0, 1))
+            if 'div' in out_fname:
+                activity = np.divide(activity, herd_mean)
+            if 'sub' in out_fname:
+                activity = np.subtract(activity, herd_mean)
+            # activity[activity == np.inf] = np.nan
+            # activity = interpolate(activity)
+
+            print("%d/%d ..." % (i, len(X)))
+            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+
+            data.append({'indexes': indexes, 'coef': coefs, 'freqs': freqs, 'shape': activity.shape[0], 'title': str(i)})
+            # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
+
+            cwt_list.append(cwt)
+            target = data_frame.at[i, 'class']
+
+            label = 'False'
+            if target == 0:
+                class0.append(activity)
+            if target == 1:
+                label = 'True'
+                class1.append(activity)
+
+            training_str_flatten = str(coefs.shape).strip('()')+','+str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN')+','+label+','+str(X_date[i].tolist()).replace('\'','').strip('[]').replace(' ','')
+
+            print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-50:]))
+
+            outfile.write(training_str_flatten)
+            outfile.write('\n')
+
 
     class0_mean = np.average(class0, axis=0)
-    class1_mean = np.average(class1, axis=0)
+    # class0_mean[class0_mean == 0] = np.nan
+    # class0_mean = interpolate(class0_mean)
 
+    class1_mean = np.average(class1, axis=0)
+    # class1_mean[class1_mean == 0] = np.nan
+    # class1_mean = interpolate(class1_mean)
+
+    # print("***********************")
+    # print(herd_data)
+    # print("***********************")
+    # print(herd_mean)
+    print("***********************")
+
+    # plt.plot(herd_mean)
+    # plt.show()
     # plt.plot(class0_mean)
     # plt.show()
     # plt.plot(class1_mean)
+    # plt.show()
+    #
+    #
+    # plt.yscale('log')
+    # plt.matshow(coefs_herd_mean)
     # plt.show()
 
     _, coefs_class0_mean, _, _, _, _, _ = compute_cwt(class0_mean)
@@ -157,15 +274,13 @@ def process_data_frame(data_frame):
     _, coefs_class1_mean, _, _, _, _, _ = compute_cwt(class1_mean)
     # plt.matshow(coefs_class1_mean)
     # plt.show()
-    #
-    # exit()
 
     X = pd.DataFrame.from_records(cwt_list)
-
+    # print(X)
     y = data_frame["class"].values.flatten()
     # X = normalize(X)
     # X = preprocessing.MinMaxScaler().fit_transform(X)
-    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean
+    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname
 
 
 def plot_coefficients(classifier, feature_names, top_features=20):
@@ -205,9 +320,10 @@ def normalized(v):
     return v / np.sqrt(np.sum(v**2))
 
 
-def process(data_frame):
+def process(data_frame, data_frame_0, herd):
     print("process...")
-    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean = process_data_frame(data_frame)
+    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean,\
+    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname= process_data_frame(data_frame, data_frame_0, herd)
     print("train_test_split...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
@@ -220,9 +336,9 @@ def process(data_frame):
     # result = class_feature_importance(X.values, y, clf.coef_[0])
     print("explain_prediction...")
     aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, X[0], top=X.shape[1])
-
     aux1 = eli5.format_as_dataframe(aux1)
-
+    print("********************************")
+    print(aux1)
     class0 = aux1[aux1.target == 0]
     class1 = aux1[aux1.target == 1]
 
@@ -238,170 +354,93 @@ def process(data_frame):
     class0 = class0.sort_values('feature')
     class1 = class1.sort_values('feature')
 
-    value0 = class0['value'].values
+    #value0 = class0['value'].values
     weight0 = class0['weight'].values
 
-    value1 = class1['value'].values
+    #value1 = class1['value'].values
     weight1 = class1['weight'].values
 
-    value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    #value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight0 = pad(weight0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
-    value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    #value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight1 = pad(weight1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
 
-    fig, axs = plt.subplots(6, 2)
+    fig, axs = plt.subplots(5, 2)
     fig.set_size_inches(25, 25)
+    outfile = 'SVC_%s.png' % out_fname.split('.')[0]
+    axs[0, 0].set_title(outfile, fontsize=25, loc="left", pad=30)
 
+    ymin = min([min(class0_mean), min(class1_mean)])
+    ymax = max([max(class0_mean), max(class1_mean), max(herd_mean)])
 
-    c = np.reshape(value0, data[0]['coef'].shape)
-    axs[5, 0].set_yscale('log')
-    axs[5, 0].matshow(c)
-    axs[5, 0].set_title('mean cwt input')
-    iwave_m = wavelet.icwt(c, scales, delta_t, wavelet=wavelet_type)
-    iwave_m = minmax_scale(np.real(iwave_m), feature_range=(-1, 1))
-
-    axs[5, 1].plot(iwave_m)
-    axs[5, 1].set_title('mean time input')
-
+    axs[0, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_class0_mean)
     axs[0, 0].set_yscale('log')
-    axs[0, 0].matshow(coefs_class0_mean)
     axs[0, 0].set_title('class0 cwt input')
-    iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
-    iwave = minmax_scale(np.real(iwave), feature_range=(-1, 1))
-    axs[0, 1].plot(iwave)
+    # iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
+    # iwave = np.real(iwave)
+    axs[0, 1].plot(class0_mean)
+    axs[0, 1].set_ylim([ymin, ymax])
     axs[0, 1].set_title('class0 time input')
 
-    c = np.reshape(normalized(weight0), data[0]['coef'].shape)
+    axs[1, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_class1_mean)
     axs[1, 0].set_yscale('log')
-    axs[1, 0].matshow(c)
-    axs[1, 0].set_title('class0 cwt weight')
-    iwave = wavelet.icwt(c, scales, delta_t, wavelet=wavelet_type)
-    iwave = minmax_scale(np.real(iwave), feature_range=(-1, 1))
-    axs[1, 1].plot(iwave)
-    axs[1, 1].set_title('class0 cwt weight inverse')
+    axs[1, 0].set_title('class1 cwt input')
+    # iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
+    # iwave = np.real(iwave)
+    axs[1, 1].plot(class1_mean)
+    axs[1, 1].set_ylim([ymin, ymax])
+    axs[1, 1].set_title('class1 time input')
 
+
+    c0 = np.reshape(normalized(weight0), data[0]['coef'].shape)
+    iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
+    iwave0 = np.real(iwave0)
+
+    c1 = np.reshape(normalized(weight1), data[0]['coef'].shape)
+    iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
+    iwave1 = np.real(iwave1)
+
+    ymin = min([min(iwave0), min(iwave1)])
+    ymax = max([max(iwave0), max(iwave1)])
+
+    axs[2, 0].pcolor(data[0]['indexes'], data[0]['freqs'], c0)
     axs[2, 0].set_yscale('log')
-    axs[2, 0].matshow(coefs_class1_mean)
-    axs[2, 0].set_title('class1 cwt input')
-    iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
-    iwave = minmax_scale(np.real(iwave), feature_range=(-1, 1))
-    axs[2, 1].plot(iwave)
-    axs[2, 1].set_title('class1 time input')
-    c = np.reshape(normalized(weight1), data[0]['coef'].shape)
+    axs[2, 0].set_title('class0 cwt weight')
+    axs[2, 1].plot(iwave0)
+    axs[2, 1].set_ylim([ymin, ymax])
+    axs[2, 1].set_title('class0 cwt weight inverse')
 
+    axs[3, 0].pcolor(data[0]['indexes'], data[0]['freqs'], c1)
     axs[3, 0].set_yscale('log')
-    axs[3, 0].matshow(c)
     axs[3, 0].set_title('class1 cwt weight')
-    iwave = wavelet.icwt(c, scales, delta_t, wavelet=wavelet_type)
-    iwave = minmax_scale(np.real(iwave), feature_range=(-1, 1))
-    axs[3, 1].plot(iwave)
+    axs[3, 1].plot(iwave1)
+    axs[3, 1].set_ylim([ymin, ymax])
     axs[3, 1].set_title('class1 cwt weight inverse')
 
-    c = np.reshape(coefs_class1_mean-coefs_class0_mean, data[0]['coef'].shape)
+
+    axs[4, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_herd_mean)
+    # Set yscale, ylim and labels
     axs[4, 0].set_yscale('log')
-    axs[4, 0].matshow(c)
-    axs[4, 0].set_title('diff')
-    iwave = wavelet.icwt(c, scales, delta_t, wavelet=wavelet_type)
-    iwave = minmax_scale(np.real(iwave), feature_range=(-1, 1))
-    axs[4, 1].plot(iwave)
-    axs[4, 1].set_title('diff')
-
-
+    axs[4, 0].set_title('mean cwt input')
+    # iwave_m = wavelet.icwt(coefs_herd_mean, scales, delta_t, wavelet=wavelet_type)
+    # iwave_m = np.real(iwave_m)
+    axs[4, 1].plot(herd_mean)
+    axs[4, 1].set_title('mean time input')
 
     # for ax in axs.flat:
     #     ax.label_outer()
 
-    fig.suptitle('SVC')
-
     fig.show()
-    fig.savefig('SVC8.png', dpi=100)
+    # outfile = 'SVC_%s.png' % str(time.time()).split('.')[0]
+    fig.savefig('0_'+outfile, dpi=100)
     exit()
 
-    # class_true_coef = list(result[True].values())
-    # class_false_coef = list(result[False].values())
-    # print(class_false_coef)
-    # print(class_true_coef)
-
-    # class_true_coef = np.reshape(class_true_coef, data[0]['coef'].shape)
-    # class_false_coef = np.reshape(class_false_coef, data[0]['coef'].shape)
-
-    # df_true = pd.DataFrame.from_records(class_true_coef)
-    # df_true = normalize(df)
-    # df_true = preprocessing.MinMaxScaler().fit_transform(df_true)
-    # plt.pcolor(class_true_coef)
-    # plt.show()
-
-    # df_false = pd.DataFrame.from_records(class_false_coef)
-    # df_true = normalize(df)
-    # df_false = preprocessing.MinMaxScaler().fit_transform(df_false)
-    # plt.pcolor(class_false_coef)
-    # plt.show()
-
-    # plot_coefficients(clf, features_name)
-    y_pred = clf.predict(X_test)
-
-    for i, item in enumerate(data):
-        create_cwt_graph(item['coef'], item['freqs'], item['shape'], title=item['title'])
-
-        # contributions = clf.coef_.reshape(item['coef'].flatten().shape)
-        # contributions = np.reshape(contributions, item['coef'].shape)
-        w = clf.coef_*1
-        shape = item['coef'].shape
-        contributions = np.reshape(w, shape)
-        inverse_cwt(contributions)
-
-        df = pd.DataFrame.from_records(contributions)
-
-        df = normalize(df)
-        # df = preprocessing.MinMaxScaler().fit_transform(df)
-
-        plt.pcolor(df)
-        # plt.yticks(np.arange(0.5, len(df.index), 1), df.index)
-        # plt.xticks(np.arange(0.5, len(df.columns), 1), df.columns)
-        plt.show()
-
-
-        # create_cwt_graph(contributions, item['freqs'], item['shape'], title=item['title']+'_w')
-        break
-
-        # feature_number = np.arange(len(contributions)) + 1
-        # plt.bar(feature_number, contributions, align='center')
-        # plt.xlabel('feature index')
-        # plt.ylabel('score contribution')
-        # plt.title('contribution to classification outcome by feature index')
-        # plt.show()
-
-
-    acc = accuracy_score(y_test, y_pred)
-    print(acc)
 
 
 if __name__ == '__main__':
-    # from sklearn import datasets
-    # from sklearn.model_selection import train_test_split
-    # from sklearn.tree import DecisionTreeClassifier
-    # from sklearn.ensemble import (ExtraTreesClassifier, RandomForestClassifier,
-    #                               AdaBoostClassifier, GradientBoostingClassifier)
-    # import eli5
-    #
-    # iris = datasets.load_iris()  # sample data
-    #compute_cwt
-    #
-    # X, y = iris.data[0:100], iris.target[0:100]
-    # # split into training and test
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     X, y, test_size=0.33, random_state=0)
-    #
-    # # fit the model on the training set
-    # # model = DecisionTreeClassifier(random_state=0)
-    # model = LDA(n_components=2)
-    #
-    # model.fit(X_train, y_train)
-    #
-    # aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(model, X[0], top=X.shape[1])
-    #
-    # aux1 = eli5.format_as_dataframe(aux1)
-    # print(aux1)
-    # exit()
-    start(fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/resolution_10min_days_5_div/training_sets/activity_.data")
+    dir = 'C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/resolution_10min_days_6/'
+    with open("%s/herd_activity.json" % dir, "r") as read_file:
+        herd_data = json.load(read_file)
+
+    start(fname="%s/training_sets/activity_.data" % dir, herd_data=to_list_of_nparray(herd_data['herd_activity']))
     # start(fname="C:/Users/fo18103/PycharmProjects/training_data_generator/src/resolution_10min_days_6/training_sets/cwt_.data")

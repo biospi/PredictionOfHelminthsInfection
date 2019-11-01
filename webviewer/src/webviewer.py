@@ -459,7 +459,7 @@ def get_resolution_string(value):
 
 def anscombe(value):
     try:
-        return 2 * math.sqrt(value + (3 / 8))
+        return math.log(2 * math.sqrt(value + (3 / 8)))
     except TypeError as e:
         print(e)
 
@@ -725,10 +725,10 @@ def normalize_histogram_mean_diff(activity_mean, activity, flag=False, serial=No
             continue
         if activity_mean[n] is None:
             continue
-        r = (int(activity_mean[n]) / int(a))
+        r = (int(activity_mean[n]) - int(a))
         scale[n] = r
         idx.append(n)
-    median = statistics.median(sorted(set(scale)))
+    median = math.fabs(statistics.median(sorted(set(scale))))
     #print(scale)
     for i in idx:
         activity[i] = activity[i] * median
@@ -793,12 +793,15 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
             # print(activity_s)
             # activity = activity_s
 
+            if 'Anscombe' in normalize:
+                activity = [anscombe(x) if x is not None else None for x in activity]
+                activity_mean_l = [anscombe(x) if x is not None else None for x in activity_mean_l]
+
             if 'HMeanDiff' in normalize:
                 activity = normalize_histogram_mean_diff(activity_mean_l, activity, True, i)
             # activity, _ = compute_histogram(interpolate(activity))
 
-            if 'Anscombe' in normalize:
-                activity = [anscombe(x) if x is not None else None for x in activity]
+
 
             time = [(x[0]) for x in data]
 

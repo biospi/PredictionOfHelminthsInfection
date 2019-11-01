@@ -24,26 +24,46 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import normalize
 from sklearn.svm import SVC
 from sklearn.utils import shuffle
-import plotly.plotly as py
-import plotly.graph_objs as go
-import plotly.offline as py
-import plotly.tools as tls
-from IPython.display import display
-import plotly
-from sklearn.linear_model import LogisticRegression
+# import plotly.plotly as py
+# import plotly.graph_objs as go
+# import plotly.offline as py
+# import plotly.tools as tls
+# from IPython.display import display
+# import plotly
+# from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import recall_score
 from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
+from sys import exit
 
 import os
-os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.0' #path to your R installation
+os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1' #path to your R installation
 os.environ['R_USER'] = 'C:\\Users\\fo18103\\AppData\\Local\Continuum\\anaconda3\Lib\site-packages\\rpy2' #path depends on where you installed Python. Mine is the Anaconda distribution
 
 import rpy2
 import rpy2.robjects as robjects
-from rpy2.robjects.packages import importr
+from rpy2.robjects.packages import importr, isinstalled
+utils = importr('utils')
 R = robjects.r
+
+#need to be installed from Rstudio or other package installer
+print('e1071', isinstalled('e1071'))
+print('rgl', isinstalled('rgl'))
+print('misc3d', isinstalled('misc3d'))
+print('plot3D', isinstalled('plot3D'))
+print('plot3Drgl', isinstalled('plot3Drgl'))
+
+if not isinstalled('e1071'):
+    utils.install_packages('e1071')
+if not isinstalled('rgl'):
+    utils.install_packages('rgl')
+if not isinstalled('misc3d'):
+    utils.install_packages('misc3d')
+if not isinstalled('plot3D'):
+    utils.install_packages('plot3D')
+if not isinstalled('plot3Drgl'):
+    utils.install_packages('plot3Drgl')
 
 e1071 = importr('e1071')
 rgl = importr('rgl')
@@ -53,15 +73,12 @@ plot3Drgl = importr('plot3Drgl')
 
 print(rpy2.__version__)
 
-
 warnings.filterwarnings('ignore')
 
 pd.set_option('display.max_columns', 10)
 pd.set_option('display.max_rows', 10)
 pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
-
-
 
 
 def even_list(n):
@@ -119,6 +136,8 @@ def process_data_frame(data_frame):
     cwt_shape = data_frame[data_frame.columns[0:2]].values
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]].values
 
+    print(X)
+
     # for x in X:
     #     cwt = x.reshape(cwt_shape[0])
     #     print(cwt)
@@ -169,7 +188,7 @@ def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0):
                           contourf_kwargs=contourf_kwargs,
                           scatter_highlight_kwargs=scatter_highlight_kwargs)
     plt.title(title)
-    # plt.savefig('%d' % i)
+    plt.savefig('_0_%s.png' % title.split(' ')[0].replace('.',''))
     plt.show()
     plt.close()
 
@@ -209,15 +228,15 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
                 }
               i <- i + 1
             }
-            
+
             x_1 = as.numeric(x_1)
             y_1 = as.numeric(y_1)
             z_1 = as.numeric(z_1)
-            
+
             x_2 = as.numeric(x_2)
             y_2 = as.numeric(y_2)
             z_2 = as.numeric(z_2)
-            
+
 
             j <- 1
             g_test = test_x_$class
@@ -237,24 +256,24 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
                 y_2_test <- append(y_2_test, y_test[j])
                 z_2_test <- append(z_2_test, z_test[j])
               }
-              
+
               j <- j + 1
             }
-            
+
             x_1_test = as.numeric(x_1_test)
             y_1_test = as.numeric(y_1_test)
             z_1_test = as.numeric(z_1_test)
-            
+
             x_2_test = as.numeric(x_2_test)
             y_2_test = as.numeric(y_2_test)
             z_2_test = as.numeric(z_2_test)
-            
+
             pch3d(x_2, y_2, z_2, pch = 24, bg = "#f19c51", color = "#f19c51", radius=0.4, alpha = 0.8)
             pch3d(x_1, y_1, z_1, pch = 22, bg = "#6297bb", color = '#6297bb', radius=0.4, alpha = 1)
-            
+
             pch3d(x_1_test, y_1_test, z_1_test, pch = 22, bg = "#6297bb", color = 'red', radius=0.4, alpha = 0.8)
             pch3d(x_2_test, y_2_test, z_2_test, pch = 24, bg = "#f19c51", color = "red", radius=0.4, alpha = 1)
-            
+
             newdat.list = lapply(test_x_[,-1], function(x) seq(min(x), max(x), len=nnew))
             newdat      = expand.grid(newdat.list)
             newdat.pred = predict(fit, newdata=newdat, decision.values=T)
@@ -265,7 +284,7 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
                                     0.516127586364746, 0, 0.526208400726318, 0.17674557864666, 
                                     -0.831783592700958, 0, -0.00582099659368396, 0.978886127471924, 
                                     0.20432074368, 0, 0, 0, 0, 1)))
-            
+
             decorate3d(box=F, axes = T, xlab = '', ylab='', zlab='', aspect = FALSE, expand = 1.03)
             light3d(diffuse = "gray", specular = "gray")
             contour3d(newdat.dv, level=0, x=newdat.list$X1, y=newdat.list$X2, z=newdat.list$X3, add=T, alpha=0.8, plot=T, smooth = 200, color='#28b99d', color2='#28b99d')
@@ -292,21 +311,23 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
     probability_ = clf.estimator.probability
 
     df = pd.DataFrame(train_x)
-    df.insert(loc=0, column='group', value=train_y+1)
+    df.insert(loc=0, column='group', value=train_y + 1)
     df.columns = ['group', 'X1', 'X2', 'X3']
     from rpy2.robjects import pandas2ri
     pandas2ri.activate()
     r_dataframe = pandas2ri.py2ri(df)
 
     df_test = pd.DataFrame(test_x)
-    df_test.insert(loc=0, column='class', value=test_y+1)
+    df_test.insert(loc=0, column='class', value=test_y + 1)
     df_test.columns = ['class', 'X1', 'X2', 'X3']
     r_dataframe_test = pandas2ri.py2ri(df_test)
 
-    plot3ddb(nnew, robjects.IntVector(train_y+1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
+    plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
              r_dataframe_test, True, title, 'E:/downloads/%d.png' % i)
 
     # input('hello')
+
+
 #     SPACE_SAMPLING_POINTS = train_x.shape[0]/3
 #     X_MIN = int(min(train_x[:, 0].tolist()))
 #     X_MAX = int(max(train_x[:, 0].tolist()))
@@ -372,7 +393,7 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
 #
 #
 def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
-    #lda implementation require 3 input class for 2d output and 4 input class for 3d output
+    # lda implementation require 3 input class for 2d output and 4 input class for 3d output
     if output_dim not in [2, 3]:
         raise ValueError("available dimension for features reduction are 2 and 3.")
     if output_dim == 3:
@@ -408,23 +429,23 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
 
     if dim_reduc is None:
         return X, y, X_train, X_test, y_train, y_test
-    
+
     if dim_reduc == 'LDA':
         X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
-    
+
     if dim_reduc == 'PCA':
         X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
 
     X_reduced = np.concatenate((X_train, X_test), axis=0)
     y_reduced = np.concatenate((y_train, y_test), axis=0)
 
-    X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = X_reduced[train_index], X_reduced[test_index], y_reduced[train_index], \
-                                                       y_reduced[test_index]
+    X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = X_reduced[train_index], X_reduced[test_index], \
+                                                                       y_reduced[train_index], \
+                                                                       y_reduced[test_index]
     return X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
 
 
 def process_fold2(n, X, y, dim_reduc=None):
-
     if dim_reduc is None:
         return X, y
 
@@ -439,7 +460,8 @@ def process_fold2(n, X, y, dim_reduc=None):
 
     return X_reduced, y_reduced
 
-def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None):
+
+def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None, fname=None):
     if clf_name not in ['SVC', 'MLP']:
         raise ValueError("available classifiers are SVC and MLP.")
 
@@ -466,11 +488,11 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None)
         return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, clf_name
 
     if hasattr(clf, "hidden_layer_sizes"):
-        clf_name = "%s%s" % (clf_name, str(clf.hidden_layer_sizes))
+        clf_name = "%s%s%s" % (clf_name, str(clf.hidden_layer_sizes), fname.split('/')[-1])
 
     title = '%s-%s %dD 10FCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\n' % (
-                clf_name, dim_reduc, dim, 0,
+                clf_name+'_'+fname.split('/')[-1], dim_reduc, dim, 0,
                 acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
                 np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                 np.count_nonzero(y_t == 0), np.count_nonzero(y_t == 1),
@@ -480,8 +502,8 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None)
     #     plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=0)
     #
     if dim == 2:
-        plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title, clf, i=0)
-
+        plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
+                                    clf, i=0)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -493,7 +515,8 @@ def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=Non
     if clf_name not in ['SVC', 'MLP']:
         raise ValueError("available classifiers are SVC and MLP.")
 
-    X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index, dim_reduc=dim_reduc)
+    X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+                                                                  dim_reduc=dim_reduc)
 
     clf.fit(X, y)
     # f_importances(clf.coef_.tolist()[0], [int(x) for x in range(0, clf.coef_.shape[1])], X_train)
@@ -516,18 +539,17 @@ def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=Non
 
     title = '%s-%s %dD 10FCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\n' % (
-        clf_name, dim_reduc, dim, i,
-        acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
-        np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
-        np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
-        np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
+                clf_name, dim_reduc, dim, i,
+                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
+                np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
+                np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
 
     if dim == 3:
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=i)
 
     if dim == 2:
         plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=i)
-
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -553,14 +575,14 @@ def f_importances(coef, names, X_train):
     plt.show()
 
 
-def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None):
+def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None):
     X, y = process_data_frame(data_frame)
     X_t, y_t = process_data_frame(df2)
 
     y = y.astype(int)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     kf.get_n_splits(X)
-    
+
     scores_2d, scores_3d, scores_full = [], [], []
     precision_false_2d, precision_false_3d, precision_false_full = [], [], []
     precision_true_2d, precision_true_3d, precision_true_full = [], [], []
@@ -583,17 +605,21 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None):
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
 
     # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
-    acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
+    acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(
+        X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
 
     # print(acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d)
-    print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d)
+    print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,
+          clf_name_2d)
 
     exit()
     for i, (train_index, test_index) in enumerate(kf.split(X)):
         print("%d/%d" % (i, fold))
         # acc_full, p_false_full, p_true_full, r_false_full, r_true_full, fs_false_full, fs_true_full, s_false_full, s_true_full, clf_name_full = compute_model(X, y, train_index, test_index, i, clf, clf_name=clf_name)
-        acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
-        acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, sr_2d = compute_model(X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
+        acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(
+            X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
+        acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, sr_2d = compute_model(
+            X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
 
         # scores_full.append(acc_full)
         # precision_false_full.append(p_false_full)
@@ -627,7 +653,8 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None):
         support_false_3d.append(s_false_3d)
         support_true_3d.append(s_true_3d)
 
-    print("svc %d fold cross validation 2d is %f, 3d is %s." % (fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
+    print("svc %d fold cross validation 2d is %f, 3d is %s." % (
+    fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
     # print(float(np.mean(acc_val_list)))
     result = {
         'fold': fold,
@@ -704,7 +731,7 @@ def start(fname=''):
     data_frame['date2'] = pd.to_datetime(data_frame['date2'], dayfirst=True)
     data_frame = data_frame.sort_values('date1', ascending=True)
     print(data_frame)
-    nrows = int(data_frame.shape[0]/2)
+    nrows = int(data_frame.shape[0] / 2)
     print(nrows)
     df1 = data_frame[:nrows]
     df2 = data_frame[nrows:]
@@ -726,10 +753,11 @@ def start(fname=''):
     class_2_count = data_frame['class'].value_counts().to_dict()[False]
     print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
     # process(df2, dim_reduc='LDA', clf_name='SVC', df2=df1)
-    process(df2, dim_reduc='LDA', clf_name='SVC', df2=df1)
+    process(df1, dim_reduc='LDA', clf_name='SVC', df2=df2, fname=fname)
+
 
 if __name__ == '__main__':
     # start()
     start(
-        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/resolution_10min_days_5_div/training_sets/cwt_.data")
+        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/cwt_.data")
     # start(fname="C:/Users/fo18103/PycharmProjects/training_data_generator/src/resolution_10min_days_6/training_sets/cwt_.data")
