@@ -7,12 +7,12 @@ import uuid
 import math
 from datetime import datetime, timedelta, time
 
-import numpy as np
-import openpyxl
-import tables
-from cassandra.cluster import Cluster
-from ipython_genutils.py3compat import xrange
-from tables import *
+# import numpy as np
+# import openpyxl
+# import tables
+# from cassandra.cluster import Cluster
+# from ipython_genutils.py3compat import xrange
+# from tables import *
 import os.path
 from collections import defaultdict
 import dateutil.relativedelta
@@ -29,9 +29,9 @@ from ipython_genutils.py3compat import xrange
 from tables import *
 from functools import partial
 from multiprocessing import Pool
-from openpyxl import load_workbook
-from pycel import ExcelCompiler
-import cryptography #need to be imported or pip install cryptography
+# from openpyxl import load_workbook
+# from pycel import ExcelCompiler
+# import cryptography #need to be imported or pip install cryptography
 
 
 sql_db = None
@@ -1071,10 +1071,15 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
 
 if __name__ == '__main__':
-    # generate_raw_files_from_xlsx("C:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas_debug.h5")
     print("start...")
-    db_name = "south_africa"
-    create_and_connect_to_sql_db(db_name)
-    drop_all_tables(db_name)
+    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "raw_data_bothaville_debug.h5")
+    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
+    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
+    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")
+    # db_name = "south_africa"
+    # create_and_connect_to_sql_db(db_name)
+    # # drop_all_tables(db_name)
+    #
+    # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")

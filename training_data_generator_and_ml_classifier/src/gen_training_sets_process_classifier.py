@@ -236,7 +236,11 @@ def anscombe_list(activity):
     return [anscombe(x) if x is not None else None for x in activity]
 
 
-def normalize_histogram_mean_diff(activity_mean, activity):
+def anscombe_log_list(activity):
+    return [math.log(anscombe(x)) if x is not None else None for x in activity]
+
+
+def normalize_histogram_mean_diff(activity_mean, activity, log=False):
     scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
@@ -244,7 +248,11 @@ def normalize_histogram_mean_diff(activity_mean, activity):
             continue
         if activity_mean[n] is None:
             continue
-        r = (int(activity_mean[n]) - int(a))
+        if log:
+            r = (int(activity_mean[n]) - int(a))
+        else:
+            r = (int(activity_mean[n]) / int(a))
+
         scale[n] = r
         idx.append(n)
     median = math.fabs(statistics.median(sorted(set(scale))))
@@ -299,10 +307,13 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         return
 
     # data_activity = normalize_activity_array_ascomb(data_activity)
+    herd_activity_list = anscombe_log_list(herd_activity_list)
+    activity_list = anscombe_log_list(activity_list)
+
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
-    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
+    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list, log=True)
 
     # print("mapping activity to famacha score progress=%d/%d ..." % (i, len(data_famacha_flattened)))
     idx = 0
@@ -339,8 +350,8 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     previous_famacha_score = get_previous_famacha_score(animal_id, famacha_test_date, data_famacha_dict, famacha_score)
     indexes.reverse()
 
-    herd_activity_list = anscombe_list(herd_activity_list)
-    activity_list = anscombe_list(activity_list)
+    # herd_activity_list = anscombe_list(herd_activity_list)
+    # activity_list = anscombe_list(activity_list)
 
     data = {"famacha_score_increase": False, "famacha_score": famacha_score, "animal_weight": animal_weight,
             "previous_famacha_score": previous_famacha_score, "animal_id": animal_id,
@@ -505,6 +516,7 @@ def create_hd_cwt_graph(coefs, folder, filename, title=None):
     path = "%s/training_sets_cwt_graphs" % folder
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
+    exit()
     # fig.savefig('%s/%s' % (path, filename))
 
 
@@ -688,17 +700,17 @@ def create_training_sets(data, dir_path):
     training_file_path_fd1232, options2232 = create_training_set(data, dir_path, options=["cwt", "temperature"])
     training_file_path_td144, options114 = create_training_set(data, dir_path, options=["activity", "temperature"])
     training_file_path_td14, options1142 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    training_file_path_temp, options3 = create_training_set(data, dir_path, options=["temperature"])
-    training_file_path_hum, options4 = create_training_set(data, dir_path, options=["humidity"])
-    training_file_path_hum_temp, options5 = create_training_set(data, dir_path, options=["humidity", "temperature"])
+    # training_file_path_temp, options3 = create_training_set(data, dir_path, options=["temperature"])
+    # training_file_path_hum, options4 = create_training_set(data, dir_path, options=["humidity"])
+    # training_file_path_hum_temp, options5 = create_training_set(data, dir_path, options=["humidity", "temperature"])
     training_file_path_hum_temp_activity, options7 = create_training_set(data, dir_path, options=["activity"])
     training_file_path_hum_temp_cwt, options8 = create_training_set(data, dir_path, options=["cwt"])
 
     return [{"path": training_file_path_td, "options": options1},
             # {"path": training_file_path_fd, "options": options2},
-            {"path": training_file_path_temp, "options": options3},
-            {"path": training_file_path_hum, "options": options4},
-            {"path": training_file_path_hum_temp, "options": options5},
+            # {"path": training_file_path_temp, "options": options3},
+            # {"path": training_file_path_hum, "options": options4},
+            # {"path": training_file_path_hum_temp, "options": options5},
             {"path": training_file_path_hum_temp_activity, "options": options7},
             {"path": training_file_path_hum_temp_cwt, "options": options8},
             {"path": training_file_path_td1, "options": options11},
@@ -1584,7 +1596,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
     for input in inputs:
         try:
             print(input)
-            df = pd.read_csv(input["path"], sep=",", header=None)
+            df = pd.read_csv(input["path"], nrows=1, sep=",", header=None)
             data_col_n = df.iloc[[0]].size
             type_dict = {}
             for n, i in enumerate(range(0, data_col_n)):
@@ -1594,14 +1606,14 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
                     type_dict[str(i)] = np.str
 
             # data_frame = pd.read_csv(input["path"], sep=",", header=None, dtype=type_dict, low_memory=False)
-
-            data_frame = pd.DataFrame()
-            chunk_size = 10000
-            i = 1
-            for chunk in pd.read_csv(input["path"], chunksize=chunk_size):
-                data_frame = chunk if i == 1 else pd.concat([df, chunk])
-                print('-->reading chunck...', i)
-                i += 1
+            data_frame = pd.read_csv(input["path"], sep=",", header=None, dtype=type_dict, low_memory=False)
+            # data_frame = pd.DataFrame()
+            # chunk_size = 10000
+            # i = 1
+            # for chunk in pd.read_csv(input["path"], chunksize=chunk_size, low_memory=False):
+            #     data_frame = chunk if i == 1 else pd.concat([df, chunk])
+            #     print('-->reading chunck...', i)
+            #     i += 1
 
             sample_count = data_frame.shape[1]
             header = [str(n) for n in range(0, sample_count)]
@@ -1713,7 +1725,7 @@ def format_options(options):
 
 def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='results.csv'):
     purge_file(filename)
-    directory_path = os.getcwd()
+    directory_path = os.getcwd().replace('C','E')
     os.chdir(directory_path)
     file_paths = [val for sublist in
                   [[os.path.join(i[0], j) for j in i[2] if j.endswith(filter)] for i in os.walk(directory_path)]
@@ -1773,7 +1785,7 @@ if __name__ == '__main__':
     start_time = time.time()
     print('args=', sys.argv)
     connect_to_sql_database()
-    create_cwt_graph_enabled = False
+    create_cwt_graph_enabled = True
     create_activity_graph_enabled = False
 
     for resolution in resolution_l:
@@ -1794,9 +1806,9 @@ if __name__ == '__main__':
             data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
             results = []
             herd_data = []
-            dir = "%s/resolution_%s_days_%d" % (os.getcwd(), resolution, days_before_famacha_test)
+            dir = "%s/resolution_%s_days_%d_log" % (os.getcwd().replace('C','E'), resolution, days_before_famacha_test)
             class_input_dict_file_path = dir + '/class_input_dict.json'
-            if False: #os.path.exists(class_input_dict_file_path):
+            if os.path.exists(class_input_dict_file_path):
                 print('training sets already created skip to processing.')
                 with open(class_input_dict_file_path, "r") as read_file:
                     class_input_dict = json.load(read_file)
@@ -1835,9 +1847,9 @@ if __name__ == '__main__':
                     if create_activity_graph_enabled:
                         create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
 
-                    cwt, coef, freqs, indexes_cwt = compute_hd_cwt(result["activity"])
+                    # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-                    # cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
+                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
 
                     # weight = process_weight(result["activity"], coef)
                     result["cwt"] = cwt
@@ -1859,7 +1871,7 @@ if __name__ == '__main__':
                 with open(herd_file_path, 'w') as fout:
                     json.dump({'herd_activity': herd_data}, fout)
 
-
+            # exit()
             process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
                                 zeros_threshold)
 

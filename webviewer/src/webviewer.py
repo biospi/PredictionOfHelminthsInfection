@@ -289,7 +289,7 @@ def build_famacha_trace(traces, data_f, resolution):
                 y=f_s,
                 name='famacha score',
                 # connectgaps=True,
-                opacity=0.4,
+                opacity=0.0,
                 xaxis='x2',
                 yaxis='y2'
 

@@ -188,7 +188,7 @@ def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0):
                           contourf_kwargs=contourf_kwargs,
                           scatter_highlight_kwargs=scatter_highlight_kwargs)
     plt.title(title)
-    plt.savefig('_0_%s.png' % title.split(' ')[0].replace('.',''))
+    plt.savefig('_1_%s_lda.png' % title.split(' ')[0].replace('.',''))
     plt.show()
     plt.close()
 
@@ -595,8 +595,8 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     simplified_results_2d, simplified_results_3d = [], []
     if clf_name == 'SVC':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
-        # clf = LDA()
+        # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
+        clf = LDA(n_components=2)
         # clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
     if clf_name == 'MLP':
@@ -612,7 +612,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,
           clf_name_2d)
 
-    exit()
+    return []
     for i, (train_index, test_index) in enumerate(kf.split(X)):
         print("%d/%d" % (i, fold))
         # acc_full, p_false_full, p_true_full, r_false_full, r_true_full, fs_false_full, fs_true_full, s_false_full, s_true_full, clf_name_full = compute_model(X, y, train_index, test_index, i, clf, clf_name=clf_name)
@@ -692,7 +692,6 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     print(result)
     return result
 
-
 def start(fname=''):
     print("loading dataset...")
     # print(fname)
@@ -707,7 +706,7 @@ def start(fname=''):
         else:
             type_dict[str(i)] = np.str
 
-    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict)
+    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
     # data_frame = pd.concat(tfr, ignore_index=True)
     print(data_frame)
     sample_count = data_frame.shape[1]
@@ -759,5 +758,20 @@ def start(fname=''):
 if __name__ == '__main__':
     # start()
     start(
-        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/cwt_.data")
+        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_.data")
+    start(
+        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_sub.data")
+
+    start(
+        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_div.data")
+    # start(
+    #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/1_cwt_sub.data")
+    #
+    # start(
+    #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/2_cwt_div.data")
+    # start(
+    #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/1_cwt_div.data")
+
+    #start(
+     #   fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/cwt_div.data")
     # start(fname="C:/Users/fo18103/PycharmProjects/training_data_generator/src/resolution_10min_days_6/training_sets/cwt_.data")
