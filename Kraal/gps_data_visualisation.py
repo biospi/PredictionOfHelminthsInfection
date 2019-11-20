@@ -17,10 +17,10 @@ def images_to_gif(filenames):
     imageio.mimsave('anim.gif', images)
 
 
-def draw_frame(lons, lats, altitude, dates, id):
+def draw_frame(lons, lats, altitude, curr_date, dates, id):
     fig, axs = plt.subplots(2, 1)
     fig.set_size_inches(10, 15)
-    fig.suptitle(str(dates[id-1]), fontsize=20, x=0.5, y=0.97)
+    fig.suptitle(str(curr_date), fontsize=20, x=0.5, y=0.97)
 
     axs[0].set_title("  ")
     m = Basemap(width=1000, height=1000,  projection='merc',
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
             dates.append(date)
 
-            path = draw_frame(lons, lats, altitude, dates, n)
+            path = draw_frame(lons, lats, altitude, date, dates, n)
             image_paths.append(path)
         except Exception as e:
             print("Error", e)
