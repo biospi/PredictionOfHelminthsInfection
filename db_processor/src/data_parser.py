@@ -22,40 +22,53 @@ def find_data_files(directory_path, extension='.xls'):
     return file_paths
 
 
-def file_contains_famacha(book):
+def find_files_containing_valid_famacha(book):
+    #returns index of famacha column if exists
+    map = {}
     for n in range(book.nsheets):
         sheet = book.sheet_by_index(n)
         for row_index in xrange(0, sheet.nrows):
             try:
                 row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
-                if 'Famacha' in row_values:
-                    return True
+                if "Neus" in row_values and "Kwak keel" in row_values and "Sender nr" in row_values:
+                    map[sheet.name] = {"id_col_index": row_values.index("Sender nr"), "famacha_col_index": row_values.index("Kwak keel")-1}
             except Exception as e:
                 print(e)
-    return False
+    return map
 
 
 def process_files(file_paths):
+    valid_files = []
     for curr_file, path in enumerate(file_paths):
         try:
-            print("loading file in memory for reading...")
+            print("reading file...")
             print(path)
             book = xlrd.open_workbook(path)
-            if not file_contains_famacha(book):
-                continue
-
-            for n in range(book.nsheets):
-                sheet = book.sheet_by_index(n)
-                print("start reading...")
-                found_col_index = False
-                for row_index in xrange(0, sheet.nrows):
-                    try:
-                        row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
-                        print(row_values)
-                    except Exception as e:
-                        print(e)
+            map = find_files_containing_valid_famacha(book)
+            print(map)
+            # if not is_valid:
+            #     continue
+            # valid_files.append(path)
+            # for n in range(book.nsheets):
+            #     sheet = book.sheet_by_index(n)
+            #     found_col_index = False
+            #     for row_index in xrange(0, sheet.nrows):
+            #         try:
+            #             row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
+            #             if "Sender nr" not in row_values:
+            #                 continue
+            #
+            #             famacha_value = row_values[f_col_index]
+            #             id = row_values[row_values.index("Sender nr")]
+            #             date = sheet.name
+            #
+            #             print(row_values)
+            #         except Exception as e:
+            #             print(e)
         except Exception as e:
             print(e)
+
+    print("found %d valid files out of %d." % (len(valid_files), len(file_paths)) )
 
 
 if __name__ == '__main__':
