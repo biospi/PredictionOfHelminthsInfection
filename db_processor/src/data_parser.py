@@ -58,16 +58,17 @@ def build_famacha_data(map, book, data):
                 id = str(row_values[value['id_col_index']]).split('.')[0]
                 if len(id) < 10:
                     continue
+                id = int(id)
                 famacha = int(row_values[value['famacha_col_index']])
-                date = datetime.strptime(format_date(key), '%d-%m-%y').strftime('%d/%m/%y')
+                date = datetime.strptime(format_date(key), '%d-%m-%y').strftime('%d/%m/%Y')
             except (TypeError, ValueError) as e:
                 print(e)
                 continue
             print(id, famacha, date)
-            if id in data and date not in data[id]:
-                data[id][date] = famacha
+            if id in data:
+                data[id].append([date, famacha, id, 0])
             else:
-                data[id] = {date: famacha}
+                data[id] = [[date, famacha, id, 0]]
     return data
 
 
@@ -92,6 +93,8 @@ def process_files(file_paths, farm_name=''):
 if __name__ == '__main__':
     print("start...")
     start_time = time.time()
+    # xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
+    # process_files(xls_files, farm_name="bothaville")
     xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
     process_files(xls_files, farm_name="bothaville")
 

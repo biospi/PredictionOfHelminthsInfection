@@ -272,7 +272,7 @@ def get_period(curr_data_famacha, days_before_famacha_test):
 
 
 def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
-                      expected_sample_count):
+                      expected_sample_count, farm_sql_table_id=None):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
         "%d/%m/%Y")
@@ -290,12 +290,12 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         famacha_test_date, animal_id, days_before_famacha_test, resolution))
     rows_activity = execute_sql_query("SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
                                       " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
-                                      ("delmas_70101200027", resolution, date2, date1,
+                                      (farm_sql_table_id, resolution, date2, date1,
                                        str(animal_id)))
 
     rows_herd = execute_sql_query(
         "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
-        ("delmas_70101200027", resolution, 50000000000, date2, date1))
+        (farm_sql_table_id, resolution, 50000000000, date2, date1))
 
     # activity_mean = normalize_activity_array_ascomb(rows_mean)
     herd_activity_list = [(x['first_sensor_value']) for x in rows_herd]
@@ -303,7 +303,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
 
     if len(rows_activity) != expected_sample_count:
         # filter out missing activity data
-        print("absent activity records. skip.", len(rows_activity), expected_sample_count)
+        print("absent activity records. skip.", "found %d" % len(rows_activity), "expecred %d" % expected_sample_count)
         return
 
     # data_activity = normalize_activity_array_ascomb(data_activity)
@@ -328,7 +328,12 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         # transform date in time for comparaison
         curr_datetime = datetime.utcfromtimestamp(int(data_a['timestamp']))
         timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
-        temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+        # if not weather_data:
+        #     temp, humidity = 0, 0
+        # else:
+        #     temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+
+        temp, humidity = 0, 0
         # activity_list.append(data_activity_o[j])
         indexes.append(idx)
         timestamp_list.append(timestamp)
@@ -686,40 +691,42 @@ def create_training_set(result, dir, options=[]):
 
 
 def create_training_sets(data, dir_path):
-    training_file_path_td, options1 = create_training_set(data, dir_path,
-                                                          options=["activity", "indexes", "humidity", "temperature"])
-    training_file_path_td1, options11 = create_training_set(data, dir_path,
-                                                            options=["activity", "humidity", "temperature"])
+    # training_file_path_td, options1 = create_training_set(data, dir_path,
+    #                                                       options=["activity", "indexes", "humidity", "temperature"])
+    # training_file_path_td1, options11 = create_training_set(data, dir_path,
+    #                                                         options=["activity", "humidity", "temperature"])
     # training_file_path_fd, options2 = create_training_set(data, dir_path,
     #                                                       options=["cwt", "cwt_weight", "indexes_cwt", "humidity",
     #                                                                "temperature"])
     # training_file_path_fd1, options21 = create_training_set(data, dir_path,
     #                                                         options=["cwt", "cwt_weight", "humidity", "temperature"])
-    training_file_path_fd12, options22 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
-    training_file_path_fd123, options223 = create_training_set(data, dir_path, options=["cwt", "humidity"])
-    training_file_path_fd1232, options2232 = create_training_set(data, dir_path, options=["cwt", "temperature"])
-    training_file_path_td144, options114 = create_training_set(data, dir_path, options=["activity", "temperature"])
-    training_file_path_td14, options1142 = create_training_set(data, dir_path, options=["activity", "humidity"])
+    # training_file_path_fd12, options22 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
+    # training_file_path_fd123, options223 = create_training_set(data, dir_path, options=["cwt", "humidity"])
+    # training_file_path_fd1232, options2232 = create_training_set(data, dir_path, options=["cwt", "temperature"])
+    # training_file_path_td144, options114 = create_training_set(data, dir_path, options=["activity", "temperature"])
+    # training_file_path_td14, options1142 = create_training_set(data, dir_path, options=["activity", "humidity"])
     # training_file_path_temp, options3 = create_training_set(data, dir_path, options=["temperature"])
     # training_file_path_hum, options4 = create_training_set(data, dir_path, options=["humidity"])
     # training_file_path_hum_temp, options5 = create_training_set(data, dir_path, options=["humidity", "temperature"])
     training_file_path_hum_temp_activity, options7 = create_training_set(data, dir_path, options=["activity"])
     training_file_path_hum_temp_cwt, options8 = create_training_set(data, dir_path, options=["cwt"])
 
-    return [{"path": training_file_path_td, "options": options1},
+    return [
+        #{"path": training_file_path_td, "options": options1},
             # {"path": training_file_path_fd, "options": options2},
             # {"path": training_file_path_temp, "options": options3},
             # {"path": training_file_path_hum, "options": options4},
             # {"path": training_file_path_hum_temp, "options": options5},
             {"path": training_file_path_hum_temp_activity, "options": options7},
-            {"path": training_file_path_hum_temp_cwt, "options": options8},
-            {"path": training_file_path_td1, "options": options11},
+            {"path": training_file_path_hum_temp_cwt, "options": options8}
+            #{"path": training_file_path_td1, "options": options11},
             # {"path": training_file_path_fd1, "options": options21},
-            {"path": training_file_path_fd123, "options": options223},
-            {"path": training_file_path_fd1232, "options": options2232},
-            {"path": training_file_path_td144, "options": options114},
-            {"path": training_file_path_td14, "options": options1142},
-            {"path": training_file_path_fd12, "options": options22}]
+            #{"path": training_file_path_fd123, "options": options223},
+            #{"path": training_file_path_fd1232, "options": options2232},
+            #{"path": training_file_path_td144, "options": options114},
+            #{"path": training_file_path_td14, "options": options1142},
+            #{"path": training_file_path_fd12, "options": options22}
+        ]
 
 
 def create_graph_title(data, domain):
@@ -1777,16 +1784,17 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
 
 if __name__ == '__main__':
     print("pandas", pd.__version__)
+    farm_id = "bothaville_70091100060"
     resolution_l = ['10min', '5min', 'hour', 'day']
-    days_before_famacha_test_l = [6, 5, 4, 3, 2, 1]
+    days_before_famacha_test_l = [2]
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
     start_time = time.time()
     print('args=', sys.argv)
     connect_to_sql_database()
-    create_cwt_graph_enabled = True
-    create_activity_graph_enabled = False
+    create_cwt_graph_enabled = False
+    create_activity_graph_enabled = True
 
     for resolution in resolution_l:
         if resolution == "min":
@@ -1802,13 +1810,20 @@ if __name__ == '__main__':
             with open(os.path.join(__location__, 'delmas_weather.json')) as f:
                 weather_data = json.load(f)
 
-            data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
+
+
+            #data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
+
+            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\bothaville_famacha_data.json', 'r') as fp:
+                data_famacha_dict = json.load(fp)
+                print(data_famacha_dict.keys())
+
             data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
             results = []
             herd_data = []
-            dir = "%s/resolution_%s_days_%d_log" % (os.getcwd().replace('C','E'), resolution, days_before_famacha_test)
+            dir = "%s/%s_resolution_%s_days_%d_log" % (os.getcwd().replace('C','E'), farm_id, resolution, days_before_famacha_test)
             class_input_dict_file_path = dir + '/class_input_dict.json'
-            if os.path.exists(class_input_dict_file_path):
+            if False:#os.path.exists(class_input_dict_file_path):
                 print('training sets already created skip to processing.')
                 with open(class_input_dict_file_path, "r") as read_file:
                     class_input_dict = json.load(read_file)
@@ -1821,8 +1836,12 @@ if __name__ == '__main__':
                     # exit(-1)
 
                 for curr_data_famacha in data_famacha_list:
-                    result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
-                                               days_before_famacha_test, expected_sample_count)
+                    try:
+                        result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
+                                               days_before_famacha_test, expected_sample_count, farm_sql_table_id=farm_id)
+                    except KeyError as e:
+                        print(e)
+
                     if result is None:
                         continue
 
@@ -1866,12 +1885,12 @@ if __name__ == '__main__':
                         with open(class_input_dict_file_path, 'w') as fout:
                             json.dump(class_input_dict, fout)
 
-            herd_file_path = dir + '/herd_activity.json'
+            herd_file_path = dir + '/%s_herd_activity.json' % farm_id
             if not os.path.exists(herd_file_path):
                 with open(herd_file_path, 'w') as fout:
                     json.dump({'herd_activity': herd_data}, fout)
 
-            # exit()
+            exit()
             process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
                                 zeros_threshold)
 

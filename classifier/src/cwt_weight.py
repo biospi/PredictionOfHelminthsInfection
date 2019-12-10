@@ -27,6 +27,7 @@ from sys import exit
 L = 0
 F = None
 
+
 def create_cwt_graph(coefs, freq, lenght, title=None):
     # time = [x for x in range(0, lenght)]
     plt.matshow(coefs)

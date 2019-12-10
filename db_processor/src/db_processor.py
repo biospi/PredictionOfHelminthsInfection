@@ -6,6 +6,7 @@ import statistics
 import uuid
 import math
 from datetime import datetime, timedelta, time
+from sys import exit
 
 # import numpy as np
 # import openpyxl
@@ -845,11 +846,11 @@ def process_raw_file(farm_id, data):
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=5)
 
-    animal_serial_number_to_ignore = [40101310107, 40101310146]
+    animal_serial_number_to_ignore = []
     for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
         print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
         # find first and last record date.
-        if len(animal_records) < 10000:
+        if len(animal_records) < 100:
             continue
         serial_number = animal_records[0][2]
         if serial_number in animal_serial_number_to_ignore:
@@ -896,20 +897,27 @@ def process_raw_file(farm_id, data):
     #save data in db
     print("saving data to db...")
 
+    data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
     insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
-    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, create_mean_median_animal(data_resampled_month))
+
+    data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
     insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
-    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, create_mean_median_animal(data_resampled_week))
+
+    data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
     insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
-    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, create_mean_median_animal(data_resampled_day))
+
+    data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
     insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
-    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, create_mean_median_animal(data_resampled_hour))
+
+    data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
     insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
-    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, create_mean_median_animal(data_resampled_10min))
+
+    data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
     insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
-    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, create_mean_median_animal(data_resampled_5min))
+
+    data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
     insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
-    insert_m_record_to_sql_table("%s_resolution_min" % farm_id, create_mean_median_animal_(data_resampled_min))
+
     create_indexes(farm_id)
     sql_db_flush()
 
@@ -954,6 +962,26 @@ def dump_cell(sheet, rowx, colx):
     return [rowx, colx, repr(c.value), c.ctype, fmt_obj.type, fmt_obj.format_key, fmt_obj.format_str]
 
 
+def empty_list(l):
+    return len(l) == l.count('')
+
+
+def print_except(e):
+    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+    message = template.format(type(e).__name__, e.args)
+    print(message)
+
+
+def strip_list(l):
+    print(l)
+    try:
+        return [x.strip().lower().replace(" ", "").replace("batteryife", "batterylife") for x in l]
+    except AttributeError as e:
+        print_except(e)
+        exit()
+        return l
+
+
 def generate_raw_files_from_xlsx(directory_path, file_name):
     start_time = time.time()
     print("start readind xls files...")
@@ -982,52 +1010,100 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     valid_rows = 0
 
     for curr_file, path in enumerate(file_paths):
+        if "Sender" in path:
+            print(curr_file)
+            continue
+
         # path = 'C:\\SouthAfrica\\Tracking Data\\Delmas\\June 2015\\70101200027_2015-5-31_06-00-00_to_2015-6-03_06-00-00.xlsx'
         # table_f = h5file.create_table("/", "data%d" % curr_file, Animal, path, expectedrows=33724492)
         # table_row = table_f.row
         df = []
+        transponders = {}
         try:
             record_log = ""
             print("loading file in memory for reading...")
             print(path)
             book = xlrd.open_workbook(path)
             sheet = book.sheet_by_index(0)
+            farm_id = int(sheet.name.split('_')[0])
+            print("farm id is %d." % farm_id)
             print("start reading...")
             found_col_index = False
             for row_index in xrange(0, sheet.nrows):
                 try:
                     row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
+
+                    if not found_col_index:
+                        row_values = strip_list(row_values)
+
+                    if empty_list(row_values):
+                        continue
                     # print(path)
                     # print(row_values)
                     # find index of each column
                     if not found_col_index:
                         try:
-                            date_col_index = row_values.index('Date')
-                            time_col_index = row_values.index('Time')
-                            control_station_col_index = row_values.index('Control station')
-                            serial_number_col_index = row_values.index('Tag serial number')
-                            signal_strength_col_index = row_values.index('Signal strength')
-                            battery_voltage_col_index = row_values.index('Battery voltage')
-                            first_sensor_value_col_index = row_values.index('First sensor value')
+                            date_col_index = row_values.index('date')
+                            time_col_index = row_values.index('time')
+                            control_station_col_index = row_values.index('controlstation')
+                            serial_number_col_index = row_values.index('tagserialnumber')
+                            signal_strength_col_index = row_values.index('signalstrength')
+                            battery_voltage_col_index = row_values.index('batteryvoltage')
+                            first_sensor_value_col_index = row_values.index('firstsensorvalue')
                             found_col_index = True
-                        except ValueError:
-                            date_col_index = 0
-                            time_col_index = 1
-                            control_station_col_index = 2
-                            serial_number_col_index = 3
-                            signal_strength_col_index = 4
-                            battery_voltage_col_index = 5
-                            first_sensor_value_col_index = 6
+
+                            print("found header. parsing rows...")
+                            continue
+                        except ValueError as e:
+                            if 'transpondernumber' in row_values and 'activitylevel' in row_values:
+                                date_col_index = row_values.index('date')
+                                time_col_index = row_values.index('time')
+                                serial_number_col_index = row_values.index('transpondernumber')
+                                signal_strength_col_index = row_values.index('signalstrength')
+                                battery_voltage_col_index = row_values.index('batterylife')
+                                first_sensor_value_col_index = row_values.index('activitylevel')
+                                found_col_index = True
+
+                                print("found header. parsing rows...")
+                                continue
+                            if 'transponderno' in row_values and 'activitylevel' in row_values:
+                                date_col_index = row_values.index('date')
+                                time_col_index = row_values.index('time')
+                                serial_number_col_index = row_values.index('transponderno')
+                                first_sensor_value_col_index = row_values.index('activitylevel')
+                                if 'signalstrength' in row_values:
+                                    signal_strength_col_index = row_values.index('signalstrength')
+                                if 'batterylife' in row_values:
+                                    battery_voltage_col_index = row_values.index('batterylife')
+                                found_col_index = True
+
+                                print("found header. parsing rows...")
+                                continue
+                            continue
 
                     date_string = xl_date_to_date(row_values[date_col_index], book) + " " + convert_excel_time(
                         row_values[time_col_index], book)
 
                     epoch = int(datetime.strptime(date_string, '%d/%m/%Y %I:%M:%S %p').timestamp())
-                    control_station = int(row_values[control_station_col_index])
+                    control_station = farm_id#int(row_values[control_station_col_index])
                     serial_number = int(row_values[serial_number_col_index])
-                    signal_strength = int(str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
-                    battery_voltage = int(str(row_values[battery_voltage_col_index]).split('.')[0], 16)
-                    first_sensor_value = int(row_values[first_sensor_value_col_index])
+
+                    try:
+                        signal_strength = int(str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
+                    except (UnboundLocalError, ValueError) as e:
+                        print(e)
+                        signal_strength = -1
+                    try:
+                        battery_voltage = int(str(row_values[battery_voltage_col_index]).split('.')[0], 16)
+                    except (UnboundLocalError, ValueError) as e:
+                        print(e)
+                        battery_voltage = -1
+
+                    try:
+                        first_sensor_value = int(row_values[first_sensor_value_col_index])
+                    except ValueError as e:
+                        print(e)
+                        continue
 
                     record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d" % (
                         date_string,
@@ -1035,6 +1111,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         serial_number,
                         signal_strength, battery_voltage, first_sensor_value)
                     # print(record_log)
+                    transponders[serial_number] = ''
 
                     df.append(
                         pandas.DataFrame({
@@ -1047,7 +1124,8 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         }, index=[valid_rows]))
 
                     valid_rows += 1
-                except Exception as exception:
+                except ValueError as exception:
+                    print_except(exception)
                     print(exception)
                     print(path)
                     print(row_values)
@@ -1058,28 +1136,29 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                     log_file.write(log + "\n")
             del book
             del sheet
+            print("transponders:", transponders.keys())
             store.append('/', value=pandas.concat(df), format='t', append=True,
                          data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
                                        'battery_voltage', 'first_sensor_value'])
             del df
             # del table_row
             # table_f.flush()
-        except (Exception, FileNotFoundError, xlrd.biffh.XLRDError) as e:
-            print(e)
+        except (ValueError, FileNotFoundError, xlrd.biffh.XLRDError) as e:
+            print('error', e)
             continue
     store.close()
 
 
 if __name__ == '__main__':
     print("start...")
-    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "raw_data_bothaville_debug.h5")
     generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
-    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
-    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
-    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    # db_name = "south_africa"
-    # create_and_connect_to_sql_db(db_name)
-    # # drop_all_tables(db_name)
-    #
-    # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
+
+    db_name = "south_africa"
+    create_and_connect_to_sql_db(db_name)
+    # drop_all_tables(db_name)
+    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Bothaville\\raw_data_cedara_debug.h5")
