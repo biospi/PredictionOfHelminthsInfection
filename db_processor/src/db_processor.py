@@ -963,7 +963,7 @@ def dump_cell(sheet, rowx, colx):
 
 
 def empty_list(l):
-    return len(l) == l.count('')
+    return len(l) == l.count('') or l.count('') > 4 or len(l) > 20 or len(l) < 5
 
 
 def print_except(e):
@@ -974,12 +974,18 @@ def print_except(e):
 
 def strip_list(l):
     print(l)
-    try:
-        return [x.strip().lower().replace(" ", "").replace("batteryife", "batterylife") for x in l]
-    except AttributeError as e:
-        print_except(e)
-        exit()
-        return l
+    return [x.strip().lower().replace(" ", "").replace("batteryife", "batterylife") for x in l]
+
+
+
+def ignore(path):
+    to_ignore = False
+    IGNORE_LIST = ['AktsMeting Senst-Cedara Bok 1201024', 'Cedara tye dubbeld']
+    for item in IGNORE_LIST:
+        if item in path:
+            to_ignore = True
+            break
+    return to_ignore
 
 
 def generate_raw_files_from_xlsx(directory_path, file_name):
@@ -1010,9 +1016,12 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     valid_rows = 0
 
     for curr_file, path in enumerate(file_paths):
-        if "Sender" in path:
-            print(curr_file)
+        print('progress %s/%d' % (curr_file, len(file_paths)))
+        if ignore(path):
             continue
+        # if "70091100056_2013-3-08_06-00-00_to_2013-3-14_06-00-00.xlsx" not in path:
+        #     # print(curr_file)
+        #     continue
 
         # path = 'C:\\SouthAfrica\\Tracking Data\\Delmas\\June 2015\\70101200027_2015-5-31_06-00-00_to_2015-6-03_06-00-00.xlsx'
         # table_f = h5file.create_table("/", "data%d" % curr_file, Animal, path, expectedrows=33724492)
@@ -1024,134 +1033,195 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
             print("loading file in memory for reading...")
             print(path)
             book = xlrd.open_workbook(path)
-            sheet = book.sheet_by_index(0)
-            farm_id = int(sheet.name.split('_')[0])
-            print("farm id is %d." % farm_id)
-            print("start reading...")
-            found_col_index = False
-            for row_index in xrange(0, sheet.nrows):
+            for sheet in book.sheets():
+                print('reading sheet', sheet.name)
+                # sheet = book.sheet_by_index(0)
                 try:
-                    row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
+                    farm_id = int(sheet.name.split('_')[0])
+                except ValueError as e:
+                    print(e)
+                    print(path)
 
-                    if not found_col_index:
-                        row_values = strip_list(row_values)
+                print("start reading...")
+                found_col_index = False
+                for row_index in xrange(0, sheet.nrows):
+                    # if row_index > 10:
+                    #     break
+                    try:
+                        row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
+                        if empty_list(row_values):
+                            continue
+                        # print(row_values)
 
-                    if empty_list(row_values):
-                        continue
-                    # print(path)
-                    # print(row_values)
-                    # find index of each column
-                    if not found_col_index:
-                        try:
-                            date_col_index = row_values.index('date')
-                            time_col_index = row_values.index('time')
-                            control_station_col_index = row_values.index('controlstation')
-                            serial_number_col_index = row_values.index('tagserialnumber')
-                            signal_strength_col_index = row_values.index('signalstrength')
-                            battery_voltage_col_index = row_values.index('batteryvoltage')
-                            first_sensor_value_col_index = row_values.index('firstsensorvalue')
+                        if 'Cedara' in directory_path and 'Sender' in path and not found_col_index:
+                            date_col_index = 0
+                            time_col_index = 1
+                            control_station_col_index = 2
+                            try:
+                                farm_id = int(row_values[control_station_col_index])
+                            except ValueError as e:
+                                print(e)
+                            serial_number_col_index = 3
+                            signal_strength_col_index = 4
+                            battery_voltage_col_index = 5
+                            first_sensor_value_col_index = 6
                             found_col_index = True
-
                             print("found header. parsing rows...")
                             continue
-                        except ValueError as e:
-                            if 'transpondernumber' in row_values and 'activitylevel' in row_values:
+
+                        if not found_col_index:
+                            try:
+                                row_values = strip_list(row_values)
+                            except AttributeError as e:
+                                print_except(e)
+                                date_col_index = 0
+                                time_col_index = 1
+                                control_station_col_index = 2
+                                try:
+                                    farm_id = int(row_values[control_station_col_index])
+                                except ValueError as e:
+                                    print(e)
+                                serial_number_col_index = 3
+                                signal_strength_col_index = 4
+                                battery_voltage_col_index = 5
+                                first_sensor_value_col_index = 6
+                                found_col_index = True
+                                print("found header. parsing rows...")
+                                continue
+                                # exit()
+
+                        # print(path)
+                        # print(row_values)
+                        # find index of each column
+                        if not found_col_index:
+                            try:
                                 date_col_index = row_values.index('date')
                                 time_col_index = row_values.index('time')
-                                serial_number_col_index = row_values.index('transpondernumber')
+                                control_station_col_index = row_values.index('controlstation')
+                                serial_number_col_index = row_values.index('tagserialnumber')
                                 signal_strength_col_index = row_values.index('signalstrength')
-                                battery_voltage_col_index = row_values.index('batterylife')
-                                first_sensor_value_col_index = row_values.index('activitylevel')
+                                battery_voltage_col_index = row_values.index('batteryvoltage')
+                                first_sensor_value_col_index = row_values.index('firstsensorvalue')
                                 found_col_index = True
 
                                 print("found header. parsing rows...")
                                 continue
-                            if 'transponderno' in row_values and 'activitylevel' in row_values:
-                                date_col_index = row_values.index('date')
-                                time_col_index = row_values.index('time')
-                                serial_number_col_index = row_values.index('transponderno')
-                                first_sensor_value_col_index = row_values.index('activitylevel')
-                                if 'signalstrength' in row_values:
+                            except ValueError as e:
+                                if 'transpondernumber' in row_values and 'activitylevel' in row_values:
+                                    date_col_index = row_values.index('date')
+                                    time_col_index = row_values.index('time')
+                                    serial_number_col_index = row_values.index('transpondernumber')
                                     signal_strength_col_index = row_values.index('signalstrength')
-                                if 'batterylife' in row_values:
                                     battery_voltage_col_index = row_values.index('batterylife')
-                                found_col_index = True
+                                    first_sensor_value_col_index = row_values.index('activitylevel')
+                                    found_col_index = True
 
-                                print("found header. parsing rows...")
+                                    print("found header. parsing rows...")
+                                    continue
+                                if 'transponderno' in row_values and 'activitylevel' in row_values:
+                                    date_col_index = row_values.index('date')
+                                    time_col_index = row_values.index('time')
+                                    serial_number_col_index = row_values.index('transponderno')
+                                    first_sensor_value_col_index = row_values.index('activitylevel')
+                                    if 'signalstrength' in row_values:
+                                        signal_strength_col_index = row_values.index('signalstrength')
+                                    if 'batterylife' in row_values:
+                                        battery_voltage_col_index = row_values.index('batterylife')
+                                    found_col_index = True
+
+                                    print("found header. parsing rows...")
+                                    continue
                                 continue
+
+                        # print("farm id is %d." % farm_id)
+                        # print('progress %s/%d' % (curr_file, len(file_paths)))
+
+                        try:
+                            date_string = xl_date_to_date(row_values[date_col_index], book) + " " + convert_excel_time(
+                                row_values[time_col_index], book)
+                        except TypeError as e:
+                            print(e)
                             continue
 
-                    date_string = xl_date_to_date(row_values[date_col_index], book) + " " + convert_excel_time(
-                        row_values[time_col_index], book)
+                        epoch = int(datetime.strptime(date_string, '%d/%m/%Y %I:%M:%S %p').timestamp())
+                        control_station = farm_id#int(row_values[control_station_col_index])
+                        serial_number = int(row_values[serial_number_col_index])
 
-                    epoch = int(datetime.strptime(date_string, '%d/%m/%Y %I:%M:%S %p').timestamp())
-                    control_station = farm_id#int(row_values[control_station_col_index])
-                    serial_number = int(row_values[serial_number_col_index])
+                        try:
+                            signal_strength = int(str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
+                        except (IndexError, NameError, UnboundLocalError, ValueError) as e:
+                            # print(e)
+                            # print(path)
+                            signal_strength = -1
+                        try:
+                            battery_voltage = int(str(row_values[battery_voltage_col_index]).split('.')[0], 16)
+                        except (IndexError, NameError, UnboundLocalError, ValueError) as e:
+                            # print(e)
+                            # print(path)
+                            battery_voltage = -1
 
-                    try:
-                        signal_strength = int(str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
-                    except (UnboundLocalError, ValueError) as e:
-                        print(e)
-                        signal_strength = -1
-                    try:
-                        battery_voltage = int(str(row_values[battery_voltage_col_index]).split('.')[0], 16)
-                    except (UnboundLocalError, ValueError) as e:
-                        print(e)
-                        battery_voltage = -1
+                        try:
+                            first_sensor_value = int(row_values[first_sensor_value_col_index])
+                        except ValueError as e:
+                            print(e)
+                            print(path)
+                            continue
 
-                    try:
-                        first_sensor_value = int(row_values[first_sensor_value_col_index])
-                    except ValueError as e:
-                        print(e)
-                        continue
+                        print(curr_file, len(file_paths), farm_id, sheet.name, row_values, path, first_sensor_value_col_index, battery_voltage_col_index, signal_strength_col_index, serial_number_col_index, date_col_index, time_col_index)
 
-                    record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d" % (
-                        date_string,
-                        get_elapsed_time_string(start_time, time.time()), valid_rows, epoch, control_station,
-                        serial_number,
-                        signal_strength, battery_voltage, first_sensor_value)
-                    # print(record_log)
-                    transponders[serial_number] = ''
+                        record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d" % (
+                            date_string,
+                            get_elapsed_time_string(start_time, time.time()), valid_rows, epoch, control_station,
+                            serial_number,
+                            signal_strength, battery_voltage, first_sensor_value)
+                        # print(record_log)
 
-                    df.append(
-                        pandas.DataFrame({
-                            'timestamp': epoch,
-                            'control_station': control_station,
-                            'serial_number': serial_number,
-                            'signal_strength': signal_strength,
-                            'battery_voltage': battery_voltage,
-                            'first_sensor_value': first_sensor_value
-                        }, index=[valid_rows]))
+                        transponders[serial_number] = ''
 
-                    valid_rows += 1
-                except ValueError as exception:
-                    print_except(exception)
-                    print(exception)
-                    print(path)
-                    print(row_values)
-                    log = "%d/%d--%s---%s---%s---%s" % (
-                    curr_file, len(file_paths), get_elapsed_time_string(start_time, time.time()), str(exception), path,
-                    record_log)
-                    print(log)
-                    log_file.write(log + "\n")
+                        df.append(
+                            pandas.DataFrame({
+                                'timestamp': epoch,
+                                'control_station': control_station,
+                                'serial_number': serial_number,
+                                'signal_strength': signal_strength,
+                                'battery_voltage': battery_voltage,
+                                'first_sensor_value': first_sensor_value
+                            }, index=[valid_rows]))
+
+                        valid_rows += 1
+                    except ValueError as exception:
+                        print_except(exception)
+                        print(exception)
+                        print(path)
+                        if not None:
+                            print(row_values)
+                        log = "%d/%d--%s---%s---%s---%s" % (
+                        curr_file, len(file_paths), get_elapsed_time_string(start_time, time.time()), str(exception), path,
+                        record_log)
+                        print(log)
+                        log_file.write(log + "\n")
+
+                print("transponders:", transponders.keys())
+                if len(df) == 0:
+                    continue
+                store.append('/', value=pandas.concat(df), format='t', append=True,
+                             data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
+                                           'battery_voltage', 'first_sensor_value'])
+
+                # del table_row
+                # table_f.flush()
             del book
-            del sheet
-            print("transponders:", transponders.keys())
-            store.append('/', value=pandas.concat(df), format='t', append=True,
-                         data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
-                                       'battery_voltage', 'first_sensor_value'])
             del df
-            # del table_row
-            # table_f.flush()
         except (ValueError, FileNotFoundError, xlrd.biffh.XLRDError) as e:
             print('error', e)
+            print(path)
             continue
     store.close()
 
 
 if __name__ == '__main__':
     print("start...")
-    generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
 
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
@@ -1161,4 +1231,4 @@ if __name__ == '__main__':
     db_name = "south_africa"
     create_and_connect_to_sql_db(db_name)
     # drop_all_tables(db_name)
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Bothaville\\raw_data_cedara_debug.h5")
+    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")

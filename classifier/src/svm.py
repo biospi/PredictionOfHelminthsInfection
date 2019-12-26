@@ -131,7 +131,7 @@ def create_cwt_graph(coef, lenght, title=None):
     fig.show()
 
 
-def process_data_frame(data_frame):
+def process_data_frame(data_frame, y_col='label'):
     data_frame = data_frame.fillna(-1)
     cwt_shape = data_frame[data_frame.columns[0:2]].values
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]].values
@@ -147,7 +147,7 @@ def process_data_frame(data_frame):
     X = preprocessing.MinMaxScaler().fit_transform(X)
     # print(X.shape, X)
     # print(DataFrame.from_records(X))
-    y = data_frame["class"].values.flatten()
+    y = data_frame[y_col].values.flatten()
     return X, y
 
 
@@ -392,28 +392,33 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
 #     fig.show()
 #
 #
-def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
+def reduce_lda(output_dim, X_train, X_test, y_train, y_test, force_label=False):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
-    if output_dim not in [2, 3]:
+    if output_dim not in [1, 2, 3]:
         raise ValueError("available dimension for features reduction are 2 and 3.")
-    if output_dim == 3:
-        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
-        y_train = np.append(y_train, (3, 4))
-        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
-        y_test = np.append(y_test, (3, 4))
-    if output_dim == 2:
-        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
-        y_train = np.append(y_train, 3)
-        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
-        y_test = np.append(y_test, 3)
-    X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
-    X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
-    X_train = X_train[0:-(output_dim - 1)]
-    y_train = y_train[0:-(output_dim - 1)]
-    X_test = X_test[0:-(output_dim - 1)]
-    y_test = y_test[0:-(output_dim - 1)]
+    if force_label:
+        if output_dim == 3:
+            X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
+            y_train = np.append(y_train, (3, 4))
+            X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
+            y_test = np.append(y_test, (3, 4))
+        if output_dim == 2:
+            X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
+            y_train = np.append(y_train, 3)
+            X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
+            y_test = np.append(y_test, 3)
+        X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
+        X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
 
-    return X_train, X_test, y_train, y_test
+        X_train = X_train[0:-(output_dim - 1)]
+        y_train = y_train[0:-(output_dim - 1)]
+        X_test = X_test[0:-(output_dim - 1)]
+        y_test = y_test[0:-(output_dim - 1)]
+        return X_train, X_test, y_train, y_test
+    else:
+        X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
+        X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
+        return X_train, X_test, y_train, y_test
 
 
 def reduce_pca(output_dim, X_train, X_test, y_train, y_test):
@@ -518,7 +523,7 @@ def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=Non
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc)
 
-    clf.fit(X, y)
+    clf.fit(X_train, y_train)
     # f_importances(clf.coef_.tolist()[0], [int(x) for x in range(0, clf.coef_.shape[1])], X_train)
 
     print("Best estimator found by grid search:")
@@ -575,9 +580,9 @@ def f_importances(coef, names, X_train):
     plt.show()
 
 
-def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None):
-    X, y = process_data_frame(data_frame)
-    X_t, y_t = process_data_frame(df2)
+def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label'):
+    X, y = process_data_frame(data_frame, y_col=y_col)
+    # X_t, y_t = process_data_frame(df2)
 
     y = y.astype(int)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
@@ -593,10 +598,10 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     support_false_2d, support_false_3d, support_false_full = [], [], []
     support_true_2d, support_true_3d, support_true_full = [], [], []
     simplified_results_2d, simplified_results_3d = [], []
+    clf_name_full, clf_name_2d, clf_name_3d = '', '', ''
     if clf_name == 'SVC':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
-        clf = LDA(n_components=2)
+        clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
         # clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
     if clf_name == 'MLP':
@@ -604,20 +609,19 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
                       'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
 
-    # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
-    acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(
-        X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
+    # # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
+    # acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(
+    #     X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
+    #
+    # # print(acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d)
+    # print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,
+    #       clf_name_2d)
 
-    # print(acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d)
-    print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,
-          clf_name_2d)
-
-    return []
-    for i, (train_index, test_index) in enumerate(kf.split(X)):
-        print("%d/%d" % (i, fold))
+    for i, (train_index, test_index) in enumerate(kf.split(X, y)):
+        print("progress %d/%d" % (i, fold))
         # acc_full, p_false_full, p_true_full, r_false_full, r_true_full, fs_false_full, fs_true_full, s_false_full, s_true_full, clf_name_full = compute_model(X, y, train_index, test_index, i, clf, clf_name=clf_name)
-        acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(
-            X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
+        # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(
+        #     X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
         acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, sr_2d = compute_model(
             X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
 
@@ -631,7 +635,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         # support_false_full.append(s_false_full)
         # support_true_full.append(s_true_full)
         simplified_results_2d.append(sr_2d)
-        simplified_results_3d.append(sr_3d)
+
 
         scores_2d.append(acc_2d)
         precision_false_2d.append(p_false_2d)
@@ -643,15 +647,16 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         support_false_2d.append(s_false_2d)
         support_true_2d.append(s_true_2d)
 
-        scores_3d.append(acc_3d)
-        precision_false_3d.append(p_false_3d)
-        precision_true_3d.append(p_true_3d)
-        recall_false_3d.append(r_false_3d)
-        recall_true_3d.append(r_true_3d)
-        fscore_false_3d.append(fs_false_3d)
-        fscore_true_3d.append(fs_true_3d)
-        support_false_3d.append(s_false_3d)
-        support_true_3d.append(s_true_3d)
+        # scores_3d.append(acc_3d)
+        # precision_false_3d.append(p_false_3d)
+        # precision_true_3d.append(p_true_3d)
+        # recall_false_3d.append(r_false_3d)
+        # recall_true_3d.append(r_true_3d)
+        # fscore_false_3d.append(fs_false_3d)
+        # fscore_true_3d.append(fs_true_3d)
+        # support_false_3d.append(s_false_3d)
+        # support_true_3d.append(s_true_3d)
+        # simplified_results_3d.append(sr_3d)
 
     print("svc %d fold cross validation 2d is %f, 3d is %s." % (
     fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
@@ -710,60 +715,65 @@ def start(fname=''):
     # data_frame = pd.concat(tfr, ignore_index=True)
     print(data_frame)
     sample_count = data_frame.shape[1]
-
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-5] = "class"
-    hearder[-4] = "elem_in_row"
-    hearder[-3] = "date1"
-    hearder[-2] = "date2"
-    hearder[-1] = "serial"
+    hearder[-7] = "label"
+    hearder[-6] = "elem_in_row"
+    hearder[-5] = "date1"
+    hearder[-4] = "date2"
+    hearder[-3] = "serial"
+    hearder[-2] = "famacha_score"
+    hearder[-1] = "previous_famacha_score"
     data_frame.columns = hearder
 
+    cols_to_keep = hearder[:-7]
+    cols_to_keep.append('famacha_score')
+    data_frame = data_frame[cols_to_keep]
     # data_frame = data_frame.loc[:, :'class']
-    # np.random.seed(0)
-    # data_frame = data_frame.sample(frac=1).reset_index(drop=True)
-    # data_frame = data_frame.fillna(-1)
-    # data_frame = shuffle(data_frame)
-    # process(data_frame, dim_reduc='LDA', clf_name='SVC')
 
-    data_frame['date1'] = pd.to_datetime(data_frame['date1'], dayfirst=True)
-    data_frame['date2'] = pd.to_datetime(data_frame['date2'], dayfirst=True)
-    data_frame = data_frame.sort_values('date1', ascending=True)
-    print(data_frame)
-    nrows = int(data_frame.shape[0] / 2)
-    print(nrows)
-    df1 = data_frame[:nrows]
-    df2 = data_frame[nrows:]
-    print(df1)
-    print(df2)
-    print('df1:%s %s\ndf2:%s %s' % (str(df1["date1"].iloc[0]).split(' ')[0], str(df1["date1"].iloc[-1]).split(' ')[0],
-                                    str(df2["date1"].iloc[0]).split(' ')[0], str(df2["date1"].iloc[-1]).split(' ')[0]))
-    df1 = df1.loc[:, :'class']
-    df1 = df1.sample(frac=1).reset_index(drop=True)
-    df1 = df1.fillna(-1)
-    df1 = shuffle(df1)
+    np.random.seed(0)
+    data_frame = data_frame.sample(frac=1).reset_index(drop=True)
+    data_frame = data_frame.fillna(-1)
+    data_frame = shuffle(data_frame)
+    process(data_frame, dim_reduc='LDA', clf_name='SVC', y_col='famacha_score')
 
-    df2 = df2.loc[:, :'class']
-    df2 = df2.sample(frac=1).reset_index(drop=True)
-    df2 = df2.fillna(-1)
-    df2 = shuffle(df2)
+    # data_frame['date1'] = pd.to_datetime(data_frame['date1'], dayfirst=True)
+    # data_frame['date2'] = pd.to_datetime(data_frame['date2'], dayfirst=True)
+    # data_frame = data_frame.sort_values('date1', ascending=True)
+    # print(data_frame)
+    # nrows = int(data_frame.shape[0] / 2)
+    # print(nrows)
+    # df1 = data_frame[:nrows]
+    # df2 = data_frame[nrows:]
+    # print(df1)
+    # print(df2)
+    # print('df1:%s %s\ndf2:%s %s' % (str(df1["date1"].iloc[0]).split(' ')[0], str(df1["date1"].iloc[-1]).split(' ')[0],
+    #                                 str(df2["date1"].iloc[0]).split(' ')[0], str(df2["date1"].iloc[-1]).split(' ')[0]))
+    # df1 = df1.loc[:, :'class']
+    # df1 = df1.sample(frac=1).reset_index(drop=True)
+    # df1 = df1.fillna(-1)
+    # df1 = shuffle(df1)
+    #
+    # df2 = df2.loc[:, :'class']
+    # df2 = df2.sample(frac=1).reset_index(drop=True)
+    # df2 = df2.fillna(-1)
+    # df2 = shuffle(df2)
 
-    class_1_count = data_frame['class'].value_counts().to_dict()[True]
-    class_2_count = data_frame['class'].value_counts().to_dict()[False]
-    print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-    # process(df2, dim_reduc='LDA', clf_name='SVC', df2=df1)
-    process(df1, dim_reduc='LDA', clf_name='SVC', df2=df2, fname=fname)
+    # class_1_count = data_frame['class'].value_counts().to_dict()[True]
+    # class_2_count = data_frame['class'].value_counts().to_dict()[False]
+    # print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
+    # # process(df2, dim_reduc='LDA', clf_name='SVC', df2=df1)
+    # process(df1, dim_reduc='LDA', clf_name='SVC', df2=df2, fname=fname)
 
 
 if __name__ == '__main__':
     # start()
     start(
-        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_.data")
-    start(
-        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_sub.data")
-
-    start(
-        fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_div.data")
+        fname="E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/cedara_70091100056_resolution_10min_days_6/training_sets/cwt_.data")
+    # start(
+    #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_sub.data")
+    #
+    # start(
+    #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/3_cwt_div.data")
     # start(
     #     fname="C:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/classifier/src/1_cwt_sub.data")
     #

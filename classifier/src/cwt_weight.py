@@ -133,9 +133,11 @@ def start(fname='', out_fname=None, id=None):
     # print(data_frame)
     sample_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-5] = "class"
-    hearder[-4] = "elem_in_row"
-    hearder[-3] = "date1"
+    hearder[-7] = "class"
+    hearder[-6] = "elem_in_row"
+    hearder[-5] = "date1"
+    hearder[-4] = "date2"
+    hearder[-3] = "serial"
     hearder[-2] = "date2"
     hearder[-1] = "serial"
     data_frame.columns = hearder
@@ -231,7 +233,7 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
             # activity = interpolate(activity)
 
             print("%d/%d ..." % (i, len(X)))
-            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt_hd(activity)
+            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
 
             data.append({'indexes': indexes, 'coef': coefs, 'freqs': freqs, 'shape': activity.shape[0], 'title': str(i)})
             # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
@@ -335,13 +337,13 @@ def normalized(v):
 def process(data_frame, data_frame_0, out_fname=None, id=None):
     print("process...")
     X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean,\
-    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname= process_data_frame(data_frame, data_frame_0, out_fname)
+    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname = process_data_frame(data_frame, data_frame_0, out_fname)
     print("train_test_split...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
     # clf = LDA(n_components=2)
+    # y_train[0] = 3
 
-    y_train[0] = 3
     print("fit...")
     clf.fit(X_train, y_train)
 
@@ -451,7 +453,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
 
 
 if __name__ == '__main__':
-    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/resolution_10min_days_6_ansc1/'
+    # dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_6/'
     # with open("%s/herd_activity.json" % dir, "r") as read_file:
     #     herd_data = json.load(read_file)
 
@@ -459,10 +461,10 @@ if __name__ == '__main__':
     #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_sub.data', id=2)
     #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_div.data', id=2)
 
-    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/resolution_10min_days_6_ansc1/'
+    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_12/'
     # with open("%s/herd_activity.json" % dir, "r") as read_file:
     #     herd_data = json.load(read_file)
 
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='3_cwt_.data', id=3)
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='3_cwt_sub.data', id=3)
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='3_cwt_div.data', id=3)
+    # start(fname="%s/training_sets/activity_.data" % dir, out_fname='4_cwt_.data', id=4)
+    # start(fname="%s/training_sets/activity_.data" % dir, out_fname='4_cwt_sub.data', id=4)
+    start(fname="%s/training_sets/activity_.data" % dir, out_fname='5_cwt_div.data', id=5)

@@ -28,7 +28,7 @@ def find_data_files(directory_path, extension='.xls'):
     return file_paths
 
 
-def find_sheet_containing_valid_famacha(book):
+def find_sheet_containing_valid_famacha(book, farm_name, path):
     #returns index of famacha column if exists
     map = {}
     for n in range(book.nsheets):
@@ -36,8 +36,18 @@ def find_sheet_containing_valid_famacha(book):
         for row_index in xrange(0, sheet.nrows):
             try:
                 row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
-                if "Neus" in row_values and "Kwak keel" in row_values and "Sender nr" in row_values:
-                    map[sheet.name] = {"id_col_index": row_values.index("Sender nr"), "famacha_col_index": row_values.index("Kwak keel")-1}
+
+                if 'bothaville' in farm_name:
+                    if "Neus" in row_values and "Kwak keel" in row_values and "Sender nr" in row_values:
+                        map[sheet.name] = {"id_col_index": row_values.index("Sender nr"), "famacha_col_index": row_values.index("Kwak keel")-1}
+                if 'cedara' in farm_name:
+
+                    if 'FC' not in sheet.name:
+                        continue
+
+                    if "Transponder" in row_values:
+                        map[path] = {"id_col_index": row_values.index("Transponder"),
+                                           "famacha_col_index": row_values.index("Fc")}
             except Exception as e:
                 print(e)
     return map
@@ -78,7 +88,7 @@ def process_files(file_paths, farm_name=''):
         print("reading file...")
         print(path)
         book = xlrd.open_workbook(path)
-        map = find_sheet_containing_valid_famacha(book)
+        map = find_sheet_containing_valid_famacha(book, farm_name, path)
         if not map:
             continue
         print(map)
@@ -93,10 +103,9 @@ def process_files(file_paths, farm_name=''):
 if __name__ == '__main__':
     print("start...")
     start_time = time.time()
+    xls_files = find_data_files("E:/SouthAfrica/Metadata/CEDARA2 data", extension='.xls')
     # xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
     # process_files(xls_files, farm_name="bothaville")
-    xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
-    process_files(xls_files, farm_name="bothaville")
 
     # pdf_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.pdf')
 

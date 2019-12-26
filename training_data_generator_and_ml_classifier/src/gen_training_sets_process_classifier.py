@@ -47,6 +47,7 @@ from sklearn.metrics import f1_score
 from os import listdir
 from os.path import isfile, join
 import tzlocal
+from sys import exit
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -161,7 +162,11 @@ def get_temp_humidity(date, data):
 
 def get_previous_famacha_score(serial_number, famacha_test_date, data_famacha, curr_score):
     previous_score = None
-    list = data_famacha[serial_number]
+    try:
+        list = data_famacha[str(serial_number)]
+    except KeyError as e:
+        print(e)
+        exit()
     for i in range(1, len(list)):
         item = list[i]
         if item[0] == famacha_test_date:
@@ -169,7 +174,7 @@ def get_previous_famacha_score(serial_number, famacha_test_date, data_famacha, c
                 previous_score = int(list[i - 1][1])
             except ValueError as e:
                 previous_score = curr_score
-                # print(e)
+                print(e)
             break
     return previous_score
 
@@ -271,6 +276,28 @@ def get_period(curr_data_famacha, days_before_famacha_test):
     return famacha_test_date_epoch_s, famacha_test_date_epoch_before_s
 
 
+def sql_dict_list_to_list(dict_list):
+    return pd.DataFrame(dict_list)['serial_number'].tolist()
+
+
+def format_cedara_famacha_data(data_famacha_dict):
+    # famacha records contains shorten version of the serial numbers whereas activity records contains full version
+    rows_serial_numbers = execute_sql_query(
+        "SELECT DISTINCT serial_number FROM cedara_70091100056_resolution_10min")
+    serial_numbers_full = sql_dict_list_to_list(rows_serial_numbers)
+
+    data_famacha_dict_formatted = {}
+    for key, value in data_famacha_dict.items():
+        for elem in serial_numbers_full:
+            if key in str(elem):
+                v = value.copy()
+                for item in v:
+                    item[2] = elem
+                data_famacha_dict_formatted[str(elem)] = v
+
+    return data_famacha_dict_formatted
+
+
 def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
                       expected_sample_count, farm_sql_table_id=None):
     # print("generating new training pair....")
@@ -283,11 +310,12 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         print("error while parsing famacha score!", e)
         return
 
-    animal_id = curr_data_famacha[2]
+    animal_id = int(curr_data_famacha[2])
     # find the activity data of that animal the n days before the test
     date1, date2 = get_period(curr_data_famacha, days_before_famacha_test)
     print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
         famacha_test_date, animal_id, days_before_famacha_test, resolution))
+
     rows_activity = execute_sql_query("SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
                                       " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
                                       (farm_sql_table_id, resolution, date2, date1,
@@ -303,7 +331,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
 
     if len(rows_activity) != expected_sample_count:
         # filter out missing activity data
-        print("absent activity records. skip.", "found %d" % len(rows_activity), "expecred %d" % expected_sample_count)
+        print("absent activity records. skip.", "found %d" % len(rows_activity), "expected %d" % expected_sample_count)
         return
 
     # data_activity = normalize_activity_array_ascomb(data_activity)
@@ -363,7 +391,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
             "indexes": indexes, "activity": activity_list,
-            "temperature": temperature_list, "humidity": humidity_list, "herd": herd_activity_list
+            "temperature": temperature_list, "humidity": humidity_list, "herd": herd_activity_list, "ignore": True
             }
     return data
 
@@ -397,19 +425,23 @@ def process_famacha_var(results, count_skipped=True):
             if count_skipped:
                 skipped_class_false += 1
             continue
-        if curr_data["famacha_score"] == next_data["famacha_score"]:  # same famacha score
+        if curr_data["famacha_score"] == 1 and next_data["famacha_score"] == 1:  # same famacha score
+            next_data["famacha_score_increase"] = False
+            next_data["ignore"] = False
             if count_skipped:
                 skipped_class_false += 1
             continue
-        if curr_data["famacha_score"] == 1 and next_data["famacha_score"] == 2:
-            print("famacha score changed from 1 to 2. creating new set...")
+        if curr_data["famacha_score"] < next_data["famacha_score"]:
+            print("famacha score changed from 1 to >2. creating new set...")
             next_data["famacha_score_increase"] = True
+            next_data["ignore"] = False
             if count_skipped:
                 skipped_class_true += 1
-        if curr_data["famacha_score"] == 2 and next_data["famacha_score"] == 1:
-            if count_skipped:
-                skipped_class_false += 1
             continue
+        # if curr_data["famacha_score"] == 2 and next_data["famacha_score"] == 1:
+        #     if count_skipped:
+        #         skipped_class_false += 1
+        #     continue
     return skipped_class_false, skipped_class_true
 
 
@@ -491,12 +523,12 @@ def interpolate(input_activity):
         return input_activity
 
 
-def create_activity_graph(activity, folder, filename, title=None, sub_folder='training_sets_time_domain_graphs'):
+def create_activity_graph(activity, folder, filename, title=None, sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     activity = [0 if x is None else x for x in activity]
     fig = plt.figure()
     plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
-    path = "%s/%s" % (folder, sub_folder)
+    path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
 
@@ -513,15 +545,19 @@ def create_cwt_graph(coef, freqs, lenght, folder, filename, title=None):
     create_activity_graph(coef_f, folder, "flat_%s" % filename, title, sub_folder='training_sets_cwt_graphs')
 
 
-def create_hd_cwt_graph(coefs, folder, filename, title=None):
-    fig = plt.figure()
-    ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
-    ax.imshow(coefs)
-    ax.set_yscale('log')
-    path = "%s/training_sets_cwt_graphs" % folder
+def create_hd_cwt_graph(coefs, folder, filename, title=None, sub_folder='training_sets_cwt_graphs', sub_sub_folder=None):
+    fig, axs = plt.subplots(1)
+    # ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
+    # ax.imshow(coefs)
+    # ax.set_yscale('log')
+    t = [v for v in range(coefs.shape[1])]
+    axs.pcolor(t, freqs, coefs)
+    axs.set_ylabel('Frequency')
+    axs.set_yscale('log')
+
+    path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
-    exit()
     # fig.savefig('%s/%s' % (path, filename))
 
 
@@ -559,8 +595,8 @@ def compute_hd_cwt(activity):
 
 
 def compute_cwt(activity):
-    name = 'gaus8'
-    w = pywt.ContinuousWavelet(name)
+    wavelet_type = 'gaus8'
+    w = pywt.ContinuousWavelet(wavelet_type)
     scales = even_list(40)
     sampling_frequency = 1 / 60
     sampling_period = 1 / sampling_frequency
@@ -569,12 +605,12 @@ def compute_cwt(activity):
     cwt = [element for tupl in coef for element in tupl]
     indexes = list(range(len(cwt)))
     indexes.reverse()
-    return cwt, coef, freqs, indexes
+    return cwt, coef, freqs, indexes, scales, 1, wavelet_type
 
 
 def create_filename(data):
-    filename = "%d_%s_%s_%fsd_pvfs%d_zt%d_nt%d.png" % (data["animal_id"], data["date_range"][0], data["date_range"][1],
-                                                       data["famacha_score"], data["previous_famacha_score"],
+    filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d_zt%d_nt%d.png" % (data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
+                                                       -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
                                                        data["nan_threshold"],
                                                        data["zeros_threshold"])
     return filename.replace('/', '-')
@@ -659,14 +695,11 @@ def create_training_set(result, dir, options=[]):
     training_set.append(len(training_set))
     training_set.extend(result["date_range"])
     training_set.append(result["animal_id"])
+    training_set.append(result["famacha_score"])
+    training_set.append(result["previous_famacha_score"])
     path = "%s/training_sets" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s.data" % (path, option)
-    # print(len(training_set))
-
-    # map(lambda x: str(x) if x is not None else 'NaN', training_set)
-
-    # training_str_flatten = ','.join(training_set)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
     print("set size is %d, %s.....%s" % (
         len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
@@ -742,7 +775,7 @@ def create_graph_title(data, domain):
         return "[[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%d,%s]" % (
             act_1, act_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"],
-            data["previous_famacha_score"],
+            -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
             str(data["famacha_score_increase"]))
     if domain == "freq":
         idxs_1 = ','.join([str(int(x)) for x in data["indexes_cwt"][0:1]])
@@ -752,7 +785,7 @@ def create_graph_title(data, domain):
         return "[cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%d,%s]" % (
             cwt_1, cwt_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"],
-            data["previous_famacha_score"],
+            -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
             str(data["famacha_score_increase"]))
 
 
@@ -1784,16 +1817,17 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
 
 if __name__ == '__main__':
     print("pandas", pd.__version__)
-    farm_id = "bothaville_70091100060"
+    # farm_id = "cedara_70091100056"
+    farm_id = "delmas_70101200027"
     resolution_l = ['10min', '5min', 'hour', 'day']
-    days_before_famacha_test_l = [2]
+    days_before_famacha_test_l = [12, 11, 10, 9, 6, 5, 4, 3, 2, 1]
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
     start_time = time.time()
     print('args=', sys.argv)
     connect_to_sql_database()
-    create_cwt_graph_enabled = False
+    create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
 
     for resolution in resolution_l:
@@ -1810,18 +1844,20 @@ if __name__ == '__main__':
             with open(os.path.join(__location__, 'delmas_weather.json')) as f:
                 weather_data = json.load(f)
 
+            # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
+            # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
+            #     json.dump(data_famacha_dict, outfile)
 
-
-            #data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
-
-            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\bothaville_famacha_data.json', 'r') as fp:
+            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'r') as fp:
                 data_famacha_dict = json.load(fp)
                 print(data_famacha_dict.keys())
+                if 'cedara' in farm_id:
+                    data_famacha_dict = format_cedara_famacha_data(data_famacha_dict)
 
             data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
             results = []
             herd_data = []
-            dir = "%s/%s_resolution_%s_days_%d_log" % (os.getcwd().replace('C','E'), farm_id, resolution, days_before_famacha_test)
+            dir = "%s/%s_resolution_%s_days_%d" % (os.getcwd().replace('C','E'), farm_id, resolution, days_before_famacha_test)
             class_input_dict_file_path = dir + '/class_input_dict.json'
             if False:#os.path.exists(class_input_dict_file_path):
                 print('training sets already created skip to processing.')
@@ -1861,14 +1897,16 @@ if __name__ == '__main__':
                 for result in results:
                     if not result['is_valid']:
                         continue
+                    # if result['ignore']:
+                    #     continue
                     pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                     filename = create_filename(result)
                     if create_activity_graph_enabled:
-                        create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"))
+                        create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"), sub_sub_folder=str(result['famacha_score_increase']))
 
                     # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
+                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
 
                     # weight = process_weight(result["activity"], coef)
                     result["cwt"] = cwt
@@ -1878,7 +1916,7 @@ if __name__ == '__main__':
 
                     herd_data.append(result['herd'])
                     if create_cwt_graph_enabled:
-                        create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"))
+                        create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"), sub_sub_folder=str(result['famacha_score_increase']))
 
                     class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
                     if not os.path.exists(class_input_dict_file_path):
@@ -1886,13 +1924,14 @@ if __name__ == '__main__':
                             json.dump(class_input_dict, fout)
 
             herd_file_path = dir + '/%s_herd_activity.json' % farm_id
+            herd_file_path = herd_file_path.replace('/', '\\')
             if not os.path.exists(herd_file_path):
                 with open(herd_file_path, 'w') as fout:
                     json.dump({'herd_activity': herd_data}, fout)
 
-            exit()
-            process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-                                zeros_threshold)
+
+            # process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+            #                     zeros_threshold)
 
     print(get_elapsed_time_string(start_time, time.time()))
     merge_results(filename="results_simplified_report_%s.xlsx" % run_timestamp, filter='results_simplified.csv')
