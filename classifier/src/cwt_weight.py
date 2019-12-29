@@ -1,3 +1,4 @@
+import gc
 import os
 
 import matplotlib.pyplot as plt
@@ -24,8 +25,7 @@ from scipy.signal import chirp
 import time
 from sys import exit
 
-L = 0
-F = None
+CWT_RES = 100000
 
 
 def create_cwt_graph(coefs, freq, lenght, title=None):
@@ -87,7 +87,8 @@ def compute_cwt(activity):
     activity_i = interpolate(activity)
     coef, freqs = pywt.cwt(np.asarray(activity_i), scales, w, sampling_period=sampling_period)
     cwt = [element for tupl in coef for element in tupl]
-    indexes = np.asarray(list(range(coef.shape[1])))
+    # indexes = np.asarray(list(range(coef.shape[1])))
+    indexes = []
     return cwt, coef, freqs, indexes, scales, 1, 'morlet'
 
 
@@ -105,7 +106,7 @@ def compute_cwt_hd(activity):
     wavelet_type = 'morlet'
 
     # y = [0 if x is np.nan else x for x in y] #todo fix
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, dj=CWT_RES, wavelet=wavelet_type, freqs=freqs)
 
     # print("*********************************************")
     # print(y)
@@ -121,7 +122,8 @@ def compute_cwt_hd(activity):
     # plt.show()
     # exit()
     cwt = [element for tupl in coefs.real for element in tupl]
-    indexes = np.asarray(list(range(len(coefs.real))))
+    # indexes = np.asarray(list(range(len(coefs.real))))
+    indexes = []
     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type
 
 
@@ -133,21 +135,21 @@ def start(fname='', out_fname=None, id=None):
     # print(data_frame)
     sample_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-7] = "class"
+    hearder[-7] = "label"
     hearder[-6] = "elem_in_row"
     hearder[-5] = "date1"
     hearder[-4] = "date2"
     hearder[-3] = "serial"
-    hearder[-2] = "date2"
-    hearder[-1] = "serial"
+    hearder[-2] = "famacha_score"
+    hearder[-1] = "previous_famacha_score"
     data_frame.columns = hearder
     data_frame_0 = data_frame
-    data_frame = data_frame.loc[:, :'class']
+    data_frame = data_frame.loc[:, :'label']
     np.random.seed(0)
     data_frame = data_frame.sample(frac=1).reset_index(drop=True)
     # data_frame = data_frame.fillna(-1)
     data_frame = shuffle(data_frame)
-    data_frame['class'] = data_frame['class'].map({True: 1, False: 0})
+    data_frame['label'] = data_frame['label'].map({True: 1, False: 0})
     process(data_frame, data_frame_0, out_fname, id)
 
 
@@ -193,13 +195,13 @@ def purge_file(filename):
     except FileNotFoundError:
         print("file not found.")
 
-data = []
+DATA_52 = []
 def process_data_frame(data_frame, data_frame_0, out_fname = None):
     print(out_fname)
     # data_frame = data_frame.fillna(-1)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
-    X_date = data_frame_0[data_frame_0.columns[data_frame_0.shape[1] - 4:data_frame_0.shape[1]]].values
-    cwt_list = []
+    X_date = data_frame_0[data_frame_0.columns[data_frame_0.shape[1] - 7:data_frame_0.shape[1]]].values
+    # cwt_list = []
     class0 = []
     class1 = []
 
@@ -211,6 +213,8 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
             activity = np.asarray(activity)
             H.append(activity)
     herd_mean = np.average(H, axis=0)
+    del H
+    gc.collect()
 
     # herd_mean = np.average(herd_data, axis=0)
     # herd_mean = interpolate(herd_mean)
@@ -219,6 +223,8 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
     # herd_mean = minmax_scale(herd_mean, feature_range=(0, 1))
 
     purge_file(out_fname)
+    X_cwt = pd.DataFrame()
+    cpt = 0
     with open(out_fname, 'a') as outfile:
         for i, activity in enumerate(X):
             activity = interpolate(activity)
@@ -233,13 +239,21 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
             # activity = interpolate(activity)
 
             print("%d/%d ..." % (i, len(X)))
-            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt_hd(activity)
 
-            data.append({'indexes': indexes, 'coef': coefs, 'freqs': freqs, 'shape': activity.shape[0], 'title': str(i)})
+            if len(DATA_52) == 0:
+                DATA_52.append({'coef': coefs, 'freqs': freqs})
+
             # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
 
-            cwt_list.append(cwt)
-            target = data_frame.at[i, 'class']
+            # cwt_list.append(cwt)
+            if cpt == 0:
+                X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
+
+            X_cwt.loc[cpt] = cwt
+            cpt += 1
+            # print(X_cwt)
+            target = data_frame.at[i, 'label']
 
             label = 'False'
             if target == 0:
@@ -248,7 +262,8 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
                 label = 'True'
                 class1.append(activity)
 
-            training_str_flatten = str(coefs.shape).strip('()')+','+str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN')+','+label+','+str(X_date[i].tolist()).replace('\'','').strip('[]').replace(' ','')
+            training_str_flatten = str(coefs.shape).strip('()')+','+str(cwt).strip('[]').replace(' ', '')\
+                .replace('None', 'NaN')+','+label+','+str(X_date[i].tolist()).replace('\'','').strip('[]').replace(' ','')
 
             print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-50:]))
 
@@ -257,10 +272,12 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
 
 
     class0_mean = np.average(class0, axis=0)
+    del class0
     # class0_mean[class0_mean == 0] = np.nan
     # class0_mean = interpolate(class0_mean)
 
     class1_mean = np.average(class1, axis=0)
+    del class1
     # class1_mean[class1_mean == 0] = np.nan
     # class1_mean = interpolate(class1_mean)
 
@@ -288,10 +305,11 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
     _, coefs_class1_mean, _, _, _, _, _ = compute_cwt_hd(class1_mean)
     # plt.matshow(coefs_class1_mean)
     # plt.show()
-
-    X = pd.DataFrame.from_records(cwt_list)
+    X = X_cwt
+    # X = pd.DataFrame.from_records(cwt_list)
+    # del cwt_list
     # print(X)
-    y = data_frame["class"].values.flatten()
+    y = data_frame["label"].values.flatten()
     # X = normalize(X)
     # X = preprocessing.MinMaxScaler().fit_transform(X)
     return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname
@@ -342,10 +360,14 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
     # clf = LDA(n_components=2)
-    # y_train[0] = 3
+
+    y_train[0] = 3
 
     print("fit...")
     clf.fit(X_train, y_train)
+    del X_train
+    del y_train
+    gc.collect()
 
     # result = class_feature_importance(X.values, y, clf.coef_[0])
     print("explain_prediction...")
@@ -375,19 +397,23 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     weight1 = class1['weight'].values
 
     #value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
-    weight0 = pad(weight0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    weight0 = pad(weight0, DATA_52[0]['coef'].shape[0] * DATA_52[0]['coef'].shape[1])
     #value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
-    weight1 = pad(weight1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    weight1 = pad(weight1, DATA_52[0]['coef'].shape[0] * DATA_52[0]['coef'].shape[1])
 
     fig, axs = plt.subplots(5, 2)
     fig.set_size_inches(25, 25)
-    outfile = 'SVC_%s.png' % out_fname.split('.')[0]
+    outfile = 'SVC_%s_%d.png' % (out_fname.split('.')[0], CWT_RES)
     axs[0, 0].set_title(outfile, fontsize=25, loc="left", pad=30)
 
     ymin = min([min(class0_mean), min(class1_mean), min(herd_mean)])
     ymax = max([max(class0_mean), max(class1_mean), max(herd_mean)])
 
-    axs[0, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_class0_mean)
+    x_axis = [x for x in range(coefs_class0_mean.shape[1])]
+    y_axis = [x for x in range(coefs_class0_mean.shape[0])]
+    # x_axis[0] = 1
+    # x_axis[-1] = coefs_class0_mean.shape[1]
+    axs[0, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_class0_mean)
     axs[0, 0].set_yscale('log')
     axs[0, 0].set_title('class0 cwt input')
     # iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
@@ -396,7 +422,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     axs[0, 1].set_ylim([ymin, ymax])
     axs[0, 1].set_title('class0 time input')
 
-    axs[1, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_class1_mean)
+    axs[1, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_class1_mean)
     axs[1, 0].set_yscale('log')
     axs[1, 0].set_title('class1 cwt input')
     # iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
@@ -406,25 +432,25 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     axs[1, 1].set_title('class1 time input')
 
 
-    c0 = np.reshape(normalized(weight0), data[0]['coef'].shape)
+    c0 = np.reshape(normalized(weight0), DATA_52[0]['coef'].shape)
     iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
     iwave0 = np.real(iwave0)
 
-    c1 = np.reshape(normalized(weight1), data[0]['coef'].shape)
+    c1 = np.reshape(normalized(weight1), DATA_52[0]['coef'].shape)
     iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
     iwave1 = np.real(iwave1)
 
     ymin2 = min([min(iwave0), min(iwave1)])
     ymax2 = max([max(iwave0), max(iwave1)])
 
-    axs[2, 0].pcolor(data[0]['indexes'], data[0]['freqs'], c0)
+    axs[2, 0].pcolor(x_axis, DATA_52[0]['freqs'], c0)
     axs[2, 0].set_yscale('log')
     axs[2, 0].set_title('class0 cwt weight')
     axs[2, 1].plot(iwave0)
     axs[2, 1].set_ylim([ymin2, ymax2])
     axs[2, 1].set_title('class0 cwt weight inverse')
 
-    axs[3, 0].pcolor(data[0]['indexes'], data[0]['freqs'], c1)
+    axs[3, 0].pcolor(x_axis, DATA_52[0]['freqs'], c1)
     axs[3, 0].set_yscale('log')
     axs[3, 0].set_title('class1 cwt weight')
     axs[3, 1].plot(iwave1)
@@ -432,7 +458,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     axs[3, 1].set_title('class1 cwt weight inverse')
 
 
-    axs[4, 0].pcolor(data[0]['indexes'], data[0]['freqs'], coefs_herd_mean)
+    axs[4, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_herd_mean)
     # Set yscale, ylim and labels
     axs[4, 0].set_yscale('log')
     axs[4, 0].set_title('mean cwt input')
@@ -448,11 +474,15 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     fig.show()
     # outfile = 'SVC_%s.png' % str(time.time()).split('.')[0]
     fig.savefig(str(id)+'_'+outfile, dpi=100)
+    fig.clear()
+    plt.close(fig)
     # exit()
 
 
 
 if __name__ == '__main__':
+    plt.clf()
+    plt.cla()
     # dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_6/'
     # with open("%s/herd_activity.json" % dir, "r") as read_file:
     #     herd_data = json.load(read_file)
@@ -461,10 +491,9 @@ if __name__ == '__main__':
     #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_sub.data', id=2)
     #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_div.data', id=2)
 
-    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_12/'
-    # with open("%s/herd_activity.json" % dir, "r") as read_file:
-    #     herd_data = json.load(read_file)
-
-    # start(fname="%s/training_sets/activity_.data" % dir, out_fname='4_cwt_.data', id=4)
-    # start(fname="%s/training_sets/activity_.data" % dir, out_fname='4_cwt_sub.data', id=4)
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='5_cwt_div.data', id=5)
+    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_20/'
+    os.chdir(dir)
+    start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
+    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_25/'
+    os.chdir(dir)
+    start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)

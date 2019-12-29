@@ -2,6 +2,7 @@ import base64
 import json
 import json
 import math
+import gc
 import os
 import os.path
 import pathlib
@@ -438,10 +439,10 @@ def process_famacha_var(results, count_skipped=True):
             if count_skipped:
                 skipped_class_true += 1
             continue
-        # if curr_data["famacha_score"] == 2 and next_data["famacha_score"] == 1:
-        #     if count_skipped:
-        #         skipped_class_false += 1
-        #     continue
+        if curr_data["famacha_score"] == 2 and next_data["famacha_score"] == 1:
+            if count_skipped:
+                skipped_class_false += 1
+            continue
     return skipped_class_false, skipped_class_true
 
 
@@ -531,6 +532,8 @@ def create_activity_graph(activity, folder, filename, title=None, sub_folder='tr
     path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
+    fig.clear()
+    plt.close(fig)
 
 
 def create_cwt_graph(coef, freqs, lenght, folder, filename, title=None):
@@ -542,7 +545,6 @@ def create_cwt_graph(coef, freqs, lenght, folder, filename, title=None):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
     coef_f = coef.flatten().tolist()
-    create_activity_graph(coef_f, folder, "flat_%s" % filename, title, sub_folder='training_sets_cwt_graphs')
 
 
 def create_hd_cwt_graph(coefs, folder, filename, title=None, sub_folder='training_sets_cwt_graphs', sub_sub_folder=None):
@@ -558,6 +560,9 @@ def create_hd_cwt_graph(coefs, folder, filename, title=None, sub_folder='trainin
     path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s' % (path, filename))
+    fig.clear()
+    plt.close(fig)
+
     # fig.savefig('%s/%s' % (path, filename))
 
 
@@ -603,8 +608,9 @@ def compute_cwt(activity):
     activity_i = interpolate(activity)
     coef, freqs = pywt.cwt(np.asarray(activity_i), scales, w, sampling_period=sampling_period)
     cwt = [element for tupl in coef for element in tupl]
-    indexes = list(range(len(cwt)))
-    indexes.reverse()
+    # indexes = list(range(len(cwt)))
+    # indexes.reverse()
+    indexes = []
     return cwt, coef, freqs, indexes, scales, 1, wavelet_type
 
 
@@ -1820,7 +1826,7 @@ if __name__ == '__main__':
     # farm_id = "cedara_70091100056"
     farm_id = "delmas_70101200027"
     resolution_l = ['10min', '5min', 'hour', 'day']
-    days_before_famacha_test_l = [12, 11, 10, 9, 6, 5, 4, 3, 2, 1]
+    days_before_famacha_test_l = [30, 25, 20, 15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
@@ -1894,11 +1900,14 @@ if __name__ == '__main__':
                 skipped_class_false, skipped_class_true = process_famacha_var(results)
 
                 class_input_dict = []
-                for result in results:
+                for idx in range(len(results)):
+                    result = results[idx]
                     if not result['is_valid']:
+                        results[idx] = None
                         continue
-                    # if result['ignore']:
-                    #     continue
+                    if result['ignore']:
+                        results[idx] = None
+                        continue
                     pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                     filename = create_filename(result)
                     if create_activity_graph_enabled:
@@ -1922,6 +1931,9 @@ if __name__ == '__main__':
                     if not os.path.exists(class_input_dict_file_path):
                         with open(class_input_dict_file_path, 'w') as fout:
                             json.dump(class_input_dict, fout)
+                    #remove item from stack
+                    results[idx] = None
+                    gc.collect()
 
             herd_file_path = dir + '/%s_herd_activity.json' % farm_id
             herd_file_path = herd_file_path.replace('/', '\\')
