@@ -1,47 +1,23 @@
 import gc
 import os
+from sys import exit
 
+import eli5
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pywt
-from sklearn.utils import shuffle
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import pathlib
-from sklearn.preprocessing import minmax_scale
-from sklearn.preprocessing import scale
-import seaborn as sns
-from sklearn.preprocessing import normalize
-from sklearn import preprocessing
-from sklearn.svm import SVC
-from sklearn.feature_extraction.text import CountVectorizer
-import json
-import eli5
 import pycwt as wavelet
-from pycwt.helpers import find
+import pywt
 from scipy.signal import chirp
-import time
-from sys import exit
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import scale
+from sklearn.svm import SVC
+from sklearn.utils import shuffle
 
-CWT_RES = 100000
-
-
-def create_cwt_graph(coefs, freq, lenght, title=None):
-    # time = [x for x in range(0, lenght)]
-    plt.matshow(coefs)
-    # plt.show()
-
-    # fig = plt.figure()
-    # plt.matshow(coefs.real)
-    # # plt.pcolormesh(time, freq, coef)
-    # fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
-    # path = "training_sets_cwt_graphs"
-    # pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    # # fig.savefig('%s/%s.png' % (path, title))
-    # fig.show()
-    # exit()
+DATA_ = []
+CWT_RES = 1000000
+TRAINING_DIR = "E:/Users/fo18103/PycharmProjects" \
+               "/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/"
 
 
 def interpolate(input_activity):
@@ -65,13 +41,12 @@ def even_list(n):
 
 
 def dummy_sin():
-    T = 5
+    period = 5
     n = 1000
-    t = np.linspace(0, T, n, endpoint=False)
+    t = np.linspace(0, period, n, endpoint=False)
     f0 = 1
     f1 = 10
-    y = chirp(t, f0, T, f1, method='logarithmic')
-
+    y = chirp(t, f0, period, f1, method='logarithmic')
     plt.plot(t, y)
     plt.grid(alpha=0.25)
     plt.xlabel('t (seconds)')
@@ -195,7 +170,7 @@ def purge_file(filename):
     except FileNotFoundError:
         print("file not found.")
 
-DATA_52 = []
+
 def process_data_frame(data_frame, data_frame_0, out_fname = None):
     print(out_fname)
     # data_frame = data_frame.fillna(-1)
@@ -204,8 +179,6 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
     # cwt_list = []
     class0 = []
     class1 = []
-
-
     H = []
     with open(out_fname, 'a') as outfile:
         for i, activity in enumerate(X):
@@ -241,8 +214,8 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
             print("%d/%d ..." % (i, len(X)))
             cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt_hd(activity)
 
-            if len(DATA_52) == 0:
-                DATA_52.append({'coef': coefs, 'freqs': freqs})
+            if len(DATA_) == 0:
+                DATA_.append({'coef': coefs, 'freqs': freqs})
 
             # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
 
@@ -353,6 +326,7 @@ def normalized(v):
 
 
 def process(data_frame, data_frame_0, out_fname=None, id=None):
+    global DATA_
     print("process...")
     X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean,\
     coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname = process_data_frame(data_frame, data_frame_0, out_fname)
@@ -360,7 +334,6 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
     # clf = LDA(n_components=2)
-
     y_train[0] = 3
 
     print("fit...")
@@ -377,6 +350,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     print(aux1)
     class0 = aux1[aux1.target == 0]
     class1 = aux1[aux1.target == 1]
+    del aux1
 
     class0 = class0[class0.feature != '<BIAS>']
     class1 = class1[class1.feature != '<BIAS>']
@@ -392,28 +366,29 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
 
     #value0 = class0['value'].values
     weight0 = class0['weight'].values
-
     #value1 = class1['value'].values
     weight1 = class1['weight'].values
 
+    del class0
+    del class1
+
     #value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
-    weight0 = pad(weight0, DATA_52[0]['coef'].shape[0] * DATA_52[0]['coef'].shape[1])
+    weight0 = pad(weight0, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
     #value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
-    weight1 = pad(weight1, DATA_52[0]['coef'].shape[0] * DATA_52[0]['coef'].shape[1])
+    weight1 = pad(weight1, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
 
     fig, axs = plt.subplots(5, 2)
     fig.set_size_inches(25, 25)
-    outfile = 'SVC_%s_%d.png' % (out_fname.split('.')[0], CWT_RES)
+    outfile = 'SVC_%s.png' % (out_fname.split('.')[0])
     axs[0, 0].set_title(outfile, fontsize=25, loc="left", pad=30)
 
     ymin = min([min(class0_mean), min(class1_mean), min(herd_mean)])
     ymax = max([max(class0_mean), max(class1_mean), max(herd_mean)])
 
     x_axis = [x for x in range(coefs_class0_mean.shape[1])]
-    y_axis = [x for x in range(coefs_class0_mean.shape[0])]
     # x_axis[0] = 1
     # x_axis[-1] = coefs_class0_mean.shape[1]
-    axs[0, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_class0_mean)
+    axs[0, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class0_mean)
     axs[0, 0].set_yscale('log')
     axs[0, 0].set_title('class0 cwt input')
     # iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
@@ -422,7 +397,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     axs[0, 1].set_ylim([ymin, ymax])
     axs[0, 1].set_title('class0 time input')
 
-    axs[1, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_class1_mean)
+    axs[1, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class1_mean)
     axs[1, 0].set_yscale('log')
     axs[1, 0].set_title('class1 cwt input')
     # iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
@@ -431,34 +406,34 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     axs[1, 1].set_ylim([ymin, ymax])
     axs[1, 1].set_title('class1 time input')
 
-
-    c0 = np.reshape(normalized(weight0), DATA_52[0]['coef'].shape)
+    c0 = np.reshape(normalized(weight0), DATA_[0]['coef'].shape)
     iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
     iwave0 = np.real(iwave0)
 
-    c1 = np.reshape(normalized(weight1), DATA_52[0]['coef'].shape)
+    c1 = np.reshape(normalized(weight1), DATA_[0]['coef'].shape)
     iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
     iwave1 = np.real(iwave1)
 
     ymin2 = min([min(iwave0), min(iwave1)])
     ymax2 = max([max(iwave0), max(iwave1)])
 
-    axs[2, 0].pcolor(x_axis, DATA_52[0]['freqs'], c0)
+    axs[2, 0].pcolor(x_axis, DATA_[0]['freqs'], c0)
     axs[2, 0].set_yscale('log')
     axs[2, 0].set_title('class0 cwt weight')
     axs[2, 1].plot(iwave0)
+    del iwave0
     axs[2, 1].set_ylim([ymin2, ymax2])
     axs[2, 1].set_title('class0 cwt weight inverse')
 
-    axs[3, 0].pcolor(x_axis, DATA_52[0]['freqs'], c1)
+    axs[3, 0].pcolor(x_axis, DATA_[0]['freqs'], c1)
     axs[3, 0].set_yscale('log')
     axs[3, 0].set_title('class1 cwt weight')
     axs[3, 1].plot(iwave1)
+    del iwave1
     axs[3, 1].set_ylim([ymin2, ymax2])
     axs[3, 1].set_title('class1 cwt weight inverse')
-
-
-    axs[4, 0].pcolor(x_axis, DATA_52[0]['freqs'], coefs_herd_mean)
+    axs[4, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_herd_mean)
+    del coefs_herd_mean
     # Set yscale, ylim and labels
     axs[4, 0].set_yscale('log')
     axs[4, 0].set_title('mean cwt input')
@@ -466,34 +441,40 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     # iwave_m = np.real(iwave_m)
     axs[4, 1].set_ylim([ymin, ymax])
     axs[4, 1].plot(herd_mean)
+    del herd_mean
     axs[4, 1].set_title('mean time input')
-
-    # for ax in axs.flat:
-    #     ax.label_outer()
-
     fig.show()
-    # outfile = 'SVC_%s.png' % str(time.time()).split('.')[0]
     fig.savefig(str(id)+'_'+outfile, dpi=100)
     fig.clear()
     plt.close(fig)
-    # exit()
-
+    DATA_ = []
 
 
 if __name__ == '__main__':
-    plt.clf()
-    plt.cla()
-    # dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_6/'
-    # with open("%s/herd_activity.json" % dir, "r") as read_file:
-    #     herd_data = json.load(read_file)
+    for resolution in ['hour', '10min', '5min']:
+        for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
+            dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
+            os.chdir(dir)
+            try:
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
+            except MemoryError as e:
+                print(e)
+                DATA_ = []
+                plt.clf()
+                gc.collect()
 
-    #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_.data', id=2)
-    #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_sub.data', id=2)
-    #start(fname="%s/training_sets/activity_.data" % dir, out_fname='2_cwt_div.data', id=2)
+        for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
+            dir = TRAINING_DIR + 'delmas_70101200027_resolution_%s_days_%d/' % (resolution, item)
+            os.chdir(dir)
+            try:
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
+            except MemoryError as e:
+                print(e)
+                DATA_ = []
+                plt.clf()
+                gc.collect()
 
-    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_20/'
-    os.chdir(dir)
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
-    dir = 'E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/delmas_70101200027_resolution_10min_days_25/'
-    os.chdir(dir)
-    start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
+
+

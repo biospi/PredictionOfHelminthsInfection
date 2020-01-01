@@ -1823,9 +1823,9 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
 
 if __name__ == '__main__':
     print("pandas", pd.__version__)
-    # farm_id = "cedara_70091100056"
-    farm_id = "delmas_70101200027"
-    resolution_l = ['10min', '5min', 'hour', 'day']
+    farm_id = "cedara_70091100056"
+    # farm_id = "delmas_70101200027"
+    resolution_l = ['min', '10min', '5min', 'hour', 'day']
     days_before_famacha_test_l = [30, 25, 20, 15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
@@ -1835,6 +1835,7 @@ if __name__ == '__main__':
     connect_to_sql_database()
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
+    weather_data = None
 
     for resolution in resolution_l:
         if resolution == "min":
@@ -1847,14 +1848,17 @@ if __name__ == '__main__':
             expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
 
             # generate_training_sets(data_famacha_flattened)
-            with open(os.path.join(__location__, 'delmas_weather.json')) as f:
-                weather_data = json.load(f)
+            try:
+                with open(os.path.join(__location__, '%s_weather.json'% farm_id.split('_')[0])) as f:
+                    weather_data = json.load(f)
+            except FileNotFoundError as e:
+                print(e)
 
             # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
             # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
             #     json.dump(data_famacha_dict, outfile)
 
-            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'r') as fp:
+            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\%s_famacha_data.json' % farm_id.split('_')[0], 'r') as fp:
                 data_famacha_dict = json.load(fp)
                 print(data_famacha_dict.keys())
                 if 'cedara' in farm_id:
