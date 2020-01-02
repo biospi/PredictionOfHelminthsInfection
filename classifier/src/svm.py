@@ -588,8 +588,8 @@ def f_importances(coef, names, X_train):
 
 
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label'):
-    if clf_name not in ['SVM', 'MPL', 'REG']:
-        raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
+    if clf_name not in ['SVM', 'MLP', 'LREG']:
+        raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
 
     scores_2d, scores_3d, scores_full = [], [], []
     precision_false_2d, precision_false_3d, precision_false_full = [], [], []
@@ -610,7 +610,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
     clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
 
-    if clf_name == 'REG':
+    if clf_name == 'LREG':
         clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
     if clf_name == 'MLP':

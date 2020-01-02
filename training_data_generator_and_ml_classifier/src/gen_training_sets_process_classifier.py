@@ -1217,7 +1217,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, enalble_ROCplot=True, nfold=1):
 
-    if clf_name not in ['SVM', 'MPL', 'REG']:
+    if clf_name not in ['SVM', 'MLP', 'LREG']:
         raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
 
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
@@ -1240,8 +1240,8 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
 
-    if hasattr(clf, "hidden_layer_sizes"):
-        clf_name = "%s%s" % (clf_name, str(clf.hidden_layer_sizes))
+    if clf.best_estimator_ is not None and hasattr(clf.best_estimator_, "hidden_layer_sizes"):
+        clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
 
     title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s\n' % (
@@ -1251,18 +1251,14 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                 np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
-    if dim_reduc_name is None:
-        return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
-               title.split('\n')[0], ''
-
-    file_path = None
+    file_path = 'empty'
     if dim == 1 and enalble_1Dplot:
         file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
 
     if dim == 2 and enalble_2Dplot:
         file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
 
-    if dim == 3 and enalble_3Dplot:
+    if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name:
         file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
                                                 options=options, i=i)
 
@@ -1286,8 +1282,8 @@ def dict_mean(dict_list):
 
 
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
-    if clf_name not in ['SVM', 'MPL', 'REG']:
-        raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
+    if clf_name not in ['SVM', 'MLP', 'LREG']:
+        raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
 
     X, y = process_data_frame(data_frame, y_col=y_col)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
@@ -1309,7 +1305,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
         clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
 
-    if clf_name == 'REG':
+    if clf_name == 'LREG':
         clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
     if clf_name == 'MLP':
@@ -1334,16 +1330,16 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
             simplified_results_full.append(sr)
 
         if dim_reduc is not None:
-            acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
-            clf_name_2d, file_path_2d, sr_2d = compute_model(
-                X, y, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
-                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
-            
             acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d,\
             clf_name_1d, file_path_1d, sr_1d = compute_model(
                 X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
                 clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
-            
+
+            acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            clf_name_2d, file_path_2d, sr_2d = compute_model(
+                X, y, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+
             acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
             clf_name_3d, file_path_3d, sr_3d = compute_model(
                 X, y, train_index, test_index, i, clf=clf, dim=3, dim_reduc_name=dim_reduc,
@@ -1707,117 +1703,98 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
     print("start classification...", inputs)
     start_time = time.time()
     for input in inputs:
-        try:
-            print(input)
-            data_frame, _ = load_df_from_datasets(input, label_col)
-            print(data_frame)
-            sample_count = data_frame.shape[1]
-            class_true_count = data_frame[label_col].value_counts().to_dict()[True]
-            class_false_count = data_frame[label_col].value_counts().to_dict()[False]
-            print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
+        print(input)
+        data_frame, _ = load_df_from_datasets(input["path"], label_col)
+        print(data_frame)
+        sample_count = data_frame.shape[1]
+        class_true_count = data_frame[label_col].value_counts().to_dict()[True]
+        class_false_count = data_frame[label_col].value_counts().to_dict()[False]
+        print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
 
-            for result in [
-                process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir,
-                        options=input["options"], resolution=resolution),
-                process(data_frame, fold=10, clf_name='SVM', folder=dir,
-                        options=input["options"], resolution=resolution),
-                process(data_frame, fold=10, dim_reduc='LDA', clf_name='REG', folder=dir,
-                        options=input["options"], resolution=resolution)
-                # process(data_frame, fold=10, dim_reduc='', clf_name='SVC', folder=dir,
-                #         options=input["options"], resolution=resolution),
-            ]:
-                time_proc = get_elapsed_time_string(start_time, time.time())
+        for result in [
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir,
+                    options=input["options"], resolution=resolution),
+            process(data_frame, fold=10, clf_name='SVM', folder=dir,
+                    options=input["options"], resolution=resolution),
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='LREG', folder=dir,
+                    options=input["options"], resolution=resolution)
+            # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
+            #         options=input["options"], resolution=resolution)
+        ]:
+            time_proc = get_elapsed_time_string(start_time, time.time())
 
-                if '2d_reduced' in result:
-                    r_1d = result['1d_reduced']
-                    append_result_file(filename, r_1d['accuracy'], r_1d['scores'], r_1d['precision_true'],
-                                       r_1d['precision_false'],
-                                       r_1d['recall_true'], r_1d['recall_false'], r_1d['fscore_true'],
-                                       r_1d['fscore_false'], r_1d['support_true'], r_1d['support_false'],
-                                       class_true_count,
-                                       class_false_count, result['fold'],
-                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
-                                       data_frame.shape[0],
-                                       input["path"], input["options"], r_1d['clf_name'], r_1d['db_file_path'])
-                    
-                    r_2d = result['2d_reduced']
-                    append_result_file(filename, r_2d['accuracy'], r_2d['scores'], r_2d['precision_true'],
-                                       r_2d['precision_false'],
-                                       r_2d['recall_true'], r_2d['recall_false'], r_2d['fscore_true'],
-                                       r_2d['fscore_false'], r_2d['support_true'], r_2d['support_false'],
-                                       class_true_count,
-                                       class_false_count, result['fold'],
-                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
-                                       data_frame.shape[0],
-                                       input["path"], input["options"], r_2d['clf_name'], r_2d['db_file_path'])
+            if '2d_reduced' in result:
+                r_1d = result['1d_reduced']
+                append_result_file(filename, r_1d['accuracy'], r_1d['scores'], r_1d['precision_true'],
+                                   r_1d['precision_false'],
+                                   r_1d['recall_true'], r_1d['recall_false'], r_1d['fscore_true'],
+                                   r_1d['fscore_false'], r_1d['support_true'], r_1d['support_false'],
+                                   class_true_count,
+                                   class_false_count, result['fold'],
+                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                   data_frame.shape[0],
+                                   input["path"], input["options"], r_1d['clf_name'], r_1d['db_file_path'])
 
-                    r_3d = result['3d_reduced']
-                    append_result_file(filename, r_3d['accuracy'], r_3d['scores'], r_3d['precision_true'],
-                                       r_3d['precision_false'],
-                                       r_3d['recall_true'], r_3d['recall_false'], r_3d['fscore_true'],
-                                       r_3d['fscore_false'], r_3d['support_true'], r_3d['support_false'],
-                                       class_true_count,
-                                       class_false_count, result['fold'],
-                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
-                                       data_frame.shape[0],
-                                       input["path"], input["options"], r_3d['clf_name'], r_3d['db_file_path'])
+                r_2d = result['2d_reduced']
+                append_result_file(filename, r_2d['accuracy'], r_2d['scores'], r_2d['precision_true'],
+                                   r_2d['precision_false'],
+                                   r_2d['recall_true'], r_2d['recall_false'], r_2d['fscore_true'],
+                                   r_2d['fscore_false'], r_2d['support_true'], r_2d['support_false'],
+                                   class_true_count,
+                                   class_false_count, result['fold'],
+                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                   data_frame.shape[0],
+                                   input["path"], input["options"], r_2d['clf_name'], r_2d['db_file_path'])
 
-                if 'not_reduced' in result:
-                    r = result['not_reduced']
-                    append_result_file(filename, r['accuracy'], r['scores'], r['precision_true'], r['precision_false'],
-                                       r['recall_true'], r['recall_false'], r['fscore_true'],
-                                       r['fscore_false'], r['support_true'], r['support_false'], class_true_count,
-                                       class_false_count, result['fold'],
-                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
-                                       data_frame.shape[0],
-                                       input["path"], input["options"], r['clf_name'], r['db_file_path'])
+                r_3d = result['3d_reduced']
+                append_result_file(filename, r_3d['accuracy'], r_3d['scores'], r_3d['precision_true'],
+                                   r_3d['precision_false'],
+                                   r_3d['recall_true'], r_3d['recall_false'], r_3d['fscore_true'],
+                                   r_3d['fscore_false'], r_3d['support_true'], r_3d['support_false'],
+                                   class_true_count,
+                                   class_false_count, result['fold'],
+                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                   data_frame.shape[0],
+                                   input["path"], input["options"], r_3d['clf_name'], r_3d['db_file_path'])
 
-                if 'simplified_results' in result:
-                    if 'simplified_results_2d' in result['simplified_results']:
-                        item = result['simplified_results']['simplified_results_2d']
-                        append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
-                                                      item['specificity'],
-                                                      item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, sliding_w, resolution,
-                                                      format_options(input["options"]))
-                    if 'simplified_results_1d' in result['simplified_results']:
-                        item = result['simplified_results']['simplified_results_1d']
-                        append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
-                                                      item['specificity'],
-                                                      item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, sliding_w, resolution,
-                                                      format_options(input["options"]))
-                    if 'simplified_results_3d' in result['simplified_results']:
-                        item = result['simplified_results']['simplified_results_3d']
-                        append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
-                                                      item['specificity'],
-                                                      item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, sliding_w, resolution,
-                                                      format_options(input["options"]))
-                    if 'simplified_results_full' in result['simplified_results']:
-                        item = result['simplified_results']['simplified_results_full']
-                        append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
-                                                      item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, sliding_w, resolution,
-                                                      format_options(input["options"]))
+            if 'not_reduced' in result:
+                r = result['not_reduced']
+                append_result_file(filename, r['accuracy'], r['scores'], r['precision_true'], r['precision_false'],
+                                   r['recall_true'], r['recall_false'], r['fscore_true'],
+                                   r['fscore_false'], r['support_true'], r['support_false'], class_true_count,
+                                   class_false_count, result['fold'],
+                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                   data_frame.shape[0],
+                                   input["path"], input["options"], r['clf_name'], r['db_file_path'])
 
-            # for train_x_size, test_x_size, penalty, classifier, precision_true, precision_false, cross_validated_score, scores, fold, \
-            #     recall_true, recall_false, fscore_true, fscore_false, support_true, support_false, X, y, db_path in [
-            #     process_SVC_LDA(data_frame, dir, input["options"]), process_SVC(data_frame),
-            #     process_SVC_PCA(data_frame, dir, input["options"])]:
-            #     time_proc = get_elapsed_time_string(start_time, time.time())
-            #
-            #     append_result_file(filename, cross_validated_score, scores, precision_true, precision_false,
-            #                        recall_true, recall_false, fscore_true, fscore_false, support_true,
-            #                        support_false, class_true_count,
-            #                        class_false_count, fold, resolution, dbt, thresh_nan, thresh_zeros, time_proc,
-            #                        sample_count,
-            #                        data_frame.shape[0],
-            #                        input["path"], input["options"], classifier, db_path)
-        except ValueError as e:
-            #LDA(n_components=output_dim).fit_transform(X_train, y_train) usually culprit
-            print(e)
-            continue
+            if 'simplified_results' in result:
+                if 'simplified_results_2d' in result['simplified_results']:
+                    item = result['simplified_results']['simplified_results_2d']
+                    append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
+                                                  item['specificity'],
+                                                  item['recall'], item['precision'], item['f-score'],
+                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  format_options(input["options"]))
+                if 'simplified_results_1d' in result['simplified_results']:
+                    item = result['simplified_results']['simplified_results_1d']
+                    append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
+                                                  item['specificity'],
+                                                  item['recall'], item['precision'], item['f-score'],
+                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  format_options(input["options"]))
+                if 'simplified_results_3d' in result['simplified_results']:
+                    item = result['simplified_results']['simplified_results_3d']
+                    append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
+                                                  item['specificity'],
+                                                  item['recall'], item['precision'], item['f-score'],
+                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  format_options(input["options"]))
+                if 'simplified_results_full' in result['simplified_results']:
+                    item = result['simplified_results']['simplified_results_full']
+                    append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
+                                                  item['recall'], item['precision'], item['f-score'],
+                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  format_options(input["options"]))
 
 
 def format_options(options):
