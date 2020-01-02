@@ -16,7 +16,7 @@ def purge_file(filename):
         print("file not found.")
 
 
-def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015", db_name="south_africa_test4",
+def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015", db_name="south_africa",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     global sql_db
@@ -45,9 +45,8 @@ def execute_sql_query(query, records=None, log_enabled=True):
         print("Exeception occured:{}".format(e))
 
 
-def get_historical_weather_data():
-    farm_id = "Delmas_70101200027"
-    days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_d" % farm_id)
+def get_historical_weather_data(farm_id=None, out_file=None, city=None):
+    days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_day" % farm_id)
     days_ = []
     for item in days:
         days_.append(item['timestamp_s'].split(' ')[0])
@@ -63,10 +62,10 @@ def get_historical_weather_data():
     # days_ = sorted(days_, key=lambda n: datetime.strptime(n, '%Y-%m-%d'))
     print(len(days_), days_)
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
-    purge_file('weather_raw.json')
-    with open('weather_raw.json', 'a') as outfile:
+    purge_file(out_file)
+    with open(out_file, 'a') as outfile:
         for i, date in enumerate(days_):
-            PARAMS = {'key': "b8eced29b72d43129ba154351192201", 'q': "Delmas,south+africa",
+            PARAMS = {'key': "b2c98e7e99b545f196e55352200101", 'q': "%s,south+africa" % city,
                       'date': date, 'tp': 1, 'format': 'json'}
             r = requests.get(url=URL, params=PARAMS)
             data = r.json()
@@ -114,5 +113,7 @@ def get_humidity_date(path, name):
 if __name__ == '__main__':
     print(sys.argv)
     connect_to_sql_database()
-    #get_historical_weather_data()
-    get_humidity_date('weather_raw.json', 'Delmas')
+    # get_historical_weather_data(farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
+    # get_humidity_date('delmas_weather_raw.json', 'delmas')
+    get_historical_weather_data(farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
+    get_humidity_date('cedara_weather_raw.json', 'cedara')

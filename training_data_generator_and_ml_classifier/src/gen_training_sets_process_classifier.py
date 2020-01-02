@@ -21,6 +21,7 @@ import pywt
 import xlrd
 from ipython_genutils.py3compat import xrange
 from sklearn import preprocessing
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize, LabelBinarizer
@@ -101,10 +102,10 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
                      "recall_true,recall_false,fscore_true,fscore_false,support_true,support_false," \
                      "class_true_count,class_false_count,skipped_class_true,skipped_class_false," \
                      "fold,resolution," \
-                     "days_before_test,threshold_nan,threshold_zeros,processing_time,sample_count,set_size," \
+                     "days_before_test,sliding_w,threshold_nan,threshold_zeros,processing_time,sample_count,set_size," \
                      "file_path,input,classifier, decision_bounderies_file"
 
-RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,days,resolution,inputs"
+RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,days,sliding_w,resolution,inputs"
 
 skipped_class_false, skipped_class_true = -1, -1
 
@@ -143,6 +144,19 @@ def generate_table_from_xlsx(path):
                 data[serial] = chunks
     # print(data)
     return data
+
+
+def get_weight(curr_datetime, data_famacha_dict, animal_id):
+    weight = None
+    c = curr_datetime.strftime("%d/%m/%Y")
+    for data in data_famacha_dict[str(animal_id)]:
+        if c in data[0]:
+            try:
+                weight = float(data[3])
+            except ValueError as e:
+                print(e)
+                weight = None
+    return weight
 
 
 def get_temp_humidity(date, data):
@@ -268,13 +282,16 @@ def normalize_histogram_mean_diff(activity_mean, activity, log=False):
     return activity
 
 
-def get_period(curr_data_famacha, days_before_famacha_test):
+def get_period(curr_data_famacha, days_before_famacha_test, sliding_window):
     famacha_test_date = time.strptime(curr_data_famacha[0], "%d/%m/%Y")
-    famacha_test_date_epoch_s = str(time.mktime(famacha_test_date)).split('.')[0]
+    famacha_test_date_epoch_s = str(time.mktime((datetime.fromtimestamp(time.mktime(famacha_test_date)) -
+                                                        timedelta(days=sliding_w)).timetuple())).split('.')[0]
     famacha_test_date_epoch_before_s = str(time.mktime((datetime.fromtimestamp(time.mktime(famacha_test_date)) -
-                                                        timedelta(days=days_before_famacha_test)).timetuple())).split(
-        '.')[0]
-    return famacha_test_date_epoch_s, famacha_test_date_epoch_before_s
+                                                        timedelta(days=sliding_window + days_before_famacha_test)).
+                                                       timetuple())).split('.')[0]
+    famacha_test_date_formated = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(famacha_test_date_epoch_s)))
+    famacha_test_date_epoch_before_formated = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(famacha_test_date_epoch_before_s)))
+    return famacha_test_date_epoch_s, famacha_test_date_epoch_before_s, famacha_test_date_formated, famacha_test_date_epoch_before_formated
 
 
 def sql_dict_list_to_list(dict_list):
@@ -300,20 +317,19 @@ def format_cedara_famacha_data(data_famacha_dict):
 
 
 def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
-                      expected_sample_count, farm_sql_table_id=None):
+                      expected_sample_count, farm_sql_table_id=None, sliding_windows=None):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
         "%d/%m/%Y")
     try:
         famacha_score = int(curr_data_famacha[1])
-        animal_weight = int(curr_data_famacha[3])
     except ValueError as e:
         print("error while parsing famacha score!", e)
         return
 
     animal_id = int(curr_data_famacha[2])
     # find the activity data of that animal the n days before the test
-    date1, date2 = get_period(curr_data_famacha, days_before_famacha_test)
+    date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test, sliding_windows)
     print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
         famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
@@ -349,7 +365,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     indexes = []
     timestamp_list = []
     humidity_list = []
-    # activity_list = []
+    weight_list = []
     temperature_list = []
     dates_list_formated = []
 
@@ -357,13 +373,16 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         # transform date in time for comparaison
         curr_datetime = datetime.utcfromtimestamp(int(data_a['timestamp']))
         timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
-        # if not weather_data:
-        #     temp, humidity = 0, 0
-        # else:
-        #     temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+        temp, humidity = get_temp_humidity(curr_datetime, weather_data)
 
-        temp, humidity = 0, 0
-        # activity_list.append(data_activity_o[j])
+        try:
+            weight = int(curr_data_famacha[3])
+        except ValueError as e:
+            print(e)
+            weight = None
+
+        weight_list.append(weight)
+
         indexes.append(idx)
         timestamp_list.append(timestamp)
         temperature_list.append(temp)
@@ -387,7 +406,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
-    data = {"famacha_score_increase": False, "famacha_score": famacha_score, "animal_weight": animal_weight,
+    data = {"famacha_score_increase": False, "famacha_score": famacha_score, "weight": weight_list,
             "previous_famacha_score": previous_famacha_score, "animal_id": animal_id,
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
@@ -685,6 +704,9 @@ def create_training_set(result, dir, options=[]):
     if "indexes" in options:
         training_set.extend(result["indexes"])
         option = option + "indexes_"
+    if "weight" in options:
+        training_set.extend(result["weight"])
+        option = option + "weight_"
     if "humidity" in options:
         training_set.extend(result["humidity"])
         option = option + "humidity_"
@@ -730,41 +752,34 @@ def create_training_set(result, dir, options=[]):
 
 
 def create_training_sets(data, dir_path):
-    # training_file_path_td, options1 = create_training_set(data, dir_path,
-    #                                                       options=["activity", "indexes", "humidity", "temperature"])
-    # training_file_path_td1, options11 = create_training_set(data, dir_path,
-    #                                                         options=["activity", "humidity", "temperature"])
-    # training_file_path_fd, options2 = create_training_set(data, dir_path,
-    #                                                       options=["cwt", "cwt_weight", "indexes_cwt", "humidity",
-    #                                                                "temperature"])
-    # training_file_path_fd1, options21 = create_training_set(data, dir_path,
-    #                                                         options=["cwt", "cwt_weight", "humidity", "temperature"])
-    # training_file_path_fd12, options22 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
-    # training_file_path_fd123, options223 = create_training_set(data, dir_path, options=["cwt", "humidity"])
-    # training_file_path_fd1232, options2232 = create_training_set(data, dir_path, options=["cwt", "temperature"])
-    # training_file_path_td144, options114 = create_training_set(data, dir_path, options=["activity", "temperature"])
-    # training_file_path_td14, options1142 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    # training_file_path_temp, options3 = create_training_set(data, dir_path, options=["temperature"])
-    # training_file_path_hum, options4 = create_training_set(data, dir_path, options=["humidity"])
-    # training_file_path_hum_temp, options5 = create_training_set(data, dir_path, options=["humidity", "temperature"])
-    training_file_path_hum_temp_activity, options7 = create_training_set(data, dir_path, options=["activity"])
-    training_file_path_hum_temp_cwt, options8 = create_training_set(data, dir_path, options=["cwt"])
+    path1, options1 = create_training_set(data, dir_path, options=["activity"])
+    path2, options2 = create_training_set(data, dir_path, options=["cwt"])
+    path3, options3 = create_training_set(data, dir_path, options=["weight"])
+    path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
+    path5, options5 = create_training_set(data, dir_path, options=["activity", "humidity"])
+    path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
+    path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
+    path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
+    path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
+    path10, options10 = create_training_set(data, dir_path, options=["cwt", "temperature"])
+    path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
+    path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
+    path13, options13 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature", "weight"])
 
     return [
-        #{"path": training_file_path_td, "options": options1},
-            # {"path": training_file_path_fd, "options": options2},
-            # {"path": training_file_path_temp, "options": options3},
-            # {"path": training_file_path_hum, "options": options4},
-            # {"path": training_file_path_hum_temp, "options": options5},
-            {"path": training_file_path_hum_temp_activity, "options": options7},
-            {"path": training_file_path_hum_temp_cwt, "options": options8}
-            #{"path": training_file_path_td1, "options": options11},
-            # {"path": training_file_path_fd1, "options": options21},
-            #{"path": training_file_path_fd123, "options": options223},
-            #{"path": training_file_path_fd1232, "options": options2232},
-            #{"path": training_file_path_td144, "options": options114},
-            #{"path": training_file_path_td14, "options": options1142},
-            #{"path": training_file_path_fd12, "options": options22}
+        {"path": path1, "options": options1},
+            {"path": path2, "options": options2},
+            {"path": path3, "options": options3},
+            {"path": path4, "options": options4},
+            {"path": path5, "options": options5},
+            {"path": path6, "options": options5},
+            {"path": path7, "options": options7},
+            {"path": path8, "options": options8},
+            {"path": path9, "options": options9},
+            {"path": path10, "options": options10},
+            {"path": path11, "options": options11},
+            {"path": path12, "options": options12},
+            {"path": path13, "options": options13}
         ]
 
 
@@ -795,10 +810,10 @@ def create_graph_title(data, domain):
             str(data["famacha_score_increase"]))
 
 
-def init_result_file(dir, simplified_results=False):
+def init_result_file(dir, farm_id, simplified_results=False):
     path = "%s/analysis" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    filename = "%s/results_simplified.csv" % path if simplified_results else "%s/results.csv" % path
+    filename = "%s/%s_results_simplified.csv" % (path, farm_id) if simplified_results else "%s/%s_results.csv" % (path, farm_id)
     with open(filename, 'a') as outfile:
         outfile.write(RESULT_FILE_HEADER_SIMPLIFIED) if simplified_results else outfile.write(RESULT_FILE_HEADER)
         outfile.write('\n')
@@ -807,10 +822,10 @@ def init_result_file(dir, simplified_results=False):
 
 
 def append_simplified_result_file(filename, classifier_name, accuracy, specificity, recall, precision, fscore,
-                                  days_before_test, resolution, options):
-    data = "%s, %.2f,%.2f,%.2f,%.2f,%.2f,%d,%s,%s" % (
+                                  days_before_test, sliding_w, resolution, options):
+    data = "%s, %.2f,%.2f,%.2f,%.2f,%.2f,%d,%d,%s,%s" % (
     classifier_name.replace(',', ':').replace(' 10FCV', ''), accuracy, specificity, recall, precision, fscore,
-    days_before_test, resolution, options)
+    days_before_test, sliding_w, resolution, options)
     with open(filename, 'a') as outfile:
         outfile.write(data)
         outfile.write('\n')
@@ -820,7 +835,7 @@ def append_simplified_result_file(filename, classifier_name, accuracy, specifici
 def append_result_file(filename, cross_validated_score, scores, precision_true, precision_false,
                        recall_true, recall_false, fscore_true, fscore_false, support_true, support_false,
                        class_true_count, class_false_count, fold,
-                       resolution, days_before_test, threshold_nan, threshold_zeros,
+                       resolution, days_before_test, sliding_w, threshold_nan, threshold_zeros,
                        processing_time,
                        sample_count, set_size, training_file, options, kernel,
                        db_path):
@@ -843,6 +858,7 @@ def append_result_file(filename, cross_validated_score, scores, precision_true, 
     print('fold', type(fold), fold)
     print('resolution', type(resolution), resolution)
     print('days_before_test', type(days_before_test), days_before_test)
+    print('sliding_w', type(sliding_w), sliding_w)
     print('threshold_nan', type(threshold_nan), threshold_nan)
     print('threshold_zeros', type(threshold_zeros), threshold_zeros)
     print('processing_time', type(processing_time), processing_time)
@@ -852,11 +868,11 @@ def append_result_file(filename, cross_validated_score, scores, precision_true, 
     print('options', type(options), options)
     print('kernel', type(kernel), kernel)
     print('db_path', type(db_path), db_path)
-    data = "%.15f,%s,%.15f,%.15f,%.15f,%.15f,%.15f,%.15f,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%s,%d,%d,%s,%s,%s,%s" % (
+    data = "%.15f,%s,%.15f,%.15f,%.15f,%.15f,%.15f,%.15f,%d,%d,%d,%d,%d,%d,%d,%s,%d,%d,%d,%d,%s,%d,%d,%s,%s,%s,%s" % (
         cross_validated_score, scores_s, precision_true, precision_false, recall_true, recall_false, fscore_true,
         fscore_false,
         support_true, support_false, class_true_count, class_false_count, skipped_class_true, skipped_class_false, fold,
-        resolution, days_before_test, threshold_nan, threshold_zeros,
+        resolution, days_before_test, sliding_w, threshold_nan, threshold_zeros,
         processing_time, sample_count, set_size, training_file, '-'.join(options),
         kernel.replace(',', ':'), db_path)
     with open(filename, 'a') as outfile:
@@ -890,17 +906,16 @@ def parse_report(report):
     return precision_true, precision_false, score
 
 
-def process_data_frame(data_frame):
-    data_frame = data_frame.replace([np.inf, -np.inf], np.nan)
+def process_data_frame(data_frame, y_col='label'):
     data_frame = data_frame.fillna(-1)
-    X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    cwt_shape = data_frame[data_frame.columns[0:2]].values
+    X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]].values
+    print(X)
     X = normalize(X)
     X = preprocessing.MinMaxScaler().fit_transform(X)
-    # print(X.shape, X)
-    # print(DataFrame.from_records(X))
-    y = data_frame["class"].values.flatten()
-    hold_out = X.shape[0] - 0
-    return X[0:hold_out, :], y[0:hold_out], X[hold_out:, :], y[hold_out:]
+    y = data_frame[y_col].values.flatten()
+    y = y.astype(int)
+    return X, y
 
 
 def process_and_split_data_frame(data_frame):
@@ -1140,9 +1155,8 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, fo
 
 def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
-    print('reduce_lda', output_dim)
-    if output_dim not in [2, 3]:
-        raise ValueError("available dimension for features reduction are 2 and 3.")
+    if output_dim not in [1, 2, 3]:
+        raise ValueError("available dimension for features reduction are 1, 2 and 3.")
     if output_dim == 3:
         X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
         y_train = np.append(y_train, (3, 4))
@@ -1155,10 +1169,11 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
         y_test = np.append(y_test, 3)
     X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
     X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
-    X_train = X_train[0:-(output_dim - 1)]
-    y_train = y_train[0:-(output_dim - 1)]
-    X_test = X_test[0:-(output_dim - 1)]
-    y_test = y_test[0:-(output_dim - 1)]
+    if output_dim != 1:
+        X_train = X_train[0:-(output_dim - 1)]
+        y_train = y_train[0:-(output_dim - 1)]
+        X_test = X_test[0:-(output_dim - 1)]
+        y_test = y_test[0:-(output_dim - 1)]
 
     return X_train, X_test, y_train, y_test
 
@@ -1198,27 +1213,17 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
         return None, None, None, None, None, None
 
 
-def compute_model(X, y, X_val, y_val, train_index, test_index, i, clf=None, dim=None, dim_reduc_name='', clf_name='',
-                  folder=None,
-                  options=None, resolution=None, enalble_2Dplot=True, enalble_3Dplot=False, enalble_ROCplot=False):
-    print('dim', dim, dim_reduc_name)
-    if clf_name not in ['SVC', 'MLP']:
-        print(clf_name)
-        raise ValueError("available classifiers are SVC and MLP.")
+def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_reduc_name=None, clf_name='',
+                  folder=None, options=None, resolution=None, enalble_1Dplot=True,
+                  enalble_2Dplot=True, enalble_3Dplot=True, enalble_ROCplot=True, nfold=1):
+
+    if clf_name not in ['SVM', 'MPL', 'REG']:
+        raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
 
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
-
     if X_lda is None:
         return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-
-    # if dim_reduc_name != '':
-    #     X_val, _, y_val, _ = reduce_lda(dim, X_val, X_val, y_val, y_val)
-    # else:
-    #     print('no dimentional reduction detected.')
-    #
-    # print(X_val)
-    # print(y_val)
 
     clf.fit(X_train, y_train)
     print("Best estimator found by grid search:")
@@ -1231,44 +1236,36 @@ def compute_model(X, y, X_val, y_val, train_index, test_index, i, clf=None, dim=
     # acc_val = accuracy_score(y_val, y_pred_val)
     print(classification_report(y_test, y_pred))
 
-    precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true = get_prec_recall_fscore_support(
+    precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
+    support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
-
-    # precision_false_val, precision_true_val, recall_false_val, recall_true_val, fscore_false_val, fscore_true_val, support_false_val, support_true_val = get_prec_recall_fscore_support(
-    #     y_val, y_pred_val)
-
-    if dim_reduc_name is None:
-        return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
     if hasattr(clf, "hidden_layer_sizes"):
         clf_name = "%s%s" % (clf_name, str(clf.hidden_layer_sizes))
 
-    title = '%s-%s %dD 10FCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
+    title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s\n' % (
-                clf_name, dim_reduc_name, dim, i,
+                clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
                 acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
                 np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                 np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
-    # title_val = 'VAL %s-%s %dD 10FCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
-    #         'class1=%d\n' % (
-    #     clf_name, dim_reduc_name, dim, i,
-    #     acc_val * 100, precision_false_val * 100, precision_true_val * 100, recall_false_val * 100, recall_true_val * 100,
-    #     np.count_nonzero(y_val == 0), np.count_nonzero(y_val == 1))
-
-    if dim_reduc_name is '':
+    if dim_reduc_name is None:
         return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
                title.split('\n')[0], ''
 
     file_path = None
+    if dim == 1 and enalble_1Dplot:
+        file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
+
     if dim == 2 and enalble_2Dplot:
         file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
-        # plot_2D_decision_boundaries(X_val, y_val, X_val, title_val, clf, folder=folder, options=options, i=i)
 
-    if dim == 3 and clf_name is 'SVC' and enalble_3Dplot:
+    if dim == 3 and enalble_3Dplot:
         file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
                                                 options=options, i=i)
+
     if enalble_ROCplot:
         save_roc_curve(y_test, y_probas, title, options, folder, i=i)
 
@@ -1288,26 +1285,32 @@ def dict_mean(dict_list):
     return mean_dict
 
 
-def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None):
-    X, y, X_val, y_val = process_data_frame(data_frame)
-    y = y.astype(int)
+def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
+    if clf_name not in ['SVM', 'MPL', 'REG']:
+        raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
+
+    X, y = process_data_frame(data_frame, y_col=y_col)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     kf.get_n_splits(X)
 
-    scores, scores_2d, scores_3d = [], [], []
-    precision_false, precision_false_2d, precision_false_3d = [], [], []
-    precision_true, precision_true_2d, precision_true_3d = [], [], []
-    recall_false, recall_false_2d, recall_false_3d = [], [], []
-    recall_true, recall_true_2d, recall_true_3d = [], [], []
-    fscore_false, fscore_false_2d, fscore_false_3d = [], [], []
-    fscore_true, fscore_true_2d, fscore_true_3d = [], [], []
-    support_false, support_false_2d, support_false_3d = [], [], []
-    support_true, support_true_2d, support_true_3d = [], [], []
-    simplified_results_full, simplified_results_2d, simplified_results_3d = [], [], []
+    scores, scores_1d, scores_2d, scores_3d = [], [], [], []
+    precision_false, precision_false_1d, precision_false_2d, precision_false_3d = [], [], [], []
+    precision_true, precision_true_1d, precision_true_2d, precision_true_3d = [], [], [], []
+    recall_false, recall_false_1d, recall_false_2d, recall_false_3d = [], [], [], []
+    recall_true, recall_true_1d, recall_true_2d, recall_true_3d = [], [], [], []
+    fscore_false, fscore_false_1d, fscore_false_2d, fscore_false_3d = [], [], [], []
+    fscore_true, fscore_true_1d, fscore_true_2d, fscore_true_3d = [], [], [], []
+    support_false, support_false_1d, support_false_2d, support_false_3d = [], [], [], []
+    support_true, support_true_1d, support_true_2d, support_true_3d = [], [], [], []
+    simplified_results_full, simplified_results_1d, simplified_results_2d, simplified_results_3d = [], [], [], []
+    clf_name_full, clf_name_1d, clf_name_2d, clf_name_3d = '', '', '', ''
 
-    if clf_name == 'SVC':
+    if clf_name == 'SVM':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
+        clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
+
+    if clf_name == 'REG':
+        clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
     if clf_name == 'MLP':
         param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
@@ -1315,10 +1318,10 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
 
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
-        if dim_reduc == '':
+        if dim_reduc is None:
             acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr = compute_model(
-                X, y, X_val, y_val, train_index, test_index, i, clf=clf, clf_name=clf_name, dim=X.shape[1],
-                folder=folder, options=options, resolution=resolution)
+                X, y, train_index, test_index, i, clf=clf, clf_name=clf_name, dim=X.shape[1],
+                folder=folder, options=options, resolution=resolution, nfold=fold)
             scores.append(acc)
             precision_false.append(p_false)
             precision_true.append(p_true)
@@ -1330,13 +1333,32 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
             support_true.append(s_true)
             simplified_results_full.append(sr)
 
-        if dim_reduc != '':
-            acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, file_path_2d, sr_2d = compute_model(
-                X, y, X_val, y_val, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
-                clf_name=clf_name, folder=folder, options=options, resolution=resolution)
-            acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, file_path_3d, sr_3d = compute_model(
-                X, y, X_val, y_val, train_index, test_index, i, clf=clf, dim=3, dim_reduc_name=dim_reduc,
-                clf_name=clf_name, folder=folder, options=options, resolution=resolution)
+        if dim_reduc is not None:
+            acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            clf_name_2d, file_path_2d, sr_2d = compute_model(
+                X, y, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+            
+            acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d,\
+            clf_name_1d, file_path_1d, sr_1d = compute_model(
+                X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+            
+            acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
+            clf_name_3d, file_path_3d, sr_3d = compute_model(
+                X, y, train_index, test_index, i, clf=clf, dim=3, dim_reduc_name=dim_reduc,
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+            scores_1d.append(acc_1d)
+            precision_false_1d.append(p_false_1d)
+            precision_true_1d.append(p_true_1d)
+            recall_false_1d.append(r_false_1d)
+            recall_true_1d.append(r_true_1d)
+            fscore_false_1d.append(fs_false_1d)
+            fscore_true_1d.append(fs_true_1d)
+            support_false_1d.append(s_false_1d)
+            support_true_1d.append(s_true_1d)
+            simplified_results_1d.append(sr_1d)
+            
             scores_2d.append(acc_2d)
             precision_false_2d.append(p_false_2d)
             precision_true_2d.append(p_true_2d)
@@ -1362,7 +1384,7 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
     print("svc %d fold cross validation 2d is %f, 3d is %s." % (
         fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
 
-    if dim_reduc == '':
+    if dim_reduc is None:
         result = {
             'fold': fold,
             'not_reduced': {
@@ -1384,6 +1406,20 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
     else:
         result = {
             'fold': fold,
+            '1d_reduced': {
+                'db_file_path': file_path_1d,
+                'clf_name': clf_name_1d,
+                'scores': scores_1d,
+                'accuracy': float(np.mean(scores_1d)),
+                'precision_true': float(np.mean(precision_true_1d)),
+                'precision_false': np.mean(precision_false_1d),
+                'recall_true': float(np.mean(recall_true_1d)),
+                'recall_false': np.mean(recall_false_1d),
+                'fscore_true': float(np.mean(fscore_true_1d)),
+                'fscore_false': float(np.mean(fscore_false_1d)),
+                'support_true': np.mean(support_true_1d),
+                'support_false': np.mean(support_false_1d)
+            },
             '2d_reduced': {
                 'db_file_path': file_path_2d,
                 'clf_name': clf_name_2d,
@@ -1413,6 +1449,7 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
                 'support_false': np.mean(support_false_3d)
             },
             'simplified_results': {
+                'simplified_results_1d': dict_mean(simplified_results_1d),
                 'simplified_results_2d': dict_mean(simplified_results_2d),
                 'simplified_results_3d': dict_mean(simplified_results_3d)
             }
@@ -1634,63 +1671,75 @@ def process(data_frame, fold=2, dim_reduc=None, clf_name=None, folder=None, opti
 #            fscore_true, fscore_false, support_true, support_false, X, y, db_path
 
 
-def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
-    filename = init_result_file(dir)
-    filename_s = init_result_file(dir, simplified_results=True)
+def load_df_from_datasets(fname, label_col):
+    df = pd.read_csv(fname, nrows=1, sep=",", header=None)
+    print(df)
+    data_col_n = df.iloc[[0]].size
+    type_dict = {}
+    for n, i in enumerate(range(0, data_col_n)):
+        if n < (data_col_n - 7):
+            type_dict[str(i)] = np.float16
+        else:
+            type_dict[str(i)] = np.str
+
+    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
+    print(data_frame)
+    sample_count = data_frame.shape[1]
+    hearder = [str(n) for n in range(0, sample_count)]
+    hearder[-7] = "label"
+    hearder[-6] = "elem_in_row"
+    hearder[-5] = "date1"
+    hearder[-4] = "date2"
+    hearder[-3] = "serial"
+    hearder[-2] = "famacha_score"
+    hearder[-1] = "previous_famacha_score"
+    data_frame.columns = hearder
+    cols_to_keep = hearder[:-7]
+    cols_to_keep.append(label_col)
+    data_frame = data_frame[cols_to_keep]
+    data_frame = shuffle(data_frame)
+    return data_frame, cols_to_keep
+
+
+def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, farm_id, sliding_w, label_col='label'):
+    filename = init_result_file(dir, farm_id)
+    filename_s = init_result_file(dir, farm_id, simplified_results=True)
     print("start classification...", inputs)
     start_time = time.time()
     for input in inputs:
         try:
             print(input)
-            df = pd.read_csv(input["path"], nrows=1, sep=",", header=None)
-            data_col_n = df.iloc[[0]].size
-            type_dict = {}
-            for n, i in enumerate(range(0, data_col_n)):
-                if n < (data_col_n - 5):
-                    type_dict[str(i)] = np.float16
-                else:
-                    type_dict[str(i)] = np.str
-
-            # data_frame = pd.read_csv(input["path"], sep=",", header=None, dtype=type_dict, low_memory=False)
-            data_frame = pd.read_csv(input["path"], sep=",", header=None, dtype=type_dict, low_memory=False)
-            # data_frame = pd.DataFrame()
-            # chunk_size = 10000
-            # i = 1
-            # for chunk in pd.read_csv(input["path"], chunksize=chunk_size, low_memory=False):
-            #     data_frame = chunk if i == 1 else pd.concat([df, chunk])
-            #     print('-->reading chunck...', i)
-            #     i += 1
-
-            sample_count = data_frame.shape[1]
-            header = [str(n) for n in range(0, sample_count)]
-            header[-5] = "class"
-            header[-4] = "elem_in_row"
-            header[-3] = "date1"
-            header[-2] = "date2"
-            header[-1] = "serial"
-            data_frame.columns = header
-            data_frame = data_frame.loc[:, :'class']
-            np.random.seed(0)
-            data_frame = data_frame.sample(frac=1).reset_index(drop=True)
-            data_frame = data_frame.fillna(-1)
-            data_frame = shuffle(data_frame)
+            data_frame, _ = load_df_from_datasets(input, label_col)
             print(data_frame)
-
-            class_true_count = data_frame['class'].value_counts().to_dict()[True]
-            class_false_count = data_frame['class'].value_counts().to_dict()[False]
+            sample_count = data_frame.shape[1]
+            class_true_count = data_frame[label_col].value_counts().to_dict()[True]
+            class_false_count = data_frame[label_col].value_counts().to_dict()[False]
             print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
 
             for result in [
-                process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVC', folder=dir,
+                process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir,
+                        options=input["options"], resolution=resolution),
+                process(data_frame, fold=10, clf_name='SVM', folder=dir,
+                        options=input["options"], resolution=resolution),
+                process(data_frame, fold=10, dim_reduc='LDA', clf_name='REG', folder=dir,
                         options=input["options"], resolution=resolution)
-                # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
-                #         options=input["options"], resolution=resolution)
                 # process(data_frame, fold=10, dim_reduc='', clf_name='SVC', folder=dir,
                 #         options=input["options"], resolution=resolution),
             ]:
                 time_proc = get_elapsed_time_string(start_time, time.time())
 
                 if '2d_reduced' in result:
+                    r_1d = result['1d_reduced']
+                    append_result_file(filename, r_1d['accuracy'], r_1d['scores'], r_1d['precision_true'],
+                                       r_1d['precision_false'],
+                                       r_1d['recall_true'], r_1d['recall_false'], r_1d['fscore_true'],
+                                       r_1d['fscore_false'], r_1d['support_true'], r_1d['support_false'],
+                                       class_true_count,
+                                       class_false_count, result['fold'],
+                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                       data_frame.shape[0],
+                                       input["path"], input["options"], r_1d['clf_name'], r_1d['db_file_path'])
+                    
                     r_2d = result['2d_reduced']
                     append_result_file(filename, r_2d['accuracy'], r_2d['scores'], r_2d['precision_true'],
                                        r_2d['precision_false'],
@@ -1698,7 +1747,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
                                        r_2d['fscore_false'], r_2d['support_true'], r_2d['support_false'],
                                        class_true_count,
                                        class_false_count, result['fold'],
-                                       resolution, dbt, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
                                        data_frame.shape[0],
                                        input["path"], input["options"], r_2d['clf_name'], r_2d['db_file_path'])
 
@@ -1709,7 +1758,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
                                        r_3d['fscore_false'], r_3d['support_true'], r_3d['support_false'],
                                        class_true_count,
                                        class_false_count, result['fold'],
-                                       resolution, dbt, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
                                        data_frame.shape[0],
                                        input["path"], input["options"], r_3d['clf_name'], r_3d['db_file_path'])
 
@@ -1719,7 +1768,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
                                        r['recall_true'], r['recall_false'], r['fscore_true'],
                                        r['fscore_false'], r['support_true'], r['support_false'], class_true_count,
                                        class_false_count, result['fold'],
-                                       resolution, dbt, thresh_nan, thresh_zeros, time_proc, sample_count,
+                                       resolution, dbt, sliding_w, thresh_nan, thresh_zeros, time_proc, sample_count,
                                        data_frame.shape[0],
                                        input["path"], input["options"], r['clf_name'], r['db_file_path'])
 
@@ -1729,20 +1778,27 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros):
                         append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
                                                       item['specificity'],
                                                       item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, resolution,
+                                                      days_before_famacha_test, sliding_w, resolution,
+                                                      format_options(input["options"]))
+                    if 'simplified_results_1d' in result['simplified_results']:
+                        item = result['simplified_results']['simplified_results_1d']
+                        append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
+                                                      item['specificity'],
+                                                      item['recall'], item['precision'], item['f-score'],
+                                                      days_before_famacha_test, sliding_w, resolution,
                                                       format_options(input["options"]))
                     if 'simplified_results_3d' in result['simplified_results']:
                         item = result['simplified_results']['simplified_results_3d']
                         append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
                                                       item['specificity'],
                                                       item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, resolution,
+                                                      days_before_famacha_test, sliding_w, resolution,
                                                       format_options(input["options"]))
                     if 'simplified_results_full' in result['simplified_results']:
                         item = result['simplified_results']['simplified_results_full']
                         append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
                                                       item['recall'], item['precision'], item['f-score'],
-                                                      days_before_famacha_test, resolution,
+                                                      days_before_famacha_test, sliding_w, resolution,
                                                       format_options(input["options"]))
 
             # for train_x_size, test_x_size, penalty, classifier, precision_true, precision_false, cross_validated_score, scores, fold, \
@@ -1769,9 +1825,9 @@ def format_options(options):
         'indexes', 'i')
 
 
-def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='results.csv'):
+def merge_results(filename=None, filter=None, simplified_report=False):
     purge_file(filename)
-    directory_path = os.getcwd().replace('C','E')
+    directory_path = os.getcwd().replace('C', 'E')
     os.chdir(directory_path)
     file_paths = [val for sublist in
                   [[os.path.join(i[0], j) for j in i[2] if j.endswith(filter)] for i in os.walk(directory_path)]
@@ -1783,7 +1839,8 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
     row = 0
     col = 0
     # Iterate over the data and write it out row by row.
-    for item in RESULT_FILE_HEADER.split(','):
+    header = RESULT_FILE_HEADER_SIMPLIFIED.split(',') if simplified_report else RESULT_FILE_HEADER.split(',')
+    for item in header:
         worksheet.write(row, col, item)
         col += 1
     row = 1
@@ -1806,149 +1863,140 @@ def merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='res
             row += 1
     workbook.close()
 
-    # with open(filename, 'a') as outfile:
-    #     outfile.write(RESULT_FILE_HEADER)
-    #     outfile.write('\n')
-    #
-    # for file in file_paths:
-    #     for idx, line in enumerate(open(file)):
-    #         if idx == 0:
-    #             continue
-    #         with open(filename, 'a') as outfile:
-    #             outfile.write(line)
-    #
-    # outfile.close()
-    exit(0)
-
 
 if __name__ == '__main__':
     print("pandas", pd.__version__)
-    farm_id = "cedara_70091100056"
-    # farm_id = "delmas_70101200027"
-    resolution_l = ['min', '10min', '5min', 'hour', 'day']
-    days_before_famacha_test_l = [30, 25, 20, 15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-    threshold_nan_coef = 5
-    threshold_zeros_coef = 2
-    nan_threshold, zeros_threshold = 0, 0
-    start_time = time.time()
-    print('args=', sys.argv)
-    connect_to_sql_database()
-    create_cwt_graph_enabled = True
-    create_activity_graph_enabled = True
-    weather_data = None
+    for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
+        for sliding_w in [0, 1, 2]:
+            resolution_l = ['hour']
+            days_before_famacha_test_l = [4, 5, 6]
+            threshold_nan_coef = 5
+            threshold_zeros_coef = 2
+            nan_threshold, zeros_threshold = 0, 0
+            start_time = time.time()
+            print('args=', sys.argv)
+            connect_to_sql_database()
+            create_cwt_graph_enabled = True
+            create_activity_graph_enabled = True
+            weather_data = None
 
-    for resolution in resolution_l:
-        if resolution == "min":
-            threshold_nan_coef = 1.5
-            threshold_zeros_coef = 1.5
-        # if resolution == "day":
-        #     days_before_famacha_test_l = [3, 4, 5, 6]
+            for resolution in resolution_l:
+                if resolution == "min":
+                    threshold_nan_coef = 1.5
+                    threshold_zeros_coef = 1.5
+                # if resolution == "day":
+                #     days_before_famacha_test_l = [3, 4, 5, 6]
 
-        for days_before_famacha_test in days_before_famacha_test_l:
-            expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
+                for days_before_famacha_test in days_before_famacha_test_l:
+                    expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
 
-            # generate_training_sets(data_famacha_flattened)
-            try:
-                with open(os.path.join(__location__, '%s_weather.json'% farm_id.split('_')[0])) as f:
-                    weather_data = json.load(f)
-            except FileNotFoundError as e:
-                print(e)
-
-            # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
-            # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
-            #     json.dump(data_famacha_dict, outfile)
-
-            with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\%s_famacha_data.json' % farm_id.split('_')[0], 'r') as fp:
-                data_famacha_dict = json.load(fp)
-                print(data_famacha_dict.keys())
-                if 'cedara' in farm_id:
-                    data_famacha_dict = format_cedara_famacha_data(data_famacha_dict)
-
-            data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
-            results = []
-            herd_data = []
-            dir = "%s/%s_resolution_%s_days_%d" % (os.getcwd().replace('C','E'), farm_id, resolution, days_before_famacha_test)
-            class_input_dict_file_path = dir + '/class_input_dict.json'
-            if False:#os.path.exists(class_input_dict_file_path):
-                print('training sets already created skip to processing.')
-                with open(class_input_dict_file_path, "r") as read_file:
-                    class_input_dict = json.load(read_file)
-            else:
-                print('start training sets creation...')
-                try:
-                    shutil.rmtree(dir)
-                except (OSError, FileNotFoundError) as e:
-                    print(e)
-                    # exit(-1)
-
-                for curr_data_famacha in data_famacha_list:
+                    # generate_training_sets(data_famacha_flattened)
                     try:
-                        result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
-                                               days_before_famacha_test, expected_sample_count, farm_sql_table_id=farm_id)
-                    except KeyError as e:
-                        print(e)
+                        with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
+                            weather_data = json.load(f)
+                    except FileNotFoundError as e:
+                        print("error while reading weather data file", e)
+                        exit()
 
-                    if result is None:
-                        continue
+                    # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
+                    # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
+                    #     json.dump(data_famacha_dict, outfile)
 
-                    is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(result["activity"], threshold_nan_coef,
-                                                                                      threshold_zeros_coef)
-                    result['is_valid'] = True
-                    if not is_valid:
-                        result['is_valid'] = False
+                    with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\%s_famacha_data.json' % farm_id.split('_')[0], 'r') as fp:
+                        data_famacha_dict = json.load(fp)
+                        print(data_famacha_dict.keys())
+                        if 'cedara' in farm_id:
+                            data_famacha_dict = format_cedara_famacha_data(data_famacha_dict)
 
-                    result["nan_threshold"] = nan_threshold
-                    result["zeros_threshold"] = zeros_threshold
-                    results.append(result)
+                    data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
+                    results = []
+                    herd_data = []
+                    dir = "%s/%s_resolution_%s_days_%d_%d" % (os.getcwd().replace('C', 'E'), farm_id, resolution,
+                                                              days_before_famacha_test, sliding_w)
+                    class_input_dict_file_path = dir + '/class_input_dict.json'
+                    if False:#os.path.exists(class_input_dict_file_path):
+                        print('training sets already created skip to processing.')
+                        with open(class_input_dict_file_path, "r") as read_file:
+                            class_input_dict = json.load(read_file)
+                    else:
+                        print('start training sets creation...')
+                        try:
+                            shutil.rmtree(dir)
+                        except (OSError, FileNotFoundError) as e:
+                            print(e)
+                            # exit(-1)
 
-                skipped_class_false, skipped_class_true = process_famacha_var(results)
+                        for curr_data_famacha in data_famacha_list:
+                            try:
+                                result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
+                                                       days_before_famacha_test, expected_sample_count,
+                                                           farm_sql_table_id=farm_id, sliding_windows=sliding_w)
+                            except KeyError as e:
+                                print(e)
 
-                class_input_dict = []
-                for idx in range(len(results)):
-                    result = results[idx]
-                    if not result['is_valid']:
-                        results[idx] = None
-                        continue
-                    if result['ignore']:
-                        results[idx] = None
-                        continue
-                    pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-                    filename = create_filename(result)
-                    if create_activity_graph_enabled:
-                        create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"), sub_sub_folder=str(result['famacha_score_increase']))
+                            if result is None:
+                                continue
 
-                    # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
+                            is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(result["activity"], threshold_nan_coef,
+                                                                                              threshold_zeros_coef)
+                            result['is_valid'] = True
+                            if not is_valid:
+                                result['is_valid'] = False
 
-                    cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
+                            result["nan_threshold"] = nan_threshold
+                            result["zeros_threshold"] = zeros_threshold
+                            results.append(result)
 
-                    # weight = process_weight(result["activity"], coef)
-                    result["cwt"] = cwt
-                    result["coef_shape"] = coef.shape
-                    # result["cwt_weight"] = weight
-                    result["indexes_cwt"] = indexes_cwt
+                        skipped_class_false, skipped_class_true = process_famacha_var(results)
 
-                    herd_data.append(result['herd'])
-                    if create_cwt_graph_enabled:
-                        create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"), sub_sub_folder=str(result['famacha_score_increase']))
+                        class_input_dict = []
+                        for idx in range(len(results)):
+                            result = results[idx]
+                            if not result['is_valid']:
+                                results[idx] = None
+                                continue
+                            if result['ignore']:
+                                results[idx] = None
+                                continue
+                            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+                            filename = create_filename(result)
+                            if create_activity_graph_enabled:
+                                create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"), sub_sub_folder=str(result['famacha_score_increase']))
 
-                    class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
-                    if not os.path.exists(class_input_dict_file_path):
-                        with open(class_input_dict_file_path, 'w') as fout:
-                            json.dump(class_input_dict, fout)
-                    #remove item from stack
-                    results[idx] = None
-                    gc.collect()
+                            # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-            herd_file_path = dir + '/%s_herd_activity.json' % farm_id
-            herd_file_path = herd_file_path.replace('/', '\\')
-            if not os.path.exists(herd_file_path):
-                with open(herd_file_path, 'w') as fout:
-                    json.dump({'herd_activity': herd_data}, fout)
+                            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
 
+                            # cwt_weight = process_weight(result["activity"], coef)
+                            result["cwt"] = cwt
+                            result["coef_shape"] = coef.shape
+                            # result["cwt_weight"] = cwt_weight
+                            result["indexes_cwt"] = indexes_cwt
 
-            # process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-            #                     zeros_threshold)
+                            herd_data.append(result['herd'])
+                            if create_cwt_graph_enabled:
+                                create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"), sub_sub_folder=str(result['famacha_score_increase']))
 
-    print(get_elapsed_time_string(start_time, time.time()))
-    merge_results(filename="results_simplified_report_%s.xlsx" % run_timestamp, filter='results_simplified.csv')
-    merge_results(filename="results_report_%s.xlsx" % run_timestamp, filter='results.csv')
+                            class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
+                            if not os.path.exists(class_input_dict_file_path):
+                                with open(class_input_dict_file_path, 'w') as fout:
+                                    json.dump(class_input_dict, fout)
+                            #remove item from stack
+                            results[idx] = None
+                            gc.collect()
+
+                    herd_file_path = dir + '/%s_herd_activity.json' % farm_id
+                    herd_file_path = herd_file_path.replace('/', '\\')
+                    if not os.path.exists(herd_file_path):
+                        with open(herd_file_path, 'w') as fout:
+                            json.dump({'herd_activity': herd_data}, fout)
+
+                    process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+                                        zeros_threshold, farm_id, sliding_w)
+
+            print(get_elapsed_time_string(start_time, time.time()))
+            merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
+                          filter='%s_results_simplified.csv' % farm_id,
+                          simplified_report=True)
+            merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
+                          filter='%s_results.csv' % farm_id)
