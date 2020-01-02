@@ -22,6 +22,7 @@ import xlrd
 from ipython_genutils.py3compat import xrange
 from sklearn import preprocessing
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors.classification import KNeighborsClassifier
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize, LabelBinarizer
@@ -376,7 +377,7 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
         temp, humidity = get_temp_humidity(curr_datetime, weather_data)
 
         try:
-            weight = int(curr_data_famacha[3])
+            weight = float(curr_data_famacha[3])
         except ValueError as e:
             print(e)
             weight = None
@@ -1217,14 +1218,12 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, enalble_ROCplot=True, nfold=1):
 
-    if clf_name not in ['SVM', 'MLP', 'LREG']:
-        raise ValueError('classifier %s is not available! available clf_name are MPL, REG, SVM' % clf_name)
-
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
     if X_lda is None:
         return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 
+    print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
     print("Best estimator found by grid search:")
     # print(clf.best_estimator_)
@@ -1240,8 +1239,11 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
 
-    if clf.best_estimator_ is not None and hasattr(clf.best_estimator_, "hidden_layer_sizes"):
+    if 'MLP' in clf_name and hasattr(clf.best_estimator_, "hidden_layer_sizes"):
         clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
+
+    if 'KNN' in clf_name and hasattr(clf.best_estimator_, "n_neighbors"):
+        clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.n_neighbors).replace(' ', ''))
 
     title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s\n' % (
@@ -1258,7 +1260,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     if dim == 2 and enalble_2Dplot:
         file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
 
-    if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name:
+    if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
         file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
                                                 options=options, i=i)
 
@@ -1282,8 +1284,8 @@ def dict_mean(dict_list):
 
 
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
-    if clf_name not in ['SVM', 'MLP', 'LREG']:
-        raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
+    if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN']:
+        raise ValueError('classifier %s is not available! available clf_name are KNN, MPL, LREG, SVM' % clf_name)
 
     X, y = process_data_frame(data_frame, y_col=y_col)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
@@ -1303,20 +1305,24 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
 
     if clf_name == 'SVM':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=kf)
+        clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
 
     if clf_name == 'LREG':
         clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
 
+    if clf_name == 'KNN':
+        param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+        clf = GridSearchCV(KNeighborsClassifier(), param_grid, cv=kf)
+
     if clf_name == 'MLP':
         param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
                       'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
-        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
+        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid, cv=kf)
 
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         if dim_reduc is None:
             acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr = compute_model(
-                X, y, train_index, test_index, i, clf=clf, clf_name=clf_name, dim=X.shape[1],
+                X, y, train_index, test_index, i, clf=clf, clf_name=clf_name,
                 folder=folder, options=options, resolution=resolution, nfold=fold)
             scores.append(acc)
             precision_false.append(p_false)
@@ -1714,9 +1720,11 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
         for result in [
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir,
                     options=input["options"], resolution=resolution),
-            process(data_frame, fold=10, clf_name='SVM', folder=dir,
-                    options=input["options"], resolution=resolution),
+            # process(data_frame, fold=10, clf_name='SVM', folder=dir,
+            #         options=input["options"], resolution=resolution)
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='LREG', folder=dir,
+                    options=input["options"], resolution=resolution),
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='KNN', folder=dir,
                     options=input["options"], resolution=resolution)
             # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
             #         options=input["options"], resolution=resolution)
@@ -1844,9 +1852,9 @@ def merge_results(filename=None, filter=None, simplified_report=False):
 if __name__ == '__main__':
     print("pandas", pd.__version__)
     for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
-        for sliding_w in [0, 1, 2]:
+        for sliding_w in [0, 10]:
             resolution_l = ['hour']
-            days_before_famacha_test_l = [4, 5, 6]
+            days_before_famacha_test_l = [3, 2]
             threshold_nan_coef = 5
             threshold_zeros_coef = 2
             nan_threshold, zeros_threshold = 0, 0
