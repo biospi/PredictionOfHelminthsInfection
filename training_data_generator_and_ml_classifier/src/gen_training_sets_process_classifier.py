@@ -1121,11 +1121,11 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, fo
        }''')
 
     nnew = test_x.shape[0]
-    gamma = clf.best_params_['gamma']
-    coef0 = clf.estimator.coef0
-    cost = clf.best_params_['C']
-    tolerance = clf.estimator.tol
-    probability_ = clf.estimator.probability
+    gamma = clf.gamma
+    coef0 = clf.coef0
+    cost = clf.C
+    tolerance = clf.tol
+    probability_ = clf.probability
 
     df = pd.DataFrame(train_x)
     df.insert(loc=0, column='group', value=train_y + 1)
@@ -1239,11 +1239,11 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
 
-    if 'MLP' in clf_name and hasattr(clf.best_estimator_, "hidden_layer_sizes"):
+    if 'MLP' in clf_name and hasattr(clf, "hidden_layer_sizes"):
         clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
 
-    if 'KNN' in clf_name and hasattr(clf.best_estimator_, "n_neighbors"):
-        clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.n_neighbors).replace(' ', ''))
+    if 'KNN' in clf_name and hasattr(clf, "n_neighbors"):
+        clf_name = "%s%s" % (clf_name, str(clf.n_neighbors).replace(' ', ''))
 
     title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s\n' % (
@@ -1308,7 +1308,8 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
         clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
 
     if clf_name == 'LREG':
-        clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial')
+        param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
+        clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid, cv=kf)
 
     if clf_name == 'KNN':
         param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
@@ -1318,6 +1319,10 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
         param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
                       'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid, cv=kf)
+
+    clf.fit(X, y)
+    clf = clf.best_estimator_
+    print(clf)
 
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         if dim_reduc is None:
@@ -1899,10 +1904,16 @@ if __name__ == '__main__':
                     dir = "%s/%s_resolution_%s_days_%d_%d" % (os.getcwd().replace('C', 'E'), farm_id, resolution,
                                                               days_before_famacha_test, sliding_w)
                     class_input_dict_file_path = dir + '/class_input_dict.json'
-                    if False:#os.path.exists(class_input_dict_file_path):
+                    if os.path.exists(class_input_dict_file_path):
                         print('training sets already created skip to processing.')
                         with open(class_input_dict_file_path, "r") as read_file:
                             class_input_dict = json.load(read_file)
+                            try:
+                                shutil.rmtree(dir + "/analysis")
+                                shutil.rmtree(dir + "/decision_boundaries_graphs")
+                                shutil.rmtree(dir + "/roc_curve")
+                            except (OSError, FileNotFoundError) as e:
+                                print(e)
                     else:
                         print('start training sets creation...')
                         try:
