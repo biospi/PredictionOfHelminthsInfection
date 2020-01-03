@@ -85,6 +85,7 @@ pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
 MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/"
+META_DATA_LENGTH = 7
 
 
 def even_list(n):
@@ -399,33 +400,29 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
 #     fig.show()
 #
 #
-def reduce_lda(output_dim, X_train, X_test, y_train, y_test, force_label=False):
+def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
     if output_dim not in [1, 2, 3]:
-        raise ValueError("available dimension for features reduction are 2 and 3.")
-    if force_label:
-        if output_dim == 3:
-            X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
-            y_train = np.append(y_train, (3, 4))
-            X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
-            y_test = np.append(y_test, (3, 4))
-        if output_dim == 2:
-            X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
-            y_train = np.append(y_train, 3)
-            X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
-            y_test = np.append(y_test, 3)
-        X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
-        X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
-
+        raise ValueError("available dimension for features reduction are 1, 2 and 3.")
+    if output_dim == 3:
+        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
+        y_train = np.append(y_train, (3, 4))
+        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
+        y_test = np.append(y_test, (3, 4))
+    if output_dim == 2:
+        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
+        y_train = np.append(y_train, 3)
+        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
+        y_test = np.append(y_test, 3)
+    X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
+    X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
+    if output_dim != 1:
         X_train = X_train[0:-(output_dim - 1)]
         y_train = y_train[0:-(output_dim - 1)]
         X_test = X_test[0:-(output_dim - 1)]
         y_test = y_test[0:-(output_dim - 1)]
-        return X_train, X_test, y_train, y_test
-    else:
-        X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
-        X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
-        return X_train, X_test, y_train, y_test
+
+    return X_train, X_test, y_train, y_test
 
 
 def reduce_pca(output_dim, X_train, X_test, y_train, y_test):
@@ -474,8 +471,8 @@ def process_fold2(n, X, y, dim_reduc=None):
 
 
 def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None, fname=None):
-    if clf_name not in ['SVC', 'MLP']:
-        raise ValueError("available classifiers are SVC and MLP.")
+    if clf_name not in ['SVM', 'MLP']:
+        raise ValueError("available classifiers are SVM and MLP.")
 
     X_lda, y_lda = process_fold2(dim, X, y, dim_reduc=dim_reduc)
     X_test, y_test = process_fold2(dim, X_t, y_t, dim_reduc=dim_reduc)
@@ -516,6 +513,9 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     if dim == 2:
         plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
                                     clf, i=0)
+    if dim == 1:
+        plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
+                                    clf, i=0)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -524,8 +524,8 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
 
 
 def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=None, clf_name=None):
-    if clf_name not in ['SVC', 'MLP']:
-        raise ValueError("available classifiers are SVC and MLP.")
+    if clf_name not in ['SVM', 'MLP']:
+        raise ValueError("available classifiers are SVM and MLP.")
 
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc)
@@ -561,6 +561,9 @@ def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=Non
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=i)
 
     if dim == 2:
+        plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=i)
+
+    if dim == 1:
         plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=i)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
@@ -626,6 +629,8 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
                 X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
             acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, sr_2d = compute_model(
                 X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
+            # acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d, clf_name_1d, sr_1d = compute_model(
+            #     X, y, train_index, test_index, i, clf, dim=1, dim_reduc=dim_reduc, clf_name=clf_name)
 
             scores_full.append(acc_full)
             precision_false_full.append(p_false_full)
@@ -698,24 +703,34 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         return result
     else:
         X_t, y_t = process_data_frame(df2, y_col=y_col)
-        acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
+        # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
+        # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
         acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(
             X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
-        print(acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d)
+        # acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d, clf_name_1d = compute_model2(
+        #     X, y, X_t, y_t, clf, dim=1, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
+
+        # print(acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d)
         print(acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,
               clf_name_2d)
+
+
+def find_type_for_mem_opt(df):
+    data_col_n = df.iloc[[0]].size
+    type_dict = {}
+    for n, i in enumerate(range(0, data_col_n)):
+        if n < (data_col_n - META_DATA_LENGTH):
+            type_dict[str(i)] = np.float16
+        else:
+            type_dict[str(i)] = np.str
+    del df
+    return type_dict
 
 
 def load_df_from_datasets(fname, label_col):
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
     print(df)
-    data_col_n = df.iloc[[0]].size
-    type_dict = {}
-    for n, i in enumerate(range(0, data_col_n)):
-        if n < (data_col_n - 7):
-            type_dict[str(i)] = np.float16
-        else:
-            type_dict[str(i)] = np.str
+    type_dict = find_type_for_mem_opt(df)
 
     data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
     print(data_frame)
@@ -729,26 +744,27 @@ def load_df_from_datasets(fname, label_col):
     hearder[-2] = "famacha_score"
     hearder[-1] = "previous_famacha_score"
     data_frame.columns = hearder
-    cols_to_keep = hearder[:-7]
+    data_frame_original = data_frame.copy()
+    cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame = shuffle(data_frame)
-    return data_frame, cols_to_keep
+    return data_frame_original, data_frame, cols_to_keep
 
 
 def start(fname1=None, fname2=None, half_period_split=False, label_col='label'):
     if fname2 is not None:
         print("use different two different dataset for training and testing.\n"
               "training set:%s\n testing set:%s" % (fname1, fname2))
-        df1, cols_to_keep = load_df_from_datasets(fname1, label_col)
-        df2, _ = load_df_from_datasets(fname2, label_col)
+        _, df1, cols_to_keep = load_df_from_datasets(fname1, label_col)
+        _, df2, _ = load_df_from_datasets(fname2, label_col)
         df1 = df1[cols_to_keep]
         df2 = df2[cols_to_keep]
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVC', fname=fname1)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1)
         return
 
     print("loading dataset...")
-    data_frame, cols_to_keep = load_df_from_datasets(fname1, label_col)
+    data_frame, _, cols_to_keep = load_df_from_datasets(fname1, label_col)
 
     if half_period_split:
         data_frame['date1'] = pd.to_datetime(data_frame['date1'], dayfirst=True)
@@ -775,14 +791,14 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label'):
         df2 = df2.fillna(-1)
         df2 = shuffle(df2)
 
-        class_1_count = data_frame['class'].value_counts().to_dict()[True]
-        class_2_count = data_frame['class'].value_counts().to_dict()[False]
+        class_1_count = data_frame['label'].value_counts().to_dict()[True]
+        class_2_count = data_frame['label'].value_counts().to_dict()[False]
         print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVC', fname=fname1)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1)
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
-        process(data_frame, dim_reduc='LDA', clf_name='SVC', y_col='famacha_score')
+        process(data_frame, dim_reduc='LDA', clf_name='SVM', y_col='famacha_score')
 
 
 if __name__ == '__main__':
@@ -791,6 +807,11 @@ if __name__ == '__main__':
           fname2=MAIN_DIR + "cedara_70091100056_resolution_10min_days_6/training_sets/cwt_.data")
 
     dir = MAIN_DIR + "cedara_70091100056_resolution_10min_days_6/training_sets/"
+    os.chdir(dir)
+    start(fname1=dir+"cwt_.data", half_period_split=True)
+    start(fname1=dir+"cwt_div.data", half_period_split=True)
+
+    dir = MAIN_DIR + "delmas_70101200027_resolution_10min_days_6/training_sets/"
     os.chdir(dir)
     start(fname1=dir+"cwt_.data", half_period_split=True)
     start(fname1=dir+"cwt_div.data", half_period_split=True)

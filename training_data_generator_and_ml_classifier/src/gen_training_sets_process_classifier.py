@@ -109,7 +109,7 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
 RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,days,sliding_w,resolution,inputs"
 
 skipped_class_false, skipped_class_true = -1, -1
-
+META_DATA_LENGTH = 7
 
 def purge_file(filename):
     print("purge %s..." % filename)
@@ -959,9 +959,9 @@ def format_file_name(i, title, options):
 
 
 def format_sub_folder_name(title, options):
-    sub_folder = "%s_%s" % (title.split('\n')[0], '_'.join(options))
+    sub_folder = "%s" % (title.split('\n')[0])
     sub_folder = sub_folder.replace(',', '-').replace(' ', '').replace(' ', '_').replace('-', '_')
-    sub_folder = '_'.join(sub_folder.split('_')[0:2]) + '_' + '_'.join(options)
+    sub_folder = '_'.join(options) + '_' + '_'.join(sub_folder.split('_')[0:2])
     return format_options_(sub_folder)
 
 
@@ -1192,14 +1192,13 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
 
     if dim_reduc is None:
         return X, y, X_train, X_test, y_train, y_test
-
-    if dim_reduc == 'LDA':
-        X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
-
-    if dim_reduc == 'PCA':
-        X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
-
     try:
+        if dim_reduc == 'LDA':
+            X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
+
+        if dim_reduc == 'PCA':
+            X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
+
         X_reduced = np.concatenate((X_train, X_test), axis=0)
         y_reduced = np.concatenate((y_train, y_test), axis=0)
 
@@ -1221,7 +1220,12 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
     if X_lda is None:
-        return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+        simplified_results = {"accuracy": -1,
+                              "specificity": -1,
+                              "recall": -1,
+                              "precision": -1,
+                              "f-score": -1}
+        return -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
@@ -1254,18 +1258,24 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
     file_path = 'empty'
-    if dim == 1 and enalble_1Dplot:
-        file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
+    try:
+        if dim == 1 and enalble_1Dplot:
+            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
 
-    if dim == 2 and enalble_2Dplot:
-        file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
+        if dim == 2 and enalble_2Dplot:
+            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
 
-    if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
-        file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
-                                                options=options, i=i)
+        if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
+                file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
+                                                        options=options, i=i)
+    except Exception as e:
+        print(e)
 
     if enalble_ROCplot:
-        save_roc_curve(y_test, y_probas, title, options, folder, i=i)
+        try:
+            save_roc_curve(y_test, y_probas, title, options, folder, i=i)
+        except ValueError as e:
+            print(e)
 
     simplified_results = {"accuracy": acc, "specificity": recall_false,
                           "recall": recall_score(y_test, y_pred, average='weighted'),
@@ -1286,7 +1296,7 @@ def dict_mean(dict_list):
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
     if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN']:
         raise ValueError('classifier %s is not available! available clf_name are KNN, MPL, LREG, SVM' % clf_name)
-
+    print("process...")
     X, y = process_data_frame(data_frame, y_col=y_col)
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     kf.get_n_splits(X)
@@ -1320,6 +1330,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                       'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid, cv=kf)
 
+    print("looking for best hyperparameters...")
     clf.fit(X, y)
     clf = clf.best_estimator_
     print(clf)
@@ -1676,19 +1687,22 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
 #         mpl.hidden_layer_sizes[1]), precision_true, precision_false, \
 #            cross_validated_score, scores, fold, recall_true, recall_false, \
 #            fscore_true, fscore_false, support_true, support_false, X, y, db_path
+def find_type_for_mem_opt(df):
+    data_col_n = df.iloc[[0]].size
+    type_dict = {}
+    for n, i in enumerate(range(0, data_col_n)):
+        if n < (data_col_n - META_DATA_LENGTH):
+            type_dict[str(i)] = np.float16
+        else:
+            type_dict[str(i)] = np.str
+    del df
+    return type_dict
 
 
 def load_df_from_datasets(fname, label_col):
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
     print(df)
-    data_col_n = df.iloc[[0]].size
-    type_dict = {}
-    for n, i in enumerate(range(0, data_col_n)):
-        if n < (data_col_n - 7):
-            type_dict[str(i)] = np.float16
-        else:
-            type_dict[str(i)] = np.str
-
+    type_dict = find_type_for_mem_opt(df)
     data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
     print(data_frame)
     sample_count = data_frame.shape[1]
@@ -1701,7 +1715,7 @@ def load_df_from_datasets(fname, label_col):
     hearder[-2] = "famacha_score"
     hearder[-1] = "previous_famacha_score"
     data_frame.columns = hearder
-    cols_to_keep = hearder[:-7]
+    cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame = shuffle(data_frame)
@@ -1857,9 +1871,9 @@ def merge_results(filename=None, filter=None, simplified_report=False):
 if __name__ == '__main__':
     print("pandas", pd.__version__)
     for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
-        for sliding_w in [0, 10]:
+        for sliding_w in [0, 12]:
             resolution_l = ['hour']
-            days_before_famacha_test_l = [3, 2]
+            days_before_famacha_test_l = [1]
             threshold_nan_coef = 5
             threshold_zeros_coef = 2
             nan_threshold, zeros_threshold = 0, 0
@@ -1904,7 +1918,7 @@ if __name__ == '__main__':
                     dir = "%s/%s_resolution_%s_days_%d_%d" % (os.getcwd().replace('C', 'E'), farm_id, resolution,
                                                               days_before_famacha_test, sliding_w)
                     class_input_dict_file_path = dir + '/class_input_dict.json'
-                    if os.path.exists(class_input_dict_file_path):
+                    if False: #os.path.exists(class_input_dict_file_path):
                         print('training sets already created skip to processing.')
                         with open(class_input_dict_file_path, "r") as read_file:
                             class_input_dict = json.load(read_file)
