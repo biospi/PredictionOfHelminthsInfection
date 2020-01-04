@@ -50,6 +50,11 @@ from sklearn.metrics import f1_score
 from os import listdir
 from os.path import isfile, join
 import tzlocal
+import multiprocessing
+from multiprocessing import Pool, freeze_support
+import itertools
+from socket import *
+from functools import partial
 from sys import exit
 
 __location__ = os.path.realpath(
@@ -110,6 +115,21 @@ RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precisi
 
 skipped_class_false, skipped_class_true = -1, -1
 META_DATA_LENGTH = 7
+
+
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class NonDaemonicPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
 
 def purge_file(filename):
     print("purge %s..." % filename)
@@ -204,15 +224,13 @@ def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_passw
                             db_name="south_africa",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
-    global sql_db
     sql_db = pymysql.connect(host=db_server_name, user=db_user, password=db_password,
                              db=db_name, charset=char_set, cursorclass=cusror_type)
     return sql_db
 
 
-def execute_sql_query(query, records=None, log_enabled=False):
+def execute_sql_query(sql_db, query, records=None, log_enabled=False):
     try:
-        sql_db = connect_to_sql_database()
         cursor = sql_db.cursor()
         if records is not None:
             print("SQL Query: %s" % query, records)
@@ -286,7 +304,7 @@ def normalize_histogram_mean_diff(activity_mean, activity, log=False):
 def get_period(curr_data_famacha, days_before_famacha_test, sliding_window):
     famacha_test_date = time.strptime(curr_data_famacha[0], "%d/%m/%Y")
     famacha_test_date_epoch_s = str(time.mktime((datetime.fromtimestamp(time.mktime(famacha_test_date)) -
-                                                        timedelta(days=sliding_w)).timetuple())).split('.')[0]
+                                                        timedelta(days=sliding_window)).timetuple())).split('.')[0]
     famacha_test_date_epoch_before_s = str(time.mktime((datetime.fromtimestamp(time.mktime(famacha_test_date)) -
                                                         timedelta(days=sliding_window + days_before_famacha_test)).
                                                        timetuple())).split('.')[0]
@@ -299,9 +317,9 @@ def sql_dict_list_to_list(dict_list):
     return pd.DataFrame(dict_list)['serial_number'].tolist()
 
 
-def format_cedara_famacha_data(data_famacha_dict):
+def format_cedara_famacha_data(data_famacha_dict, sql_db):
     # famacha records contains shorten version of the serial numbers whereas activity records contains full version
-    rows_serial_numbers = execute_sql_query(
+    rows_serial_numbers = execute_sql_query(sql_db,
         "SELECT DISTINCT serial_number FROM cedara_70091100056_resolution_10min")
     serial_numbers_full = sql_dict_list_to_list(rows_serial_numbers)
 
@@ -317,7 +335,7 @@ def format_cedara_famacha_data(data_famacha_dict):
     return data_famacha_dict_formatted
 
 
-def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
+def get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
                       expected_sample_count, farm_sql_table_id=None, sliding_windows=None):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
@@ -334,12 +352,12 @@ def get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolu
     print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
         famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
-    rows_activity = execute_sql_query("SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
+    rows_activity = execute_sql_query(sql_db, "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
                                       " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
                                       (farm_sql_table_id, resolution, date2, date1,
                                        str(animal_id)))
 
-    rows_herd = execute_sql_query(
+    rows_herd = execute_sql_query(sql_db,
         "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
         (farm_sql_table_id, resolution, 50000000000, date2, date1))
 
@@ -567,7 +585,7 @@ def create_cwt_graph(coef, freqs, lenght, folder, filename, title=None):
     coef_f = coef.flatten().tolist()
 
 
-def create_hd_cwt_graph(coefs, folder, filename, title=None, sub_folder='training_sets_cwt_graphs', sub_sub_folder=None):
+def create_hd_cwt_graph(coefs, folder, filename, title=None, sub_folder='training_sets_cwt_graphs', sub_sub_folder=None, freqs=None):
     fig, axs = plt.subplots(1)
     # ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
     # ax.imshow(coefs)
@@ -1738,13 +1756,13 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
 
         for result in [
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir,
-                    options=input["options"], resolution=resolution),
+                              options=input["options"], resolution=resolution),
             # process(data_frame, fold=10, clf_name='SVM', folder=dir,
             #         options=input["options"], resolution=resolution)
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='LREG', folder=dir,
-                    options=input["options"], resolution=resolution),
+                              options=input["options"], resolution=resolution),
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='KNN', folder=dir,
-                    options=input["options"], resolution=resolution)
+                              options=input["options"], resolution=resolution)
             # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
             #         options=input["options"], resolution=resolution)
         ]:
@@ -1800,27 +1818,27 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
                     append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
-                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_1d' in result['simplified_results']:
                     item = result['simplified_results']['simplified_results_1d']
                     append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
-                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_3d' in result['simplified_results']:
                     item = result['simplified_results']['simplified_results_3d']
                     append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
-                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_full' in result['simplified_results']:
                     item = result['simplified_results']['simplified_results_full']
                     append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
-                                                  days_before_famacha_test, sliding_w, resolution,
+                                                  dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
 
 
@@ -1868,145 +1886,167 @@ def merge_results(filename=None, filter=None, simplified_report=False):
     workbook.close()
 
 
+def process_resolution(params):
+    resolution, sliding_w, farm_id, sql_db = params[0], params[1], params[2], connect_to_sql_database()
+    days_before_famacha_test_l = [16, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+    threshold_nan_coef = 5
+    threshold_zeros_coef = 2
+    nan_threshold, zeros_threshold = 0, 0
+    create_cwt_graph_enabled = True
+    create_activity_graph_enabled = True
+    weather_data = None
+
+    if resolution == "min":
+        threshold_nan_coef = 1.5
+        threshold_zeros_coef = 1.5
+    # if resolution == "day":
+    #     days_before_famacha_test_l = [3, 4, 5, 6]
+
+    for days_before_famacha_test in days_before_famacha_test_l:
+        expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
+
+        # generate_training_sets(data_famacha_flattened)
+        try:
+            with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
+                weather_data = json.load(f)
+        except FileNotFoundError as e:
+            print("error while reading weather data file", e)
+            exit()
+
+        # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
+        # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
+        #     json.dump(data_famacha_dict, outfile)
+
+        with open(
+                'C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\%s_famacha_data.json' %
+                farm_id.split('_')[0], 'r') as fp:
+            data_famacha_dict = json.load(fp)
+            print(data_famacha_dict.keys())
+            if 'cedara' in farm_id:
+                data_famacha_dict = format_cedara_famacha_data(data_famacha_dict, sql_db)
+
+        data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
+        results = []
+        herd_data = []
+        dir = "%s/%s_resolution_%s_days_%d_%d" % (os.getcwd().replace('C', 'E'), farm_id, resolution,
+                                                  days_before_famacha_test, sliding_w)
+        class_input_dict_file_path = dir + '/class_input_dict.json'
+        if False:  # os.path.exists(class_input_dict_file_path):
+            print('training sets already created skip to processing.')
+            with open(class_input_dict_file_path, "r") as read_file:
+                class_input_dict = json.load(read_file)
+                try:
+                    shutil.rmtree(dir + "/analysis")
+                    shutil.rmtree(dir + "/decision_boundaries_graphs")
+                    shutil.rmtree(dir + "/roc_curve")
+                except (OSError, FileNotFoundError) as e:
+                    print(e)
+        else:
+            print('start training sets creation...')
+            try:
+                shutil.rmtree(dir)
+            except (OSError, FileNotFoundError) as e:
+                print(e)
+                # exit(-1)
+
+            for curr_data_famacha in data_famacha_list:
+                try:
+                    result = get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data, resolution,
+                                               days_before_famacha_test, expected_sample_count,
+                                               farm_sql_table_id=farm_id, sliding_windows=sliding_w)
+                except KeyError as e:
+                    print(e)
+
+                if result is None:
+                    continue
+
+                is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(result["activity"],
+                                                                                  threshold_nan_coef,
+                                                                                  threshold_zeros_coef)
+                result['is_valid'] = True
+                if not is_valid:
+                    result['is_valid'] = False
+
+                result["nan_threshold"] = nan_threshold
+                result["zeros_threshold"] = zeros_threshold
+                results.append(result)
+
+            skipped_class_false, skipped_class_true = process_famacha_var(results)
+
+            class_input_dict = []
+            for idx in range(len(results)):
+                result = results[idx]
+                if not result['is_valid']:
+                    results[idx] = None
+                    continue
+                if result['ignore']:
+                    results[idx] = None
+                    continue
+                pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+                filename = create_filename(result)
+                if create_activity_graph_enabled:
+                    create_activity_graph(result["activity"], dir, filename,
+                                          title=create_graph_title(result, "time"),
+                                          sub_sub_folder=str(result['famacha_score_increase']))
+
+                # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
+
+                cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
+
+                # cwt_weight = process_weight(result["activity"], coef)
+                result["cwt"] = cwt
+                result["coef_shape"] = coef.shape
+                # result["cwt_weight"] = cwt_weight
+                result["indexes_cwt"] = indexes_cwt
+
+                herd_data.append(result['herd'])
+                if create_cwt_graph_enabled:
+                    create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"),
+                                        sub_sub_folder=str(result['famacha_score_increase']), freqs=freqs)
+
+                class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
+                if not os.path.exists(class_input_dict_file_path):
+                    with open(class_input_dict_file_path, 'w') as fout:
+                        json.dump(class_input_dict, fout)
+                # remove item from stack
+                results[idx] = None
+                gc.collect()
+
+        herd_file_path = dir + '/%s_herd_activity.json' % farm_id
+        herd_file_path = herd_file_path.replace('/', '\\')
+        if not os.path.exists(herd_file_path):
+            with open(herd_file_path, 'w') as fout:
+                json.dump({'herd_activity': herd_data}, fout)
+
+        process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+                            zeros_threshold, farm_id, sliding_w)
+    sql_db.cursor().close()
+    sql_db.close()
+
+
+def process_sliding_w(params):
+    start_time = time.time()
+    pool = Pool(processes=4)
+    pool.map(process_resolution, zip(['day', 'hour', '10min', '5min'], itertools.repeat(params[0]),
+                                     itertools.repeat(params[1]))
+             )
+    pool.close()
+    pool.join()
+    print(get_elapsed_time_string(start_time, time.time()))
+
+
 if __name__ == '__main__':
+    freeze_support()
+    print('args=', sys.argv)
     print("pandas", pd.__version__)
     for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
-        for sliding_w in [0, 12]:
-            resolution_l = ['hour']
-            days_before_famacha_test_l = [1]
-            threshold_nan_coef = 5
-            threshold_zeros_coef = 2
-            nan_threshold, zeros_threshold = 0, 0
-            start_time = time.time()
-            print('args=', sys.argv)
-            connect_to_sql_database()
-            create_cwt_graph_enabled = True
-            create_activity_graph_enabled = True
-            weather_data = None
+        pool = NonDaemonicPool(processes=4)
+        pool.map(process_sliding_w, zip([0, 6, 12, 18], itertools.repeat(farm_id)))
+        pool.close()
+        pool.join()
 
-            for resolution in resolution_l:
-                if resolution == "min":
-                    threshold_nan_coef = 1.5
-                    threshold_zeros_coef = 1.5
-                # if resolution == "day":
-                #     days_before_famacha_test_l = [3, 4, 5, 6]
-
-                for days_before_famacha_test in days_before_famacha_test_l:
-                    expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
-
-                    # generate_training_sets(data_famacha_flattened)
-                    try:
-                        with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
-                            weather_data = json.load(f)
-                    except FileNotFoundError as e:
-                        print("error while reading weather data file", e)
-                        exit()
-
-                    # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
-                    # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
-                    #     json.dump(data_famacha_dict, outfile)
-
-                    with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\%s_famacha_data.json' % farm_id.split('_')[0], 'r') as fp:
-                        data_famacha_dict = json.load(fp)
-                        print(data_famacha_dict.keys())
-                        if 'cedara' in farm_id:
-                            data_famacha_dict = format_cedara_famacha_data(data_famacha_dict)
-
-                    data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
-                    results = []
-                    herd_data = []
-                    dir = "%s/%s_resolution_%s_days_%d_%d" % (os.getcwd().replace('C', 'E'), farm_id, resolution,
-                                                              days_before_famacha_test, sliding_w)
-                    class_input_dict_file_path = dir + '/class_input_dict.json'
-                    if False: #os.path.exists(class_input_dict_file_path):
-                        print('training sets already created skip to processing.')
-                        with open(class_input_dict_file_path, "r") as read_file:
-                            class_input_dict = json.load(read_file)
-                            try:
-                                shutil.rmtree(dir + "/analysis")
-                                shutil.rmtree(dir + "/decision_boundaries_graphs")
-                                shutil.rmtree(dir + "/roc_curve")
-                            except (OSError, FileNotFoundError) as e:
-                                print(e)
-                    else:
-                        print('start training sets creation...')
-                        try:
-                            shutil.rmtree(dir)
-                        except (OSError, FileNotFoundError) as e:
-                            print(e)
-                            # exit(-1)
-
-                        for curr_data_famacha in data_famacha_list:
-                            try:
-                                result = get_training_data(curr_data_famacha, data_famacha_dict, weather_data, resolution,
-                                                       days_before_famacha_test, expected_sample_count,
-                                                           farm_sql_table_id=farm_id, sliding_windows=sliding_w)
-                            except KeyError as e:
-                                print(e)
-
-                            if result is None:
-                                continue
-
-                            is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(result["activity"], threshold_nan_coef,
-                                                                                              threshold_zeros_coef)
-                            result['is_valid'] = True
-                            if not is_valid:
-                                result['is_valid'] = False
-
-                            result["nan_threshold"] = nan_threshold
-                            result["zeros_threshold"] = zeros_threshold
-                            results.append(result)
-
-                        skipped_class_false, skipped_class_true = process_famacha_var(results)
-
-                        class_input_dict = []
-                        for idx in range(len(results)):
-                            result = results[idx]
-                            if not result['is_valid']:
-                                results[idx] = None
-                                continue
-                            if result['ignore']:
-                                results[idx] = None
-                                continue
-                            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-                            filename = create_filename(result)
-                            if create_activity_graph_enabled:
-                                create_activity_graph(result["activity"], dir, filename, title=create_graph_title(result, "time"), sub_sub_folder=str(result['famacha_score_increase']))
-
-                            # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
-
-                            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
-
-                            # cwt_weight = process_weight(result["activity"], coef)
-                            result["cwt"] = cwt
-                            result["coef_shape"] = coef.shape
-                            # result["cwt_weight"] = cwt_weight
-                            result["indexes_cwt"] = indexes_cwt
-
-                            herd_data.append(result['herd'])
-                            if create_cwt_graph_enabled:
-                                create_hd_cwt_graph(coef, dir, filename, title=create_graph_title(result, "freq"), sub_sub_folder=str(result['famacha_score_increase']))
-
-                            class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
-                            if not os.path.exists(class_input_dict_file_path):
-                                with open(class_input_dict_file_path, 'w') as fout:
-                                    json.dump(class_input_dict, fout)
-                            #remove item from stack
-                            results[idx] = None
-                            gc.collect()
-
-                    herd_file_path = dir + '/%s_herd_activity.json' % farm_id
-                    herd_file_path = herd_file_path.replace('/', '\\')
-                    if not os.path.exists(herd_file_path):
-                        with open(herd_file_path, 'w') as fout:
-                            json.dump({'herd_activity': herd_data}, fout)
-
-                    process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-                                        zeros_threshold, farm_id, sliding_w)
-
-            print(get_elapsed_time_string(start_time, time.time()))
-            merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
-                          filter='%s_results_simplified.csv' % farm_id,
-                          simplified_report=True)
-            merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
-                          filter='%s_results.csv' % farm_id)
+        merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
+                      filter='%s_results_simplified.csv' % farm_id,
+                      simplified_report=True)
+        merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
+                      filter='%s_results.csv' % farm_id)

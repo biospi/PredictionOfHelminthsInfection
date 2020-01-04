@@ -454,7 +454,7 @@ if __name__ == '__main__':
     for resolution in ['hour', '10min', '5min']:
         for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
             dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
-            os.chdir(dir)
+
             try:
                 start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
                 start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)

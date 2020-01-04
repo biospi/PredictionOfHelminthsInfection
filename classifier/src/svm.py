@@ -185,7 +185,7 @@ def get_prec_recall_fscore_support(test_y, pred_y):
     return precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
 
-def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0):
+def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0, filename=""):
     plt.subplots_adjust(top=0.80)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
     contourf_kwargs = {'alpha': 0.2}
@@ -196,12 +196,12 @@ def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0):
                           contourf_kwargs=contourf_kwargs,
                           scatter_highlight_kwargs=scatter_highlight_kwargs)
     plt.title(title)
-    plt.savefig('_1_%s_lda.png' % title.split(' ')[0].replace('.', ''))
+    plt.savefig("2d%s.png" % filename)
     plt.show()
     plt.close()
 
 
-def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0):
+def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0, filename=""):
     R('r3dDefaults$windowRect <- c(0,50, 1000, 1000) ')
     R('open3d()')
     plot3ddb = R('''
@@ -331,7 +331,7 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
     r_dataframe_test = pandas2ri.py2ri(df_test)
 
     plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
-             r_dataframe_test, True, title, 'E:/downloads/%d.png' % i)
+             r_dataframe_test, True, title, "3d%s.png" % filename)
 
     # input('hello')
 
@@ -470,7 +470,7 @@ def process_fold2(n, X, y, dim_reduc=None):
     return X_reduced, y_reduced
 
 
-def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None, fname=None):
+def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None, fname=None, outfname=None):
     if clf_name not in ['SVM', 'MLP']:
         raise ValueError("available classifiers are SVM and MLP.")
 
@@ -508,14 +508,14 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
 
     if dim == 3:
-        plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=0)
+        plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname)
 
     if dim == 2:
         plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
-                                    clf, i=0)
+                                    clf, filename=outfname)
     if dim == 1:
         plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
-                                    clf, i=0)
+                                    clf, filename=outfname)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -590,7 +590,7 @@ def f_importances(coef, names, X_train):
     plt.show()
 
 
-def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label'):
+def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label', outfname=None):
     if clf_name not in ['SVM', 'MLP', 'LREG']:
         raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
 
@@ -706,7 +706,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
         acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d = compute_model2(
-            X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
+            X, y, X_t, y_t, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname, outfname=outfname)
         # acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d, clf_name_1d = compute_model2(
         #     X, y, X_t, y_t, clf, dim=1, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
 
@@ -752,7 +752,7 @@ def load_df_from_datasets(fname, label_col):
     return data_frame_original, data_frame, cols_to_keep
 
 
-def start(fname1=None, fname2=None, half_period_split=False, label_col='label'):
+def start(fname1=None, fname2=None, half_period_split=False, label_col='label', outfname=None):
     if fname2 is not None:
         print("use different two different dataset for training and testing.\n"
               "training set:%s\n testing set:%s" % (fname1, fname2))
@@ -760,7 +760,7 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label'):
         _, df2, _ = load_df_from_datasets(fname2, label_col)
         df1 = df1[cols_to_keep]
         df2 = df2[cols_to_keep]
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname)
         return
 
     print("loading dataset...")
@@ -794,24 +794,25 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label'):
         class_1_count = data_frame['label'].value_counts().to_dict()[True]
         class_2_count = data_frame['label'].value_counts().to_dict()[False]
         print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname)
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
-        process(data_frame, dim_reduc='LDA', clf_name='SVM', y_col='famacha_score')
+        process(data_frame, dim_reduc='LDA', clf_name='SVM', y_col='famacha_score', outfname=outfname)
 
 
 if __name__ == '__main__':
 
     start(fname1=MAIN_DIR + "delmas_70101200027_resolution_10min_days_6/training_sets/cwt_.data",
-          fname2=MAIN_DIR + "cedara_70091100056_resolution_10min_days_6/training_sets/cwt_.data")
+          fname2=MAIN_DIR + "cedara_70091100056_resolution_10min_days_6/training_sets/cwt_.data",
+          outfname="trained_on_delmas_test_on_cedara")
 
     dir = MAIN_DIR + "cedara_70091100056_resolution_10min_days_6/training_sets/"
-    os.chdir(dir)
-    start(fname1=dir+"cwt_.data", half_period_split=True)
-    start(fname1=dir+"cwt_div.data", half_period_split=True)
+    # os.chdir(dir)
+    start(fname1=dir+"cwt_.data", half_period_split=True, outfname="cedara_cwt")
+    start(fname1=dir+"cwt_div.data", half_period_split=True, outfname="cedara_cwt_div")
 
     dir = MAIN_DIR + "delmas_70101200027_resolution_10min_days_6/training_sets/"
-    os.chdir(dir)
-    start(fname1=dir+"cwt_.data", half_period_split=True)
-    start(fname1=dir+"cwt_div.data", half_period_split=True)
+    # os.chdir(dir)
+    start(fname1=dir+"cwt_.data", half_period_split=True, outfname="delams_cwt")
+    start(fname1=dir+"cwt_div.data", half_period_split=True, outfname="delmas_cwt_div")
