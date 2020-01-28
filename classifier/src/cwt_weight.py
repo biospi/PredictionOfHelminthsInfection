@@ -76,7 +76,7 @@ def compute_cwt_hd(activity):
     y = interpolate(y)
 
     delta_t = x[1] - x[0]
-    scales = np.arange(1, num_steps + 1)/1
+    scales = np.arange(1, num_steps + 1) / 1
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     wavelet_type = 'morlet'
 
@@ -102,7 +102,19 @@ def compute_cwt_hd(activity):
     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type
 
 
-def start(fname='', out_fname=None, id=None):
+def start(fname='', out_fname=None, id=None, fname_temp=None, fname_hum=None):
+    if fname_temp is not None:
+        df_temp = pd.read_csv(fname_temp, sep=",", header=None)
+        sample_count = df_temp.shape[1]
+        hearder = [str(n) for n in range(0, sample_count)]
+        df_temp.columns = hearder
+
+    if fname_hum is not None:
+        df_hum = pd.read_csv(fname_hum, sep=",", header=None)
+        sample_count = df_hum.shape[1]
+        hearder = [str(n) for n in range(0, sample_count)]
+        df_hum.columns = hearder
+
     print(out_fname, id)
     print("loading dataset...")
     # print(fname)
@@ -125,7 +137,7 @@ def start(fname='', out_fname=None, id=None):
     # data_frame = data_frame.fillna(-1)
     data_frame = shuffle(data_frame)
     data_frame['label'] = data_frame['label'].map({True: 1, False: 0})
-    process(data_frame, data_frame_0, out_fname, id)
+    process(data_frame, data_frame_0, out_fname, id, df_temp=df_temp, df_hum=df_hum)
 
 
 def mean(a):
@@ -171,10 +183,12 @@ def purge_file(filename):
         print("file not found.")
 
 
-def process_data_frame(data_frame, data_frame_0, out_fname = None):
+def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None):
     print(out_fname)
     # data_frame = data_frame.fillna(-1)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    X_t = df_temp[df_temp.columns[0:df_temp.shape[1] - 1]].values
+    X_h = df_hum[df_hum.columns[0:df_hum.shape[1] - 1]].values
     X_date = data_frame_0[data_frame_0.columns[data_frame_0.shape[1] - 7:data_frame_0.shape[1]]].values
     # cwt_list = []
     class0 = []
@@ -199,7 +213,11 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
     X_cwt = pd.DataFrame()
     cpt = 0
     with open(out_fname, 'a') as outfile:
-        for i, activity in enumerate(X):
+        for i, item in enumerate(zip(X, X_t, X_h)):
+            activity = item[0]
+            temperature = item[1].tolist()
+            humidity = item[2].tolist()
+
             activity = interpolate(activity)
             activity = np.asarray(activity)
 
@@ -235,14 +253,19 @@ def process_data_frame(data_frame, data_frame_0, out_fname = None):
                 label = 'True'
                 class1.append(activity)
 
-            training_str_flatten = str(coefs.shape).strip('()')+','+str(cwt).strip('[]').replace(' ', '')\
-                .replace('None', 'NaN')+','+label+','+str(X_date[i].tolist()).replace('\'','').strip('[]').replace(' ','')
+            training_str_flatten = str(coefs.shape).strip('()') + \
+                                   ',' + str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + str(temperature).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + str(humidity).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + \
+                                   label + \
+                                   ',' + \
+                                   str(X_date[i].tolist()).replace('\'', '').strip('[]').replace(' ', '')
 
-            print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-50:]))
+            print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-150:]))
 
             outfile.write(training_str_flatten)
             outfile.write('\n')
-
 
     class0_mean = np.average(class0, axis=0)
     del class0
@@ -309,7 +332,7 @@ def class_feature_importance(X, Y, feature_importances):
     out = {}
     for c in set(Y):
         out[c] = dict(
-            zip(range(N), np.mean(X[Y==c, :], axis=0)*feature_importances)
+            zip(range(N), np.mean(X[Y == c, :], axis=0) * feature_importances)
         )
 
     return out
@@ -322,14 +345,16 @@ def pad(A, length):
 
 
 def normalized(v):
-    return v / np.sqrt(np.sum(v**2))
+    return v / np.sqrt(np.sum(v ** 2))
 
 
-def process(data_frame, data_frame_0, out_fname=None, id=None):
+def process(data_frame, data_frame_0, out_fname=None, id=None, df_hum=None, df_temp=None):
     global DATA_
     print("process...")
-    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean,\
-    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname = process_data_frame(data_frame, data_frame_0, out_fname)
+    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, \
+    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname = process_data_frame(data_frame, data_frame_0,
+                                                                                         out_fname, df_hum=df_hum,
+                                                                                         df_temp=df_temp)
     print("train_test_split...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
@@ -337,6 +362,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     y_train[0] = 3
 
     print("fit...")
+    return
     clf.fit(X_train, y_train)
     del X_train
     del y_train
@@ -364,17 +390,17 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     class0 = class0.sort_values('feature')
     class1 = class1.sort_values('feature')
 
-    #value0 = class0['value'].values
+    # value0 = class0['value'].values
     weight0 = class0['weight'].values
-    #value1 = class1['value'].values
+    # value1 = class1['value'].values
     weight1 = class1['weight'].values
 
     del class0
     del class1
 
-    #value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    # value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight0 = pad(weight0, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
-    #value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
+    # value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight1 = pad(weight1, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
 
     fig, axs = plt.subplots(5, 2)
@@ -444,37 +470,38 @@ def process(data_frame, data_frame_0, out_fname=None, id=None):
     del herd_mean
     axs[4, 1].set_title('mean time input')
     fig.show()
-    fig.savefig(str(id)+'_'+outfile, dpi=100)
+    fig.savefig(str(id) + '_' + outfile, dpi=100)
     fig.clear()
     plt.close(fig)
     DATA_ = []
 
 
 if __name__ == '__main__':
-    for resolution in ['hour', '10min', '5min']:
-        for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
-            dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
-
-            try:
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
-            except MemoryError as e:
-                print(e)
-                DATA_ = []
-                plt.clf()
-                gc.collect()
-
-        for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
-            dir = TRAINING_DIR + 'delmas_70101200027_resolution_%s_days_%d/' % (resolution, item)
+    for resolution in ['10min']:
+        # for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
+        #     dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
+        #
+        #     try:
+        #         start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
+        #         start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
+        #     except MemoryError as e:
+        #         print(e)
+        #         DATA_ = []
+        #         plt.clf()
+        #         gc.collect()
+        for item in [6]:
+            dir = TRAINING_DIR + '%s_sld_0_dbt%d_delmas_70101200027/' % (resolution, item)
             os.chdir(dir)
             try:
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_div.data',
+                      id=1, fname_temp="%s/training_sets/temperature.data" % dir,
+                      fname_hum="%s/training_sets/humidity.data" % dir)
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_.data', id=1,
+                      fname_temp="%s/training_sets/temperature.data" % dir,
+                      fname_hum="%s/training_sets/humidity.data" % dir
+                      )
             except MemoryError as e:
                 print(e)
                 DATA_ = []
                 plt.clf()
                 gc.collect()
-
-
-
