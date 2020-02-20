@@ -19,6 +19,11 @@ CWT_RES = 1000000
 TRAINING_DIR = "E:/Users/fo18103/PycharmProjects" \
                "/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/"
 
+pd.set_option('display.max_columns', 10)
+pd.set_option('display.max_rows', 50)
+pd.set_option('display.expand_frame_repr', False)
+pd.set_option('max_colwidth', -1)
+
 
 def interpolate(input_activity):
     try:
@@ -102,42 +107,56 @@ def compute_cwt_hd(activity):
     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type
 
 
-def start(fname='', out_fname=None, id=None, fname_temp=None, fname_hum=None):
-    if fname_temp is not None:
-        df_temp = pd.read_csv(fname_temp, sep=",", header=None)
-        sample_count = df_temp.shape[1]
-        hearder = [str(n) for n in range(0, sample_count)]
-        df_temp.columns = hearder
+def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=None, days=None, start_healthy=True):
+    try:
+        if fname_temp is not None:
+            df_temp = pd.read_csv(fname_temp, sep=",", header=None)
+            sample_count = df_temp.shape[1]
+            hearder = [str(n) for n in range(0, sample_count)]
+            df_temp.columns = hearder
 
-    if fname_hum is not None:
-        df_hum = pd.read_csv(fname_hum, sep=",", header=None)
-        sample_count = df_hum.shape[1]
-        hearder = [str(n) for n in range(0, sample_count)]
-        df_hum.columns = hearder
+        if fname_hum is not None:
+            df_hum = pd.read_csv(fname_hum, sep=",", header=None)
+            sample_count = df_hum.shape[1]
+            hearder = [str(n) for n in range(0, sample_count)]
+            df_hum.columns = hearder
+    except FileNotFoundError as e:
+        print(e)
 
-    print(out_fname, id)
+    print(out_fname)
     print("loading dataset...")
     # print(fname)
-    data_frame = pd.read_csv(fname, sep=",", header=None)
+    df = pd.read_csv(fname, sep=",", header=None)
     # print(data_frame)
-    sample_count = data_frame.shape[1]
+    sample_count = df.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-7] = "label"
-    hearder[-6] = "elem_in_row"
-    hearder[-5] = "date1"
-    hearder[-4] = "date2"
-    hearder[-3] = "serial"
-    hearder[-2] = "famacha_score"
-    hearder[-1] = "previous_famacha_score"
-    data_frame.columns = hearder
-    data_frame_0 = data_frame
-    data_frame = data_frame.loc[:, :'label']
+    hearder[-9] = "label"
+    hearder[-8] = "elem_in_row"
+    hearder[-7] = "date1"
+    hearder[-6] = "date2"
+    hearder[-5] = "serial"
+    hearder[-4] = "famacha_score"
+    hearder[-3] = "previous_famacha_score"
+    hearder[-2] = "previous_famacha_score2"
+    hearder[-1] = "previous_famacha_score3"
+    df.columns = hearder
+    if start_healthy:
+        df = df[(df.famacha_score == 2) & (df.previous_famacha_score == 1) & (df.previous_famacha_score2 == 1) & (
+                df.previous_famacha_score3 == 2)]
+    else:
+        df = df[(df.famacha_score == 1) & (df.previous_famacha_score == 2) & (df.previous_famacha_score2 == 2) & (
+                df.previous_famacha_score3 == 1)]
+
+    df_0 = df
+    print(df)
+    df = df.loc[:, :'label']
     np.random.seed(0)
-    data_frame = data_frame.sample(frac=1).reset_index(drop=True)
+    df = df.sample(frac=1).reset_index(drop=True)
     # data_frame = data_frame.fillna(-1)
-    data_frame = shuffle(data_frame)
-    data_frame['label'] = data_frame['label'].map({True: 1, False: 0})
-    process(data_frame, data_frame_0, out_fname, id, df_temp=df_temp, df_hum=df_hum)
+    df = shuffle(df)
+    df['label'] = df['label'].map({True: 1, False: 1})
+    print(df)
+    process(df, df_0, out_fname, df_temp=df_temp, df_hum=df_hum, resolution=resolution, days=days, start_healthy=start_healthy)
 
 
 def mean(a):
@@ -179,7 +198,7 @@ def purge_file(filename):
     print("purge %s..." % filename)
     try:
         os.remove(filename)
-    except FileNotFoundError:
+    except Exception:
         print("file not found.")
 
 
@@ -194,11 +213,11 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     class0 = []
     class1 = []
     H = []
-    with open(out_fname, 'a') as outfile:
-        for i, activity in enumerate(X):
-            activity = interpolate(activity)
-            activity = np.asarray(activity)
-            H.append(activity)
+
+    for i, activity in enumerate(X):
+        activity = interpolate(activity)
+        activity = np.asarray(activity)
+        H.append(activity)
     herd_mean = np.average(H, axis=0)
     del H
     gc.collect()
@@ -235,9 +254,6 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
             if len(DATA_) == 0:
                 DATA_.append({'coef': coefs, 'freqs': freqs})
 
-            # create_cwt_graph(coefs, freqs, activity.shape[0], title=str(i))
-
-            # cwt_list.append(cwt)
             if cpt == 0:
                 X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
 
@@ -267,48 +283,17 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
             outfile.write(training_str_flatten)
             outfile.write('\n')
 
-    class0_mean = np.average(class0, axis=0)
-    del class0
-    # class0_mean[class0_mean == 0] = np.nan
-    # class0_mean = interpolate(class0_mean)
-
+    coefs_class0_mean = []
+    class0_mean = []
+    if len(class0) > 0:
+        class0_mean = np.average(class0, axis=0)
+        _, coefs_class0_mean, _, _, _, _, _ = compute_cwt_hd(class0_mean)
     class1_mean = np.average(class1, axis=0)
     del class1
-    # class1_mean[class1_mean == 0] = np.nan
-    # class1_mean = interpolate(class1_mean)
-
-    # print("***********************")
-    # print(herd_data)
-    # print("***********************")
-    # print(herd_mean)
-    print("***********************")
-
-    # plt.plot(herd_mean)
-    # plt.show()
-    # plt.plot(class0_mean)
-    # plt.show()
-    # plt.plot(class1_mean)
-    # plt.show()
-    #
-    #
-    # plt.yscale('log')
-    # plt.matshow(coefs_herd_mean)
-    # plt.show()
-
-    _, coefs_class0_mean, _, _, _, _, _ = compute_cwt_hd(class0_mean)
-    # plt.matshow(coefs_class0_mean)
-    # plt.show()
     _, coefs_class1_mean, _, _, _, _, _ = compute_cwt_hd(class1_mean)
-    # plt.matshow(coefs_class1_mean)
-    # plt.show()
     X = X_cwt
-    # X = pd.DataFrame.from_records(cwt_list)
-    # del cwt_list
-    # print(X)
     y = data_frame["label"].values.flatten()
-    # X = normalize(X)
-    # X = preprocessing.MinMaxScaler().fit_transform(X)
-    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname
+    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean
 
 
 def plot_coefficients(classifier, feature_names, top_features=20):
@@ -348,13 +333,12 @@ def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def process(data_frame, data_frame_0, out_fname=None, id=None, df_hum=None, df_temp=None):
+def process(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None, resolution=None,
+            days=None, start_healthy=None):
     global DATA_
-    print("process...")
-    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, \
-    coefs_herd_mean, herd_mean, class0_mean, class1_mean, out_fname = process_data_frame(data_frame, data_frame_0,
-                                                                                         out_fname, df_hum=df_hum,
-                                                                                         df_temp=df_temp)
+    print("process...", resolution, days)
+    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean = process_data_frame(
+        data_frame, data_frame_0, out_fname, df_hum=df_hum, df_temp=df_temp)
     print("train_test_split...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
     clf = SVC(kernel='linear')
@@ -362,7 +346,7 @@ def process(data_frame, data_frame_0, out_fname=None, id=None, df_hum=None, df_t
     y_train[0] = 3
 
     print("fit...")
-    return
+
     clf.fit(X_train, y_train)
     del X_train
     del y_train
@@ -390,94 +374,133 @@ def process(data_frame, data_frame_0, out_fname=None, id=None, df_hum=None, df_t
     class0 = class0.sort_values('feature')
     class1 = class1.sort_values('feature')
 
-    # value0 = class0['value'].values
     weight0 = class0['weight'].values
-    # value1 = class1['value'].values
     weight1 = class1['weight'].values
 
-    del class0
     del class1
 
-    # value0 = pad(value0, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight0 = pad(weight0, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
-    # value1 = pad(value1, data[0]['coef'].shape[0] * data[0]['coef'].shape[1])
     weight1 = pad(weight1, DATA_[0]['coef'].shape[0] * DATA_[0]['coef'].shape[1])
 
-    fig, axs = plt.subplots(5, 2)
-    fig.set_size_inches(25, 25)
-    outfile = 'SVC_%s.png' % (out_fname.split('.')[0])
-    axs[0, 0].set_title(outfile, fontsize=25, loc="left", pad=30)
+    if len(class0) > 0:
+        del class0
+        fig, axs = plt.subplots(5, 2)
+        fig.set_size_inches(25, 25)
 
-    ymin = min([min(class0_mean), min(class1_mean), min(herd_mean)])
-    ymax = max([max(class0_mean), max(class1_mean), max(herd_mean)])
+        axs[0, 0].set_title(out_fname, fontsize=25, loc="left", pad=30)
+        ymin = min([min(class0_mean), min(class1_mean), min(herd_mean)])
+        ymax = max([max(class0_mean), max(class1_mean), max(herd_mean)])
 
-    x_axis = [x for x in range(coefs_class0_mean.shape[1])]
-    # x_axis[0] = 1
-    # x_axis[-1] = coefs_class0_mean.shape[1]
-    axs[0, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class0_mean)
-    axs[0, 0].set_yscale('log')
-    axs[0, 0].set_title('class0 cwt input')
-    # iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
-    # iwave = np.real(iwave)
-    axs[0, 1].plot(class0_mean)
-    axs[0, 1].set_ylim([ymin, ymax])
-    axs[0, 1].set_title('class0 time input')
+        x_axis = [x for x in range(coefs_class0_mean.shape[1])]
+        # x_axis[0] = 1
+        # x_axis[-1] = coefs_class0_mean.shape[1]
+        axs[0, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class0_mean)
+        axs[0, 0].set_yscale('log')
+        axs[0, 0].set_title('class0 cwt input')
+        # iwave = wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type)
+        # iwave = np.real(iwave)
+        axs[0, 1].plot(class0_mean)
+        axs[0, 1].set_ylim([ymin, ymax])
+        axs[0, 1].set_title('class0 time input')
 
-    axs[1, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class1_mean)
-    axs[1, 0].set_yscale('log')
-    axs[1, 0].set_title('class1 cwt input')
-    # iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
-    # iwave = np.real(iwave)
-    axs[1, 1].plot(class1_mean)
-    axs[1, 1].set_ylim([ymin, ymax])
-    axs[1, 1].set_title('class1 time input')
+        axs[1, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class1_mean)
+        axs[1, 0].set_yscale('log')
+        axs[1, 0].set_title('class1 cwt input')
+        # iwave = wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type)
+        # iwave = np.real(iwave)
+        axs[1, 1].plot(class1_mean)
+        axs[1, 1].set_ylim([ymin, ymax])
+        axs[1, 1].set_title('class1 time input')
 
-    c0 = np.reshape(normalized(weight0), DATA_[0]['coef'].shape)
-    iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
-    iwave0 = np.real(iwave0)
+        c0 = np.reshape(normalized(weight0), DATA_[0]['coef'].shape)
+        iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
+        iwave0 = np.real(iwave0)
 
-    c1 = np.reshape(normalized(weight1), DATA_[0]['coef'].shape)
-    iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
-    iwave1 = np.real(iwave1)
+        c1 = np.reshape(normalized(weight1), DATA_[0]['coef'].shape)
+        iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
+        iwave1 = np.real(iwave1)
 
-    ymin2 = min([min(iwave0), min(iwave1)])
-    ymax2 = max([max(iwave0), max(iwave1)])
+        ymin2 = min([min(iwave0), min(iwave1)])
+        ymax2 = max([max(iwave0), max(iwave1)])
 
-    axs[2, 0].pcolor(x_axis, DATA_[0]['freqs'], c0)
-    axs[2, 0].set_yscale('log')
-    axs[2, 0].set_title('class0 cwt weight')
-    axs[2, 1].plot(iwave0)
-    del iwave0
-    axs[2, 1].set_ylim([ymin2, ymax2])
-    axs[2, 1].set_title('class0 cwt weight inverse')
+        axs[2, 0].pcolor(x_axis, DATA_[0]['freqs'], c0)
+        axs[2, 0].set_yscale('log')
+        axs[2, 0].set_title('class0 cwt weight')
+        axs[2, 1].plot(iwave0)
+        del iwave0
+        axs[2, 1].set_ylim([ymin2, ymax2])
+        axs[2, 1].set_title('class0 cwt weight inverse')
 
-    axs[3, 0].pcolor(x_axis, DATA_[0]['freqs'], c1)
-    axs[3, 0].set_yscale('log')
-    axs[3, 0].set_title('class1 cwt weight')
-    axs[3, 1].plot(iwave1)
-    del iwave1
-    axs[3, 1].set_ylim([ymin2, ymax2])
-    axs[3, 1].set_title('class1 cwt weight inverse')
-    axs[4, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_herd_mean)
-    del coefs_herd_mean
-    # Set yscale, ylim and labels
-    axs[4, 0].set_yscale('log')
-    axs[4, 0].set_title('mean cwt input')
-    # iwave_m = wavelet.icwt(coefs_herd_mean, scales, delta_t, wavelet=wavelet_type)
-    # iwave_m = np.real(iwave_m)
-    axs[4, 1].set_ylim([ymin, ymax])
-    axs[4, 1].plot(herd_mean)
-    del herd_mean
-    axs[4, 1].set_title('mean time input')
+        axs[3, 0].pcolor(x_axis, DATA_[0]['freqs'], c1)
+        axs[3, 0].set_yscale('log')
+        axs[3, 0].set_title('class1 cwt weight')
+        axs[3, 1].plot(iwave1)
+        del iwave1
+        axs[3, 1].set_ylim([ymin2, ymax2])
+        axs[3, 1].set_title('class1 cwt weight inverse')
+        axs[4, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_herd_mean)
+        del coefs_herd_mean
+        # Set yscale, ylim and labels
+        axs[4, 0].set_yscale('log')
+        axs[4, 0].set_title('mean cwt input')
+        # iwave_m = wavelet.icwt(coefs_herd_mean, scales, delta_t, wavelet=wavelet_type)
+        # iwave_m = np.real(iwave_m)
+        axs[4, 1].set_ylim([ymin, ymax])
+        axs[4, 1].plot(herd_mean)
+        del herd_mean
+        axs[4, 1].set_title('mean time input')
+    else:
+        fig, axs = plt.subplots(2, 2)
+        fig.set_size_inches(50, 25)
+        ymin = min([min(class1_mean), min(herd_mean)])
+        ymax = max([max(class1_mean), max(herd_mean)])
+
+        axs[0, 0].set_title(out_fname + ' ' +resolution+ ' ' +str(days) + ' ' + str(start_healthy),
+                            fontsize=25, loc="left", pad=30)
+
+        x_axis = [x for x in range(coefs_class1_mean.shape[1])]
+        # axs[0, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_class1_mean)
+        # axs[0, 0].set_yscale('log')
+        # axs[0, 0].set_title('class1 cwt input')
+        # axs[0, 1].plot(class1_mean)
+        # axs[0, 1].set_ylim([ymin, ymax])
+        # axs[0, 1].set_title('class1 time input')
+
+        c1 = np.reshape(normalized(weight1), DATA_[0]['coef'].shape)
+        iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
+        iwave1 = np.real(iwave1)
+
+        ymin2 = min(iwave1)
+        ymax2 = max(iwave1)
+
+        axs[0, 0].pcolor(x_axis, DATA_[0]['freqs'], c1)
+        axs[0, 0].set_yscale('log')
+        axs[0, 0].set_title('class1 cwt weight')
+        axs[0, 1].plot(iwave1)
+        del iwave1
+        axs[0, 1].set_ylim([ymin2, ymax2])
+        axs[0, 1].set_title('class1 cwt weight inverse')
+
+        axs[1, 0].pcolor(x_axis, DATA_[0]['freqs'], coefs_herd_mean)
+        del coefs_herd_mean
+        axs[1, 0].set_yscale('log')
+        axs[1, 0].set_title('mean cwt input')
+
+        axs[1, 1].set_ylim([ymin, ymax])
+        axs[1, 1].plot(herd_mean)
+        del herd_mean
+        axs[1, 1].set_title('mean time input')
+
     fig.show()
-    fig.savefig(str(id) + '_' + outfile, dpi=100)
+    outfile = 'SVC_%s_%s_%d_%s.png' % (out_fname.split('.')[0], resolution, days, start_healthy)
+    fig.savefig(outfile, dpi=100)
     fig.clear()
     plt.close(fig)
     DATA_ = []
 
 
 if __name__ == '__main__':
-    for resolution in ['10min']:
+    for resolution in ['10min', '5min']:
         # for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
         #     dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
         #
@@ -489,17 +512,34 @@ if __name__ == '__main__':
         #         DATA_ = []
         #         plt.clf()
         #         gc.collect()
-        for item in [6]:
-            dir = TRAINING_DIR + '%s_sld_0_dbt%d_delmas_70101200027/' % (resolution, item)
-            os.chdir(dir)
+        for days in [28]:
+            dir = TRAINING_DIR + '%s_sld_0_dbt%d_delmas_70101200027/' % (resolution, days)
+            # os.chdir(dir)
             try:
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_div.data',
-                      id=1, fname_temp="%s/training_sets/temperature.data" % dir,
-                      fname_hum="%s/training_sets/humidity.data" % dir)
-                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_.data', id=1,
+                start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div_sh.data',
+                      resolution=resolution,
+                      days=days,
                       fname_temp="%s/training_sets/temperature.data" % dir,
-                      fname_hum="%s/training_sets/humidity.data" % dir
-                      )
+                      fname_hum="%s/training_sets/humidity.data" % dir)
+                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data',
+                #       resolution= resolution,
+                #       days=days,
+                #       fname_temp="%s/training_sets/temperature.data" % dir,
+                #       fname_hum="%s/training_sets/humidity.data" % dir, start_healthy=False)
+                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_sub.data',
+                #       resolution=resolution,
+                #       days=days,
+                #       fname_temp="%s/training_sets/temperature.data" % dir,
+                #       fname_hum="%s/training_sets/humidity.data" % dir)
+                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data',
+                #       resolution=resolution,
+                #       days=days,
+                #       fname_temp="%s/training_sets/temperature.data" % dir,
+                #       fname_hum="%s/training_sets/humidity.data" % dir)
+                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_.data', id=1,
+                #       fname_temp="%s/training_sets/temperature.data" % dir,
+                #       fname_hum="%s/training_sets/humidity.data" % dir
+                #       )
             except MemoryError as e:
                 print(e)
                 DATA_ = []

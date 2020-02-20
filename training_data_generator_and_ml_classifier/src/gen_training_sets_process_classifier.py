@@ -196,8 +196,10 @@ def get_temp_humidity(date, data):
     return temp, humidity
 
 
-def get_previous_famacha_score(serial_number, famacha_test_date, data_famacha, curr_score):
-    previous_score = None
+def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_score):
+    previous_score1 = None
+    previous_score2 = None
+    previous_score3 = None
     try:
         list = data_famacha[str(serial_number)]
     except KeyError as e:
@@ -207,12 +209,22 @@ def get_previous_famacha_score(serial_number, famacha_test_date, data_famacha, c
         item = list[i]
         if item[0] == famacha_test_date:
             try:
-                previous_score = int(list[i - 1][1])
+                previous_score1 = int(list[i - 1][1])
             except ValueError as e:
-                previous_score = curr_score
+                previous_score1 = -1
+                print(e)
+            try:
+                previous_score2 = int(list[i - 2][1])
+            except ValueError as e:
+                previous_score2 = -1
+                print(e)
+            try:
+                previous_score3 = int(list[i - 3][1])
+            except ValueError as e:
+                previous_score3 = -1
                 print(e)
             break
-    return previous_score
+    return previous_score1, previous_score2, previous_score3
 
 
 def pad(a, N):
@@ -335,7 +347,15 @@ def format_cedara_famacha_data(data_famacha_dict, sql_db):
     return data_famacha_dict_formatted
 
 
-def get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
+def get_ndays_between_dates(date1, date2):
+    date_format = "%d/%m/%Y"
+    a = datetime.strptime(date1, date_format)
+    b = datetime.strptime(date2, date_format)
+    delta = b - a
+    return delta
+
+
+def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
                       expected_sample_count, farm_sql_table_id=None, sliding_windows=None):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
@@ -349,6 +369,34 @@ def get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data
     animal_id = int(curr_data_famacha[2])
     # find the activity data of that animal the n days before the test
     date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test, sliding_windows)
+
+    dtf1, dtf2, dtf3, dtf4 = "", "", "", ""
+    try:
+        dtf1 = data_famacha_list[i][0]
+    except ValueError as e:
+        print(e)
+    try:
+        dtf2 = data_famacha_list[i+1][0]
+    except ValueError as e:
+        print(e)
+    try:
+        dtf3 = data_famacha_list[i+2][0]
+    except ValueError as e:
+        print(e)
+    try:
+        dtf4 = data_famacha_list[i+3][0]
+    except ValueError as e:
+        print(e)
+
+    nd1, nd2, nd3 = 0, 0, 0
+    if len(dtf2) > 0 and len(dtf1) > 0:
+        nd1 = get_ndays_between_dates(dtf1, dtf2)
+    if len(dtf3) > 0 and len(dtf2) > 0:
+        nd2 = get_ndays_between_dates(dtf2, dtf3)
+    if len(dtf4) > 0 and len(dtf3) > 0:
+        nd3 = get_ndays_between_dates(dtf3, dtf4)
+
+
     print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
         famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
@@ -419,16 +467,29 @@ def get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data
     # activity_list_np = np.where(np.isnan(activity_list_np), None, activity_list_np)
     # activity_list = activity_list_np.tolist()
 
-    previous_famacha_score = get_previous_famacha_score(animal_id, famacha_test_date, data_famacha_dict, famacha_score)
+    prev_famacha_score1, prev_famacha_score2, prev_famacha_score3 = get_prev_famacha_score(animal_id,
+                                                                                           famacha_test_date,
+                                                                                           data_famacha_dict,
+                                                                                           famacha_score)
     indexes.reverse()
 
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
     data = {"famacha_score_increase": False, "famacha_score": famacha_score, "weight": weight_list,
-            "previous_famacha_score": previous_famacha_score, "animal_id": animal_id,
+            "previous_famacha_score1": prev_famacha_score1,
+            "previous_famacha_score2": prev_famacha_score2,
+            "previous_famacha_score3": prev_famacha_score3,
+            "animal_id": animal_id,
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
+            "dtf1": dtf1,
+            "dtf2": dtf2,
+            "dtf3": dtf3,
+            "dtf4": dtf4,
+            "nd1": nd1,
+            "nd2": nd2,
+            "nd3": nd3,
             "indexes": indexes, "activity": activity_list,
             "temperature": temperature_list, "humidity": humidity_list, "herd": herd_activity_list, "ignore": True
             }
@@ -654,7 +715,7 @@ def compute_cwt(activity):
 
 def create_filename(data):
     filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d_zt%d_nt%d.png" % (data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
-                                                       -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
+                                                       -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
                                                        data["nan_threshold"],
                                                        data["zeros_threshold"])
     return filename.replace('/', '-')
@@ -736,14 +797,23 @@ def create_training_set(result, dir, options=[]):
         training_set.append(result["famacha_score"])
         option = option + "famacha_score_"
     if "previous_score" in options:
-        training_set.append(result["previous_famacha_score"])
+        training_set.append(result["previous_famacha_score1"])
         option = option + "previous_score_"
     training_set.append(result["famacha_score_increase"])
     training_set.append(len(training_set))
     training_set.extend(result["date_range"])
     training_set.append(result["animal_id"])
     training_set.append(result["famacha_score"])
-    training_set.append(result["previous_famacha_score"])
+    training_set.append(result["previous_famacha_score1"])
+    training_set.append(result["previous_famacha_score2"])
+    training_set.append(result["previous_famacha_score3"])
+    training_set.append(result["dtf1"])
+    training_set.append(result["dtf2"])
+    training_set.append(result["dtf3"])
+    training_set.append(result["dtf4"])
+    training_set.append(result["nd1"])
+    training_set.append(result["nd2"])
+    training_set.append(result["nd3"])
     path = "%s/training_sets" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s.data" % (path, option)
@@ -860,9 +930,9 @@ def init_result_file(dir, farm_id, simplified_results=False):
 def append_simplified_result_file(filename, classifier_name, accuracy, specificity, recall, precision, fscore,
                                   proba_y_false, proba_y_true,
                                   days_before_test, sliding_w, resolution, options):
-    data = "%s, %.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d,%s,%s" % (
+    data = "%s, %.2f,%.2f,%.2f,%.2f,%.2f,%s,%s,%d,%d,%s,%s" % (
     classifier_name.replace(',', ':').replace(' 10FCV', ''), accuracy, specificity, recall, precision, fscore,
-    proba_y_false, proba_y_true,
+    str(proba_y_false).replace(',', '-'), str(proba_y_true).replace(',', '-'),
     days_before_test, sliding_w, resolution, options)
     with open(filename, 'a') as outfile:
         outfile.write(data)
@@ -1265,8 +1335,10 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                               "specificity": -1,
                               "recall": -1,
                               "precision": -1,
+                              "proba_y_true": -1,
+                              "proba_y_false": -1,
                               "f-score": -1}
-        return -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results
+        return -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
@@ -1291,10 +1363,19 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     if 'KNN' in clf_name and hasattr(clf, "n_neighbors"):
         clf_name = "%s%s" % (clf_name, str(clf.n_neighbors).replace(' ', ''))
 
+    print((
+                clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
+                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                p_y_false*100, p_y_true*100,
+                np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
+                np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
+                np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options)))
+
     title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ndataset: class0=%d;' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s \n' % (
                 clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
-                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100, p_y_false*100, p_y_true*100,
+                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                p_y_false*100, p_y_true*100,
                 np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                 np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
@@ -1330,11 +1411,14 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
            title.split('\n')[0], file_path, simplified_results, p_y_false, p_y_true
 
 
-def dict_mean(dict_list):
+def dict_mean(dict_list, proba_y_false_2d, proba_y_true_2d):
     mean_dict = {}
     if len(dict_list) > 0:
         for key in dict_list[0].keys():
             mean_dict[key] = (sum(d[key] for d in dict_list) / len(dict_list)) * 100
+
+    mean_dict['proba_y_false_list'] = proba_y_false_2d,
+    mean_dict['proba_y_true_list'] = proba_y_true_2d
     return mean_dict
 
 
@@ -1350,7 +1434,15 @@ def get_proba(y_probas, y_pred):
     class_0 = np.asarray(class_0)
     class_1 = np.asarray(class_1)
 
-    return np.mean(class_0), np.mean(class_1)
+    proba_0 = np.mean(class_0) if class_0.size > 0 else 0
+    proba_1 = np.mean(class_1) if class_1.size > 0 else 0
+
+    if np.isnan(proba_0):
+        proba_0 = 0
+    if np.isnan(proba_1):
+        proba_1 = 0
+
+    return proba_0 , proba_1
 
 
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
@@ -1376,7 +1468,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
     support_false, support_false_1d, support_false_2d, support_false_3d = [], [], [], []
     support_true, support_true_1d, support_true_2d, support_true_3d = [], [], [], []
     simplified_results_full, simplified_results_1d, simplified_results_2d, simplified_results_3d = [], [], [], []
-    proba_y_false, proba_y_true , proba_y_false_2d, proba_y_true_2d = [], []
+    proba_y_false, proba_y_true , proba_y_false_2d, proba_y_true_2d = [], [], [], []
     clf_name_full, clf_name_1d, clf_name_2d, clf_name_3d = '', '', '', ''
     file_path_1d, file_path_2d, file_path_3d, file_path = '', '', '', ''
     clf = None
@@ -1449,7 +1541,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
             # support_false_1d.append(s_false_1d)
             # support_true_1d.append(s_true_1d)
             # simplified_results_1d.append(sr_1d)
-            
+
             scores_2d.append(acc_2d)
             precision_false_2d.append(p_false_2d)
             precision_true_2d.append(p_true_2d)
@@ -1494,9 +1586,11 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                 'support_true': np.mean(support_true),
                 'support_false': np.mean(support_false),
                 'proba_y_false': np.mean(proba_y_false_2d),
-                'proba_y_true': np.mean(proba_y_true_2d)
+                'proba_y_true': np.mean(proba_y_true_2d),
+                'proba_y_false_list': proba_y_false_2d,
+                'proba_y_true_list': proba_y_true_2d
             },
-            'simplified_results': dict_mean(simplified_results_full)
+            'simplified_results': dict_mean(simplified_results_full, proba_y_false_2d, proba_y_true_2d)
         }
     else:
         result = {
@@ -1515,7 +1609,10 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                 'support_true': np.mean(support_true_1d),
                 'support_false': np.mean(support_false_1d),
                 'proba_y_false': np.mean(proba_y_false_2d),
-                'proba_y_true': np.mean(proba_y_true_2d)
+                'proba_y_true': np.mean(proba_y_true_2d),
+                'proba_y_false_list': proba_y_false_2d,
+                'proba_y_true_list': proba_y_true_2d
+
             },
             '2d_reduced' if len(scores_2d) > 0 else '2d_reduced_empty': {
                 'db_file_path': file_path_2d,
@@ -1531,7 +1628,9 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                 'support_true': np.mean(support_true_2d),
                 'support_false': np.mean(support_false_2d),
                 'proba_y_false': np.mean(proba_y_false_2d),
-                'proba_y_true': np.mean(proba_y_true_2d)
+                'proba_y_true': np.mean(proba_y_true_2d),
+                'proba_y_false_list': proba_y_false_2d,
+                'proba_y_true_list': proba_y_true_2d
             },
             '3d_reduced' if len(scores_3d) > 0 else '3d_reduced_empty': {
                 'db_file_path': file_path_3d,
@@ -1547,12 +1646,14 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                 'support_true': np.mean(support_true_3d),
                 'support_false': np.mean(support_false_3d),
                 'proba_y_false': np.mean(proba_y_false_2d),
-                'proba_y_true': np.mean(proba_y_true_2d)
+                'proba_y_true': np.mean(proba_y_true_2d),
+                'proba_y_false_list': proba_y_false_2d,
+                'proba_y_true_list': proba_y_true_2d
             },
             'simplified_results': {
-                'simplified_results_1d' if len(simplified_results_1d) > 0 else 'simplified_results_1d_empty': dict_mean(simplified_results_1d),
-                'simplified_results_2d' if len(simplified_results_2d) > 0 else 'simplified_results_2d_empty': dict_mean(simplified_results_2d),
-                'simplified_results_3d' if len(simplified_results_3d) > 0 else 'simplified_results_3d_empty': dict_mean(simplified_results_3d)
+                'simplified_results_1d' if len(simplified_results_1d) > 0 else 'simplified_results_1d_empty': dict_mean(simplified_results_1d, proba_y_false_2d, proba_y_true_2d),
+                'simplified_results_2d' if len(simplified_results_2d) > 0 else 'simplified_results_2d_empty': dict_mean(simplified_results_2d, proba_y_false_2d, proba_y_true_2d),
+                'simplified_results_3d' if len(simplified_results_3d) > 0 else 'simplified_results_3d_empty': dict_mean(simplified_results_3d, proba_y_false_2d, proba_y_true_2d)
             }
         }
 
@@ -1890,6 +1991,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
                     append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
+                                                  item['proba_y_false_list'], item['proba_y_true_list'],
                                                   dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_1d' in result['simplified_results']:
@@ -1897,6 +1999,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
                     append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
+                                                  item['proba_y_false_list'], item['proba_y_true_list'],
                                                   dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_3d' in result['simplified_results']:
@@ -1904,12 +2007,14 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
                     append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
                                                   item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
+                                                  item['proba_y_false_list'], item['proba_y_true_list'],
                                                   dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
                 if 'simplified_results_full' in result['simplified_results']:
                     item = result['simplified_results']['simplified_results_full']
                     append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
                                                   item['recall'], item['precision'], item['f-score'],
+                                                  item['proba_y_false_list'], item['proba_y_true_list'],
                                                   dbt, sliding_w, resolution,
                                                   format_options(input["options"]))
 
@@ -2019,9 +2124,9 @@ def process_day(params):
             print(e)
             # exit(-1)
 
-        for curr_data_famacha in data_famacha_list:
+        for i, curr_data_famacha in enumerate(data_famacha_list):
             try:
-                result = get_training_data(sql_db, curr_data_famacha, data_famacha_dict, weather_data, resolution,
+                result = get_training_data(sql_db, curr_data_famacha, i, data_famacha_list.copy(), data_famacha_dict, weather_data, resolution,
                                            days_before_famacha_test, expected_sample_count,
                                            farm_sql_table_id=farm_id, sliding_windows=sliding_w)
             except KeyError as e:
@@ -2088,21 +2193,20 @@ def process_day(params):
     #     with open(herd_file_path, 'w') as fout:
     #         json.dump({'herd_activity': herd_data}, fout)
 
-    process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-                        zeros_threshold, farm_id, sliding_w)
+    # process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+    #                     zeros_threshold, farm_id, sliding_w)
     sql_db.cursor().close()
     sql_db.close()
 
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['hour', '10min', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
+    zipped = zip(['10min', 'hour', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
-        days_before_famacha_test_l = [250, 200, 150, 100, 90, 80, 70, 60, 50, 40, 30, 20, 19, 18, 15, 14, 13, 12, 11,
-        10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+        days_before_famacha_test_l = [7, 14, 21, 28]
         resolution, sliding_w, farm_id = item[0], item[1], item[2]
-        pool = Pool(processes=20)
+        pool = Pool(processes=4)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
                                   itertools.repeat(sliding_w), itertools.repeat(farm_id))
                  )
@@ -2115,9 +2219,9 @@ if __name__ == '__main__':
     freeze_support()
     print('args=', sys.argv)
     print("pandas", pd.__version__)
-    for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
-        pool = NonDaemonicPool(processes=3)
-        pool.map(process_sliding_w, zip([0, 12, 24, 48], itertools.repeat(farm_id)))
+    for farm_id in ["cedara_70091100056", "delmas_70101200027"]:
+        pool = NonDaemonicPool(processes=1)
+        pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id)))
         pool.close()
         pool.join()
 
