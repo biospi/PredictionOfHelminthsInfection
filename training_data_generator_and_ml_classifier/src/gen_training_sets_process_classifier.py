@@ -2259,7 +2259,7 @@ def process_sliding_w(params):
     zipped = zip(['hour', '10min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
-        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 35]
+        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28]
         resolution, sliding_w, farm_id = item[0], item[1], item[2]
         pool = Pool(processes=5)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),

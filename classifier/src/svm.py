@@ -2,7 +2,9 @@ import math
 import pathlib
 import shutil
 import warnings
-
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from numpy.random import random
 import matplotlib.font_manager
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -178,7 +180,85 @@ def get_prec_recall_fscore_support(test_y, pred_y):
     return precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
 
-def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0, filename="", days=None, resolution=None):
+def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None):
+    print('graph...')
+    # plt.subplots_adjust(top=0.75)
+    # fig = plt.figure(figsize=(7, 6), dpi=100)
+    fig, ax = plt.subplots(figsize=(7., 4.8))
+    # plt.subplots_adjust(top=0.75)
+    min = abs(X_lda.min()) + 1
+    max = abs(X_lda.max()) + 1
+    xx, yy = np.mgrid[-min:max:.01, -min:max:.01]
+    grid = np.c_[xx.ravel(), yy.ravel()]
+    probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
+    offset_r = 0
+    offset_g = 0
+    offset_b = 0
+    colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
+              (1, 1, 1),
+              ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
+    n_bin = 256
+    cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
+
+    for _ in range(0, 4):
+        contour = ax.contourf(xx, yy, probs, 100, cmap=cm, antialiased=True, vmin=0, vmax=1, alpha=0.6, linewidth=0)
+
+    ax_c = fig.colorbar(contour)
+    ax_c.set_label("$P(y = 1)$")
+    ax_c.set_ticks([0, .25, .5, .75, 1])
+    X_lda_0 = X_lda[y_lda == 0]
+    X_lda_1 = X_lda[y_lda == 1]
+
+    X_lda_0_t = X_test[y_test == 0]
+    X_lda_1_t = X_test[y_test == 1]
+
+    marker_size = 150
+
+    ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(49/255, 121/255, 168/255), linewidth=1, marker='s', alpha=0.9, label='Healthy')
+
+    ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(255/255, 129/255, 10/255), linewidth=1, marker='^', alpha=0.9,label='Unhealthy')
+
+    ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none', label='Test data')
+
+    ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none')
+
+    ax.set(xlabel="$X_1$", ylabel="$X_2$")
+
+    ax.contour(xx, yy, probs, levels=[.5], cmap="Greys", vmin=0, vmax=.6, linewidth=0.1)
+
+    for spine in ax.spines.values():
+        spine.set_edgecolor('white')
+
+    # markers = [plt.scatter([0, 0], [0, 0], c=(39/255, 111/255, 158/255), s=marker_size, marker='s'),
+    #            plt.scatter([0, 0], [0, 0], c=(251/255, 119/255, 0/255), s=marker_size, marker='^'),
+    #            plt.scatter([0, 0], [0, 0], c='black', s=marker_size, edgecolor="black", facecolors='none')
+    #            ]
+    #
+    plt.legend(loc=2)
+
+
+
+    # leg = plt.legend()
+    # leg.get_frame().set_linewidth(0.0)
+
+    plt.title(title)
+    ttl = ax.title
+    ttl.set_position([.5, 0.97])
+    # plt.tight_layout()
+
+    path = filename + '\\' + str(resolution) + '\\'
+    path_file = path + "%d_p.png" % days
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    plt.savefig(path_file, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+
+def plot_2D_decision_boundaries_(X, y, X_test, title, clf, i=0, filename="", days=None, resolution=None):
     plt.subplots_adjust(top=0.75)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
     contourf_kwargs = {'alpha': 0.2}
@@ -193,8 +273,9 @@ def plot_2D_decision_boundaries(X, y, X_test, title, clf, i=0, filename="", days
     path_file = path + "%d.png" % days
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     plt.savefig(path_file)
-    # plt.show()
+    plt.show()
     plt.close()
+    exit()
 
 
 def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0, filename=""):
@@ -494,7 +575,6 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     clf.fit(X_train, y_train)
     # clf = clf.best_estimator_
     # f_importances(clf.coef_.tolist()[0], [int(x) for x in range(0, clf.coef_.shape[1])], X_train)
-
     print("Best estimator found by grid search:")
     print(clf)
     y_pred = clf.predict(X_test)
@@ -522,12 +602,23 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
                 np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
 
+    # CALCULATE GRID
+    n = 5
+    xx1, xx2 = np.mgrid[25:101:n, 25:101:n]
+    grid = np.c_[xx1.ravel(), xx2.ravel()]
+    probs = clf.predict_proba(grid)[:, 1]
+    probs = probs.reshape(xx1.shape)
+    # ax = plt.gca()
+    # contour = ax.contourf(xx1, xx2, probs, 100, cmap="RdBu",
+    #                       vmin=0, vmax=1)
+    contourf_args = (xx1, xx2, probs, 100, "RdBu", 0, 1)
+
     if dim == 3:
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname)
 
     if dim == 2:
-        plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
-                                    clf, filename=outfname, days=days, resolution=resolution)
+        plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname, days=days, resolution=resolution)
+        # plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, filename=outfname, days=days, resolution=resolution)
     if dim == 1:
         plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
                                     clf, filename=outfname)
@@ -788,7 +879,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
             print(result)
             return result
     else:
-        clf = SVC(kernel='linear', probability=True)
+        clf = LogisticRegression(C=1e10)
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -946,7 +1037,7 @@ if __name__ == '__main__':
     # exit()
     #
     resolutions = ["10min"]
-    days = [6]
+    days = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28]
     try:
         shutil.rmtree("cross_farm")
     except (OSError, FileNotFoundError) as e:
