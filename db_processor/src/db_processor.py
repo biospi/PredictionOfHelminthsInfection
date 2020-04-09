@@ -36,7 +36,7 @@ from multiprocessing import Pool
 
 
 sql_db = None
-MAX_ACTIVITY_COUNT_BIO = 15000
+MAX_ACTIVITY_COUNT_BIO = 95000000
 
 
 class Animal(IsDescription):
@@ -358,7 +358,7 @@ def init_database(farm_id):
     print(sys.argv)
 
     print("store data in sql database...")
-    create_sql_table("%s_resolution_min" % farm_id)
+    # create_sql_table("%s_resolution_min" % farm_id)
     create_sql_table_("%s_resolution_5min" % farm_id)
     create_sql_table_("%s_resolution_10min" % farm_id)
     create_sql_table_("%s_resolution_month" % farm_id)
@@ -684,7 +684,7 @@ def process_raw_h5files(path):
         # if farm_id != 70101200027: #todo remove
         #     continue
         value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
-                 x['first_sensor_value'] if 0 < x['first_sensor_value'] < MAX_ACTIVITY_COUNT_BIO else None,
+                 x['first_sensor_value'],
                  datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"))
         list_raw.append(value)
     # group records by farm id/control_station
@@ -756,7 +756,7 @@ def create_indexes(farm_id):
     execute_sql_query("CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
     execute_sql_query("CREATE INDEX ix__%s_resolution_10min__sn__ts on %s_resolution_10min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
     execute_sql_query("CREATE INDEX ix__%s_resolution_5min__sn__ts on %s_resolution_5min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_min__sn__ts on %s_resolution_min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
+    # execute_sql_query("CREATE INDEX ix__%s_resolution_min__sn__ts on %s_resolution_min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
     
 
 def create_mean_median_animal(data):
@@ -822,6 +822,127 @@ def create_mean_median_animal(data):
 
 
 def process_raw_file(farm_id, data):
+    start_time = time.time()
+    farm_id = format_farm_id(farm_id)
+    table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
+    print("process data for farm %s." % farm_id)
+
+    # group records by animal id/serial number
+    groups = defaultdict(list)
+    for obj in data:
+        groups[obj[2]].append(obj)
+    animal_list_grouped_by_serialn = list(groups.values())
+
+    # data_resampled_min = []
+    data_resampled_5min = []
+    data_resampled_10min = []
+    data_resampled_hour = []
+    data_resampled_day = []
+    data_resampled_week = []
+    data_resampled_month = []
+
+    MULTI_THREADING_ENABLED = False
+
+    if MULTI_THREADING_ENABLED:
+        pool = Pool(processes=5)
+
+    animal_serial_number_to_ignore = []
+    for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
+        print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
+        # find first and last record date.
+        # if len(animal_records) < 100:
+        #     continue
+        serial_number = animal_records[0][2]
+        if serial_number in animal_serial_number_to_ignore:
+            continue
+        first_timestamp, last_timestamp = get_first_last_timestamp(animal_records)
+        if not MULTI_THREADING_ENABLED:
+            # data_resampled_min.extend(resample_to_min(first_timestamp, last_timestamp, animal_records))
+            data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
+            data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
+            data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
+            data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
+            data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
+            data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
+        else:
+            iterable = [animal_records]
+            # func1 = partial(resample_to_min, first_timestamp, last_timestamp)
+            func2 = partial(resample_to_hour, first_timestamp, last_timestamp)
+            func3 = partial(resample_to_day, first_timestamp, last_timestamp)
+            func4 = partial(resample_to_week, first_timestamp, last_timestamp)
+            func5 = partial(resample_to_month, first_timestamp, last_timestamp)
+            func6 = partial(resample_to_10min, first_timestamp, last_timestamp)
+            func7 = partial(resample_to_5min, first_timestamp, last_timestamp)
+            # result_func1 = pool.map_async(func1, iterable)
+            result_func2 = pool.map_async(func2, iterable)
+            result_func3 = pool.map_async(func3, iterable)
+            result_func4 = pool.map_async(func4, iterable)
+            result_func5 = pool.map_async(func5, iterable)
+            result_func6 = pool.map_async(func6, iterable)
+            result_func7 = pool.map_async(func7, iterable)
+            # r1 = result_func1.get()[0]
+            r2 = result_func2.get()[0]
+            r3 = result_func3.get()[0]
+            r4 = result_func4.get()[0]
+            r5 = result_func5.get()[0]
+            r6 = result_func6.get()[0]
+            r7 = result_func7.get()[0]
+            # data_resampled_min.extend(r1)
+            data_resampled_hour.extend(r2)
+            data_resampled_day.extend(r3)
+            data_resampled_week.extend(r4)
+            data_resampled_month.extend(r5)
+            data_resampled_10min.extend(r6)
+            data_resampled_5min.extend(r7)
+    #save data in db
+    print("saving data to db...")
+
+    data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
+    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
+
+    data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
+    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
+
+    data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
+    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
+
+    data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
+    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
+
+    data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
+    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
+
+    data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
+    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
+
+    # data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
+    # insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
+
+    create_indexes(farm_id)
+    sql_db_flush()
+
+    # if sys.argv[1] == 'h5':
+    #     table_m.append(data_resampled_month)
+    #     table_w.append(data_resampled_week)
+    #     table_d.append(data_resampled_day)
+    #     table_h.append(data_resampled_hour)
+    #     table_min.append(data_resampled_min)
+    #     table_10min.append(data_resampled_min)
+    #     table_5min.append(data_resampled_min)
+    #     table_m.flush()
+    #     table_w.flush()
+    #     table_d.flush()
+    #     table_h.flush()
+    #     table_min.flush()
+    #     table_10min.flush()
+    #     table_5min.flush()
+
+    print(len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour), len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
+    print(get_elapsed_time_string(start_time, time.time()))
+    print("finished processing raw file.")
+
+
+def process_raw_file2(farm_id, data):
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
     table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
@@ -1228,7 +1349,8 @@ if __name__ == '__main__':
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    db_name = "south_africa"
+    db_name = "south_africa_debug"
     create_and_connect_to_sql_db(db_name)
-    # drop_all_tables(db_name)
+    drop_all_tables(db_name)
     process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
+    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")

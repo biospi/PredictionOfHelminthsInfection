@@ -114,7 +114,7 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
 RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,proba_y_false,proba_y_true,days,sliding_w,resolution,inputs"
 
 skipped_class_false, skipped_class_true = -1, -1
-META_DATA_LENGTH = 7
+META_DATA_LENGTH = 16
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -233,7 +233,7 @@ def pad(a, N):
 
 
 def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015",
-                            db_name="south_africa",
+                            db_name="south_africa_debug",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     sql_db = pymysql.connect(host=db_server_name, user=db_user, password=db_password,
@@ -268,7 +268,7 @@ def get_elapsed_time_string(time_initial, time_next):
 
 
 def anscombe(value):
-    return 2 * math.sqrt(value + (3 / 8))
+    return 2 * math.sqrt(abs(value) + (3 / 8))
 
 # def normalize_activity_array_ascomb(activity):
 #     result = []
@@ -291,7 +291,7 @@ def anscombe_log_list(activity):
     return [math.log(anscombe(x)) if x is not None else None for x in activity]
 
 
-def normalize_histogram_mean_diff(activity_mean, activity, log=False):
+def normalize_histogram_mean_diff(activity_mean, activity):
     scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
@@ -299,10 +299,7 @@ def normalize_histogram_mean_diff(activity_mean, activity, log=False):
             continue
         if activity_mean[n] is None:
             continue
-        if log:
-            r = (int(activity_mean[n]) - int(a))
-        else:
-            r = (int(activity_mean[n]) / int(a))
+        r = (int(activity_mean[n]) / int(a))
 
         scale[n] = r
         idx.append(n)
@@ -352,7 +349,7 @@ def get_ndays_between_dates(date1, date2):
     a = datetime.strptime(date1, date_format)
     b = datetime.strptime(date2, date_format)
     delta = b - a
-    return delta
+    return delta.days
 
 
 def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution, days_before_famacha_test,
@@ -373,32 +370,32 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     dtf1, dtf2, dtf3, dtf4 = "", "", "", ""
     try:
         dtf1 = data_famacha_list[i][0]
-    except ValueError as e:
+    except IndexError as e:
         print(e)
     try:
         dtf2 = data_famacha_list[i+1][0]
-    except ValueError as e:
+    except IndexError as e:
         print(e)
     try:
         dtf3 = data_famacha_list[i+2][0]
-    except ValueError as e:
+    except IndexError as e:
         print(e)
     try:
         dtf4 = data_famacha_list[i+3][0]
-    except ValueError as e:
+    except IndexError as e:
         print(e)
 
     nd1, nd2, nd3 = 0, 0, 0
     if len(dtf2) > 0 and len(dtf1) > 0:
-        nd1 = get_ndays_between_dates(dtf1, dtf2)
+        nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
     if len(dtf3) > 0 and len(dtf2) > 0:
-        nd2 = get_ndays_between_dates(dtf2, dtf3)
+        nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
     if len(dtf4) > 0 and len(dtf3) > 0:
-        nd3 = get_ndays_between_dates(dtf3, dtf4)
+        nd3 = abs(get_ndays_between_dates(dtf3, dtf4))
 
 
-    print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
-        famacha_test_date, animal_id, days_before_famacha_test, resolution))
+    print("%s getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
+        farm_sql_table_id, famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
     rows_activity = execute_sql_query(sql_db, "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
                                       " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
@@ -419,13 +416,13 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
         return
 
     # data_activity = normalize_activity_array_ascomb(data_activity)
-    herd_activity_list = anscombe_log_list(herd_activity_list)
-    activity_list = anscombe_log_list(activity_list)
+    herd_activity_list = anscombe_list(herd_activity_list)
+    activity_list = anscombe_list(activity_list)
 
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
-    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list, log=True)
+    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
 
     # print("mapping activity to famacha score progress=%d/%d ..." % (i, len(data_famacha_flattened)))
     idx = 0
@@ -525,23 +522,17 @@ def process_famacha_var(results, count_skipped=True):
             if count_skipped:
                 skipped_class_false += 1
             continue
-        if curr_data["famacha_score"] == 1 and next_data["famacha_score"] == 1:  # same famacha score
+        if curr_data["famacha_score"] == next_data["famacha_score"]:  # same famacha score
             next_data["famacha_score_increase"] = False
             next_data["ignore"] = False
-            if count_skipped:
-                skipped_class_false += 1
-            continue
         if curr_data["famacha_score"] < next_data["famacha_score"]:
             print("famacha score changed from 1 to >2. creating new set...")
             next_data["famacha_score_increase"] = True
             next_data["ignore"] = False
-            if count_skipped:
-                skipped_class_true += 1
-            continue
-        if curr_data["famacha_score"] == 2 and next_data["famacha_score"] == 1:
-            if count_skipped:
-                skipped_class_false += 1
-            continue
+        if curr_data["famacha_score"] > next_data["famacha_score"]:
+            print("famacha score changed decreased. creating new set...")
+            next_data["famacha_score_increase"] = False
+            next_data["ignore"] = False
     return skipped_class_false, skipped_class_true
 
 
@@ -588,15 +579,55 @@ def contains_negative(list):
     return False
 
 
+def entropy2(labels, base=None):
+  """ Computes entropy of label distribution. """
+  n_labels = len(labels)
+  if n_labels <= 1:
+    return 0
+  value,counts = np.unique(labels, return_counts=True)
+  probs = counts / n_labels
+  n_classes = np.count_nonzero(probs)
+  if n_classes <= 1:
+    return 0
+  ent = 0.
+  # Compute entropy
+  base = math.e if base is None else base
+  for i in probs:
+    ent -= i * math.log(i, base)
+  return ent
+
+
 def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
+
+    # nan_threshold, zeros_threshold = 0, 0
     nan_threshold = len(activity) / threshold_nan_coef
     zeros_threshold = len(activity) / threshold_zeros_coef
+
+
+    activity_np = np.asarray(activity, dtype=np.float)
+    np.nan_to_num(activity_np, nan=-1)
+    a, b = np.unique(activity_np, return_counts=True)
+    most_abundant_value = a[b.argmax()]
+    occurance = b.max()
+    print(most_abundant_value, occurance)
+    if most_abundant_value == np.nan or occurance > 500 or most_abundant_value > 30:
+        return False, nan_threshold, zeros_threshold, 0
+
     nan_count = activity.count(None)
     zeros_count = activity.count(0)
     # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    if nan_count > nan_threshold or zeros_count > zeros_threshold or contains_negative(activity):
-        return False, nan_threshold, zeros_threshold
-    return True, nan_threshold, zeros_threshold
+    if nan_count > nan_threshold or zeros_count > zeros_threshold :#or contains_negative(activity):
+        return False, nan_threshold, zeros_threshold, 0
+
+    # plt.plot(activity_np)
+    # plt.show()
+
+    h = entropy2(activity_np)
+    print(h)
+    if h <= 4.14:
+        return False, nan_threshold, zeros_threshold, h
+
+    return True, nan_threshold, zeros_threshold, h
 
 
 def multiple(m, n):
@@ -624,7 +655,7 @@ def interpolate(input_activity):
 
 
 def create_activity_graph(activity, folder, filename, title=None, sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
-    activity = [0 if x is None else x for x in activity]
+    activity = [-20 if x is None else x for x in activity]
     fig = plt.figure()
     plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
@@ -714,7 +745,7 @@ def compute_cwt(activity):
 
 
 def create_filename(data):
-    filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d_zt%d_nt%d.png" % (data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
+    filename = "%.2f_famacha[%.1f]_%d_%s_%s_sd_pvfs%d_zt%d_nt%d.png" % (data['entropy'], data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
                                                        -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
                                                        data["nan_threshold"],
                                                        data["zeros_threshold"])
@@ -863,7 +894,7 @@ def create_training_sets(data, dir_path):
     # path3, options3 = create_training_set(data, dir_path, options=["weight"])
     # path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
     # path5, options5 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    # path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
+    path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
     path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
     # path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
     # path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
@@ -878,7 +909,7 @@ def create_training_sets(data, dir_path):
             # {"path": path3, "options": options3},
             # {"path": path4, "options": options4},
             # {"path": path5, "options": options5},
-            # {"path": path6, "options": options5},
+            {"path": path6, "options": options6},
             {"path": path7, "options": options7},
             # {"path": path8, "options": options8},
             # {"path": path9, "options": options9},
@@ -902,7 +933,7 @@ def create_graph_title(data, domain):
         return "[[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%d,%s]" % (
             act_1, act_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"],
-            -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
+            -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
             str(data["famacha_score_increase"]))
     if domain == "freq":
         idxs_1 = ','.join([str(int(x)) for x in data["indexes_cwt"][0:1]])
@@ -912,7 +943,7 @@ def create_graph_title(data, domain):
         return "[cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%d,%s]" % (
             cwt_1, cwt_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"],
-            -1 if data["previous_famacha_score"] is None else data["previous_famacha_score"],
+            -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
             str(data["famacha_score_increase"]))
 
 
@@ -1020,15 +1051,14 @@ def parse_report(report):
 
 def process_data_frame(data_frame, y_col='label'):
     data_frame = data_frame.fillna(-1)
-    # cwt_shape = data_frame[data_frame.columns[0:2]].values
-    X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]].values
+    cwt_shape = data_frame[data_frame.columns[0:2]].values
+    X = data_frame[data_frame.columns[2:data_frame.shape[1] - META_DATA_LENGTH]].values
     print(X)
     X = normalize(X)
     X = preprocessing.MinMaxScaler().fit_transform(X)
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     return X, y
-
 
 def process_and_split_data_frame(data_frame):
     data_frame = data_frame.fillna(-1)
@@ -1880,6 +1910,14 @@ def find_type_for_mem_opt(df):
         else:
             type_dict[str(i)] = np.str
     del df
+    type_dict[str(data_col_n-1)] = np.int
+    type_dict[str(data_col_n-2)] = np.int
+    type_dict[str(data_col_n-3)] = np.int
+    type_dict[str(data_col_n-8)] = np.int
+    type_dict[str(data_col_n - 9)] = np.int
+    type_dict[str(data_col_n - 10)] = np.int
+    type_dict[str(data_col_n - 11)] = np.int
+    type_dict[str(data_col_n - 15)] = np.int
     return type_dict
 
 
@@ -1887,23 +1925,38 @@ def load_df_from_datasets(fname, label_col):
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
     print(df)
     type_dict = find_type_for_mem_opt(df)
+
     data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
     print(data_frame)
-    sample_count = data_frame.shape[1]
+    sample_count = df.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-7] = "label"
-    hearder[-6] = "elem_in_row"
-    hearder[-5] = "date1"
-    hearder[-4] = "date2"
-    hearder[-3] = "serial"
-    hearder[-2] = "famacha_score"
-    hearder[-1] = "previous_famacha_score"
+    hearder[-16] = "label"
+    hearder[-15] = "elem_in_row"
+    hearder[-14] = "date1"
+    hearder[-13] = "date2"
+    hearder[-12] = "serial"
+    hearder[-11] = "famacha_score"
+    hearder[-10] = "previous_famacha_score"
+    hearder[-9] = "previous_famacha_score2"
+    hearder[-8] = "previous_famacha_score3"
+
+    hearder[-7] = "dtf1"
+    hearder[-6] = "dtf2"
+    hearder[-5] = "dtf3"
+    hearder[-4] = "dtf4"
+
+    hearder[-3] = "nd1"
+    hearder[-2] = "nd2"
+    hearder[-1] = "nd3"
+
     data_frame.columns = hearder
+    print(data_frame)
+    data_frame_original = data_frame.copy()
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame = shuffle(data_frame)
-    return data_frame, cols_to_keep
+    return data_frame_original, data_frame, cols_to_keep
 
 
 def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, farm_id, sliding_w, label_col='label'):
@@ -1913,7 +1966,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
     start_time = time.time()
     for input in inputs:
         print(input)
-        data_frame, _ = load_df_from_datasets(input["path"], label_col)
+        _, data_frame, _ = load_df_from_datasets(input["path"], label_col)
         print(data_frame)
         sample_count = data_frame.shape[1]
         try:
@@ -2070,7 +2123,7 @@ def process_day(params):
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
     create_cwt_graph_enabled = False
-    create_activity_graph_enabled = False
+    create_activity_graph_enabled = True
     weather_data = None
 
     if resolution == "min":
@@ -2106,7 +2159,8 @@ def process_day(params):
     dir = "%s/%s_sld_%d_dbt%d_%s" % (os.getcwd().replace('C', 'E'), resolution, sliding_w,
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
-    if False: #os.path.exists(class_input_dict_file_path):
+    if False:
+    #if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
@@ -2135,10 +2189,11 @@ def process_day(params):
             if result is None:
                 continue
 
-            is_valid, nan_threshold, zeros_threshold = is_activity_data_valid(result["activity"],
+            is_valid, nan_threshold, zeros_threshold, h = is_activity_data_valid(result["activity"],
                                                                               threshold_nan_coef,
                                                                               threshold_zeros_coef)
             result['is_valid'] = True
+            result['entropy'] = h
             if not is_valid:
                 result['is_valid'] = False
 
@@ -2166,7 +2221,7 @@ def process_day(params):
 
             # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
 
-            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
+            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
 
             # cwt_weight = process_weight(result["activity"], coef)
             result["cwt"] = cwt
@@ -2201,12 +2256,12 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['10min', 'hour', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
+    zipped = zip(['hour', '10min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
-        days_before_famacha_test_l = [7, 14, 21, 28]
+        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 35]
         resolution, sliding_w, farm_id = item[0], item[1], item[2]
-        pool = Pool(processes=4)
+        pool = Pool(processes=5)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
                                   itertools.repeat(sliding_w), itertools.repeat(farm_id))
                  )

@@ -484,15 +484,15 @@ def compute_histogram(input_array, bin):
     return list(result.keys()), list(result.values())
 
 
-# def normalize_activity_array_anscomb(activity):
-#     result = []
-#     for i in range(0, len(activity)):
-#         try:
-#             result.append(ascombe(activity[i]))
-#         except (ValueError, TypeError) as e:
-#             print('error while normalize_activity_array_ascomb', e)
-#             result.append(None)
-#     return result
+def normalize_activity_array_anscomb(activity):
+    result = []
+    for i in range(0, len(activity)):
+        try:
+            result.append(anscombe(activity[i]))
+        except (ValueError, TypeError) as e:
+            print('error while normalize_activity_array_ascomb', e)
+            result.append(None)
+    return result
 
 
 # def normalize_activity_matrix_hmeandiff(activity_mean_l, activity_list):
@@ -584,17 +584,18 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
                     (farm_id, resolution_string))
 
 
-            famacha = [40101310143, 40101310125, 40101310145, 40101310299, 40101310353, 40101310345, 40101310013,
-                       40101310352, 40101310342, 40101310134, 40101310157, 40101310036, 40101310039, 40101310249,
-                       40101310106, 40101310115, 40101310316, 40101310142, 40101310107, 40101310119, 40101310146,
-                       40101310386, 40101310336, 40101310095, 40101310310, 40101310314, 40101310350, 40101310069,
-                       40101310121, 40101310098, 40101310347, 40101310109, 40101310050]
+            # famacha = [40101310143, 40101310125, 40101310145, 40101310299, 40101310353, 40101310345, 40101310013,
+            #            40101310352, 40101310342, 40101310134, 40101310157, 40101310036, 40101310039, 40101310249,
+            #            40101310106, 40101310115, 40101310316, 40101310142, 40101310107, 40101310119, 40101310146,
+            #            40101310386, 40101310336, 40101310095, 40101310310, 40101310314, 40101310350, 40101310069,
+            #            40101310121, 40101310098, 40101310347, 40101310109, 40101310050]
 
-
-            if 'cubic' in filter_famacha:
-                data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows if x['serial_number'] in famacha]
-            else:
-                data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
+            famacha = []
+            data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
+            # if 'cubic' in filter_famacha:
+            #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows if x['serial_number'] in famacha]
+            # else:
+            #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
 
 
     activity_list = []
@@ -640,12 +641,12 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         a = i[0]
         ids.append(i[1])
 
-        # if 'Ascomb' in normalize:
-        #     a = normalize_activity_array_ascomb(a)
+        if 'Ascomb' in normalize:
+            a = normalize_activity_array_anscomb(a)
 
-        # if 'HMeanDiff' in normalize:
-        #     if i[1] != 50000000000 and i[1] != 60000000000:
-        #         a = normalize_histogram_mean_diff(activity_mean_l, a)
+        if 'HMeanDiff' in normalize:
+            if i[1] != 50000000000 and i[1] != 60000000000:
+                a = normalize_histogram_mean_diff(activity_mean_l, a)
         activity_list.append(a)
         t, layout_histogram = build_histogram_graph(a, i[1])
         traces_histogram.append(t)
@@ -1235,7 +1236,7 @@ def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_passw
     return sql_db
 
 
-def execute_sql_query(query, records=None, log_enabled=False):
+def execute_sql_query(query, records=None, log_enabled=True):
     print(query)
     try:
         sql_db = connect_to_sql_database(db_name=db_name)
@@ -1925,6 +1926,7 @@ if __name__ == '__main__':
             except FileNotFoundError as e:
                 print(e)
                 print(os.path.join(__location__, path_json))
+                famacha_data = {}
 
             path_json_weather = f_id.split('_')[0] + "_weather.json"
             weather_data = {}
@@ -1934,6 +1936,7 @@ if __name__ == '__main__':
             except FileNotFoundError as e:
                 print(e)
                 os.path.join(__location__, path_json_weather)
+                weather_data = {}
 
             data = {'serial_numbers': sorted_serial_numbers, 'file_path': path, 'farm_id': farm_id,
                     'famacha': famacha_data, 'weather': weather_data}
@@ -2169,6 +2172,7 @@ if __name__ == '__main__':
         [Input('figure-data-herd', 'children')])
     def update_figure(data):
         result = {}
+        print(data)
         if data is not None:
             j = json.loads(data)
             s = j[0]['relayout_data']
