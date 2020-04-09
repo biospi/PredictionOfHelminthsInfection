@@ -197,13 +197,17 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
               (1, 1, 1),
               ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
-    n_bin = 256
+    n_bin = 1024
     cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
 
     for _ in range(0, 4):
         contour = ax.contourf(xx, yy, probs, 100, cmap=cm, antialiased=True, vmin=0, vmax=1, alpha=0.6, linewidth=0)
 
     ax_c = fig.colorbar(contour)
+
+    ax_c.set_alpha(1)
+    ax_c.draw_all()
+
     ax_c.set_label("$P(y = 1)$")
     ax_c.set_ticks([0, .25, .5, .75, 1])
     X_lda_0 = X_lda[y_lda == 0]
@@ -211,9 +215,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
 
     X_lda_0_t = X_test[y_test == 0]
     X_lda_1_t = X_test[y_test == 1]
-
     marker_size = 150
-
     ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
                edgecolor=(49/255, 121/255, 168/255), linewidth=1, marker='s', alpha=0.9, label='Healthy')
 
@@ -233,18 +235,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     for spine in ax.spines.values():
         spine.set_edgecolor('white')
 
-    # markers = [plt.scatter([0, 0], [0, 0], c=(39/255, 111/255, 158/255), s=marker_size, marker='s'),
-    #            plt.scatter([0, 0], [0, 0], c=(251/255, 119/255, 0/255), s=marker_size, marker='^'),
-    #            plt.scatter([0, 0], [0, 0], c='black', s=marker_size, edgecolor="black", facecolors='none')
-    #            ]
-    #
     plt.legend(loc=2)
-
-
-
-    # leg = plt.legend()
-    # leg.get_frame().set_linewidth(0.0)
-
     plt.title(title)
     ttl = ax.title
     ttl.set_position([.5, 0.97])
@@ -254,7 +245,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     path_file = path + "%d_p.png" % days
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     plt.savefig(path_file, bbox_inches='tight')
-    plt.show()
+    # plt.show()
     plt.close()
 
 
@@ -1049,9 +1040,10 @@ if __name__ == '__main__':
                   outfname="cross_farm\\trained_on_delmas_test_on_cedara",
                   days=day, resolution=resolution)
 
-        # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (res, day),
-        #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (res, day),
-        #       outfname="cross_farm\\trained_on_cedara_test_on_delmas_%d" % day)
+            start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+                  fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+                  outfname="cross_farm\\trained_on_cedara_test_on_delmas_%d" % day,
+                  days=day, resolution=resolution)
     #
     # start(fname1=MAIN_DIR + "10min_sld_0_dbt7_delmas_70101200027/training_sets/cwt_.data", half_period_split=True,
     #       outfname="delmas_half")
