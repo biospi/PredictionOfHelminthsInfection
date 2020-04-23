@@ -114,7 +114,7 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
 RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,proba_y_false,proba_y_true,days,sliding_w,resolution,inputs"
 
 skipped_class_false, skipped_class_true = -1, -1
-META_DATA_LENGTH = 16
+META_DATA_LENGTH = 19
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -200,6 +200,7 @@ def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_
     previous_score1 = None
     previous_score2 = None
     previous_score3 = None
+    previous_score4 = None
     try:
         list = data_famacha[str(serial_number)]
     except KeyError as e:
@@ -223,8 +224,13 @@ def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_
             except ValueError as e:
                 previous_score3 = -1
                 print(e)
+            try:
+                previous_score4 = int(list[i - 4][1])
+            except ValueError as e:
+                previous_score4 = -1
+                print(e)
             break
-    return previous_score1, previous_score2, previous_score3
+    return previous_score1, previous_score2, previous_score3, previous_score4
 
 
 def pad(a, N):
@@ -367,7 +373,7 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     # find the activity data of that animal the n days before the test
     date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test, sliding_windows)
 
-    dtf1, dtf2, dtf3, dtf4 = "", "", "", ""
+    dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
     try:
         dtf1 = data_famacha_list[i][0]
     except IndexError as e:
@@ -384,14 +390,20 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
         dtf4 = data_famacha_list[i+3][0]
     except IndexError as e:
         print(e)
+    try:
+        dtf5 = data_famacha_list[i+4][0]
+    except IndexError as e:
+        print(e)
 
-    nd1, nd2, nd3 = 0, 0, 0
+    nd1, nd2, nd3, nd4 = 0, 0, 0, 0
     if len(dtf2) > 0 and len(dtf1) > 0:
         nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
     if len(dtf3) > 0 and len(dtf2) > 0:
         nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
     if len(dtf4) > 0 and len(dtf3) > 0:
         nd3 = abs(get_ndays_between_dates(dtf3, dtf4))
+    if len(dtf5) > 0 and len(dtf4) > 0:
+        nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
 
 
     print("%s getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
@@ -464,7 +476,7 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     # activity_list_np = np.where(np.isnan(activity_list_np), None, activity_list_np)
     # activity_list = activity_list_np.tolist()
 
-    prev_famacha_score1, prev_famacha_score2, prev_famacha_score3 = get_prev_famacha_score(animal_id,
+    prev_famacha_score1, prev_famacha_score2, prev_famacha_score3, prev_famacha_score4 = get_prev_famacha_score(animal_id,
                                                                                            famacha_test_date,
                                                                                            data_famacha_dict,
                                                                                            famacha_score)
@@ -477,6 +489,7 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
             "previous_famacha_score1": prev_famacha_score1,
             "previous_famacha_score2": prev_famacha_score2,
             "previous_famacha_score3": prev_famacha_score3,
+            "previous_famacha_score4": prev_famacha_score4,
             "animal_id": animal_id,
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
@@ -484,9 +497,11 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
             "dtf2": dtf2,
             "dtf3": dtf3,
             "dtf4": dtf4,
+            "dtf5": dtf5,
             "nd1": nd1,
             "nd2": nd2,
             "nd3": nd3,
+            "nd4": nd4,
             "indexes": indexes, "activity": activity_list,
             "temperature": temperature_list, "humidity": humidity_list, "herd": herd_activity_list, "ignore": True
             }
@@ -610,13 +625,13 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
     most_abundant_value = a[b.argmax()]
     occurance = b.max()
     print(most_abundant_value, occurance)
-    if most_abundant_value == np.nan or occurance > 500 or most_abundant_value > 30:
+    if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
         return False, nan_threshold, zeros_threshold, 0
 
     nan_count = activity.count(None)
     zeros_count = activity.count(0)
     # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    if nan_count > nan_threshold or zeros_count > zeros_threshold :#or contains_negative(activity):
+    if nan_count > int(nan_threshold/1) or zeros_count > zeros_threshold :#or contains_negative(activity):
         return False, nan_threshold, zeros_threshold, 0
 
     # plt.plot(activity_np)
@@ -624,7 +639,8 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
 
     h = entropy2(activity_np)
     print(h)
-    if h <= 4.14:
+    ENTROPY_THRESH = 2
+    if h <= ENTROPY_THRESH:
         return False, nan_threshold, zeros_threshold, h
 
     return True, nan_threshold, zeros_threshold, h
@@ -838,13 +854,16 @@ def create_training_set(result, dir, options=[]):
     training_set.append(result["previous_famacha_score1"])
     training_set.append(result["previous_famacha_score2"])
     training_set.append(result["previous_famacha_score3"])
+    training_set.append(result["previous_famacha_score4"])
     training_set.append(result["dtf1"])
     training_set.append(result["dtf2"])
     training_set.append(result["dtf3"])
     training_set.append(result["dtf4"])
+    training_set.append(result["dtf5"])
     training_set.append(result["nd1"])
     training_set.append(result["nd2"])
     training_set.append(result["nd3"])
+    training_set.append(result["nd4"])
     path = "%s/training_sets" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s.data" % (path, option)
@@ -982,6 +1001,14 @@ def append_result_file(filename, cross_validated_score, scores, precision_true, 
     global skipped_class_false
     global skipped_class_true
     scores_s = ' '.join([str(x) for x in scores])
+    precision_true = ' '.join([str(x) for x in precision_true])
+    precision_false = ' '.join([str(x) for x in precision_false])
+    recall_true = ' '.join([str(x) for x in recall_true])
+    recall_false = ' '.join([str(x) for x in recall_false])
+    fscore_true = ' '.join([str(x) for x in fscore_true])
+    fscore_false = ' '.join([str(x) for x in fscore_false])
+    proba_y_false = ' '.join([str(x) for x in proba_y_false])
+    proba_y_true = ' '.join([str(x) for x in proba_y_true])
     print('cross_validated_score', type(cross_validated_score), cross_validated_score)
     print('scores', type(scores), scores)
     print('scores_s', type(scores_s), scores_s)
@@ -1010,7 +1037,7 @@ def append_result_file(filename, cross_validated_score, scores, precision_true, 
     print('options', type(options), options)
     print('kernel', type(kernel), kernel)
     print('db_path', type(db_path), db_path)
-    data = "%.15f,%s,%.15f,%.15f,%.15f,%.15f,%.15f,%.15f,%d,%d,%d,%d,%d,%d,%d,%.15f,%.15f,%s,%d,%d,%d,%d,%s,%d,%d,%s,%s,%s,%s" % (
+    data = "%.15f,%s,%s,%s,%s,%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s,%s,%s,%d,%d,%d,%d,%s,%d,%d,%s,%s,%s,%s" % (
         cross_validated_score, scores_s, precision_true, precision_false, recall_true, recall_false, fscore_true,
         fscore_false,
         support_true, support_false, class_true_count, class_false_count, skipped_class_true, skipped_class_false, fold,
@@ -1475,7 +1502,7 @@ def get_proba(y_probas, y_pred):
     return proba_0 , proba_1
 
 
-def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
+def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
     if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN']:
         raise ValueError('classifier %s is not available! available clf_name are KNN, MPL, LREG, SVM' % clf_name)
     print("process...")
@@ -1508,7 +1535,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
 
     if clf_name == 'LREG':
         param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
-        clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid, cv=kf)
+        clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, cv=kf, n_jobs=2)
 
     if clf_name == 'KNN':
         param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
@@ -1649,18 +1676,16 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, folder=None, opt
                 'clf_name': clf_name_2d,
                 'scores': scores_2d,
                 'accuracy': float(np.mean(scores_2d)),
-                'precision_true': float(np.mean(precision_true_2d)),
-                'precision_false': np.mean(precision_false_2d),
-                'recall_true': float(np.mean(recall_true_2d)),
-                'recall_false': np.mean(recall_false_2d),
-                'fscore_true': float(np.mean(fscore_true_2d)),
-                'fscore_false': float(np.mean(fscore_false_2d)),
+                'precision_true': precision_true_2d,
+                'precision_false': precision_false_2d,
+                'recall_true': recall_true_2d,
+                'recall_false': recall_false_2d,
+                'fscore_true': fscore_true_2d,
+                'fscore_false': fscore_false_2d,
                 'support_true': np.mean(support_true_2d),
                 'support_false': np.mean(support_false_2d),
-                'proba_y_false': np.mean(proba_y_false_2d),
-                'proba_y_true': np.mean(proba_y_true_2d),
-                'proba_y_false_list': proba_y_false_2d,
-                'proba_y_true_list': proba_y_true_2d
+                'proba_y_false': proba_y_false_2d,
+                'proba_y_true': proba_y_true_2d
             },
             '3d_reduced' if len(scores_3d) > 0 else '3d_reduced_empty': {
                 'db_file_path': file_path_3d,
@@ -1939,15 +1964,18 @@ def load_df_from_datasets(fname, label_col):
     hearder[-10] = "previous_famacha_score"
     hearder[-9] = "previous_famacha_score2"
     hearder[-8] = "previous_famacha_score3"
+    hearder[-8] = "previous_famacha_score4"
 
     hearder[-7] = "dtf1"
     hearder[-6] = "dtf2"
     hearder[-5] = "dtf3"
     hearder[-4] = "dtf4"
+    hearder[-4] = "dtf5"
 
     hearder[-3] = "nd1"
     hearder[-2] = "nd2"
     hearder[-1] = "nd3"
+    hearder[-1] = "nd4"
 
     data_frame.columns = hearder
     print(data_frame)
@@ -2118,7 +2146,7 @@ def merge_results(filename=None, filter=None, simplified_report=False):
 
 
 def process_day(params):
-    days_before_famacha_test, resolution, sliding_w, farm_id, sql_db = params[0], params[1], params[2], params[3], connect_to_sql_database()
+    days_before_famacha_test, resolution, sliding_w, farm_id, src, sql_db = params[0], params[1], params[2], params[3], params[4], connect_to_sql_database()
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
@@ -2160,7 +2188,7 @@ def process_day(params):
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
     if False:
-    #if os.path.exists(class_input_dict_file_path):
+    # if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
@@ -2220,8 +2248,12 @@ def process_day(params):
                                       sub_sub_folder=str(result['famacha_score_increase']))
 
             # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
-
-            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
+            if 'sd' in src or 'sp' in src:
+                print('sd')
+                cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
+            else:
+                print('hd')
+                cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_hd_cwt(result["activity"])
 
             # cwt_weight = process_weight(result["activity"], coef)
             result["cwt"] = cwt
@@ -2256,14 +2288,15 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['hour', '10min'], itertools.repeat(params[0]), itertools.repeat(params[1]))
+    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
-        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28]
-        resolution, sliding_w, farm_id = item[0], item[1], item[2]
-        pool = Pool(processes=5)
+        # days_before_famacha_test_l = range(1, 35)
+        days_before_famacha_test_l = [28, 21, 14, 7]
+        resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
+        pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
-                                  itertools.repeat(sliding_w), itertools.repeat(farm_id))
+                                  itertools.repeat(sliding_w), itertools.repeat(farm_id), itertools.repeat(src_folder))
                  )
         pool.close()
         pool.join()
@@ -2274,14 +2307,20 @@ if __name__ == '__main__':
     freeze_support()
     print('args=', sys.argv)
     print("pandas", pd.__version__)
-    for farm_id in ["cedara_70091100056", "delmas_70101200027"]:
-        pool = NonDaemonicPool(processes=1)
-        pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id)))
-        pool.close()
-        pool.join()
 
-        merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
-                      filter='%s_results_simplified.csv' % farm_id,
-                      simplified_report=True)
-        merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
-                      filter='%s_results.csv' % farm_id)
+    src_folders = ["sp\\"]
+    for src_folder in src_folders:
+        os.chdir(os.path.dirname(__file__))
+        pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
+        os.chdir(src_folder)
+        for farm_id in ["delmas_70101200027"]:
+            pool = NonDaemonicPool(processes=1)
+            pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
+            pool.close()
+            pool.join()
+
+            merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
+                          filter='%s_results_simplified.csv' % farm_id,
+                          simplified_report=True)
+            merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
+                          filter='%s_results.csv' % farm_id)

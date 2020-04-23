@@ -1953,6 +1953,8 @@ if __name__ == '__main__':
             data = l["serial_numbers"]
             keys = l['famacha'].keys()
             famacha = list(map(int, keys))
+            if 'cedara' in l['farm_id']:
+                famacha = [int('40061200'+str(x)) if len(str(x)) == 3 else int('4006120'+ str(x)) for x in famacha]
             print("famacha available for:", famacha)
             s_array = []
             for serial in data:

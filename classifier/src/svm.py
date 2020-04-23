@@ -40,6 +40,7 @@ from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
 from sys import exit
+from matplotlib.lines import Line2D
 
 import os
 
@@ -88,7 +89,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
-MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/"
+MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/hd/"
 META_DATA_LENGTH = 16
 
 
@@ -179,8 +180,8 @@ def get_prec_recall_fscore_support(test_y, pred_y):
     support_true = precision_recall_fscore_support_result[3][1]
     return precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
-
-def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None):
+from matplotlib import ticker
+def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
@@ -197,19 +198,25 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
               (1, 1, 1),
               ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
-    n_bin = 1024
     cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
 
-    for _ in range(0, 4):
-        contour = ax.contourf(xx, yy, probs, 100, cmap=cm, antialiased=True, vmin=0, vmax=1, alpha=0.6, linewidth=0)
+    for _ in range(0, 1):
+        contour = ax.contourf(xx, yy, probs, n_bin, cmap=cm, antialiased=False, vmin=0, vmax=1, alpha=0.3, linewidth=0,
+                              linestyles='dashed', zorder=-1)
+        ax.contour(contour, cmap=cm, linewidth=1, linestyles='dashed', zorder=-1, alpha=1)
 
     ax_c = fig.colorbar(contour)
+    # tick_locator = ticker.MaxNLocator(nbins=4)
+    # ax_c.locator = tick_locator
+    # ax_c.update_ticks()
 
     ax_c.set_alpha(1)
     ax_c.draw_all()
 
     ax_c.set_label("$P(y = 1)$")
-    ax_c.set_ticks([0, .25, .5, .75, 1])
+    ax_c.set_ticks([0, .25, 0.5, 0.75, 1])
+    # ax_c.ax.set_yticklabels(['0', '0.5', '1', '0.5', '0'])
+
     X_lda_0 = X_lda[y_lda == 0]
     X_lda_1 = X_lda[y_lda == 1]
 
@@ -217,28 +224,34 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     X_lda_1_t = X_test[y_test == 1]
     marker_size = 150
     ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(49/255, 121/255, 168/255), linewidth=1, marker='s', alpha=0.9, label='Healthy')
+               edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
+               , zorder=1)
 
     ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(255/255, 129/255, 10/255), linewidth=1, marker='^', alpha=0.9,label='Unhealthy')
+               edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
+               , zorder=1)
 
     ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none', label='Test data')
+               edgecolor="black", facecolors='none', label='Test data', zorder=1)
 
     ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none')
+               edgecolor="black", facecolors='none', zorder=1)
 
     ax.set(xlabel="$X_1$", ylabel="$X_2$")
 
-    ax.contour(xx, yy, probs, levels=[.5], cmap="Greys", vmin=0, vmax=.6, linewidth=0.1)
+    ax.contour(xx, yy, probs, levels=[.5], cmap="Reds", vmin=0, vmax=.6, linewidth=0.1)
 
     for spine in ax.spines.values():
         spine.set_edgecolor('white')
 
-    plt.legend(loc=2)
+    handles, labels = ax.get_legend_handles_labels()
+    db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
+    handles.append(db_line)
+
+    plt.legend(loc=2, fancybox=True, framealpha=0.4, handles=handles)
     plt.title(title)
     ttl = ax.title
-    ttl.set_position([.5, 0.97])
+    ttl.set_position([.57, 0.97])
     # plt.tight_layout()
 
     path = filename + '\\' + str(resolution) + '\\'
@@ -571,6 +584,7 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     y_pred = clf.predict(X_test)
     y_probas = clf.predict_proba(X_test)
     p_y_true, p_y_false = get_proba(y_probas, y_pred)
+    # print(y_probas)
     acc = accuracy_score(y_test, y_pred)
     # mcc = matthews_corrcoef(y_test, y_pred)
     # print("MCC", mcc)
@@ -585,24 +599,13 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     if hasattr(clf, "hidden_layer_sizes"):
         clf_name = "%s%s%s" % (clf_name, str(clf.hidden_layer_sizes), fname.split('/')[-1])
 
-    title = '%s-%s %dD \nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d;' \
+    title = '%s-%s %dD \nacc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%\ndataset: class0=%d; ' \
             'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\n' % (
-                clf_name + '_' + fname.split('/')[-1], dim_reduc, dim, 0,
+                clf_name + '_' + fname.split('/')[-1], dim_reduc, dim,
                 acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
                 np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                 np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
-
-    # CALCULATE GRID
-    n = 5
-    xx1, xx2 = np.mgrid[25:101:n, 25:101:n]
-    grid = np.c_[xx1.ravel(), xx2.ravel()]
-    probs = clf.predict_proba(grid)[:, 1]
-    probs = probs.reshape(xx1.shape)
-    # ax = plt.gca()
-    # contour = ax.contourf(xx1, xx2, probs, 100, cmap="RdBu",
-    #                       vmin=0, vmax=1)
-    contourf_args = (xx1, xx2, probs, 100, "RdBu", 0, 1)
 
     if dim == 3:
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname)
@@ -775,7 +778,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     if clf_name == 'LREG':
         # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
         # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid, cv=kf)
-        clf = LogisticRegression()
+        clf = LogisticRegression(C=1e10)
 
     if clf_name == 'MLP':
         param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
@@ -870,7 +873,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
             print(result)
             return result
     else:
-        clf = LogisticRegression(C=1e10)
+        clf = LogisticRegression()
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -1010,11 +1013,12 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         class_1_count = data_frame['label'].value_counts().to_dict()[True]
         class_2_count = data_frame['label'].value_counts().to_dict()[False]
         print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname, y_col=label_col)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname+'12', y_col=label_col, days=days, resolution=resolution)
+        process(df2, df2=df1, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname+'21', y_col=label_col, days=days, resolution=resolution)
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
-        process(data_frame, dim_reduc='LDA', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split)
+        process(data_frame, dim_reduc='LDA', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split, days=days, resolution=resolution)
 
 
 if __name__ == '__main__':
@@ -1028,27 +1032,43 @@ if __name__ == '__main__':
     # exit()
     #
     resolutions = ["10min"]
-    days = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28]
-    try:
-        shutil.rmtree("cross_farm")
-    except (OSError, FileNotFoundError) as e:
-        print(e)
+    days = [1]
+    # try:
+    #     # shutil.rmtree("cross_farm", ignore_errors=True)
+    # except (OSError, FileNotFoundError) as e:
+    #     print(e)
+    # try:
+    #     shutil.rmtree("half_split", ignore_errors=True)
+    # except (OSError, FileNotFoundError) as e:
+    #     print(e)
     for resolution in resolutions:
         for day in days:
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-                  fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-                  outfname="cross_farm\\trained_on_delmas_test_on_cedara",
-                  days=day, resolution=resolution)
-
-            start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-                  fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-                  outfname="cross_farm\\trained_on_cedara_test_on_delmas_%d" % day,
-                  days=day, resolution=resolution)
-    #
-    # start(fname1=MAIN_DIR + "10min_sld_0_dbt7_delmas_70101200027/training_sets/cwt_.data", half_period_split=True,
-    #       outfname="delmas_half")
-    # start(fname1=MAIN_DIR + "10min_sld_0_dbt7_cedara_70091100056/training_sets/cwt_.data", half_period_split=True,
-    #       outfname="cedara_half")
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+            #       half_period_split=True,
+            #       outfname="herd_lev_var\\delmas_half", days=day, resolution=resolution)
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_div.data" % (resolution, day),
+            #       half_period_split=True,
+            #       days=day, resolution=resolution,
+            #       outfname="herd_lev_var\\cwt_div")
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/activity_.data" % (resolution, day),
+                  half_period_split=True,
+                  days=day, resolution=resolution,
+                  outfname="test\\cedara_activity")
+            
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+            #       fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+            #       outfname="cross_farm\\trained_on_delmas_test_on_cedara",
+            #       days=day, resolution=resolution)
+            # 
+            # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+            #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+            #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",
+            #       days=day, resolution=resolution)
+            # 
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
+            #       outfname="half_split\\delmas_half", days=day, resolution=resolution)
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
+            #       outfname="half_split\\cedara_half", days=day, resolution=resolution)
 
 
     # start(fname1=MAIN_DIR + "10min_sld_0_dbt7_delmas_70101200027/training_sets/cwt_.data", classic_split=True,
