@@ -639,7 +639,7 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
 
     h = entropy2(activity_np)
     print(h)
-    ENTROPY_THRESH = 2
+    ENTROPY_THRESH = 3.5
     if h <= ENTROPY_THRESH:
         return False, nan_threshold, zeros_threshold, h
 
@@ -2150,7 +2150,7 @@ def process_day(params):
     threshold_nan_coef = 5
     threshold_zeros_coef = 2
     nan_threshold, zeros_threshold = 0, 0
-    create_cwt_graph_enabled = False
+    create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
     weather_data = None
 
@@ -2292,7 +2292,7 @@ def process_sliding_w(params):
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [28, 21, 14, 7]
+        days_before_famacha_test_l = [7]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2308,7 +2308,7 @@ if __name__ == '__main__':
     print('args=', sys.argv)
     print("pandas", pd.__version__)
 
-    src_folders = ["sp\\"]
+    src_folders = ["hd\\"]
     for src_folder in src_folders:
         os.chdir(os.path.dirname(__file__))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)

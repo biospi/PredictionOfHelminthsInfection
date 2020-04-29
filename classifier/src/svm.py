@@ -89,8 +89,8 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
-MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/hd/"
-META_DATA_LENGTH = 16
+MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd/"
+META_DATA_LENGTH = 19
 
 
 def even_list(n):
@@ -181,7 +181,8 @@ def get_prec_recall_fscore_support(test_y, pred_y):
     return precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
 from matplotlib import ticker
-def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8):
+def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8
+                                , style2=True):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
@@ -198,6 +199,11 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
               (1, 1, 1),
               ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
+    if style2:
+        colors = [((77 + offset_r) / 255, (157 + offset_g) / 255, (210 + offset_b) / 255),
+                  (1, 1, 1),
+                  ((255 + offset_r) / 255, (177 + offset_g) / 255, (106 + offset_b) / 255)]
+
     cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
 
     for _ in range(0, 1):
@@ -214,7 +220,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     ax_c.draw_all()
 
     ax_c.set_label("$P(y = 1)$")
-    ax_c.set_ticks([0, .25, 0.5, 0.75, 1])
+    # ax_c.set_ticks([0, .25, 0.5, 0.75, 1])
     # ax_c.ax.set_yticklabels(['0', '0.5', '1', '0.5', '0'])
 
     X_lda_0 = X_lda[y_lda == 0]
@@ -223,19 +229,36 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     X_lda_0_t = X_test[y_test == 0]
     X_lda_1_t = X_test[y_test == 1]
     marker_size = 150
-    ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
-               , zorder=1)
+    if style2:
+        ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
+                   , zorder=1)
 
-    ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
-               , zorder=1)
+        ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
+                   , zorder=1)
 
-    ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none', label='Test data', zorder=1)
+        ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c=(43/255, 75/255, 98/255), marker='s', s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor="black", label='Test data Class0', zorder=1, alpha=0.6)
 
-    ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none', zorder=1)
+        ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(182/255, 83/255, 10/255), marker='^', s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor="black", zorder=1, label='Test data Class1', alpha=0.6)
+    else:
+        ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39 / 255, 111 / 255, 158 / 255), s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor=(49 / 255, 121 / 255, 168 / 255), linewidth=0, marker='s', alpha=0.7,
+                   label='Class0 (Healthy)'
+                   , zorder=1)
+
+        ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251 / 255, 119 / 255, 0 / 255), s=marker_size, vmin=-.2, vmax=1.2,
+                   edgecolor=(255 / 255, 129 / 255, 10 / 255), linewidth=0, marker='^', alpha=0.7,
+                   label='Class1 (Unhealthy)'
+                   , zorder=1)
+
+        ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size - 10, vmin=-.2, vmax=1.2,
+                   edgecolor="black", facecolors='none', label='Test data', zorder=1)
+
+        ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size - 10, vmin=-.2, vmax=1.2,
+                   edgecolor="black", facecolors='none', zorder=1)
 
     ax.set(xlabel="$X_1$", ylabel="$X_2$")
 
@@ -258,7 +281,8 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     path_file = path + "%d_p.png" % days
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     plt.savefig(path_file, bbox_inches='tight')
-    # plt.show()
+    print(path_file)
+    plt.show()
     plt.close()
 
 
@@ -750,7 +774,7 @@ def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
                           "f-score": f1_score(y_test, y_pred, average='weighted')}
     return simplified_results
 
-
+from sklearn.linear_model import LinearRegression
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label', outfname=None, classic_split=None,
             days=None, resolution=None):
     if clf_name not in ['SVM', 'MLP', 'LREG']:
@@ -873,7 +897,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
             print(result)
             return result
     else:
-        clf = LogisticRegression()
+        clf = LinearRegression(probability=True)
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -919,31 +943,39 @@ def load_df_from_datasets(fname, label_col):
 
     sample_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-16] = "label"
-    hearder[-15] = "elem_in_row"
-    hearder[-14] = "date1"
-    hearder[-13] = "date2"
-    hearder[-12] = "serial"
-    hearder[-11] = "famacha_score"
-    hearder[-10] = "previous_famacha_score"
-    hearder[-9] = "previous_famacha_score2"
-    hearder[-8] = "previous_famacha_score3"
+    hearder[-19] = "label"
+    hearder[-18] = "elem_in_row"
+    hearder[-17] = "date1"
+    hearder[-16] = "date2"
+    hearder[-15] = "serial"
+    hearder[-14] = "famacha_score"
+    hearder[-13] = "previous_famacha_score"
+    hearder[-12] = "previous_famacha_score2"
+    hearder[-11] = "previous_famacha_score3"
+    hearder[-10] = "previous_famacha_score4"
 
-    hearder[-7] = "dtf1"
-    hearder[-6] = "dtf2"
-    hearder[-5] = "dtf3"
-    hearder[-4] = "dtf4"
+    hearder[-9] = "dtf1"
+    hearder[-8] = "dtf2"
+    hearder[-7] = "dtf3"
+    hearder[-6] = "dtf4"
+    hearder[-5] = "dtf5"
 
-    hearder[-3] = "nd1"
-    hearder[-2] = "nd2"
-    hearder[-1] = "nd3"
+    hearder[-4] = "nd1"
+    hearder[-3] = "nd2"
+    hearder[-2] = "nd3"
+    hearder[-1] = "nd4"
 
     data_frame.columns = hearder
+    print(data_frame)
+    data_frame["famacha_score"] = pd.to_numeric(data_frame["famacha_score"])
+    data_frame["previous_famacha_score"] = pd.to_numeric(data_frame["previous_famacha_score"])
+    data_frame["previous_famacha_score2"] = pd.to_numeric(data_frame["previous_famacha_score2"])
+    data_frame["previous_famacha_score3"] = pd.to_numeric(data_frame["previous_famacha_score3"])
     data_frame = data_frame[data_frame.famacha_score > 0]
     data_frame = data_frame[data_frame.previous_famacha_score > 0]
     data_frame = data_frame[data_frame.previous_famacha_score2 > 0]
     data_frame = data_frame[data_frame.previous_famacha_score3 > 0]
-    print(data_frame)
+
     data_frame_original = data_frame.copy()
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
@@ -1032,7 +1064,7 @@ if __name__ == '__main__':
     # exit()
     #
     resolutions = ["10min"]
-    days = [1]
+    days = [7]
     # try:
     #     # shutil.rmtree("cross_farm", ignore_errors=True)
     # except (OSError, FileNotFoundError) as e:
@@ -1050,16 +1082,16 @@ if __name__ == '__main__':
             #       half_period_split=True,
             #       days=day, resolution=resolution,
             #       outfname="herd_lev_var\\cwt_div")
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/activity_.data" % (resolution, day),
-                  half_period_split=True,
-                  days=day, resolution=resolution,
-                  outfname="test\\cedara_activity")
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/activity_.data" % (resolution, day),
+            #       half_period_split=True,
+            #       days=day, resolution=resolution,
+            #       outfname="test\\cedara_activity")
             
-            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-            #       fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-            #       outfname="cross_farm\\trained_on_delmas_test_on_cedara",
-            #       days=day, resolution=resolution)
-            # 
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+                  fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+                  outfname="cross_farm\\trained_on_delmas_test_on_cedara",
+                  days=day, resolution=resolution)
+
             # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
             #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",
