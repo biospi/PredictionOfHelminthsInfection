@@ -182,7 +182,7 @@ def get_prec_recall_fscore_support(test_y, pred_y):
 
 from matplotlib import ticker
 def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8
-                                , style2=True):
+                                , style2=False):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
