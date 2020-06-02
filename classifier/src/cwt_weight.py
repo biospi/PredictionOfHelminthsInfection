@@ -1,4 +1,5 @@
 import gc
+import math
 import os
 import shutil
 from sys import exit
@@ -40,6 +41,10 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import plot_precision_recall_curve
 from scipy import interp
 from sklearn.metrics import auc
+from sklearn.model_selection import LeaveOneOut
+from sklearn import model_selection
+
+from classifier.src.my_lda import process_lda
 
 DATA_ = []
 CWT_RES = 1000000
@@ -96,7 +101,7 @@ def compute_cwt(activity, hd=False):
 
 def compute_cwt_sd(activity):
     w = pywt.ContinuousWavelet('morl')
-    scales = even_list(40)
+    scales = even_list(20)
     sampling_frequency = 1 / 60
     sampling_period = 1 / sampling_frequency
     activity_i = interpolate(activity)
@@ -240,7 +245,7 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
             # df1 = df1.head(s)
             # df2 = df2.head(s)
             df3 = df3.head(1)
-            df = pd.concat([df1, df2] if output_clf_transit else [df1, df2], ignore_index=True, sort=False)
+            df = pd.concat([df1, df2, df3])
 
         if days == 7 + 7 + 7:
             df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd3 == 7)]
@@ -257,7 +262,7 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
             # df1 = df1.head(s)
             # df2 = df2.head(s)
             df3 = df3.head(1)
-            df = pd.concat([df1, df2] if output_clf_transit else [df1, df2], ignore_index=True, sort=False)
+            df = pd.concat([df1, df2, df3])
 
         if days == 7 + 7:
             df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd3 == 7)]
@@ -273,8 +278,8 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
             # s = min([df1.shape[0], df2.shape[0]])
             # df1 = df1.head(s)
             # df2 = df2.head(s)
-            df3 = df3.head(1)
-            df = pd.concat([df1, df2] if output_clf_transit else [df1, df2], ignore_index=True, sort=False)
+            df3 = df3.head(2)
+            df = pd.concat([df1, df2, df3])
 
         if days == 7:
             df = df[(df.nd1 == 7) & (df.nd2 == 7)]
@@ -291,7 +296,7 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
             # df1 = df1.head(s)
             # df2 = df2.head(s)
             df3 = df3.head(1)
-            df = pd.concat([df1, df2] if output_clf_transit else [df1, df2], ignore_index=True, sort=False)
+            df = pd.concat([df1, df2, df3])
 
     print('labels')
     print(df['label'].value_counts())
@@ -305,6 +310,11 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
     if df.shape[0] == 0:
         return
 
+    for n in [1,2,10,100,1000]:
+        process2(df, df_0, out_fname, n_components=n, df_temp=df_temp, df_hum=df_hum, resolution=resolution, farm_id=farm_id, days=days,
+                f_config=f_config, out_dir="%s\\%d\\" % (farm_id, days))
+
+    exit()
     df_cwt, cwt_coefs_data = timesplit_data_frame(df, df_0, out_fname, df_hum=df_hum, df_temp=df_temp, days=days, resolution=resolution)
 
     dfs, data = chunck_df(df_cwt, cwt_coefs_data)
@@ -330,8 +340,8 @@ def chunck_df(df, data):
 
     n_week = int(days/7)
     chunch_size = int((X.shape[1]/n_week)/1)
-    W_STEP = 0.5
-    step = int((X.shape[1]/(n_week*7))*W_STEP)
+    W_DAY_STEP = 0.5
+    step = int((X.shape[1]/(n_week*7))*W_DAY_STEP)
 
     print("step size is %d, chunch_size is %d, n_week is %d" % (step, chunch_size, n_week))
     dfs = []
@@ -393,15 +403,16 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
         y_train = np.append(y_train, 3)
         X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
         y_test = np.append(y_test, 3)
-    X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
-    X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
+    clf = LDA(n_components=output_dim)
+    X_train = clf.fit_transform(X_train, y_train)
+    X_test = clf.fit_transform(X_test, y_test)
     if output_dim != 1:
         X_train = X_train[0:-(output_dim - 1)]
         y_train = y_train[0:-(output_dim - 1)]
         X_test = X_test[0:-(output_dim - 1)]
         y_test = y_test[0:-(output_dim - 1)]
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, clf
 
 
 def process_fold(n, X, y, i, dim_reduc=None):
@@ -576,6 +587,56 @@ def plot_2D_decision_boundaries_(X, y, X_test, title, clf, folder=None, i=0, df_
     return final_path
 
 
+def compute_model_loo(X, y, X_train, y_train, X_test, y_test, farm_id, n, clf=None, dim_reduc_name="LDA", resolution="10min", df_id=None, days=None):
+    # X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(2, X, y, n, dim_reduc=dim_reduc_name)
+    print("fitting...")
+    clf.fit(X_train, y_train)
+    # clf = clf.best_estimator_
+    y_pred = clf.predict(X_test)
+    y_probas = clf.predict_proba(X_test)
+    p_y_true, p_y_false = get_proba(y_probas, y_pred)
+    acc = accuracy_score(y_test, y_pred)
+    print(classification_report(y_test, y_pred))
+    precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, \
+    support_false, support_true = get_prec_recall_fscore_support(
+        y_test, y_pred)
+
+    if np.isnan(recall_false):
+        recall_false = -1
+    if np.isnan(recall_true):
+        recall_true = -1
+    if np.isnan(p_y_false):
+        p_y_false = -1
+    if np.isnan(p_y_true):
+        p_y_true = -1
+
+    print(('LREG', '' if dim_reduc_name is None else dim_reduc_name, 2, 3, 0,
+           acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+           p_y_false * 100, p_y_true * 100,
+           np.count_nonzero(y == 0), np.count_nonzero(y == 1),
+           np.count_nonzero(y == 0), np.count_nonzero(y == 1),
+           np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1),
+           resolution))
+
+    title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ndataset: class0=%d;' \
+            'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s\n' % (
+                'LREG', '' if dim_reduc_name is None else dim_reduc_name, 2, 3, 0,
+                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                p_y_false * 100, p_y_true * 100,
+                np.count_nonzero(y == 0), np.count_nonzero(y == 1),
+                np.count_nonzero(y == 0), np.count_nonzero(y == 1),
+                np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1),
+                resolution)
+
+    sub_dir_name = "days_%d_class0_%d_class1_%d" % (days, np.count_nonzero(y == 0), np.count_nonzero(y == 1))
+
+    plot_2D_decision_boundaries(X, y, X_test, y_test, title, clf,
+                                folder='%s\\%d\\transition\\classifier_transit' % (farm_id, days), i=n, df_id=df_id,
+                                sub_dir_name=sub_dir_name)
+    return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name
+
+
+
 def compute_model(X, y, n, farm_id, clf=None, dim_reduc_name="LDA", resolution="10min", df_id=None, days=None):
     # X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(2, X, y, n, dim_reduc=dim_reduc_name)
     print("fitting...")
@@ -629,6 +690,26 @@ def compute_model(X, y, n, farm_id, clf=None, dim_reduc_name="LDA", resolution="
     return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name
 
 
+def get_conf_interval(tprs, mean_fpr):
+    confidence_lower = []
+    confidence_upper = []
+    df_tprs = pd.DataFrame(tprs, dtype=float)
+    for column in df_tprs:
+        scores = df_tprs[column].values.tolist()
+        scores.sort()
+        upper = np.percentile(scores, 95)
+        confidence_upper.append(upper)
+        lower = np.percentile(scores, 0.025)
+        confidence_lower.append(lower)
+
+    confidence_lower = np.asarray(confidence_lower)
+    confidence_upper = np.asarray(confidence_upper)
+    # confidence_upper = np.minimum(mean_tpr + std_tpr, 1)
+    # confidence_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    return confidence_lower, confidence_upper
+
+
 def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
@@ -644,8 +725,11 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
     std_tpr = np.std(tprs, axis=0)
     tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
     tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
-    ax.fill_between(mean_fpr, tprs_lower, tprs_upper, color='tab:blue', alpha=.2,
-                    label=r'$\pm$ 1 std. dev.')
+
+    confidence_lower, confidence_upper = get_conf_interval(tprs, mean_fpr)
+
+    ax.fill_between(mean_fpr, confidence_lower, confidence_upper, color='tab:blue', alpha=.2)
+                    #label=r'$\pm$ 1 std. dev.')
 
     ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
            title="Receiver operating characteristic iteration %d" % (i + 1))
@@ -668,28 +752,37 @@ def process_transit(dfs, days, resolution, farm_id):
         # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid)
         # clf = LogisticRegression(n_jobs=8)
 
-        N_ITER = 50
-        model = BaggingRegressor(LogisticRegression(),
-                                 n_estimators=N_ITER,
-                                 bootstrap=True, n_jobs=8)
+        # N_ITER = 1000
+        # model = BaggingRegressor(LogisticRegression(),
+        #                          n_estimators=N_ITER,
+        #                          bootstrap=True, n_jobs=8)
 
         #clf = SVC(kernel='linear', probability=True)
         X, y = process_data_frame_(data_frame)
-        X, _, y, _ = reduce_lda(2, X, X, y, y)
-        model.fit(X, y)
+        X, _, y, _, clf = reduce_lda(2, X, X, y, y)
+        # model.fit(X, y)
         acc_list, p_f_list, p_t_list, recall_f_list, recall_t_list, fscore_f_list, fscore_t_list, support_f_list, support_t_list = [], [], [], [], [], [], [], [], []
-
         tprs = []
         aucs = []
         mean_fpr = np.linspace(0, 1, 100)
         fig, ax = plt.subplots()
-        for n, clf in enumerate(model.estimators_):
-            try:
-                acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name = compute_model(
-                    X, y, n, farm_id, clf=clf, df_id=id, days=days)
-            except ValueError as e:
-                print(e)
-                continue
+
+        loo = LeaveOneOut()
+        loo.get_n_splits(X, y)
+        for n, (train_index, test_index) in enumerate(loo.split(X, y)):
+            print("TRAIN:", train_index, "TEST:", test_index)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+            acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name = compute_model_loo(
+                X, y, X_train, y_train, X_test, y_test, farm_id, n, clf=clf, df_id=id, days=days)
+
+        # for n, clf in enumerate(model.estimators_):
+        #     try:
+        #         acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name = compute_model(
+        #             X, y, n, farm_id, clf=clf, df_id=id, days=days)
+        #     except ValueError as e:
+        #         print(e)
+        #         continue
 
             viz = plot_roc_curve(clf, X, y,
                                  name='',
@@ -712,7 +805,7 @@ def process_transit(dfs, days, resolution, farm_id):
         out_dir = "%s\\%d\\" % (farm_id, days)
         plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, id, fig)
         fig.clear()
-        print("acc_list", acc_list)
+        print("acc_list", np.mean(acc_list), acc_list)
         data_acc[id] = acc_list
         data_pf[id] = p_f_list
         data_pt[id] = p_t_list
@@ -723,11 +816,13 @@ def process_transit(dfs, days, resolution, farm_id):
         data_sf[id] = support_f_list
         data_st[id] = support_t_list
 
+
+
     ribbon_plot_dir = '%s\\%d\\transition\\ribbon_transit\\%s' % (farm_id, days, sub_dir_name)
     pathlib.Path(ribbon_plot_dir).mkdir(parents=True, exist_ok=True)
 
     plot_(ribbon_plot_dir, data_acc, 'Classifier accuracy over time during increase of the FAMACHA score',
-          "model accuracy in %")
+          "model accuracy in %", days)
     # plot_(ribbon_plot_dir, data_pf, 'Classifier precision(False) over time during increase of the FAMACHA score',
     #       "model precision(False) in %")
     # plot_(ribbon_plot_dir, data_pt, 'Classifier precision(True) over time during increase of the FAMACHA score',
@@ -779,7 +874,7 @@ def process_transit(dfs, days, resolution, farm_id):
     # plt.close(fig)
 
 
-def plot_(path, data, title, y_label):
+def plot_(path, data, title, y_label, days):
     df = pd.DataFrame.from_dict(data, orient='index')
     print(df)
     time = []
@@ -792,11 +887,25 @@ def plot_(path, data, title, y_label):
     data_dict = {'time': time, 'acc': acc}
     df = pd.DataFrame.from_dict(data_dict)
     print(df)
-    ax = sns.lineplot(x="time", y="acc", data=df)
+    time_axis = interpolate_time(np.arange(days + 1), len(df["time"]))
+    time_axis = time_axis.tolist()
+    time_axis_s = []
+    for t in time_axis:
+        time_axis_s.append("%d" % t)
+    ax = sns.lineplot(x=df["time"], y="acc", data=df, marker="o")
     ax.set_title(title)
     # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
     ax.set_xlabel("time")
     ax.set_ylabel(y_label)
+
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    labels_ = interpolate_time(np.arange(days + 1), len(labels))
+    for i, item in enumerate(labels_):
+        labels[i] = "%d" % math.ceil(float(item))
+
+    ax.set_xticklabels(labels)
+
+    # ax.set_xticklabels(time_axis_s)
     file_path = '%s\\%s.png' % (path, y_label)
     plt.savefig(file_path)
     plt.show()
@@ -891,7 +1000,7 @@ def timesplit_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, 
     # data_frame_0 = data_frame_0.reset_index(drop=True)
 
     H = []
-    for i, activity in enumerate(X):
+    for _, activity in enumerate(X):
         activity = interpolate(activity)
         activity = np.asarray(activity)
         H.append(activity)
@@ -909,50 +1018,50 @@ def timesplit_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, 
     purge_file(out_fname)
     X_cwt = pd.DataFrame()
     cpt = 0
-    with open(out_fname, 'a') as outfile:
-        class0 = []
-        class1 = []
-        for activity, (i, row), temperature, humidity in zip(X, data_frame_0.iterrows(), X_t, X_h):
-            meta = row["label":].values.tolist()
-            # activity = item
-            temperature = temperature.tolist()
-            humidity = humidity.tolist()
-            activity = interpolate(activity)
-            activity = np.asarray(activity)
-            activity = np.divide(activity, herd_mean)
+    # with open(out_fname, 'a') as outfile:
+    class0 = []
+    class1 = []
+    for activity, (i, row), temperature, humidity in zip(X, data_frame_0.iterrows(), X_t, X_h):
+        meta = row["label":].values.tolist()
+        # activity = item
+        temperature = temperature.tolist()
+        humidity = humidity.tolist()
+        activity = interpolate(activity)
+        activity = np.asarray(activity)
+        activity = np.divide(activity, herd_mean)
 
-            print(len(activity), "%d/%d ..." % (i, len(X)))
-            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+        print(len(activity), "%d/%d ..." % (cpt, len(X)))
+        cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
 
-            if cpt == 0:
-                X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
+        if cpt == 0:
+            X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
 
-            X_cwt.loc[cpt] = cwt
-            cpt += 1
-            # print(X_cwt)
-            target = data_frame.at[i, 'label']
+        X_cwt.loc[cpt] = cwt
+        cpt += 1
+        # print(X_cwt)
+        target = data_frame.at[i, 'label']
 
-            if target == 0:
-                class0.append(cwt)
-            if target == 1:
-                class1.append(cwt)
+        if target == 0:
+            class0.append(cwt)
+        if target == 1:
+            class1.append(cwt)
 
-            if 'temperature' in out_fname:
-                print('temperature')
-                training_str_flatten = str(coefs.shape).strip('()') + \
-                                       ',' + str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
-                                       ',' + str(temperature).strip('[]').replace(' ', '').replace('None', 'NaN') + \
-                                       ',' + str(humidity).strip('[]').replace(' ', '').replace('None', 'NaN') + \
-                                       ',' + \
-                                       str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
-            else:
-                training_str_flatten = str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
-                                       ',' + str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
+        if 'temperature' in out_fname:
+            print('temperature')
+            training_str_flatten = str(coefs.shape).strip('()') + \
+                                   ',' + str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + str(temperature).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + str(humidity).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + \
+                                   str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
+        else:
+            training_str_flatten = str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                   ',' + str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
 
-            print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-150:]))
+        print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-150:]))
 
-            # outfile.write(training_str_flatten)
-            # outfile.write('\n')
+        # outfile.write(training_str_flatten)
+        # outfile.write('\n')
 
     coefs_class0_mean = np.average(class0, axis=0)
     # _, coefs_class0_mean, _, _, _, _, _ = compute_cwt(class0_mean)
@@ -1010,10 +1119,10 @@ def plot_cwt_coefs(x_axis, coefs_class0_mean, out_dir, out_fname, data_frame, f_
     ax.set(xlabel="$Time (days)$", ylabel="$Frequency$(1/600th of an event per seconds)")
     # fig.show()
     pathlib.Path(out_dir+'\\cwt\\'+str(i)+'\\').mkdir(parents=True, exist_ok=True)
-    outfile = '%s\\cwt\\%d\\%d_%d_%s_SVC_%s_%s_days_%d_%s_%d_%d_%s_cwt.png' % (
-        out_dir,i, j, i, farm_id, out_fname.split('.')[0], resolution, days,
+    outfile = '%s\\cwt\\%d\\cwt_%s_%d_%d_%s_%s_%s_days_%d_%s_%d_%d.png' % (
+        out_dir,i, id, j, i, farm_id, out_fname.split('.')[0], resolution, days,
         str(f_config).replace(',', '').replace('[', '').replace(']', ''),
-        data_frame.shape[0], data_frame.shape[1], id)
+        data_frame.shape[0], data_frame.shape[1])
     fig.savefig(outfile, dpi=100)
     fig.clear()
     plt.close(fig)
@@ -1022,7 +1131,7 @@ def plot_cwt_coefs(x_axis, coefs_class0_mean, out_dir, out_fname, data_frame, f_
 def pot_icwt(iwave0, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='', days=0, i=0, j=0):
     try:
         print("pot_icwt...")
-        fig, ax = plt.subplots(figsize=(9, 4.8))
+        fig, ax = plt.subplots(figsize=(25, 4.8))
         time_axis = interpolate_time(np.arange(days + 1), len(iwave0))
         ax.plot(time_axis, iwave0)
         del iwave0
@@ -1033,10 +1142,10 @@ def pot_icwt(iwave0, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id=
         # ax.set(xlabel="$Time (days)$", ylabel="$Frequency (1/600th of an event per sec)$")
         # fig.show()
         pathlib.Path(out_dir+'\\cwt\\'+str(i)+'\\').mkdir(parents=True, exist_ok=True)
-        outfile = '%s\\cwt\\%d\\%d_%d_%s_SVC_%s_%s_days_%d_%s_%d_%d_%s.png' % (
-            out_dir,i, j, i, farm_id, out_fname.split('.')[0], resolution, days,
+        outfile = '%s\\cwt\\%d\\%s_%d_%d_%s_%s_%s_days_%d_%s_%d_%d_.png' % (
+            out_dir,i, id, j, i, farm_id, out_fname.split('.')[0], resolution, days,
             str(f_config).replace(',', '').replace('[', '').replace(']', ''),
-            data_frame.shape[0], data_frame.shape[1], id)
+            data_frame.shape[0], data_frame.shape[1])
         fig.savefig(outfile, dpi=100)
         fig.clear()
         plt.close(fig)
@@ -1222,6 +1331,245 @@ def get_mean_cwt(X):
     return coefs_class0
 
 
+def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None, resolution=None,
+                       days=None):
+    global DATA_
+    DATA_ = []
+    print(out_fname)
+    #data_frame = data_frame.fillna(-1)
+    X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    X_t = df_temp[df_temp.columns[0:df_temp.shape[1] - 1]].values
+    X_h = df_hum[df_hum.columns[0:df_hum.shape[1] - 1]].values
+    X_date = data_frame_0[data_frame_0.columns[data_frame_0.shape[1] - 7:data_frame_0.shape[1]]].values
+    # cwt_list = []
+    class0 = []
+    class1 = []
+    H = []
+    # data_frame_0 = data_frame_0.reset_index(drop=True)
+
+    for i, activity in enumerate(X):
+        activity = interpolate(activity)
+        activity = np.asarray(activity)
+        H.append(activity)
+    herd_mean = np.average(H, axis=0)
+    del H
+    gc.collect()
+    print("finished computing herd mean.")
+
+    # herd_mean = np.average(herd_data, axis=0)
+    # herd_mean = interpolate(herd_mean)
+    print("computing herd cwt")
+    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _ = compute_cwt(herd_mean)
+    print("finished calculating herd cwt.")
+    # herd_mean = minmax_scale(herd_mean, feature_range=(0, 1))
+
+    purge_file(out_fname)
+    X_cwt = pd.DataFrame()
+    cpt = 0
+    with open(out_fname, 'a') as outfile:
+        for activity, (i, row), temperature, humidity in zip(X, data_frame_0.iterrows(), X_t, X_h):
+            meta = row["label":].values.tolist()
+            # activity = item
+            temperature = temperature.tolist()
+            humidity = humidity.tolist()
+            activity = interpolate(activity)
+            activity = np.asarray(activity)
+            activity = np.divide(activity, herd_mean)
+
+            # activity = minmax_scale(activity, feature_range=(0, 1))
+            # if 'div' in out_fname:
+            #     activity = np.divide(activity, herd_mean)
+            #     print('div')
+            # if 'sub' in out_fname:
+            #     activity = np.subtract(activity, herd_mean)
+            # activity[activity == np.inf] = np.nan
+            # activity = interpolate(activity)
+
+            print(len(activity), "%d/%d ..." % (i, len(X)))
+            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+
+            if len(DATA_) < 1:
+                DATA_.append({'coef_shape': coefs_herd_mean.shape, 'freqs': freqs_h})
+                print(DATA_)
+
+            if cpt == 0:
+                X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
+
+            X_cwt.loc[cpt] = cwt
+            cpt += 1
+            # print(X_cwt)
+            target = data_frame.at[i, 'label']
+
+            label = 'False'
+            if target == 0:
+                class0.append(activity)
+            if target == 1:
+                label = 'True'
+                class1.append(activity)
+            if 'temperature' in out_fname:
+                print('temperature')
+                training_str_flatten = str(coefs.shape).strip('()') + \
+                                       ',' + str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                       ',' + str(temperature).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                       ',' + str(humidity).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                       ',' + \
+                                       str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
+            else:
+                training_str_flatten = str(cwt).strip('[]').replace(' ', '').replace('None', 'NaN') + \
+                                       ',' + str(meta).strip('[]').replace(' ', '').replace('None', 'NaN')
+
+            print(" %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-150:]))
+
+            # outfile.write(training_str_flatten)
+            # outfile.write('\n')
+
+    coefs_class0_mean = []
+    class0_mean = []
+    if len(class0) > 0:
+        class0_mean = np.average(class0, axis=0)
+        _, coefs_class0_mean, _, _, _, _, _ = compute_cwt(class0_mean)
+    class1_mean = np.average(class1, axis=0)
+    del class1
+    _, coefs_class1_mean, _, _, _, _, _ = compute_cwt(class1_mean)
+    X = X_cwt
+    y = data_frame["label"].values.flatten()
+    y = y.astype(int)
+    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean
+
+
+def process2(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None, resolution=None,
+            days=None, f_config=None, farm_id=None, out_dir=None, n_components=None):
+    global DATA_
+    plt.clf()
+    print("process...", resolution, days)
+    X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, \
+    coefs_herd_mean, herd_mean = process_data_frame(
+        data_frame, data_frame_0, out_fname, df_hum=df_hum, df_temp=df_temp, days=days, resolution=resolution)
+    print("train_test_split...")
+
+    #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # X = normalize(X)
+    # X = preprocessing.MinMaxScaler().fit_transform(X)
+    X_train, X_test, y_train, y_test = X, X, y, y
+
+    # process_lda(X_train, y, 2)
+    clf = SVC(kernel='linear', C=1e10)
+    # clf = LDA(n_components=n_components, store_covariance=True)
+    # r = clf.fit_transform(X_train, y_test)
+
+    if n_components is None:
+        n_components = 0
+
+
+
+    # clf = LDA(n_components=2)
+
+    # y_train[0] = 3
+    # X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
+    # y_train = np.append(y_train, 3)
+
+    # X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
+    # y_test = np.append(y_test, 3)
+
+    # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
+    # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=4)
+
+    print("fit...")
+    clf.fit(X_train, y_train)
+    plt.plot(clf.coef_[0])
+    plt.plot(clf.coef_[1])
+    plt.plot(clf.coef_[2])
+    plt.show()
+
+    # clf = clf.best_estimator_
+    y_pred = clf.predict(X_test)
+    print(classification_report(y_test, y_pred))
+
+    del X_train
+    del y_train
+    gc.collect()
+
+    print("explain_prediction...")
+    aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, X[0], top=X.shape[1])
+    aux1 = eli5.format_as_dataframe(aux1)
+    print("********************************")
+    print(aux1)
+    class0 = aux1[aux1.target == 0]
+    class1 = aux1[aux1.target == 1]
+    del aux1
+
+    class0 = class0[class0.feature != '<BIAS>']
+    class1 = class1[class1.feature != '<BIAS>']
+
+    class0['feature'] = class0['feature'].str.replace('x', '')
+    class1['feature'] = class1['feature'].str.replace('x', '')
+
+    class0['feature'] = class0['feature'].apply(int)
+    class1['feature'] = class1['feature'].apply(int)
+
+    class0 = class0.sort_values('feature')
+    class1 = class1.sort_values('feature')
+
+    weight0 = class0['weight'].values
+    weight1 = class1['weight'].values
+
+    del class1
+    weight0 = pad(weight0, DATA_[0]['coef_shape'][0] * DATA_[0]['coef_shape'][1])
+    weight1 = pad(weight1, DATA_[0]['coef_shape'][0] * DATA_[0]['coef_shape'][1])
+
+
+    print("building figure...")
+
+    if len(class0) > 0:
+        x_axis = [x for x in range(coefs_class0_mean.shape[1])]
+        plot_cwt_coefs(x_axis, coefs_class0_mean, out_dir, out_fname, data_frame, f_config, id='class0_%d' % n_components, days=days)
+        plot_cwt_coefs(x_axis, coefs_class1_mean, out_dir, out_fname, data_frame, f_config, id='class1_%d' % n_components, days=days)
+
+        c0 = np.reshape(weight0, DATA_[0]['coef_shape'])
+        del weight0
+        print("computing icwt of weight0")
+        iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
+        iwave0 = np.real(iwave0)
+        print(DATA_[0])
+        print(iwave0)
+
+        c1 = np.reshape(weight1, DATA_[0]['coef_shape'])
+        del weight1
+        print("computing icwt of weight1")
+        iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
+        iwave1 = np.real(iwave1)
+        print(DATA_[0])
+        print(iwave1)
+
+        ymin2 = min([min(iwave0), min(iwave1)])
+        ymax2 = max([max(iwave0), max(iwave1)])
+
+        pot_icwt(iwave0, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class0_%d' % n_components, days=days)
+        del iwave0
+
+        pot_icwt(iwave1, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class1_%d' % n_components, days=days)
+
+        gc.collect()
+        del coefs_class1_mean
+        del coefs_class0_mean
+    else:
+        x_axis = [x for x in range(coefs_class1_mean.shape[1])]
+        plot_cwt_coefs(x_axis, coefs_class1_mean, out_dir, out_fname, data_frame, f_config, id='class1', days=days)
+
+        c1 = np.reshape(normalized(weight1), DATA_[0]['coef_shape'])
+        del weight1
+        print("computing icwt of weight1")
+        iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
+        iwave1 = np.real(iwave1)
+        print(DATA_[0])
+        print(iwave1)
+
+        ymin2 = min(iwave1)
+        ymax2 = max(iwave1)
+        pot_icwt(iwave1, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class1_i', days=days)
+    DATA_ = []
+
+
 if __name__ == '__main__':
     # try:
     #     shutil.rmtree("cedara_70091100056")
@@ -1249,7 +1597,7 @@ if __name__ == '__main__':
             # except (OSError, FileNotFoundError) as e:
             #     print(e)
 
-            for days in [7*2, 7*3, 7*4]:
+            for days in [7, 7*2, 7*3, 7*4]:
                 dir = TRAINING_DIR + '%s_sld_0_dbt%d_%s/' % (resolution, days, farm_id)
                 # os.chdir(dir)
 
@@ -1299,7 +1647,7 @@ if __name__ == '__main__':
                 start(fname="%s/training_sets/activity_.data" % dir, out_fname='%d_%s_cwt_div.data' % (days, farm_id),
                       resolution=resolution,
                       days=days,
-                      farm_id='new_'+farm_id,
+                      farm_id='leave1out_'+farm_id,
                       filter_delmas=(farm_id == 'delmas_70101200027'),
                       filter_cedara=(farm_id == 'cedara_70091100056'),
                       fname_temp="%s/training_sets/temperature.data" % dir,

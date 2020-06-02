@@ -33,7 +33,7 @@ from sklearn.metrics import classification_report, accuracy_score, make_scorer, 
 from sklearn.model_selection import GridSearchCV
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold
 import scikitplot as skplt
 from matplotlib.lines import Line2D
 from mlxtend.plotting import plot_decision_regions
@@ -56,6 +56,10 @@ import itertools
 from socket import *
 from functools import partial
 from sys import exit
+from sklearn.metrics import plot_roc_curve
+from sklearn.metrics import auc
+from scipy import interp
+from matplotlib.colors import LinearSegmentedColormap
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -1080,7 +1084,6 @@ def process_data_frame(data_frame, y_col='label'):
     data_frame = data_frame.fillna(-1)
     cwt_shape = data_frame[data_frame.columns[0:2]].values
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - META_DATA_LENGTH]].values
-    print(X)
     X = normalize(X)
     X = preprocessing.MinMaxScaler().fit_transform(X)
     y = data_frame[y_col].values.flatten()
@@ -1133,22 +1136,157 @@ def format_sub_folder_name(title, options):
     return format_options_(sub_folder)
 
 
-def save_roc_curve(y_test, y_probas, title, options, folder, i=0):
-    # fig = plt.figure(figsize=(7, 6), dpi=100)
-    # plt.title('ROC Curves %s' % title)
-    split = title.split('\n')
-    title = 'ROC Curves %s' % (split[0] + '\n' + split[1] + '\n' + split[-2])
-    skplt.metrics.plot_roc(y_test, y_probas, title=title, title_fontsize='medium')
+def get_conf_interval(tprs, mean_fpr):
+    confidence_lower = []
+    confidence_upper = []
+    df_tprs = pd.DataFrame(tprs, dtype=float)
+    for column in df_tprs:
+        scores = df_tprs[column].values.tolist()
+        scores.sort()
+        upper = np.percentile(scores, 95)
+        confidence_upper.append(upper)
+        lower = np.percentile(scores, 0.025)
+        confidence_lower.append(lower)
+
+    confidence_lower = np.asarray(confidence_lower)
+    confidence_upper = np.asarray(confidence_upper)
+    # confidence_upper = np.minimum(mean_tpr + std_tpr, 1)
+    # confidence_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    return confidence_lower, confidence_upper
+
+
+def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
+    print("plot_roc_range...")
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
+            label='Chance', alpha=1)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    # mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(mean_fpr, mean_tpr, color='tab:blue',
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            lw=2, alpha=.8)
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    confidence_lower, confidence_upper = get_conf_interval(tprs, mean_fpr)
+
+    ax.fill_between(mean_fpr, confidence_lower, confidence_upper, color='tab:blue', alpha=.2)
+                    #label=r'$\pm$ 1 std. dev.')
+
+    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic")
+    ax.legend(loc="lower right")
+    # fig.show()
     path = "%s/roc_curve/%s" % (folder, format_sub_folder_name(title, options))
+    print(path)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     final_path = '%s/%s' % (path, format_file_name(i, title, options))
     final_path = final_path.replace('/', '\'').replace('\'', '\\').replace('\\', '/')
     print(final_path)
-    plt.savefig(final_path)
+    fig.savefig(final_path)
+
+
+def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=None, i=0, options=None, n_bin=8):
+    print('graph...')
+    # plt.subplots_adjust(top=0.75)
+    # fig = plt.figure(figsize=(7, 6), dpi=100)
+    fig, ax = plt.subplots(figsize=(7., 4.8))
+    # plt.subplots_adjust(top=0.75)
+    min = abs(X_lda.min()) + 1
+    max = abs(X_lda.max()) + 1
+    print(X_lda.shape)
+    print(min, max)
+    if np.max([min, max]) > 100:
+        return
+    xx, yy = np.mgrid[-min:max:.01, -min:max:.01]
+    grid = np.c_[xx.ravel(), yy.ravel()]
+    probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
+    offset_r = 0
+    offset_g = 0
+    offset_b = 0
+    colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
+              (1, 1, 1),
+              ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
+    cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
+
+    for _ in range(0, 1):
+        contour = ax.contourf(xx, yy, probs, n_bin, cmap=cm, antialiased=False, vmin=0, vmax=1, alpha=0.3, linewidth=0,
+                              linestyles='dashed', zorder=-1)
+        ax.contour(contour, cmap=cm, linewidth=1, linestyles='dashed', zorder=-1, alpha=1)
+
+    ax_c = fig.colorbar(contour)
+
+    ax_c.set_alpha(1)
+    ax_c.draw_all()
+
+    ax_c.set_label("$P(y = 1)$")
+    # ax_c.set_ticks([0, .25, 0.5, 0.75, 1])
+    # ax_c.ax.set_yticklabels(['0', '0.15', '0.3', '0.45', '0.6', '0.75', '0.9', '1'])
+
+    X_lda_0 = X_lda[y_lda == 0]
+    X_lda_1 = X_lda[y_lda == 1]
+
+    X_lda_0_t = X_test[y_test == 0]
+    X_lda_1_t = X_test[y_test == 1]
+    marker_size = 150
+    ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
+               , zorder=1)
+
+    ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
+               , zorder=1)
+
+    ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none', label='Test data', zorder=1)
+
+    ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none', zorder=1)
+
+    ax.set(xlabel="$X_1$", ylabel="$X_2$")
+
+    ax.contour(xx, yy, probs, levels=[.5], cmap="Reds", vmin=0, vmax=.6, linewidth=0.1)
+
+    for spine in ax.spines.values():
+        spine.set_edgecolor('white')
+
+    handles, labels = ax.get_legend_handles_labels()
+    db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
+    handles.append(db_line)
+
+    plt.legend(loc=2, fancybox=True, framealpha=0.4, handles=handles)
+    plt.title(title)
+    ttl = ax.title
+    ttl.set_position([.57, 0.97])
+    # plt.tight_layout()
+
+    # path = filename + '\\' + str(resolution) + '\\'
+    # path_file = path + "%d_p.png" % days
+    # pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    # plt.savefig(path_file, bbox_inches='tight')
+
+    path = "%s/decision_boundaries_graphs/%s" % (folder, format_sub_folder_name(title, options))
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    final_path = '%s/%s' % (path, format_file_name(i, title, options))
+    final_path = final_path.replace('/', '\'').replace('\'', '\\').replace('\\', '/')
+    print(final_path)
+    try:
+        plt.savefig(final_path)
+    except FileNotFoundError as e:
+        print(e)
+        exit()
+
     plt.close()
+    # fig.show()
+    return final_path
 
 
-def plot_2D_decision_boundaries(X, y, X_test, title, clf, folder=None, options=None, i=0):
+def plot_2D_decision_boundaries_(X, y, X_test, title, clf, folder=None, options=None, i=0):
     fig = plt.figure(figsize=(8, 7), dpi=100)
     plt.subplots_adjust(top=0.80)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
@@ -1382,8 +1520,8 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
 
 
 def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_reduc_name=None, clf_name='',
-                  folder=None, options=None, resolution=None, enalble_1Dplot=False,
-                  enalble_2Dplot=True, enalble_3Dplot=False, enalble_ROCplot=True, nfold=1):
+                  folder=None, options=None, resolution=None, enalble_1Dplot=True,
+                  enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
@@ -1395,7 +1533,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                               "proba_y_true": -1,
                               "proba_y_false": -1,
                               "f-score": -1}
-        return -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
+        return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
@@ -1438,12 +1576,13 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
     file_path = 'empty'
+
     try:
         if dim == 1 and enalble_1Dplot:
-            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
+            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
 
         if dim == 2 and enalble_2Dplot:
-            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, folder=folder, options=options, i=i)
+            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
 
         if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
                 file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
@@ -1451,11 +1590,6 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     except Exception as e:
         print(e)
 
-    if enalble_ROCplot:
-        try:
-            save_roc_curve(y_test, y_probas, title, options, folder, i=i)
-        except ValueError as e:
-            print(e)
 
     simplified_results = {"accuracy": acc, "specificity": recall_false,
                           "proba_y_true": p_y_true,
@@ -1464,7 +1598,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                           "precision": precision_score(y_test, y_pred, average='weighted'),
                           "f-score": f1_score(y_test, y_pred, average='weighted')}
 
-    return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
+    return X_lda, y_lda, title, acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
            title.split('\n')[0], file_path, simplified_results, p_y_false, p_y_true
 
 
@@ -1512,8 +1646,9 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         print(e)
         print(data_frame, dim_reduc, clf_name, folder, options, resolution, y_col)
         return {"error": str(e)}
-    kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
-    kf.get_n_splits(X)
+    # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
+    # kf.get_n_splits(X)
+    rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=int((datetime.now().microsecond)/10))
 
     scores, scores_1d, scores_2d, scores_3d = [], [], [], []
     precision_false, precision_false_1d, precision_false_2d, precision_false_3d = [], [], [], []
@@ -1531,20 +1666,21 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     clf = None
     if clf_name == 'SVM':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
+        # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
+        clf = SVC(kernel='linear', probability=True)
 
     if clf_name == 'LREG':
         param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
-        clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, cv=kf, n_jobs=2)
+        clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, n_jobs=2)
 
     if clf_name == 'KNN':
         param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-        clf = GridSearchCV(KNeighborsClassifier(), param_grid, cv=kf)
+        clf = GridSearchCV(KNeighborsClassifier(), param_grid)
 
     if clf_name == 'MLP':
         param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
                       'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
-        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid, cv=kf)
+        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid)
 
     print("looking for best hyperparameters...")
     try:
@@ -1552,12 +1688,17 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     except ValueError as e:
         print(e)
         return {}
-    clf = clf.best_estimator_
+    # clf = clf.best_estimator_
     print(clf)
 
-    for i, (train_index, test_index) in enumerate(kf.split(X, y)):
+    fig_roc_2d, ax_roc_2d = plt.subplots()
+    mean_fpr_2d = np.linspace(0, 1, 100)
+    tprs_2d = []
+    aucs_2d = []
+
+    for i, (train_index, test_index) in enumerate(rkf.split(X)):
         if dim_reduc is None:
-            acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
+            X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
                 X, y, train_index, test_index, i, clf=clf, clf_name=clf_name,
                 folder=folder, options=options, resolution=resolution, nfold=fold)
             scores.append(acc)
@@ -1579,7 +1720,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             #     X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
             #     clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
 
-            acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
                 X, y, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
                 clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
@@ -1611,6 +1752,14 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             simplified_results_2d.append(sr_2d)
             proba_y_false_2d.append(pr_y_false_2d)
             proba_y_true_2d.append(pr_y_true_2d)
+            viz = plot_roc_curve(clf, X_lda_2d, y_lda_2d,
+                                 name='',
+                                 label='_Hidden',
+                                 alpha=0, lw=1, ax=ax_roc_2d)
+            interp_tpr = interp(mean_fpr_2d, viz.fpr, viz.tpr)
+            interp_tpr[0] = 0.0
+            tprs_2d.append(interp_tpr)
+            aucs_2d.append(viz.roc_auc)
 
             # scores_3d.append(acc_3d)
             # precision_false_3d.append(p_false_3d)
@@ -1623,6 +1772,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             # support_true_3d.append(s_true_3d)
             # simplified_results_3d.append(sr_3d)
 
+    plot_roc_range(ax_roc_2d, tprs_2d, mean_fpr_2d, aucs_2d, fig_roc_2d, title_2d, options, folder)
+    fig_roc_2d.clear()
     print("svc %d fold cross validation 2d is %f, 3d is %s." % (
         fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
 
@@ -1993,7 +2144,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
     print("start classification...", inputs)
     start_time = time.time()
     for input in inputs:
-        print(input)
+
         _, data_frame, _ = load_df_from_datasets(input["path"], label_col)
         print(data_frame)
         sample_count = data_frame.shape[1]
@@ -2004,14 +2155,14 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
             print(e)
             continue
         print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
-
+        print("current_file is", input)
         for result in [
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir,
             #                   options=input["options"], resolution=resolution),
             # process(data_frame, fold=10, clf_name='SVM', folder=dir,
             #         options=input["options"], resolution=resolution)
-            process(data_frame, fold=10, dim_reduc='LDA', clf_name='LREG', folder=dir,
-                              options=input["options"], resolution=resolution)
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
+                    resolution=resolution)
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
             #                   options=input["options"], resolution=resolution)
             # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
@@ -2187,8 +2338,8 @@ def process_day(params):
     dir = "%s/%s_sld_%d_dbt%d_%s" % (os.getcwd().replace('C', 'E'), resolution, sliding_w,
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
-    if False:
-    # if os.path.exists(class_input_dict_file_path):
+    # if False:
+    if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
@@ -2280,8 +2431,8 @@ def process_day(params):
     #     with open(herd_file_path, 'w') as fout:
     #         json.dump({'herd_activity': herd_data}, fout)
 
-    # process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-    #                     zeros_threshold, farm_id, sliding_w)
+    process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+                        zeros_threshold, farm_id, sliding_w)
     sql_db.cursor().close()
     sql_db.close()
 
@@ -2292,7 +2443,7 @@ def process_sliding_w(params):
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [7]
+        days_before_famacha_test_l = [2, 7, 14, 28]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2308,12 +2459,12 @@ if __name__ == '__main__':
     print('args=', sys.argv)
     print("pandas", pd.__version__)
 
-    src_folders = ["hd\\"]
+    src_folders = ["sd\\"]
     for src_folder in src_folders:
         os.chdir(os.path.dirname(__file__))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["delmas_70101200027"]:
+        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()
