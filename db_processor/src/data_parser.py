@@ -95,7 +95,7 @@ def process_files(file_paths, farm_name=''):
         data = build_famacha_data(map, book, data)
     print('dumping result to json file...')
     print(data)
-    with open(__location__+'\\%s_famacha_data.json' % farm_name, 'w') as fp:
+    with open(__location__+'\\%s_famacha_data_with_age.json' % farm_name, 'w') as fp:
         print('')
         json.dump(data, fp)
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     start_time = time.time()
     xls_files = find_data_files("E:/SouthAfrica/Metadata/CEDARA2 data", extension='.xls')
     # xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
-    # process_files(xls_files, farm_name="bothaville")
+    process_files(xls_files, farm_name="cedara")
 
     # pdf_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.pdf')
 

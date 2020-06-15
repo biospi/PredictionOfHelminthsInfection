@@ -1,3 +1,4 @@
+from datetime import datetime
 import math
 import pathlib
 import shutil
@@ -22,7 +23,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import normalize
@@ -41,6 +42,9 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import f1_score
 from sys import exit
 from matplotlib.lines import Line2D
+from scipy import interp
+from sklearn.metrics import plot_roc_curve
+from sklearn.metrics import auc
 
 import os
 
@@ -590,13 +594,66 @@ def get_proba(y_probas, y_pred):
     return np.mean(class_0), np.mean(class_1)
 
 
+def get_conf_interval(tprs, mean_fpr):
+    confidence_lower = []
+    confidence_upper = []
+    df_tprs = pd.DataFrame(tprs, dtype=float)
+    for column in df_tprs:
+        scores = df_tprs[column].values.tolist()
+        scores.sort()
+        upper = np.percentile(scores, 95)
+        confidence_upper.append(upper)
+        lower = np.percentile(scores, 0.025)
+        confidence_lower.append(lower)
+
+    confidence_lower = np.asarray(confidence_lower)
+    confidence_upper = np.asarray(confidence_upper)
+    # confidence_upper = np.minimum(mean_tpr + std_tpr, 1)
+    # confidence_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    return confidence_lower, confidence_upper
+
+
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
+            label='Chance', alpha=1)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    # mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(mean_fpr, mean_tpr, color='tab:blue',
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            lw=2, alpha=.8)
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    confidence_lower, confidence_upper = get_conf_interval(tprs, mean_fpr)
+
+    ax.fill_between(mean_fpr, confidence_lower, confidence_upper, color='tab:blue', alpha=.2)
+                    #label=r'$\pm$ 1 std. dev.')
+
+    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic iteration %d" % (i + 1))
+    ax.legend(loc="lower right")
+    # fig.show()
+    path = "%s/roc_curve/" % (out_dir)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    final_path = '%s/%s' % (path, 'roc_%d.png' % i)
+    final_path = final_path.replace('/', '\'').replace('\'', '\\').replace('\\', '/')
+    print(final_path)
+    fig.savefig(final_path)
+
+
 def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None, fname=None, outfname=None, days=None, resolution=None):
     # if clf_name not in ['SVM', 'MLP']:
     #     raise ValueError("available classifiers are SVM and MLP.")
 
     X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold2(dim, X, y, X_t, y_t, dim_reduc=dim_reduc)
     # X_test, y_test = process_fold2(dim, X_t, y_t, dim_reduc=dim_reduc)
-    X_lda = X_lda[:, :2]
+    X_lda = X_lda[:, :2] #if reduce to higher n slice to keep only first 2
     X_train = X_train[:, :2]
     X_test = X_test[:, :2]
     print("fit...")
@@ -635,7 +692,8 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname)
 
     if dim == 2:
-        plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname, days=days, resolution=resolution)
+        plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename=outfname, days=days,
+                                    resolution=resolution)
         # plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, filename=outfname, days=days, resolution=resolution)
     if dim == 1:
         plot_2D_decision_boundaries(np.concatenate([X_test, X_lda]), np.concatenate([y_test, y_lda]), X_test, title,
@@ -643,6 +701,20 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
+    fig, ax = plt.subplots()
+    viz = plot_roc_curve(clf, X_lda, y_lda,
+                         name='',
+                         label='_Hidden',
+                         alpha=0, lw=1, ax=ax)
+    mean_fpr = np.linspace(0, 1, 100)
+    tprs = []
+    aucs = []
+    interp_tpr = interp(mean_fpr, viz.fpr, viz.tpr)
+    interp_tpr[0] = 0.0
+    tprs.append(interp_tpr)
+    aucs.append(viz.roc_auc)
+    plot_roc_range(ax, tprs, mean_fpr, aucs, outfname, 0, fig)
+    fig.clear()
 
     return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, clf_name
 
@@ -777,7 +849,7 @@ def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
 from sklearn.linear_model import LinearRegression
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label', outfname=None, classic_split=None,
             days=None, resolution=None):
-    if clf_name not in ['SVM', 'MLP', 'LREG']:
+    if clf_name not in ['SVM', 'MLP', 'LREG', 'LDA']:
         raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
     scores_2d, scores_3d, scores_full = [], [], []
     precision_false_2d, precision_false_3d, precision_false_full = [], [], []
@@ -792,22 +864,24 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     clf_name_full, clf_name_2d, clf_name_3d = '', '', ''
 
     X, y = process_data_frame(data_frame, y_col=y_col)
-    kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
-    kf.get_n_splits(X)
+    # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
+    rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
+    # kf.get_n_splits(X)
 
+    clf = LDA()
     # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
     # clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
-    clf = SVC(kernel='rbf', probability=True)
-
-    if clf_name == 'LREG':
-        # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
-        # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid, cv=kf)
-        clf = LogisticRegression(C=1e10)
-
-    if clf_name == 'MLP':
-        param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
-                      'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
-        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
+    # clf = SVC(kernel='linear', probability=True)
+    #
+    # if clf_name == 'LREG':
+    #     # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
+    #     # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid, cv=kf)
+    #     clf = LogisticRegression(C=1e10)
+    #
+    # if clf_name == 'MLP':
+    #     param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
+    #                   'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
+    #     clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1), param_grid, cv=kf)
 
     if df2 is None:
         print("finding best estimator...")
@@ -816,7 +890,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         if classic_split:
             compute_model_classic_split(outfname, clf, clf_name, 2, X, y, dim_reduc)
         else:
-            for i, (train_index, test_index) in enumerate(kf.split(X, y)):
+            for i, (train_index, test_index) in enumerate(rkf.split(X)):
                 print("progress %d/%d" % (i, fold))
                 # acc_full, p_false_full, p_true_full, r_false_full, r_true_full, fs_false_full, fs_true_full, s_false_full, s_true_full, clf_name_full = compute_model(X, y, train_index, test_index, i, clf, clf_name=clf_name)
                 # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(
@@ -897,7 +971,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
             print(result)
             return result
     else:
-        clf = LinearRegression(probability=True)
+        # clf = LinearRegression(probability=True)
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -1010,7 +1084,7 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         df1 = df1[cols_to_keep]
         df2 = df2[cols_to_keep]
         print("data loading finished.")
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname, days=days, resolution=resolution)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname, days=days, resolution=resolution)
         return
 
     print("loading dataset...")
@@ -1028,7 +1102,7 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         print(nrows)
 
         print('data_frame:%s %s' % (str(data_frame["date1"].iloc[0]).split(' ')[0], str(data_frame["date1"].iloc[-1]).split(' ')[0]))
-        exit()
+
         df1 = data_frame[:nrows]
         df2 = data_frame[nrows:]
         print(df1)
@@ -1050,8 +1124,8 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         class_1_count = data_frame['label'].value_counts().to_dict()[True]
         class_2_count = data_frame['label'].value_counts().to_dict()[False]
         print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname+'12', y_col=label_col, days=days, resolution=resolution)
-        process(df2, df2=df1, dim_reduc='LDA', clf_name='LREG', fname=fname1, outfname=outfname+'21', y_col=label_col, days=days, resolution=resolution)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='LDA', fname=fname1, outfname=outfname+'12', y_col=label_col, days=days, resolution=resolution)
+        process(df2, df2=df1, dim_reduc='LDA', clf_name='LDA', fname=fname1, outfname=outfname+'21', y_col=label_col, days=days, resolution=resolution)
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
@@ -1087,16 +1161,16 @@ if __name__ == '__main__':
             #       half_period_split=True,
             #       days=day, resolution=resolution,
             #       outfname="herd_lev_var\\cwt_div")
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/activity_.data" % (resolution, day),
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
                   half_period_split=True,
                   days=day, resolution=resolution,
-                  outfname="test\\cedara_activity")
+                  outfname="half\\delmas")
             
             # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
             #       outfname="cross_farm\\trained_on_delmas_test_on_cedara",
             #       days=day, resolution=resolution)
-
+            #
             # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
             #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",

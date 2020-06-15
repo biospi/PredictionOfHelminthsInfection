@@ -1185,7 +1185,7 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
     path = "%s/roc_curve/%s" % (folder, format_sub_folder_name(title, options))
     print(path)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    final_path = '%s/%s' % (path, format_file_name(i, title, options))
+    final_path = '%s/%s' % (path, format_file_name(len(tprs), title, options))
     final_path = final_path.replace('/', '\'').replace('\'', '\\').replace('\\', '/')
     print(final_path)
     fig.savefig(final_path)
@@ -1474,15 +1474,16 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
         y_train = np.append(y_train, 3)
         X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
         y_test = np.append(y_test, 3)
-    X_train = LDA(n_components=output_dim).fit_transform(X_train, y_train)
-    X_test = LDA(n_components=output_dim).fit_transform(X_test, y_test)
+    clf = LDA(n_components=output_dim)
+    X_train = clf.fit_transform(X_train, y_train)
+    X_test = clf.fit_transform(X_test, y_test)
     if output_dim != 1:
         X_train = X_train[0:-(output_dim - 1)]
         y_train = y_train[0:-(output_dim - 1)]
         X_test = X_test[0:-(output_dim - 1)]
         y_test = y_test[0:-(output_dim - 1)]
 
-    return X_train, X_test, y_train, y_test
+    return clf, X_train, X_test, y_train, y_test
 
 
 def reduce_pca(output_dim, X_train, X_test, y_train, y_test):
@@ -1500,7 +1501,7 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
         return X, y, X_train, X_test, y_train, y_test
     try:
         if dim_reduc == 'LDA':
-            X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
+            clf, X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
 
         if dim_reduc == 'PCA':
             X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
@@ -1512,18 +1513,18 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
             test_index], \
                                                                            y_reduced[train_index], \
                                                                            y_reduced[test_index]
-        return X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
+        return clf, X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
 
     except ValueError as e:
         print(e)
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
 
 def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_reduc_name=None, clf_name='',
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
-    X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+    clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
     if X_lda is None:
         simplified_results = {"accuracy": -1,
@@ -1533,7 +1534,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                               "proba_y_true": -1,
                               "proba_y_false": -1,
                               "f-score": -1}
-        return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
+        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
@@ -1598,7 +1599,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                           "precision": precision_score(y_test, y_pred, average='weighted'),
                           "f-score": f1_score(y_test, y_pred, average='weighted')}
 
-    return X_lda, y_lda, title, acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
+    return clf, X_lda, y_lda, title, acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
            title.split('\n')[0], file_path, simplified_results, p_y_false, p_y_true
 
 
@@ -1637,7 +1638,7 @@ def get_proba(y_probas, y_pred):
 
 
 def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
-    if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN']:
+    if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN', 'LDA']:
         raise ValueError('classifier %s is not available! available clf_name are KNN, MPL, LREG, SVM' % clf_name)
     print("process...")
     try:
@@ -1669,6 +1670,9 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
         clf = SVC(kernel='linear', probability=True)
 
+    # if clf_name == 'LDA':
+    #     clf = LDA()
+
     if clf_name == 'LREG':
         param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
         clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, n_jobs=2)
@@ -1683,13 +1687,13 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid)
 
     print("looking for best hyperparameters...")
-    try:
-        clf.fit(X, y)
-    except ValueError as e:
-        print(e)
-        return {}
+    # try:
+    #     clf.fit(X, y)
+    # except ValueError as e:
+    #     print(e)
+    #     return {}
     # clf = clf.best_estimator_
-    print(clf)
+    # print(clf)
 
     fig_roc_2d, ax_roc_2d = plt.subplots()
     mean_fpr_2d = np.linspace(0, 1, 100)
@@ -1698,8 +1702,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
 
     for i, (train_index, test_index) in enumerate(rkf.split(X)):
         if dim_reduc is None:
-            X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
-                X, y, train_index, test_index, i, clf=clf, clf_name=clf_name,
+            clf, X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
+                X, y, train_index, test_index, i, clf_name=clf_name,
                 folder=folder, options=options, resolution=resolution, nfold=fold)
             scores.append(acc)
             precision_false.append(p_false)
@@ -1720,10 +1724,13 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             #     X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
             #     clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
 
-            X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            clf, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
-                X, y, train_index, test_index, i, clf=clf, dim=2, dim_reduc_name=dim_reduc,
+                X, y, train_index, test_index, i, dim=2, dim_reduc_name=dim_reduc,
                 clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+
+            if X_lda_2d is None:
+                continue
 
             # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
             # clf_name_3d, file_path_3d, sr_3d = compute_model(
@@ -1773,6 +1780,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             # simplified_results_3d.append(sr_3d)
 
     plot_roc_range(ax_roc_2d, tprs_2d, mean_fpr_2d, aucs_2d, fig_roc_2d, title_2d, options, folder)
+
     fig_roc_2d.clear()
     print("svc %d fold cross validation 2d is %f, 3d is %s." % (
         fold, float(np.mean(scores_2d)), float(np.mean(scores_3d))))
@@ -2098,38 +2106,39 @@ def find_type_for_mem_opt(df):
 
 
 def load_df_from_datasets(fname, label_col):
+    print("load_df_from_datasets...", fname)
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
-    print(df)
+    # print(df)
     type_dict = find_type_for_mem_opt(df)
 
     data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
-    print(data_frame)
+    # print(data_frame)
     sample_count = df.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-16] = "label"
-    hearder[-15] = "elem_in_row"
-    hearder[-14] = "date1"
-    hearder[-13] = "date2"
-    hearder[-12] = "serial"
-    hearder[-11] = "famacha_score"
-    hearder[-10] = "previous_famacha_score"
-    hearder[-9] = "previous_famacha_score2"
-    hearder[-8] = "previous_famacha_score3"
-    hearder[-8] = "previous_famacha_score4"
+    hearder[-19] = "label"
+    hearder[-18] = "elem_in_row"
+    hearder[-17] = "date1"
+    hearder[-16] = "date2"
+    hearder[-15] = "serial"
+    hearder[-14] = "famacha_score"
+    hearder[-13] = "previous_famacha_score"
+    hearder[-12] = "previous_famacha_score2"
+    hearder[-11] = "previous_famacha_score3"
+    hearder[-10] = "previous_famacha_score4"
 
-    hearder[-7] = "dtf1"
-    hearder[-6] = "dtf2"
-    hearder[-5] = "dtf3"
-    hearder[-4] = "dtf4"
-    hearder[-4] = "dtf5"
+    hearder[-9] = "dtf1"
+    hearder[-8] = "dtf2"
+    hearder[-7] = "dtf3"
+    hearder[-6] = "dtf4"
+    hearder[-5] = "dtf5"
 
-    hearder[-3] = "nd1"
-    hearder[-2] = "nd2"
-    hearder[-1] = "nd3"
+    hearder[-4] = "nd1"
+    hearder[-3] = "nd2"
+    hearder[-2] = "nd3"
     hearder[-1] = "nd4"
 
     data_frame.columns = hearder
-    print(data_frame)
+    # print(data_frame)
     data_frame_original = data_frame.copy()
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
@@ -2161,7 +2170,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
             #                   options=input["options"], resolution=resolution),
             # process(data_frame, fold=10, clf_name='SVM', folder=dir,
             #         options=input["options"], resolution=resolution)
-            process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='LDA', folder=dir, options=input["options"],
                     resolution=resolution)
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
             #                   options=input["options"], resolution=resolution)
@@ -2339,6 +2348,7 @@ def process_day(params):
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
     # if False:
+    #     print("force create!")
     if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
@@ -2439,11 +2449,11 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
+    zipped = zip(['10min', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [2, 7, 14, 28]
+        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2464,7 +2474,7 @@ if __name__ == '__main__':
         os.chdir(os.path.dirname(__file__))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
+        for farm_id in ["cedara_70091100056"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()

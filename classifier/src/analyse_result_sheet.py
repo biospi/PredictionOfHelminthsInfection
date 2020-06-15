@@ -23,7 +23,7 @@ if __name__ == '__main__':
     except (OSError, FileNotFoundError) as e:
         print(e)
 
-    fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\delmas_70101200027_results_report_2020_04_14_15_36_48.csv"
+    fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\cedara_70091100056_results_report_2020_06_12_19_58_48.csv"
     #fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\cedara_70091100056_results_report_2020_04_13_06_41_36.csv"
 
     df = pd.read_csv(fname, sep=",")
@@ -31,10 +31,10 @@ if __name__ == '__main__':
     df = df[df.classifier != "empty"]
     df = df[df.sliding_w == 0]
     df["input"] = df["input"].str.replace("\n", '')
-    df = df.sort_values('accuracy_cv', ascending=False)
+    # df = df.sort_values('accuracy_cv', ascending=False)
     print(df)
-    df = df[['accuracy_cv', 'accuracy_list', 'days_before_test', 'resolution', 'input', 'proba_y_false', 'proba_y_true', 'sliding_w', 'classifier', 'precision_true', 'precision_false']]
-    df['a'] = df.apply(lambda row: sum([float(x) for x in str(row.precision_true).split(' ')]), axis=1)
+    df = df[['accuracy_cv', 'accuracy_list', 'days_before_test', 'resolution', 'input', 'proba_y_false', 'proba_y_true', 'sliding_w', 'classifier', 'precision_true', 'precision_false', 'class_true_count', 'class_false_count']]
+    df['a'] = df.apply(lambda row: sum([float(x) for x in str(row.precision_true).split(' ')])/len(row.precision_true.split(' ')), axis=1)
     df = df.sort_values('a', ascending=False)
     print(df)
     cpt = 0
@@ -45,10 +45,10 @@ if __name__ == '__main__':
         prec_t, p_t = get_ranged_value('precision_true')
         prec_f, p_f = get_ranged_value('precision_false')
         input = row['input'].replace('-', '+').replace('humidity', 'h').replace('temperature', 't').replace('weight', 'w')
-        line = "%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%d&%s&%s\\\\" % (accuracy, a_t,prec_t, p_t,prec_f, p_f, proba_f, r_f, proba_t, r_t, row['days_before_test'], row['resolution'], input)
+        line = "%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%.2f$\pm$%.2f&%d&%s&%s&%d&%d\\\\" % (accuracy, a_t,prec_t, p_t, proba_t, r_t, prec_f, p_f, proba_f, r_f,  row['days_before_test'], row['resolution'], input, row['class_true_count'], row['class_false_count'])
         print(line)
         cpt += 1
-        if cpt >= 59:
+        if cpt >= 50:
             cpt = 0
             print('\n\n\n')
     list_of_df = [g for _, g in df.groupby(['resolution', 'input', 'sliding_w', 'classifier'])]
@@ -62,7 +62,7 @@ if __name__ == '__main__':
             fig = plt.figure()
             title = "%s_%s_%s" % (item['resolution'][0], item['input'][0], item['classifier'][0])
             plt.title(title)
-            plt.plot(item['days_before_test'], item['accuracy_cv'])
+            plt.plot(item['days_before_test'], item['a'], linestyle='-', marker='o')
             plt.show()
             pathlib.Path("result_analysis").mkdir(parents=True, exist_ok=True)
             path = "result_analysis\\" + title + ".png"
