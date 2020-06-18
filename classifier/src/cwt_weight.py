@@ -3,7 +3,7 @@ import math
 import os
 import shutil
 from sys import exit
-
+from sklearn.multiclass import OneVsRestClassifier
 import eli5
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +13,7 @@ import pywt
 from scipy.signal import chirp
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import scale
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.utils import shuffle
 from sklearn import preprocessing
 from sklearn.preprocessing import normalize
@@ -44,9 +44,10 @@ from sklearn.metrics import auc
 from sklearn.model_selection import LeaveOneOut, RepeatedKFold
 from sklearn import model_selection
 from sklearn.datasets import make_friedman1
-from sklearn.feature_selection import RFE
+from sklearn.feature_selection import RFE, RFECV
 from sklearn.svm import SVR
 from classifier.src.my_lda import process_lda
+from sklearn.linear_model import LassoCV
 
 DATA_ = []
 CWT_RES = 1000000
@@ -377,7 +378,7 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
         if days == 7 + 7:
             df = df[(df.nd1 == 14) & (df.nd2 == 14) & (df.nd3 == 14)]
             filter1 = ((df.famacha_score == 1) & (df.previous_famacha_score == 1))
-            filter2 = ((df.famacha_score == 2) & (df.previous_famacha_score == 1))
+            filter2 = ((df.famacha_score >= 2) & (df.previous_famacha_score == 1))
             filter3 = ((df.famacha_score == 2) & (df.previous_famacha_score == 2))
             df.loc[filter1, 'label'] = 0
             df.loc[filter2, 'label'] = 1
@@ -392,9 +393,9 @@ def start(fname='', out_fname=None, fname_temp=None, fname_hum=None, resolution=
             df = pd.concat([df1, df2, df3])
 
         if days == 7:
-            df = df[(df.nd1 == 14)]
+            # df = df[(df.nd1 == 14)]
             filter1 = ((df.famacha_score == 1) & (df.previous_famacha_score == 1))
-            filter2 = ((df.famacha_score == 2) & (df.previous_famacha_score == 1))
+            filter2 = ((df.famacha_score >= 2) & (df.previous_famacha_score == 1))
             filter3 = ((df.famacha_score == 2) & (df.previous_famacha_score == 2))
             df.loc[filter1, 'label'] = 0
             df.loc[filter2, 'label'] = 1
@@ -684,6 +685,32 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
 
 
 def plot_2D_decision_boundaries_(X, y, X_test, title, clf, folder=None, i=0, df_id=None, sub_dir_name=None, save=True):
+
+    # plt.scatter(X[:, 0], X[:, 1], c=y, s=30, cmap=plt.cm.Paired)
+    #
+    # # plot the decision function
+    # ax = plt.gca()
+    # xlim = ax.get_xlim()
+    # ylim = ax.get_ylim()
+    #
+    # # create grid to evaluate model
+    # xx = np.linspace(xlim[0], xlim[1], 30)
+    # yy = np.linspace(ylim[0], ylim[1], 30)
+    # YY, XX = np.meshgrid(yy, xx)
+    # xy = np.vstack([XX.ravel(), YY.ravel()]).T
+    # Z = clf.decision_function(xy).reshape(XX.shape)
+    #
+    # # plot decision boundary and margins
+    # ax.contour(XX, YY, Z, colors='k', levels=[-1, 0, 1], alpha=0.5,
+    #            linestyles=['--', '-', '--'])
+    # # plot support vectors
+    # ax.scatter(clf.support_vectors_[:, 0], clf.support_vectors_[:, 1], s=100,
+    #            linewidth=1, facecolors='none', edgecolors='k')
+    # plt.show()
+
+
+
+
     fig = plt.figure(figsize=(8, 7), dpi=100)
     plt.subplots_adjust(top=0.80)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
@@ -1283,11 +1310,14 @@ def interpolate_time(a, new_length):
     return new_array
 
 
-def plot_cwt_coefs(fig, axs, x, y, x_axis_lenght, coefs_class0_mean, out_dir, out_fname, id='', days=0, i=0, j=0, vmin_map=None, vmax_map=None):
+def plot_cwt_coefs(fig, axs, x, y, x_axis_lenght, coefs_class0_mean, out_dir, out_fname, id='', days=0, i=0, j=0, vmin_map=None, vmax_map=None, force_scale=True):
     # fig, ax = plt.subplots(figsize=(9, 4.8))
     ax = axs[x, y]
     ax.grid(False)
 
+    if force_scale:
+        vmin_map = coefs_class0_mean.min()
+        vmax_map = coefs_class0_mean.max()
 
     time_axis = interpolate_time(np.arange(days+1), x_axis_lenght)
     im = ax.pcolormesh(time_axis, DATA_[0]['freqs'], coefs_class0_mean, cmap='viridis', vmin=vmin_map, vmax=vmax_map)
@@ -1308,7 +1338,10 @@ def plot_cwt_coefs(fig, axs, x, y, x_axis_lenght, coefs_class0_mean, out_dir, ou
     # plt.close(fig)
 
 
-def pot_icwt(axs, x, y, iwave0, ymin2, ymax2, out_dir, out_fname, id='', days=0, i=0, j=0):
+def pot_icwt(axs, x, y, iwave0, ymin2, ymax2, out_dir, out_fname, id='', days=0, i=0, j=0, force_scale=True):
+    if force_scale:
+        ymin2 = min(iwave0)
+        ymax2 = max(iwave0)
     try:
         with plt.style.context("seaborn-white"):
             print("pot_icwt...")
@@ -1385,14 +1418,23 @@ def next_multiple_of(x, n=40):
     return x + (n - x % n)
 
 
-def rec_feature_selection(clf, X, y, n_features_to_select, shape):
+def lasso_feature_selection(X, y, shape, n_job=None):
+    clf_l = LassoCV(n_jobs=n_job).fit(X, y)
+    weight_best_lasso = np.abs(clf_l.coef_)
+    weight_best_lasso = np.reshape(weight_best_lasso, shape)
+    # returns map with location of important features 1 for important 0 for not important
+    return weight_best_lasso
+
+
+def rec_feature_selection(clf, X, y, n_features_to_select, shape, n_job=None):
     print("rec_feature_selection...")
-    selector = RFE(clf, n_features_to_select=n_features_to_select, step=1)
+    selector = RFECV(clf, step=1, cv=5, n_jobs=n_job)
     selector = selector.fit(X, y)
     ranking = selector.ranking_
     ranking = np.reshape(ranking, shape)
     ranking[ranking != 1] = 0
     print("rec_feature_selection done")
+    #returns map with location of important features 1 for important 0 for not important
     return ranking
 
 
@@ -1404,6 +1446,25 @@ def get_eli5_weight(aux1, i):
     class0 = class0.sort_values('feature')
     weight0 = class0['weight'].values
     return weight0
+
+
+def get_weight_map_data(weight_array, shape, input, scales, delta_t, wavelet_type):
+    weight_matrix = np.reshape(weight_array, shape)
+    weighted_input = np.multiply(weight_matrix, input)
+    iwave = wavelet.icwt(weighted_input, scales, delta_t, wavelet=wavelet_type)
+    return weighted_input, iwave
+
+
+def get_min_max(data):
+    cwt_list = []
+    icwt_list = []
+    for item in data:
+        cwt_list.append(item[0].min())
+        cwt_list.append(item[0].max())
+        icwt_list.append(min(item[1]))
+        icwt_list.append(max(item[1]))
+
+    return min(cwt_list), max(cwt_list), min(icwt_list), max(icwt_list)
 
 
 def explain_cwt(dfs, data, data_frame, data_frame_0,
@@ -1418,19 +1479,22 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
     for i, df in enumerate(dfs):
         scales, delta_t, wavelet_type, _, _, _, coefs_class0_mean, coefs_class1_mean, coefs_herd_mean = data[i]
-        df = shuffle(df)
+        # df = shuffle(df)
         X = df[df.columns[0:df.shape[1] - 1]]
         y = df['label']
         # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4,
         #                                                     random_state=int((datetime.now().microsecond)/10), stratify=y)
 
         # X = normalized(X)
-        for _ in range(y[y == 0].shape[0]):
-            #dummy_features = np.array([np.ones(X.shape[1])])[0]*1
-            dummy_features = np.array(range(X.shape[1]))*0.0001
-            X = np.vstack((X, dummy_features))
-            dummy_target = 2
-            y = np.append(y, dummy_target)
+        X_o = X.copy()
+        # for i in range(y[y == 0].shape[0]):
+        #     # dummy_features = np.ones(X.shape[1])
+        #     # dummy_features = np.array(range(X.shape[1]))*0.0001
+        #     # dummy_features = X_o.loc[i].values
+        #     dummy_features = np.random.rand(X.shape[1])
+        #     X = np.vstack((X, dummy_features))
+        #     dummy_target = 2
+        #     y = np.append(y, dummy_target)
 
 
         X_train, X_test, y_train, y_test = X, X, y, y
@@ -1439,17 +1503,19 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         #clf = LogisticRegression(C=1e10)
 
         # clf = LDA(n_components=2)
+        # clf = OneVsRestClassifier(LDA(n_components=3), n_jobs=3)
 
-        # best_coefs = rec_feature_selection(clf, X, y, int(X.shape[1]/3), coefs_herd_mean.shape)
-        best_coefs = []
-
-        # y_train[0] = 3
+        print("finding best...")
+        weight_best_lasso = lasso_feature_selection(X, y, coefs_herd_mean.shape, n_job=-1)
+        weight_best_rec = rec_feature_selection(clf, X, y, int(X.loc[0].shape[0]/2), coefs_herd_mean.shape, n_job=-1)
 
         print("fit...")
         clf.fit(X_train, y_train)
 
         X_lda, _, y_lda, _, clf_lda = reduce_lda(2, X, X, y, y)
         clf_lda.fit(X_lda, y_lda)
+        # clf_svm = SVC(kernel='linear', probability=True)
+        # clf_svm.fit(X_lda, y_lda)
         plot_2D_decision_boundaries_(X_lda, y_lda, X_lda, 'title', clf_lda, save=False)
 
 
@@ -1472,126 +1538,33 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         aux1 = eli5.format_as_dataframe(aux1)
         print("********************************")
         print(aux1)
-        weight0 = get_eli5_weight(aux1, 0)
-        weight1 = get_eli5_weight(aux1, 1)
-        weight2 = get_eli5_weight(aux1, 2)
+        # weight0 = get_eli5_weight(aux1, 0)
+        # weight1 = get_eli5_weight(aux1, 1)
+        # weight2 = get_eli5_weight(aux1, 2)
 
-        weight0 = np.multiply(doc, clf.coef_[0])
-        weight1 = np.multiply(doc, clf.coef_[1])
-        weight2 = np.multiply(doc, clf.coef_[2])
+        # weight0 = np.multiply(doc, clf.coef_[0])
+        # weight1 = np.multiply(doc, clf.coef_[1])
+        # weight2 = np.multiply(doc, clf.coef_[2])
 
-
-        # weight0 = clf.coef_[0]
+        weight0 = clf.coef_[0]
         # weight1 = clf.coef_[1]
         # weight2 = clf.coef_[2]
 
 
-        # class0['weight'][class0['weight'] > 2] = 0
-        # class0['weight'] = normalized(class0['weight'])
-
-        # df_pos = class0['weight'].copy().values
-        # df_neg = class0['weight'].copy().values
-
-        # df_pos = clf.coef_[0].copy()
-        # df_neg = clf.coef_[0].copy()
-
-        # df_pos[df_pos < 0] = 0
-        # df_neg[df_neg > 0] = 0
-        # df_neg = np.absolute(df_neg)
-
-        # weight1 = class1['weight'].values
-        # if(weight0.size == 0):
-        #     weight0 = weight1
-        # if (weight1.size == 0):
-        #     weight1 = weight0
-
-        # del class1
-        # df_pos = df_pos.values
-        # df_neg = df_neg.values
-
         pad_value = abs(np.prod(DATA_[0]['coef_shape']) - weight0.shape[0])
         for n in range(pad_value):
             weight0 = np.append(weight0, 0)
-            weight1 = np.append(weight1, 0)
-            weight2 = np.append(weight2, 0)
-        # if pad_value == 0:
-        #     weight0 = df_pos
-        #     weight1 = df_neg
+            # weight1 = np.append(weight1, 0)
+            # weight2 = np.append(weight2, 0)
 
 
         print("building figure...")
-
-        # max_thresh = 1000
-        # weight0_max_indexes = np.argpartition(weight0, -max_thresh)[-max_thresh:]
-        # weight0[weight0_max_indexes] = 0
-        # weight1_max_indexes = np.argpartition(weight1, -max_thresh)[-max_thresh:]
-        # weight1[weight1_max_indexes] = 0
-
-        c0 = np.reshape(weight0, DATA_[0]['coef_shape'])
-        c0_a = np.multiply(c0, coefs_class0_mean)
-        iwave0_a = wavelet.icwt(c0_a, scales, delta_t, wavelet=wavelet_type)
-        iwave0_a = np.real(iwave0_a)
-
-        c0_b = np.multiply(c0, coefs_class1_mean)
-        # c0 = preprocessing.normalize(c0, norm='l2')
-        iwave0_b = wavelet.icwt(c0_b, scales, delta_t, wavelet=wavelet_type)
-        iwave0_b = np.real(iwave0_b)
-
-
-
-
-        c1 = np.reshape(weight1, DATA_[0]['coef_shape'])
-        # c1 = preprocessing.normalize(c1, norm='l2')
-        c1_a = np.multiply(c1, coefs_class0_mean)
-        print("computing icwt of weight1")
-        iwave1_a = wavelet.icwt(c1_a, scales, delta_t, wavelet=wavelet_type)
-        iwave1_a = np.real(iwave1_a)
-
-
-        c1_b = np.multiply(c1, coefs_class1_mean)
-        # c1 = preprocessing.normalize(c1, norm='l2')
-        print("computing icwt of weight1")
-        iwave1_b = wavelet.icwt(c1_b, scales, delta_t, wavelet=wavelet_type)
-        iwave1_b = np.real(iwave1_b)
-
-
-        c2 = np.reshape(weight2, DATA_[0]['coef_shape'])
-        c2 = preprocessing.normalize(c2, norm='l2')
-        c2_a = np.multiply(c2, coefs_herd_mean)
-        print("computing icwt of weight1")
-        iwave2_a = wavelet.icwt(c2_a, scales, delta_t, wavelet=wavelet_type)
-        iwave2_a = np.real(iwave2_a)
-
-        c2_b = np.multiply(c2, coefs_herd_mean)
-        # c1 = preprocessing.normalize(c1, norm='l2')
-        print("computing icwt of weight1")
-        iwave2_b = wavelet.icwt(c2_b, scales, delta_t, wavelet=wavelet_type)
-        iwave2_b = np.real(iwave2_b)
-
-        # best_coefs = c2_b
-        # c_best = np.multiply(best_coefs, coefs_herd_mean)
-        # # c1 = preprocessing.normalize(c1, norm='l2')
-        # iwave_best = wavelet.icwt(c_best, scales, delta_t, wavelet=wavelet_type)
-        # iwave_best = np.real(iwave_best)
-        # c_best[c_best == 0] = np.nan
-
-
-
-        # coefs_herd_mean = np.reshape(X_test[0], DATA_[0]['coef_shape'])
-
-        c_h0 = np.multiply(c0, coefs_herd_mean)
-        # c_h0 = c0
-        # c1 = preprocessing.normalize(c1, norm='l2')
-        iwave_h0 = wavelet.icwt(c_h0, scales, delta_t, wavelet=wavelet_type)
-        iwave_h0 = np.real(iwave_h0)
-
-
-        c_h1 = np.multiply(c1, coefs_herd_mean)
-        # c_h1 = c1
-        # c1 = preprocessing.normalize(c1, norm='l2')
-        iwave_h1 = wavelet.icwt(c_h1, scales, delta_t, wavelet=wavelet_type)
-        iwave_h1 = np.real(iwave_h1)
-
+        shape = DATA_[0]['coef_shape']
+        data_to_plot = []
+        data_to_plot.append(get_weight_map_data(weight0, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight0, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight_best_rec, shape, coefs_herd_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight_best_lasso, shape, coefs_herd_mean, scales, delta_t, wavelet_type))
 
 
         x_axis = [x for x in range(int(weight0.size/scales.size))]
@@ -1599,40 +1572,18 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         w = len(x_axis)
 
         with plt.style.context("seaborn-white"):
-            fig, axs = plt.subplots(8, 2, facecolor='white')
+            fig, axs = plt.subplots(len(data_to_plot), 2, facecolor='white')
             fig.set_size_inches(50, 70)
 
-            v_min_map = min([c0_a.min(), c0_b.min(), c1_a.min(), c1_b.min(), c2_a.min(), c2_b.min()])
-            v_max_map = max([c0_a.max(), c0_b.max(), c1_a.max(), c1_b.max(), c2_a.max(), c2_b.max()])
+            v_min_map, v_max_map, ymin2, ymax2 = get_min_max(data_to_plot)
 
+            for item in data_to_plot:
+                plot_cwt_coefs(fig, axs, 0, 0, w, item[0], out_dir, out_fname,  id='class0', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
+                pot_icwt(axs, 0, 1, item[1], ymin2, ymax2, out_dir, out_fname, id='class0', days=days, i=i, j=0)
 
-            plot_cwt_coefs(fig, axs, 0, 0, w, c0_a, out_dir, out_fname,  id='class0', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 1, 0, w, c0_b, out_dir, out_fname, id='class0', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 2, 0, w, c1_a, out_dir, out_fname, id='class1', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 3, 0, w, c1_b, out_dir, out_fname, id='class1', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 4, 0, w, c2_a, out_dir, out_fname, id='class2', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 5, 0, w, c2_b, out_dir, out_fname, id='class2', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-            plot_cwt_coefs(fig, axs, 6, 0, w, c_h0, out_dir, out_fname, id='class', days=days, i=i, j=0)
-            plot_cwt_coefs(fig, axs, 7, 0, w, c_h1, out_dir, out_fname, id='class', days=days, i=i, j=0)
-
-            ymin2 = min([min(iwave1_a), min(iwave0_a), min(iwave2_a), min(iwave1_b), min(iwave0_b), min(iwave2_b), min(iwave2_b)])
-            ymax2 = max([max(iwave1_a), max(iwave0_a), max(iwave2_a), max(iwave1_b), max(iwave0_b), max(iwave2_b), max(iwave2_b)])
-
-            pot_icwt(axs, 0, 1, iwave0_a, ymin2, ymax2, out_dir, out_fname, id='class0', days=days, i=i, j=0)
-            pot_icwt(axs, 1, 1, iwave0_b, ymin2, ymax2, out_dir, out_fname, id='class0', days=days, i=i, j=0)
-            pot_icwt(axs, 2, 1, iwave1_a, ymin2, ymax2, out_dir, out_fname, id='class1', days=days, i=i, j=0)
-            pot_icwt(axs, 3, 1, iwave1_b, ymin2, ymax2, out_dir, out_fname, id='class1', days=days, i=i, j=0)
-            pot_icwt(axs, 4, 1, iwave2_a, ymin2, ymax2, out_dir, out_fname, id='class2', days=days, i=i, j=0)
-            pot_icwt(axs, 5, 1, iwave2_b, ymin2, ymax2, out_dir, out_fname, id='class2', days=days, i=i, j=0)
-
-
-            ymin2 = min([min(iwave_h0), min(iwave_h1)])
-            ymax2 = max([max(iwave_h0), max(iwave_h1)])
-            pot_icwt(axs, 6, 1, iwave_h0, ymin2, ymax2, out_dir, out_fname, id='classh', days=days, i=i, j=0)
-            pot_icwt(axs, 7, 1, iwave_h1, ymin2, ymax2, out_dir, out_fname, id='classh', days=days, i=i, j=0)
 
             fig.show()
-            fig.savefig(out_dir+'\\'+'2subplot_%d.png' % 0, dpi=100, facecolor='white')
+            fig.savefig(out_dir+'\\'+'lassosubplot_%d.png' % 0, dpi=100, facecolor='white')
             # fig.clear()
 
 
@@ -1929,7 +1880,7 @@ if __name__ == '__main__':
     #     shutil.rmtree("delmas_70101200027")
     # except (OSError, FileNotFoundError) as e:
     #     print(e)
-    for resolution in ['10min']:
+    for resolution in ['hour']:
         # for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
         #     dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
         #
