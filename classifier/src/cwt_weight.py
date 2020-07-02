@@ -16,7 +16,7 @@ from sklearn.preprocessing import scale
 from sklearn.svm import SVC, LinearSVC
 from sklearn.utils import shuffle
 from sklearn import preprocessing
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, minmax_scale
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
@@ -47,7 +47,7 @@ from sklearn.datasets import make_friedman1
 from sklearn.feature_selection import RFE, RFECV
 from sklearn.svm import SVR
 from classifier.src.my_lda import process_lda
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import LassoCV, Lasso
 
 DATA_ = []
 CWT_RES = 1000000
@@ -100,7 +100,7 @@ def dummy_sin():
     return t, y
 
 
-def compute_cwt(activity, hd=False):
+def compute_cwt(activity, hd=True):
     if hd:
         return compute_cwt_hd(activity)
     else:
@@ -1338,8 +1338,8 @@ def plot_cwt_coefs(fig, axs, x, y, x_axis_lenght, coefs_class0_mean, out_dir, ou
     # plt.close(fig)
 
 
-def pot_icwt(axs, x, y, iwave0, ymin2, ymax2, out_dir, out_fname, id='', days=0, i=0, j=0, force_scale=True):
-    if force_scale:
+def pot_icwt(axs, x, y, iwave0, ymin2, ymax2, out_dir, out_fname, id='', days=0, i=0, j=0, force_scale=False):
+    if force_scale or i in [0, 1, 2]:
         ymin2 = min(iwave0)
         ymax2 = max(iwave0)
     try:
@@ -1419,20 +1419,22 @@ def next_multiple_of(x, n=40):
 
 
 def lasso_feature_selection(X, y, shape, n_job=None):
-    clf_l = LassoCV(n_jobs=n_job).fit(X, y)
+    clf_l = LassoCV(cv=5, random_state=0, n_jobs=n_job, n_alphas=1).fit(X, y)
     weight_best_lasso = np.abs(clf_l.coef_)
-    weight_best_lasso = np.reshape(weight_best_lasso, shape)
+    weight_best_lasso = minmax_scale(weight_best_lasso, feature_range=(0, 1))
+    # weight_best_lasso = np.reshape(weight_best_lasso, shape)
     # returns map with location of important features 1 for important 0 for not important
     return weight_best_lasso
 
 
 def rec_feature_selection(clf, X, y, n_features_to_select, shape, n_job=None):
     print("rec_feature_selection...")
-    selector = RFECV(clf, step=1, cv=5, n_jobs=n_job)
+    selector = RFECV(clf, step=1, cv=5, n_jobs=n_job, min_features_to_select=n_features_to_select)
     selector = selector.fit(X, y)
     ranking = selector.ranking_
-    ranking = np.reshape(ranking, shape)
+    # ranking = np.reshape(ranking, shape)
     ranking[ranking != 1] = 0
+    # ranking = minmax_scale(ranking, feature_range=(0, 1))
     print("rec_feature_selection done")
     #returns map with location of important features 1 for important 0 for not important
     return ranking
@@ -1448,17 +1450,39 @@ def get_eli5_weight(aux1, i):
     return weight0
 
 
-def get_weight_map_data(weight_array, shape, input, scales, delta_t, wavelet_type):
+def get_weight_map_data(weight_array, shape, input, scales, delta_t, wavelet_type, force_abs=False):
+    # input = minmax_scale(input, feature_range=(-1, 1))
+    # weight_array = minmax_scale(weight_array, feature_range=(0, 1))
     weight_matrix = np.reshape(weight_array, shape)
-    weighted_input = np.multiply(weight_matrix, input)
+    if force_abs:
+        weight_matrix = np.abs(weight_matrix)
+    if input is not None:
+        weighted_input = np.multiply(weight_matrix, input)
+    else:
+        weighted_input = weight_matrix
+
     iwave = wavelet.icwt(weighted_input, scales, delta_t, wavelet=wavelet_type)
+    iwave = np.real(iwave)
+    if weighted_input[weighted_input == 0].size > 0:
+        weighted_input[weighted_input == 0] = np.nan
     return weighted_input, iwave
+
+
+def get_top_weight(weight, scale=2):
+    n_to_keep = int(weight.shape[0] / scale)# keep half of best features
+    print("n_to_keep=%d" % n_to_keep)
+    top_features_indexes = weight.argsort()[-n_to_keep:][::-1]
+    mask = np.zeros(weight.shape[0])
+    mask[top_features_indexes] = weight[top_features_indexes]
+    return mask
 
 
 def get_min_max(data):
     cwt_list = []
     icwt_list = []
-    for item in data:
+    for n, item in enumerate(data):
+        if n in [0, 1, 2, 5, 6]: #todo fix exclude certain graphs ranges
+            continue
         cwt_list.append(item[0].min())
         cwt_list.append(item[0].max())
         icwt_list.append(min(item[1]))
@@ -1487,14 +1511,14 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
         # X = normalized(X)
         X_o = X.copy()
-        # for i in range(y[y == 0].shape[0]):
-        #     # dummy_features = np.ones(X.shape[1])
-        #     # dummy_features = np.array(range(X.shape[1]))*0.0001
-        #     # dummy_features = X_o.loc[i].values
-        #     dummy_features = np.random.rand(X.shape[1])
-        #     X = np.vstack((X, dummy_features))
-        #     dummy_target = 2
-        #     y = np.append(y, dummy_target)
+        for i in range(y[y == 0].shape[0]):
+            # dummy_features = np.ones(X.shape[1])
+            dummy_features = np.array(range(X.shape[1]))*0.0001
+            # dummy_features = X_o.loc[i].values
+            # dummy_features = np.random.rand(X.shape[1])
+            X = np.vstack((X, dummy_features))
+            dummy_target = 2
+            y = np.append(y, dummy_target)
 
 
         X_train, X_test, y_train, y_test = X, X, y, y
@@ -1503,11 +1527,14 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         #clf = LogisticRegression(C=1e10)
 
         # clf = LDA(n_components=2)
+        # clf = Lasso(alpha=0.1)
         # clf = OneVsRestClassifier(LDA(n_components=3), n_jobs=3)
 
         print("finding best...")
-        weight_best_lasso = lasso_feature_selection(X, y, coefs_herd_mean.shape, n_job=-1)
-        weight_best_rec = rec_feature_selection(clf, X, y, int(X.loc[0].shape[0]/2), coefs_herd_mean.shape, n_job=-1)
+        # weight_best_lasso = lasso_feature_selection(X, y, coefs_herd_mean.shape, n_job=-1)
+        # weight_best_rec = rec_feature_selection(clf, X, y, int(X.loc[0].shape[0]/3), coefs_herd_mean.shape, n_job=-1)
+
+        # weight_best_rec = weight_best_lasso
 
         print("fit...")
         clf.fit(X_train, y_train)
@@ -1521,7 +1548,7 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
         # clf = clf.best_estimator_
         y_pred = clf.predict(X_test)
-        print(classification_report(y_test, y_pred))
+        # print(classification_report(y_test, y_pred))
 
         # y_probas = clf.predict_proba(X_test)
         # y_probas = y_probas[:, :2]
@@ -1533,11 +1560,11 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
         print("explain_prediction...")
         # print(eli5.explain_prediction_df(clf))
-        doc = np.average(X, axis=0)
-        aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, doc)
-        aux1 = eli5.format_as_dataframe(aux1)
-        print("********************************")
-        print(aux1)
+        # doc = np.average(X, axis=0)
+        # aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, doc)
+        # aux1 = eli5.format_as_dataframe(aux1)
+        # print("********************************")
+        # print(aux1)
         # weight0 = get_eli5_weight(aux1, 0)
         # weight1 = get_eli5_weight(aux1, 1)
         # weight2 = get_eli5_weight(aux1, 2)
@@ -1547,24 +1574,44 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         # weight2 = np.multiply(doc, clf.coef_[2])
 
         weight0 = clf.coef_[0]
-        # weight1 = clf.coef_[1]
-        # weight2 = clf.coef_[2]
-
+        weight1 = clf.coef_[1]
+        weight2 = clf.coef_[2]
 
         pad_value = abs(np.prod(DATA_[0]['coef_shape']) - weight0.shape[0])
         for n in range(pad_value):
             weight0 = np.append(weight0, 0)
-            # weight1 = np.append(weight1, 0)
-            # weight2 = np.append(weight2, 0)
+            weight1 = np.append(weight1, 0)
+            weight2 = np.append(weight2, 0)
 
+
+        weight0_best = get_top_weight(weight0)
+        weight1_best = get_top_weight(weight1)
+
+        weight0_best_2 = get_top_weight(weight0, scale=6)
+        weight1_best_2 = get_top_weight(weight1, scale=6)
+        weight0_best_3 = get_top_weight(weight0, scale=12)
+        weight1_best_3 = get_top_weight(weight1, scale=12)
 
         print("building figure...")
         shape = DATA_[0]['coef_shape']
         data_to_plot = []
+        data_to_plot.append((coefs_herd_mean,
+                            np.real(wavelet.icwt(coefs_herd_mean, scales, delta_t, wavelet=wavelet_type))))
+        data_to_plot.append((coefs_class0_mean,
+                            np.real(wavelet.icwt(coefs_class0_mean, scales, delta_t, wavelet=wavelet_type))))
+        data_to_plot.append((coefs_class1_mean,
+                            np.real(wavelet.icwt(coefs_class1_mean, scales, delta_t, wavelet=wavelet_type))))
+
         data_to_plot.append(get_weight_map_data(weight0, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
         data_to_plot.append(get_weight_map_data(weight0, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
-        data_to_plot.append(get_weight_map_data(weight_best_rec, shape, coefs_herd_mean, scales, delta_t, wavelet_type))
-        data_to_plot.append(get_weight_map_data(weight_best_lasso, shape, coefs_herd_mean, scales, delta_t, wavelet_type))
+
+
+        data_to_plot.append(get_weight_map_data(weight0_best, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight1_best, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
+        # data_to_plot.append(get_weight_map_data(weight0_best_2, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
+        # data_to_plot.append(get_weight_map_data(weight1_best_2, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight0_best_3, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
+        data_to_plot.append(get_weight_map_data(weight1_best_3, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
 
 
         x_axis = [x for x in range(int(weight0.size/scales.size))]
@@ -1573,13 +1620,13 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
         with plt.style.context("seaborn-white"):
             fig, axs = plt.subplots(len(data_to_plot), 2, facecolor='white')
-            fig.set_size_inches(50, 70)
+            fig.set_size_inches(30, 5*len(data_to_plot))
 
             v_min_map, v_max_map, ymin2, ymax2 = get_min_max(data_to_plot)
 
-            for item in data_to_plot:
-                plot_cwt_coefs(fig, axs, 0, 0, w, item[0], out_dir, out_fname,  id='class0', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
-                pot_icwt(axs, 0, 1, item[1], ymin2, ymax2, out_dir, out_fname, id='class0', days=days, i=i, j=0)
+            for i, item in enumerate(data_to_plot):
+                plot_cwt_coefs(fig, axs, i, 0, w, item[0], out_dir, out_fname,  id='class0', days=days, i=i, j=0, vmin_map=v_min_map, vmax_map=v_max_map)
+                pot_icwt(axs, i, 1, item[1], ymin2, ymax2, out_dir, out_fname, id='class0', days=days, i=i, j=0)
 
 
             fig.show()
@@ -1880,7 +1927,7 @@ if __name__ == '__main__':
     #     shutil.rmtree("delmas_70101200027")
     # except (OSError, FileNotFoundError) as e:
     #     print(e)
-    for resolution in ['hour']:
+    for resolution in ['10min']:
         # for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
         #     dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
         #

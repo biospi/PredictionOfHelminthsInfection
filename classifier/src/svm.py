@@ -45,6 +45,7 @@ from matplotlib.lines import Line2D
 from scipy import interp
 from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
+import scipy.stats
 
 import os
 
@@ -614,6 +615,14 @@ def get_conf_interval(tprs, mean_fpr):
     return confidence_lower, confidence_upper
 
 
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return h, m, m-h, m+h
+
+
 def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
@@ -622,8 +631,9 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
     # mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     std_auc = np.std(aucs)
+    ninetyfive_auc, _, _, _ = mean_confidence_interval(aucs)
     ax.plot(mean_fpr, mean_tpr, color='tab:blue',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f (95%% CI))' % (mean_auc, ninetyfive_auc),
             lw=2, alpha=.8)
 
     std_tpr = np.std(tprs, axis=0)

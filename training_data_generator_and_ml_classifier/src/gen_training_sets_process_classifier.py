@@ -60,6 +60,7 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
 from scipy import interp
 from matplotlib.colors import LinearSegmentedColormap
+import scipy.stats
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -912,33 +913,34 @@ def create_training_set(result, dir, options=[]):
 
 
 def create_training_sets(data, dir_path):
-    path1, options1 = create_training_set(data, dir_path, options=["activity"])
+    # path1, options1 = create_training_set(data, dir_path, options=["activity"])
     path2, options2 = create_training_set(data, dir_path, options=["cwt"])
     # path3, options3 = create_training_set(data, dir_path, options=["weight"])
     # path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
     # path5, options5 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
-    path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
-    # path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
-    # path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
-    # path10, options10 = create_training_set(data, dir_path, options=["cwt", "temperature"])
-    path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
-    path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
+    # path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
+    # path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
+    # # path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
+    # # path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
+    # # path10, options10 = create_training_set(data, dir_path, options=["cwt", "temperature"])
+    # path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
+    # path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
     # path13, options13 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature", "weight"])
 
     return [
-        {"path": path1, "options": options1},
-            {"path": path2, "options": options2},
+
+            # {"path": path1, "options": options1},
+            {"path": path2, "options": options2}
             # {"path": path3, "options": options3},
             # {"path": path4, "options": options4},
             # {"path": path5, "options": options5},
-            {"path": path6, "options": options6},
-            {"path": path7, "options": options7},
+            # {"path": path6, "options": options6},
+            # {"path": path7, "options": options7},
             # {"path": path8, "options": options8},
             # {"path": path9, "options": options9},
             # {"path": path10, "options": options10},
-            {"path": path11, "options": options11},
-            {"path": path12, "options": options12}
+            # {"path": path11, "options": options11},
+            # {"path": path12, "options": options12}
             # {"path": path13, "options": options13}
         ]
 
@@ -1156,6 +1158,14 @@ def get_conf_interval(tprs, mean_fpr):
     return confidence_lower, confidence_upper
 
 
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return h, m, m-h, m+h
+
+
 def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
     print("plot_roc_range...")
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
@@ -1165,8 +1175,9 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
     # mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     std_auc = np.std(aucs)
+    ninetyfive_auc, _, _, _ = mean_confidence_interval(aucs)
     ax.plot(mean_fpr, mean_tpr, color='tab:blue',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f (95%% CI))' % (mean_auc, ninetyfive_auc),
             lw=2, alpha=.8)
 
     std_tpr = np.std(tprs, axis=0)
@@ -1524,7 +1535,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
-    clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+    _, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
     if X_lda is None:
         simplified_results = {"accuracy": -1,
@@ -1664,7 +1675,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     proba_y_false, proba_y_true , proba_y_false_2d, proba_y_true_2d = [], [], [], []
     clf_name_full, clf_name_1d, clf_name_2d, clf_name_3d = '', '', '', ''
     file_path_1d, file_path_2d, file_path_3d, file_path = '', '', '', ''
-    clf = None
+    clf = SVC(kernel='linear', probability=True)
     if clf_name == 'SVM':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
         # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
@@ -1702,9 +1713,9 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
 
     for i, (train_index, test_index) in enumerate(rkf.split(X)):
         if dim_reduc is None:
-            clf, X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
+            _, X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
                 X, y, train_index, test_index, i, clf_name=clf_name,
-                folder=folder, options=options, resolution=resolution, nfold=fold)
+                folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf)
             scores.append(acc)
             precision_false.append(p_false)
             precision_true.append(p_true)
@@ -1724,10 +1735,10 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             #     X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
             #     clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
 
-            clf, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            _, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
                 X, y, train_index, test_index, i, dim=2, dim_reduc_name=dim_reduc,
-                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf)
 
             if X_lda_2d is None:
                 continue
@@ -2170,7 +2181,7 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
             #                   options=input["options"], resolution=resolution),
             # process(data_frame, fold=10, clf_name='SVM', folder=dir,
             #         options=input["options"], resolution=resolution)
-            process(data_frame, fold=10, dim_reduc='LDA', clf_name='LDA', folder=dir, options=input["options"],
+            process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
                     resolution=resolution)
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
             #                   options=input["options"], resolution=resolution)
@@ -2449,11 +2460,11 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['10min', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
+    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21]
+        days_before_famacha_test_l = [6]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2474,7 +2485,7 @@ if __name__ == '__main__':
         os.chdir(os.path.dirname(__file__))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["cedara_70091100056"]:
+        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()
