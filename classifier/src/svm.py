@@ -23,7 +23,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold
+from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold, RepeatedStratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import normalize
@@ -47,6 +47,7 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
 import scipy.stats
 
+from sklearn import metrics
 import os
 
 os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1'  # path to your R installation
@@ -94,7 +95,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
-MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd/"
+MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd_new/"
 META_DATA_LENGTH = 19
 
 
@@ -187,7 +188,7 @@ def get_prec_recall_fscore_support(test_y, pred_y):
 
 from matplotlib import ticker
 def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8
-                                , style2=False):
+                                , style2=True):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
@@ -615,12 +616,13 @@ def get_conf_interval(tprs, mean_fpr):
     return confidence_lower, confidence_upper
 
 
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0 * np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
-    return h, m, m-h, m+h
+def mean_confidence_interval(x):
+    # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
+    x.sort()
+    lo_x_boot = np.percentile(x, 2.5)
+    hi_x_boot = np.percentile(x, 97.5)
+    print(lo_x_boot, hi_x_boot)
+    return lo_x_boot, hi_x_boot
 
 
 def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
@@ -631,9 +633,12 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig):
     # mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     std_auc = np.std(aucs)
-    ninetyfive_auc, _, _, _ = mean_confidence_interval(aucs)
+    lo, hi = mean_confidence_interval(aucs)
+    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    if len(aucs) <= 2:
+        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
     ax.plot(mean_fpr, mean_tpr, color='tab:blue',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f (95%% CI))' % (mean_auc, ninetyfive_auc),
+            label=label,
             lw=2, alpha=.8)
 
     std_tpr = np.std(tprs, axis=0)
@@ -675,10 +680,12 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     y_pred = clf.predict(X_test)
     y_probas = clf.predict_proba(X_test)
     p_y_true, p_y_false = get_proba(y_probas, y_pred)
-    # print(y_probas)
+    print(p_y_true, p_y_false)
     acc = accuracy_score(y_test, y_pred)
     # mcc = matthews_corrcoef(y_test, y_pred)
     # print("MCC", mcc)
+    skplt.metrics.plot_roc_curve(y_test, y_probas)
+    plt.show()
 
     print(classification_report(y_test, y_pred))
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true = get_prec_recall_fscore_support(
@@ -854,6 +861,7 @@ def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
                           "recall": recall_score(y_test, y_pred, average='weighted'),
                           "precision": precision_score(y_test, y_pred, average='weighted'),
                           "f-score": f1_score(y_test, y_pred, average='weighted')}
+    print(simplified_results)
     return simplified_results
 
 from sklearn.linear_model import LinearRegression
@@ -874,14 +882,14 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     clf_name_full, clf_name_2d, clf_name_3d = '', '', ''
 
     X, y = process_data_frame(data_frame, y_col=y_col)
-    # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
-    rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
+    rkf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
+    # rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
     # kf.get_n_splits(X)
 
-    clf = LDA()
+    # clf = LDA()
     # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
     # clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
-    # clf = SVC(kernel='linear', probability=True)
+    clf = SVC(kernel='linear', probability=True, C=0.00001)
     #
     # if clf_name == 'LREG':
     #     # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
@@ -982,6 +990,9 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
             return result
     else:
         # clf = LinearRegression(probability=True)
+        # clf.fit(X, y)
+        # clf = clf.best_estimator_
+        clf = SVC(kernel='linear', probability=True)
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -1017,14 +1028,8 @@ def find_type_for_mem_opt(df):
 
 def load_df_from_datasets(fname, label_col):
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
-    print(df)
     type_dict = find_type_for_mem_opt(df)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False, dtype=type_dict)
-
-    nan_count = sum(data_frame.isnull().sum(axis=1).tolist())
-
-    print(nan_count, fname)
-
     sample_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, sample_count)]
     hearder[-19] = "label"
@@ -1055,10 +1060,10 @@ def load_df_from_datasets(fname, label_col):
     data_frame["previous_famacha_score"] = pd.to_numeric(data_frame["previous_famacha_score"])
     data_frame["previous_famacha_score2"] = pd.to_numeric(data_frame["previous_famacha_score2"])
     data_frame["previous_famacha_score3"] = pd.to_numeric(data_frame["previous_famacha_score3"])
-    data_frame = data_frame[data_frame.famacha_score > 0]
-    data_frame = data_frame[data_frame.previous_famacha_score > 0]
-    data_frame = data_frame[data_frame.previous_famacha_score2 > 0]
-    data_frame = data_frame[data_frame.previous_famacha_score3 > 0]
+    # data_frame = data_frame[data_frame.famacha_score > 0]
+    # data_frame = data_frame[data_frame.previous_famacha_score > 0]
+    # data_frame = data_frame[data_frame.previous_famacha_score2 > 0]
+    # data_frame = data_frame[data_frame.previous_famacha_score3 > 0]
 
     data_frame_original = data_frame.copy()
     cols_to_keep = hearder[:-META_DATA_LENGTH]
@@ -1078,10 +1083,6 @@ def load_df_from_datasets(fname, label_col):
     #     # plt.show()
     # data_frame.drop(data_frame.index[row_to_delete])
     # print(data_frame)
-
-
-
-
     return data_frame_original, data_frame, cols_to_keep
 
 
@@ -1093,7 +1094,17 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         _, df2, cols_to_keep_2 = load_df_from_datasets(fname2, label_col)
         df1 = df1[cols_to_keep]
         df2 = df2[cols_to_keep]
+        print(df1.shape)
+        print(df2.shape)
         print("data loading finished.")
+        try:
+            class_true_count = df1[label_col].value_counts().to_dict()[True]
+            class_false_count = df1[label_col].value_counts().to_dict()[False]
+        except KeyError as e:
+            print(e)
+        print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
+        print("current_file is", fname1)
+        # exit(0)
         process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname, days=days, resolution=resolution)
         return
 
@@ -1112,6 +1123,14 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         print(nrows)
 
         print('data_frame:%s %s' % (str(data_frame["date1"].iloc[0]).split(' ')[0], str(data_frame["date1"].iloc[-1]).split(' ')[0]))
+
+        # if 'delmas' in fname1:
+        #     data_frame = data_frame.loc[(data_frame['date1'] >= datetime(2015, 4, 1))]
+        #     data_frame = data_frame.loc[(data_frame['date1'] <= datetime(2016, 4, 1))]
+        #
+        # if 'cedara' in fname1:
+        #     data_frame = data_frame.loc[(data_frame['date1'] >= datetime(2012, 4, 1))]
+        #     data_frame = data_frame.loc[(data_frame['date1'] <= datetime(2013, 4, 1))]
 
         df1 = data_frame[:nrows]
         df2 = data_frame[nrows:]
@@ -1134,8 +1153,8 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         class_1_count = data_frame['label'].value_counts().to_dict()[True]
         class_2_count = data_frame['label'].value_counts().to_dict()[False]
         print("class_true_count=%d and class_false_count=%d" % (class_1_count, class_2_count))
-        process(df1, df2=df2, dim_reduc='LDA', clf_name='LDA', fname=fname1, outfname=outfname+'12', y_col=label_col, days=days, resolution=resolution)
-        process(df2, df2=df1, dim_reduc='LDA', clf_name='LDA', fname=fname1, outfname=outfname+'21', y_col=label_col, days=days, resolution=resolution)
+        process(df1, df2=df2, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname+'12', y_col=label_col, days=days, resolution=resolution)
+        process(df2, df2=df1, dim_reduc='LDA', clf_name='SVM', fname=fname1, outfname=outfname+'21', y_col=label_col, days=days, resolution=resolution)
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
@@ -1171,16 +1190,21 @@ if __name__ == '__main__':
             #       half_period_split=True,
             #       days=day, resolution=resolution,
             #       outfname="herd_lev_var\\cwt_div")
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-                  half_period_split=True,
-                  days=day, resolution=resolution,
-                  outfname="half\\delmas")
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+            #       half_period_split=True,
+            #       days=day, resolution=resolution,
+            #       outfname="half\\cedara")
             
-            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-            #       fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-            #       outfname="cross_farm\\trained_on_delmas_test_on_cedara",
-            #       days=day, resolution=resolution)
-            #
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+                  fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+                  outfname="cross_farm\\trained_on_delmas_test_on_cedara",
+                  days=day, resolution=resolution)
+
+            start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+                  fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+                  outfname="cross_farm\\trained_on_cedara_test_on_delmas",
+                  days=day, resolution=resolution)
+
             # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
             #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",

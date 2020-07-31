@@ -42,7 +42,7 @@ __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 global sql_db
-db_name = "south_africa"
+db_name = "south_africa_debug_resamp_test4"
 
 
 def get_date_range(layout_data, herd=False):
@@ -666,10 +666,11 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         min_activity_value = 0
         s_d = time[0]
         e_d = time[len(time) - 1]
+        print(s_d)
         d1 = (datetime.strptime(s_d, '%Y-%m-%dT%H:%M') - datetime(1970, 1, 1)).total_seconds()
         d2 = (datetime.strptime(e_d, '%Y-%m-%dT%H:%M') - datetime(1970, 1, 1)).total_seconds()
-        start_date = datetime.fromtimestamp(d1).strftime('%d/%m/%Y %H:%M:%S')
-        end_date = datetime.fromtimestamp(d2).strftime('%d/%m/%Y %H:%M:%S')
+        start_date = datetime.fromtimestamp(d1).strftime('%d/%m/%Y %H:%M')
+        end_date = datetime.fromtimestamp(d2).strftime('%d/%m/%Y %H:%M')
         time_range = get_elapsed_time_string(d1, d2)
         if resolution_string == 'resolution_day':
             time = [t.split('T')[0] for t in time]

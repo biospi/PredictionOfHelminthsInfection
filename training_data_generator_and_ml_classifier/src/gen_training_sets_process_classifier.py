@@ -11,6 +11,8 @@ import statistics
 import sys
 import time
 from datetime import datetime, timedelta
+
+import joblib
 import xlsxwriter
 import dateutil.relativedelta
 import matplotlib.pyplot as plt
@@ -33,7 +35,7 @@ from sklearn.metrics import classification_report, accuracy_score, make_scorer, 
 from sklearn.model_selection import GridSearchCV
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import PCA
-from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold
+from sklearn.model_selection import KFold, StratifiedKFold, RepeatedKFold, RepeatedStratifiedKFold
 import scikitplot as skplt
 from matplotlib.lines import Line2D
 from mlxtend.plotting import plot_decision_regions
@@ -61,6 +63,8 @@ from sklearn.metrics import auc
 from scipy import interp
 from matplotlib.colors import LinearSegmentedColormap
 import scipy.stats
+
+from classifier.src.herd_map import create_herd_map, create_dataset_map
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -117,6 +121,7 @@ RESULT_FILE_HEADER = "accuracy_cv,accuracy_list,precision_true,precision_false,"
                      "file_path,input,classifier, decision_bounderies_file"
 
 RESULT_FILE_HEADER_SIMPLIFIED = "classifier, accuracy,specificity,recall,precision,fscore,proba_y_false,proba_y_true,days,sliding_w,resolution,inputs"
+RESULT_FILE_HEADER_R = "sample_id, class, class_prediction, prob_0, prob_1, fold, fold_10"
 
 skipped_class_false, skipped_class_true = -1, -1
 META_DATA_LENGTH = 19
@@ -244,7 +249,7 @@ def pad(a, N):
 
 
 def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015",
-                            db_name="south_africa_debug",
+                            db_name="south_africa_debug_resamp_test4",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     sql_db = pymysql.connect(host=db_server_name, user=db_user, password=db_password,
@@ -417,24 +422,26 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     rows_activity = execute_sql_query(sql_db, "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
                                       " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
                                       (farm_sql_table_id, resolution, date2, date1,
-                                       str(animal_id)))
+                                       str(animal_id)))[0: expected_sample_count]
 
     rows_herd = execute_sql_query(sql_db,
         "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
-        (farm_sql_table_id, resolution, 50000000000, date2, date1))
+        (farm_sql_table_id, resolution, 50000000000, date2, date1))[0: expected_sample_count]
 
     # activity_mean = normalize_activity_array_ascomb(rows_mean)
     herd_activity_list = [(x['first_sensor_value']) for x in rows_herd]
     activity_list = [(x['first_sensor_value']) for x in rows_activity]
+    time_range = [datetime.fromtimestamp(x['timestamp']) for x in rows_activity]
 
-    if len(rows_activity) != expected_sample_count:
+    if len(rows_activity) < expected_sample_count:
         # filter out missing activity data
-        print("absent activity records. skip.", "found %d" % len(rows_activity), "expected %d" % expected_sample_count)
+        l = len(rows_activity)
+        print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
         return
 
     # data_activity = normalize_activity_array_ascomb(data_activity)
-    herd_activity_list = anscombe_list(herd_activity_list)
-    activity_list = anscombe_list(activity_list)
+    herd_activity_list = anscombe_list(herd_activity_list[0: expected_sample_count])
+    activity_list = anscombe_list(activity_list[0: expected_sample_count])
 
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
@@ -450,7 +457,7 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     temperature_list = []
     dates_list_formated = []
 
-    for j, data_a in enumerate(rows_activity):
+    for j, data_a in enumerate(rows_activity[0: expected_sample_count]):
         # transform date in time for comparaison
         curr_datetime = datetime.utcfromtimestamp(int(data_a['timestamp']))
         timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
@@ -495,6 +502,7 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
             "previous_famacha_score2": prev_famacha_score2,
             "previous_famacha_score3": prev_famacha_score3,
             "previous_famacha_score4": prev_famacha_score4,
+            "time_range": time_range,
             "animal_id": animal_id,
             "date_range": [time.strftime('%d/%m/%Y', time.localtime(int(date1))),
                            time.strftime('%d/%m/%Y', time.localtime(int(date2)))],
@@ -579,11 +587,11 @@ def get_expected_sample_count(resolution, days_before_test):
     if resolution == "10min":
         expected_sample_n = ((24 * 60) / 10) * days_before_test
     if resolution == "hour":
-        expected_sample_n = (24 * days_before_test) - 1  # todo fix
+        expected_sample_n = (24 * days_before_test)
     if resolution == "day":
-        expected_sample_n = days_before_test - 1  # todo fix
+        expected_sample_n = days_before_test
 
-    expected_sample_n = expected_sample_n + 1
+    expected_sample_n = expected_sample_n - 4 #todo fix resampling clipping
     print("expected sample count is %d." % expected_sample_n)
     return expected_sample_n
 
@@ -618,7 +626,7 @@ def entropy2(labels, base=None):
 
 
 def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
-
+    reason = 'ok'
     # nan_threshold, zeros_threshold = 0, 0
     nan_threshold = len(activity) / threshold_nan_coef
     zeros_threshold = len(activity) / threshold_zeros_coef
@@ -631,13 +639,26 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
     occurance = b.max()
     print(most_abundant_value, occurance)
     if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
-        return False, nan_threshold, zeros_threshold, 0
+        reason = 'nan'
+        return False, nan_threshold, zeros_threshold, 0, reason
 
     nan_count = activity.count(None)
     zeros_count = activity.count(0)
     # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    if nan_count > int(nan_threshold/1) or zeros_count > zeros_threshold :#or contains_negative(activity):
-        return False, nan_threshold, zeros_threshold, 0
+
+    threshold_nan_coef = 5
+    threshold_zeros_coef = 2
+    nan_threshold = len(activity) / threshold_nan_coef
+    zeros_threshold = len(activity) / threshold_zeros_coef
+
+
+    if nan_count > int(nan_threshold/1):#or contains_negative(activity):
+        reason = 'nan'
+        return False, nan_threshold, zeros_threshold, 0, reason
+
+    if zeros_count > zeros_threshold :#or contains_negative(activity):
+        reason = 'zeros'
+        return False, nan_threshold, zeros_threshold, 0, reason
 
     # plt.plot(activity_np)
     # plt.show()
@@ -646,9 +667,10 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
     print(h)
     ENTROPY_THRESH = 3.5
     if h <= ENTROPY_THRESH:
-        return False, nan_threshold, zeros_threshold, h
+        reason = 'entropy'
+        return False, nan_threshold, zeros_threshold, h, reason
 
-    return True, nan_threshold, zeros_threshold, h
+    return True, nan_threshold, zeros_threshold, h, reason
 
 
 def multiple(m, n):
@@ -983,6 +1005,26 @@ def init_result_file(dir, farm_id, simplified_results=False):
     return filename
 
 
+def init_R_file(dir, farm_id, options):
+    path = "%s/analysis" % dir
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    filename = "%s/%s_%s_R.csv" % (path, farm_id, str(options).strip('[]').strip('\'').replace(',', '_'))
+    purge_file(filename)
+    with open(filename, 'a') as outfile:
+        outfile.write(RESULT_FILE_HEADER_R)
+        outfile.write('\n')
+    outfile.close()
+    return filename
+
+
+def append_R_result_file(filename, sample, label, label_p, prob0, prob1, fold, fold_r):
+    data = "%d, %d, %.2f, %.2f, %.2f, %d, %d" % (sample, label, label_p, prob0, prob1, fold, fold_r)
+    with open(filename, 'a') as outfile:
+        outfile.write(data)
+        outfile.write('\n')
+    outfile.close()
+
+
 def append_simplified_result_file(filename, classifier_name, accuracy, specificity, recall, precision, fscore,
                                   proba_y_false, proba_y_true,
                                   days_before_test, sliding_w, resolution, options):
@@ -1158,12 +1200,13 @@ def get_conf_interval(tprs, mean_fpr):
     return confidence_lower, confidence_upper
 
 
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0 * np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
-    return h, m, m-h, m+h
+def mean_confidence_interval(x):
+    # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
+    x.sort()
+    lo_x_boot = np.percentile(x, 2.5)
+    hi_x_boot = np.percentile(x, 97.5)
+    print(lo_x_boot, hi_x_boot)
+    return lo_x_boot, hi_x_boot
 
 
 def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
@@ -1175,9 +1218,9 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
     # mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     std_auc = np.std(aucs)
-    ninetyfive_auc, _, _, _ = mean_confidence_interval(aucs)
+    lo, hi = mean_confidence_interval(aucs)
     ax.plot(mean_fpr, mean_tpr, color='tab:blue',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f (95%% CI))' % (mean_auc, ninetyfive_auc),
+            label=r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi),
             lw=2, alpha=.8)
 
     std_tpr = np.std(tprs, axis=0)
@@ -1531,9 +1574,11 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
         return None, None, None, None, None, None, None
 
 
+cpt_sample = 0
+fold_split = 0
 def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_reduc_name=None, clf_name='',
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
-                  enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
+                  enalble_2Dplot=True, enalble_3Dplot=True, nfold=1, farm_id=None, filename_r=None):
 
     _, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                   dim_reduc=dim_reduc_name)
@@ -1549,16 +1594,25 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
     clf.fit(X_train, y_train)
+    # joblib.dump(clf, "%s.model" % farm_id)
+
     print("Best estimator found by grid search:")
     # print(clf.best_estimator_)
 
     y_pred = clf.predict(X_test)
     # y_pred_val = clf.predict(X_val)
     y_probas = clf.predict_proba(X_test)
+    proba = np.mean(y_probas) if y_probas.size > 0 else 0
     p_y_true, p_y_false = get_proba(y_probas, y_pred)
     acc = accuracy_score(y_test, y_pred)
     # acc_val = accuracy_score(y_val, y_pred_val)
     print(classification_report(y_test, y_pred))
+
+    # todo create file for roc in r
+    for n, p in enumerate(y_probas):
+        global cpt_sample, fold_split
+        append_R_result_file(filename_r, test_index[n], y_test[n], y_pred[n], p[0], p[1], i, fold_split)
+        cpt_sample = cpt_sample + 1
 
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
     support_false, support_true = get_prec_recall_fscore_support(
@@ -1648,7 +1702,7 @@ def get_proba(y_probas, y_pred):
     return proba_0 , proba_1
 
 
-def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label'):
+def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, options=None, resolution=None, y_col='label', farm_id=None):
     if clf_name not in ['SVM', 'MLP', 'LREG', 'KNN', 'LDA']:
         raise ValueError('classifier %s is not available! available clf_name are KNN, MPL, LREG, SVM' % clf_name)
     print("process...")
@@ -1660,7 +1714,9 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         return {"error": str(e)}
     # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     # kf.get_n_splits(X)
-    rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=int((datetime.now().microsecond)/10))
+    N_FOLD = 10
+    # rkf = RepeatedKFold(n_splits=N_FOLD, n_repeats=100, random_state=int((datetime.now().microsecond)/10))
+    rkf = RepeatedStratifiedKFold(n_splits=N_FOLD, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
 
     scores, scores_1d, scores_2d, scores_3d = [], [], [], []
     precision_false, precision_false_1d, precision_false_2d, precision_false_3d = [], [], [], []
@@ -1679,7 +1735,9 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     if clf_name == 'SVM':
         param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
         # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
-        clf = SVC(kernel='linear', probability=True)
+        clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, cv=rkf, n_jobs=-1)
+
+        # clf = SVC(kernel='linear', probability=True)
 
     # if clf_name == 'LDA':
     #     clf = LDA()
@@ -1698,24 +1756,26 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid)
 
     print("looking for best hyperparameters...")
-    # try:
-    #     clf.fit(X, y)
-    # except ValueError as e:
-    #     print(e)
-    #     return {}
-    # clf = clf.best_estimator_
-    # print(clf)
+    try:
+        clf.fit(X, y)
+    except ValueError as e:
+        print(e)
+        return {}
+    clf = clf.best_estimator_
+    joblib.dump(clf, "%s.model" % farm_id)
+    print(clf)
 
     fig_roc_2d, ax_roc_2d = plt.subplots()
     mean_fpr_2d = np.linspace(0, 1, 100)
     tprs_2d = []
     aucs_2d = []
 
+    filename_r = init_R_file(folder, farm_id, options)
     for i, (train_index, test_index) in enumerate(rkf.split(X)):
         if dim_reduc is None:
             _, X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
                 X, y, train_index, test_index, i, clf_name=clf_name,
-                folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf)
+                folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf, farm_id=farm_id)
             scores.append(acc)
             precision_false.append(p_false)
             precision_true.append(p_true)
@@ -1738,7 +1798,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             _, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
                 X, y, train_index, test_index, i, dim=2, dim_reduc_name=dim_reduc,
-                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf)
+                clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold, clf=clf,
+                farm_id=farm_id, filename_r=filename_r)
 
             if X_lda_2d is None:
                 continue
@@ -1757,6 +1818,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             # support_false_1d.append(s_false_1d)
             # support_true_1d.append(s_true_1d)
             # simplified_results_1d.append(sr_1d)
+
 
             scores_2d.append(acc_2d)
             precision_false_2d.append(p_false_2d)
@@ -1789,6 +1851,10 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             # support_false_3d.append(s_false_3d)
             # support_true_3d.append(s_true_3d)
             # simplified_results_3d.append(sr_3d)
+            global fold_split
+            fold_split = fold_split + 1
+            if fold_split >= N_FOLD:
+                fold_split = 0
 
     plot_roc_range(ax_roc_2d, tprs_2d, mean_fpr_2d, aucs_2d, fig_roc_2d, title_2d, options, folder)
 
@@ -2161,6 +2227,7 @@ def load_df_from_datasets(fname, label_col):
 def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, farm_id, sliding_w, label_col='label'):
     filename = init_result_file(dir, farm_id)
     filename_s = init_result_file(dir, farm_id, simplified_results=True)
+
     print("start classification...", inputs)
     start_time = time.time()
     for input in inputs:
@@ -2176,13 +2243,14 @@ def process_classifiers(inputs, dir, resolution, dbt, thresh_nan, thresh_zeros, 
             continue
         print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
         print("current_file is", input)
+
         for result in [
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir,
             #                   options=input["options"], resolution=resolution),
             # process(data_frame, fold=10, clf_name='SVM', folder=dir,
             #         options=input["options"], resolution=resolution)
             process(data_frame, fold=10, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
-                    resolution=resolution)
+                    resolution=resolution, farm_id=farm_id)
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
             #                   options=input["options"], resolution=resolution)
             # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
@@ -2359,7 +2427,6 @@ def process_day(params):
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
     # if False:
-    #     print("force create!")
     if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
@@ -2371,6 +2438,7 @@ def process_day(params):
             except (OSError, FileNotFoundError) as e:
                 print(e)
     else:
+        print("force create!")
         print('start training sets creation...')
         try:
             shutil.rmtree(dir)
@@ -2378,6 +2446,9 @@ def process_day(params):
             print(e)
             # exit(-1)
 
+        # meta_data, activity_data, animals_id = [], [], []
+        # time_range = None
+        dataset_heatmap_data = {}
         for i, curr_data_famacha in enumerate(data_famacha_list):
             try:
                 result = get_training_data(sql_db, curr_data_famacha, i, data_famacha_list.copy(), data_famacha_dict, weather_data, resolution,
@@ -2389,10 +2460,25 @@ def process_day(params):
             if result is None:
                 continue
 
-            is_valid, nan_threshold, zeros_threshold, h = is_activity_data_valid(result["activity"],
+            is_valid, nan_threshold, zeros_threshold, h, reason = is_activity_data_valid(result["activity"],
                                                                               threshold_nan_coef,
                                                                               threshold_zeros_coef)
+
+            # activity_data.append([np.nan if x is None else x for x in result["activity"]])
+            # animals_id.append(str(curr_data_famacha[2]))
+            # if time_range is None:
+            #     time_range = result["time_range"]
+            #
+            # meta = []
+            # for _ in result["activity"]:
+            #     if not is_valid:
+            #         meta.append(-1)
+            #         continue
+            #     meta.append(result['famacha_score'])
+            # meta_data.append(meta)
+
             result['is_valid'] = True
+            result['reason'] = reason
             result['entropy'] = h
             if not is_valid:
                 result['is_valid'] = False
@@ -2401,23 +2487,52 @@ def process_day(params):
             result["zeros_threshold"] = zeros_threshold
             results.append(result)
 
+            animal_id = str(curr_data_famacha[2])
+
+            if animal_id not in dataset_heatmap_data.keys():
+                dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [], "valid": []}
+
+            activity = [np.nan if x is None else x for x in result["activity"]]
+            dataset_heatmap_data[animal_id]["activity"].append(activity)
+            dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
+            dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
+            dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
+
         skipped_class_false, skipped_class_true = process_famacha_var(results)
+        f_id = farm_id+'_'+resolution+'_'+str(days_before_famacha_test)
+        print(f_id)
+        for i in range(len(dataset_heatmap_data.keys())):
+            print(list(dataset_heatmap_data.values())[i]['famacha'])
+        # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
+        create_dataset_map(dataset_heatmap_data, f_id)
 
         class_input_dict = []
+        print("create_activity_graph...")
         for idx in range(len(results)):
             result = results[idx]
+
+            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+            filename = create_filename(result)
+            if create_activity_graph_enabled:
+                create_activity_graph(result["activity"], dir, filename,
+                                      title=create_graph_title(result, "time"),
+                                      sub_sub_folder=str(result["animal_id"])+"/"+result["reason"]+'_na'+str(result["nan_threshold"])+'_zer'+
+                                                     str(result["zeros_threshold"])+'_l'+str(len(result["activity"])))
+
+            continue
+
             if not result['is_valid']:
                 results[idx] = None
                 continue
             if result['ignore']:
                 results[idx] = None
                 continue
-            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-            filename = create_filename(result)
-            if create_activity_graph_enabled:
-                create_activity_graph(result["activity"], dir, filename,
-                                      title=create_graph_title(result, "time"),
-                                      sub_sub_folder=str(result['famacha_score_increase']))
+            # pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+            # filename = create_filename(result)
+            # if create_activity_graph_enabled:
+            #     create_activity_graph(result["activity"], dir, filename,
+            #                           title=create_graph_title(result, "time"),
+            #                           sub_sub_folder=str(result['famacha_score_increase']))
 
             # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
             if 'sd' in src or 'sp' in src:
@@ -2446,25 +2561,26 @@ def process_day(params):
             results[idx] = None
             gc.collect()
 
+    print("create_activity_graph done.")
     # herd_file_path = dir + '/%s_herd_activity.json' % farm_id
     # herd_file_path = herd_file_path.replace('/', '\\')
     # if not os.path.exists(herd_file_path):
     #     with open(herd_file_path, 'w') as fout:
     #         json.dump({'herd_activity': herd_data}, fout)
-
-    process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
-                        zeros_threshold, farm_id, sliding_w)
+    #
+    # process_classifiers(class_input_dict, dir, resolution, days_before_famacha_test, nan_threshold,
+    #                     zeros_threshold, farm_id, sliding_w)
     sql_db.cursor().close()
     sql_db.close()
 
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
+    zipped = zip(['hour'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [6]
+        days_before_famacha_test_l = [7]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2480,12 +2596,12 @@ if __name__ == '__main__':
     print('args=', sys.argv)
     print("pandas", pd.__version__)
 
-    src_folders = ["sd\\"]
+    src_folders = ["sd_new2\\"]
     for src_folder in src_folders:
-        os.chdir(os.path.dirname(__file__))
+        os.chdir(os.path.dirname(__file__).replace('C:', 'E:'))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
+        for farm_id in ["delmas_70101200027"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()

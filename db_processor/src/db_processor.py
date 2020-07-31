@@ -8,7 +8,7 @@ import math
 from datetime import datetime, timedelta, time
 from sys import exit
 
-# import numpy as np
+import numpy as np
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
@@ -21,7 +21,7 @@ import time
 import os
 import glob
 import xlrd
-import pandas
+import pandas as pd
 import sys
 import pymysql
 import tables
@@ -33,11 +33,18 @@ from multiprocessing import Pool
 # from openpyxl import load_workbook
 # from pycel import ExcelCompiler
 # import cryptography #need to be imported or pip install cryptography
+import matplotlib.pyplot as plt
 
+from classifier.src.herd_map import create_herd_map
 
 sql_db = None
-MAX_ACTIVITY_COUNT_BIO = 95000000
+MAX_ACTIVITY_COUNT_BIO = 450
+pd.set_option('display.max_columns', 48)
+pd.set_option('display.width', 1000)
+pd.set_option('display.max_rows', 1000)
 
+
+# pd.set_option('display.float_format', lambda x: '%d' % x )
 
 class Animal(IsDescription):
     timestamp = Int32Col()
@@ -312,14 +319,14 @@ def check_if_same_day(curr_date_time, next_date_time):
 
 
 def get_first_last_timestamp(animal_records):
-    animal_records = sorted(animal_records, key=lambda x: x[0]) #make sure that the records are sorted by timestamp
+    animal_records = sorted(animal_records, key=lambda x: x[0])  # make sure that the records are sorted by timestamp
     first_record_date = animal_records[0][0]
     last_record_date = animal_records[-1][0]
     first_record_date_reduced_to_first_sec = datetime.strptime(datetime.fromtimestamp(first_record_date)
                                                                .strftime("%Y-%m-%d %H:%M:00"), "%Y-%m-%d %H:%M:%S")
 
     # reduce minutes ex 37 -> 30 or 01 -> 00
-    minutes = int(str(first_record_date_reduced_to_first_sec.minute).zfill(2)[:-1]+"0")
+    minutes = int(str(first_record_date_reduced_to_first_sec.minute).zfill(2)[:-1] + "0")
     first_record_date_reduced_to_first_sec = first_record_date_reduced_to_first_sec.replace(minute=minutes)
 
     last_record_date_reduced_to_first_sec = datetime.strptime(datetime.fromtimestamp(last_record_date)
@@ -332,7 +339,6 @@ def get_list_average(l):
 
 
 def format_farm_id(farm_id):
-
     if farm_id == "70091100056":
         farm_id = "cedara_" + farm_id
 
@@ -416,10 +422,10 @@ def resample_to_min(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -431,25 +437,27 @@ def resample_to_min(first_timestamp, last_timestamp, animal_records):
         if activity is None:
             data.append(record)
         else:
-            data.append((record[0], record[1], record[2], get_list_average(record[3]), get_list_average(record[4]), activity))
+            data.append(
+                (record[0], record[1], record[2], get_list_average(record[3]), get_list_average(record[4]), activity))
 
     return data
 
 
 def custom_round(x, base=5):
-    return base * math.floor(x/base)
+    return base * math.floor(x / base)
 
 
 def resample_to_5min(first_timestamp, last_timestamp, animal_records):
     data = []
-    n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp)/5)
+    n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 5)
     structure_m = {}
     for i in xrange(0, n_minutes_in_between):
-        next_timestamp = first_timestamp + timedelta(minutes=i*5)
+        next_timestamp = first_timestamp + timedelta(minutes=i * 5)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:%M")
         serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
 
     # fill in resampled structure with records data
     for record in animal_records:
@@ -460,10 +468,10 @@ def resample_to_5min(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -485,14 +493,15 @@ def roundup(x):
 
 def resample_to_10min(first_timestamp, last_timestamp, animal_records):
     data = []
-    n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp)/10)
+    n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 10)
     structure_m = {}
     for i in xrange(0, n_minutes_in_between):
-        next_timestamp = first_timestamp + timedelta(minutes=i*10)
+        next_timestamp = first_timestamp + timedelta(minutes=i * 10)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:%M")
         serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
     # fill in resampled structure with records data
     for record in animal_records:
         record_timestamp_f = datetime.fromtimestamp(record[0]).strftime("%Y-%m-%dT%H:%M")
@@ -503,10 +512,10 @@ def resample_to_10min(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -529,9 +538,10 @@ def resample_to_hour(first_timestamp, last_timestamp, animal_records):
     for i in xrange(0, n_hours_in_between):
         next_timestamp = first_timestamp + timedelta(hours=i)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:00")
-        serial_number = animal_records[0][2] #just take first record and get serial number
+        serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
 
     # fill in resampled structure with records data
     for record in animal_records:
@@ -540,10 +550,10 @@ def resample_to_hour(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -561,15 +571,16 @@ def resample_to_hour(first_timestamp, last_timestamp, animal_records):
 
 def resample_to_day(first_timestamp, last_timestamp, animal_records):
     data = []
-    n_days_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp)/60/24)
+    n_days_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24)
     structure_m = {}
-    #build the time structure
+    # build the time structure
     for i in xrange(0, n_days_in_between):
         next_timestamp = first_timestamp + timedelta(days=i)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
-        serial_number = animal_records[0][2] #just take first record and get serial number
+        serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
 
     # fill in resampled structure with records data
     for record in animal_records:
@@ -578,10 +589,10 @@ def resample_to_day(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -599,15 +610,16 @@ def resample_to_day(first_timestamp, last_timestamp, animal_records):
 
 def resample_to_week(first_timestamp, last_timestamp, animal_records):
     data = []
-    n_weeks_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp)/60/24/7))
+    n_weeks_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24 / 7))
     structure_m = {}
-    #build the time structure
+    # build the time structure
     for i in xrange(0, n_weeks_in_between):
-        next_timestamp = first_timestamp + timedelta(days=i*7)
+        next_timestamp = first_timestamp + timedelta(days=i * 7)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
-        serial_number = animal_records[0][2] #just take first record and get serial number
+        serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
 
     # fill in resampled structure with records data
     for record in animal_records:
@@ -616,10 +628,10 @@ def resample_to_week(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -637,15 +649,16 @@ def resample_to_week(first_timestamp, last_timestamp, animal_records):
 
 def resample_to_month(first_timestamp, last_timestamp, animal_records):
     data = []
-    n_months_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp)/60/24/7/30))
+    n_months_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24 / 7 / 30))
     structure_m = {}
-    #build the time structure
+    # build the time structure
     for i in xrange(0, n_months_in_between):
-        next_timestamp = first_timestamp + timedelta(days=i*30)
+        next_timestamp = first_timestamp + timedelta(days=i * 30)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
-        serial_number = animal_records[0][2] #just take first record and get serial number
+        serial_number = animal_records[0][2]  # just take first record and get serial number
         structure_m[next_timestamp_human_readable] = [int(time.mktime(next_timestamp.timetuple())),
-                                                      next_timestamp_human_readable, serial_number, None, None, None, None]
+                                                      next_timestamp_human_readable, serial_number, None, None, None,
+                                                      None]
 
     # fill in resampled structure with records data
     for record in animal_records:
@@ -654,10 +667,10 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
             struct = structure_m[record_timestamp_f]
             if struct[3] is None:
                 struct[3] = []
-            struct[3].append(record[3]) #signal strenght
+            struct[3].append(record[3])  # signal strenght
             if struct[4] is None:
                 struct[4] = []
-            struct[4].append(record[4]) #battery level
+            struct[4].append(record[4])  # battery level
             if struct[5] is None:
                 struct[5] = 0
             if record[5] is not None:
@@ -683,10 +696,15 @@ def process_raw_h5files(path):
         farm_id = x['control_station']
         # if farm_id != 70101200027: #todo remove
         #     continue
+        if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
+            continue
         value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
-                 x['first_sensor_value'],
-                 datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"))
+                 x['first_sensor_value'], datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
+                 datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
+                                   '%Y-%m-%dT%H:%M:%S'))
         list_raw.append(value)
+        # if idx > 900000:  # todo remove
+        #     break
     # group records by farm id/control_station
     groups = defaultdict(list)
     for i, obj in enumerate(list_raw):
@@ -732,10 +750,10 @@ def create_mean_median_animal_(data):
             mean_battery += record[4] if record[4] is not None else 0
             mean_signal_strengh += record[3] if record[3] is not None else 0
 
-        ss = int(mean_signal_strengh/len(item))
-        bat = int(mean_battery/len(item))
+        ss = int(mean_signal_strengh / len(item))
+        bat = int(mean_battery / len(item))
         m_a_l = list(mean_activity.values())[0]
-        m_a = None if len(m_a_l) == 0 else sum(m_a_l)/len(m_a_l)
+        m_a = None if len(m_a_l) == 0 else sum(m_a_l) / len(m_a_l)
         mean_record = (epoch, epoch_f, mean_serial_number, ss if ss != 0 else None,
                        bat if bat != 0 else None, m_a)
         mean_data.append(mean_record)
@@ -743,21 +761,34 @@ def create_mean_median_animal_(data):
         median_a = statistics.median(sorted(list(median_activity.values())))
         median_b = statistics.median(sorted(list(median_battery.values())))
         median_ss = statistics.median(sorted(list(median_signal_strengh.values())))
-        median_record = (epoch, epoch_f, median_serial_number, median_ss if median_ss != 0 else None, median_b if median_b != 0 else None, median_a if median_b != 0 else None)
+        median_record = (epoch, epoch_f, median_serial_number, median_ss if median_ss != 0 else None,
+                         median_b if median_b != 0 else None, median_a if median_b != 0 else None)
         median_data.append(median_record)
     result = mean_data + median_data
     return result
 
 
 def create_indexes(farm_id):
-    execute_sql_query("CREATE INDEX ix__%s_resolution_month__sn__ts on %s_resolution_month(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_week__sn__ts on %s_resolution_week(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_day__sn__ts on %s_resolution_day(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_10min__sn__ts on %s_resolution_10min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    execute_sql_query("CREATE INDEX ix__%s_resolution_5min__sn__ts on %s_resolution_5min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_month__sn__ts on %s_resolution_month(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_week__sn__ts on %s_resolution_week(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_day__sn__ts on %s_resolution_day(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_10min__sn__ts on %s_resolution_10min(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
+    execute_sql_query(
+        "CREATE INDEX ix__%s_resolution_5min__sn__ts on %s_resolution_5min(serial_number, timestamp, first_sensor_value )" % (
+        farm_id, farm_id), log_enabled=True)
     # execute_sql_query("CREATE INDEX ix__%s_resolution_min__sn__ts on %s_resolution_min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
-    
+
 
 def create_mean_median_animal(data):
     print('create_mean_median_animal...')
@@ -798,11 +829,11 @@ def create_mean_median_animal(data):
             mean_max_signal_strengh += record[4] if record[4] is not None else 0
             mean_min_signal_strengh += record[3] if record[3] is not None else 0
 
-        ss_min = int(mean_min_signal_strengh/len(item))
-        ss_max = int(mean_max_signal_strengh/len(item))
-        bat = int(mean_battery/len(item))
+        ss_min = int(mean_min_signal_strengh / len(item))
+        ss_max = int(mean_max_signal_strengh / len(item))
+        bat = int(mean_battery / len(item))
         m_a_l = list(mean_activity.values())[0]
-        m_a = None if len(m_a_l) == 0 else sum(m_a_l)/len(m_a_l)
+        m_a = None if len(m_a_l) == 0 else sum(m_a_l) / len(m_a_l)
         mean_record = (epoch, epoch_f, mean_serial_number, ss_min if ss_min != 0 else None,
                        ss_max if ss_max != 0 else None, bat if bat != 0 else None, m_a)
 
@@ -813,12 +844,63 @@ def create_mean_median_animal(data):
         median_min_ss = statistics.median(sorted(list(median_min_signal_strengh.values())))
         median_max_ss = statistics.median(sorted(list(median_max_signal_strengh.values())))
         median_record = (epoch, epoch_f, median_serial_number, median_min_ss if median_min_ss != 0 else None,
-                         median_max_ss if median_max_ss != 0 else None, median_b if median_b != 0 else None, median_a if median_b != 0 else None)
+                         median_max_ss if median_max_ss != 0 else None, median_b if median_b != 0 else None,
+                         median_a if median_b != 0 else None)
         median_data.append(median_record)
 
     result = mean_data + median_data
 
     return result
+
+
+def create_dataframe(list_data):
+    df = pd.DataFrame(list_data)
+    df.columns = ['timestamp', 'farm_id', 'serial_number', 'signal_strength', 'battery_voltage', 'first_sensor_value',
+                  'date', 'date_str']
+    df = df.sort_values(by='date')
+    return df
+
+
+def resample(res, data):
+    data = data.set_index('date')
+    data.index.name = None
+    data.index = pd.to_datetime(data.index)
+    data['signal_strength_2'] = data['signal_strength']
+    df = data.resample(res).agg(dict(timestamp='first', farm_id='first',
+                                     serial_number='first', signal_strength='min', signal_strength_2='max',
+                                     battery_voltage='mean',
+                                     first_sensor_value='sum', date_str='first'
+                                     ), skipna=False)
+
+    # data.resample(res, on='date', how={'timestamp': np.median, 'farm_id': np.median, 'serial_number': np.median, 'signal_strength': np.mean,
+    #                         'battery_voltage': np.mean, 'first_sensor_value': np.sum, 'date_str': np.mean
+    #                         })
+    # df = df.reset_index()
+    if res == 'H':
+        print(df)
+        df.plot(x='timestamp', y='first_sensor_value')
+        plt.show()
+
+    df.loc[df.battery_voltage.isnull(), 'first_sensor_value'] = np.nan
+    df = df.reset_index()
+    df['ts'] = df['index'].values.astype(np.int64) // 10 ** 9
+    df['ds'] = df['index'].dt.strftime('%Y-%m-%dT%H:%M')
+    subset = df[['ts', 'ds', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
+                 'first_sensor_value']]
+
+    subset = subset.assign(
+        serial_number=df['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
+    data = [(np.nan if np.isnan(x[0]) else int(x[0]),
+               str(x[1]),
+               None if np.isnan(x[2]) else int(x[2]),
+               None if np.isnan(x[3]) else int(x[3]),
+               None if np.isnan(x[4]) else int(x[4]),
+               None if np.isnan(x[5]) else int(x[5]),
+               None if np.isnan(x[6]) else int(x[6])) for x in subset.to_numpy()]
+
+    # activity = [None if np.isnan(x[6]) else int(x[6]) for x in subset.to_numpy()]
+
+    return data
 
 
 def process_raw_file(farm_id, data):
@@ -847,23 +929,38 @@ def process_raw_file(farm_id, data):
         pool = Pool(processes=5)
 
     animal_serial_number_to_ignore = []
+    activity_data = []
+    animals_id = []
+    time_range = []
     for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
         print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
         # find first and last record date.
         # if len(animal_records) < 100:
         #     continue
         serial_number = animal_records[0][2]
+        animals_id.append(serial_number)
         if serial_number in animal_serial_number_to_ignore:
             continue
         first_timestamp, last_timestamp = get_first_last_timestamp(animal_records)
+        animal_records_df = create_dataframe(animal_records)
+        # print(df)
+        # df.plot(x='date', y='first_sensor_value')
+        # plt.show()
         if not MULTI_THREADING_ENABLED:
             # data_resampled_min.extend(resample_to_min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
-            data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
-            data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
-            data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
+            data_resampled_10min.extend(resample('10min', animal_records_df))
+            # activity_data.append(resample('10min', animal_records_df))
+            data_resampled_5min.extend(resample('5min', animal_records_df))
+            data_resampled_hour.extend(resample('H', animal_records_df))
+            data_resampled_day.extend(resample('D', animal_records_df))
+            data_resampled_week.extend(resample('W', animal_records_df))
+            data_resampled_month.extend(resample('M', animal_records_df))
         else:
             iterable = [animal_records]
             # func1 = partial(resample_to_min, first_timestamp, last_timestamp)
@@ -894,8 +991,10 @@ def process_raw_file(farm_id, data):
             data_resampled_month.extend(r5)
             data_resampled_10min.extend(r6)
             data_resampled_5min.extend(r7)
-    #save data in db
+    # save data in db
     print("saving data to db...")
+    # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
+    # exit(0)
 
     data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
     insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
@@ -937,7 +1036,8 @@ def process_raw_file(farm_id, data):
     #     table_10min.flush()
     #     table_5min.flush()
 
-    print(len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour), len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
+    print(len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour), len(data_resampled_day),
+          len(data_resampled_week), len(data_resampled_month))
     print(get_elapsed_time_string(start_time, time.time()))
     print("finished processing raw file.")
 
@@ -1015,7 +1115,7 @@ def process_raw_file2(farm_id, data):
             data_resampled_month.extend(r5)
             data_resampled_10min.extend(r6)
             data_resampled_5min.extend(r7)
-    #save data in db
+    # save data in db
     print("saving data to db...")
 
     data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
@@ -1058,7 +1158,8 @@ def process_raw_file2(farm_id, data):
     #     table_10min.flush()
     #     table_5min.flush()
 
-    print(len(data_resampled_min), len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour), len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
+    print(len(data_resampled_min), len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour),
+          len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
     print(get_elapsed_time_string(start_time, time.time()))
     print("finished processing raw file.")
 
@@ -1069,8 +1170,9 @@ def xl_date_to_date(xldate, wb):
 
 
 def convert_excel_time(cell_with_excel_time, wb):
-    year, month, day, hour, minute, second = xlrd.xldate_as_tuple(cell_with_excel_time, wb.datemode)#year=month=day=0
-    py_date = datetime(year=1989, month=4, day=12, hour=hour, minute=minute, second=second)#used dummy date we only need time
+    year, month, day, hour, minute, second = xlrd.xldate_as_tuple(cell_with_excel_time, wb.datemode)  # year=month=day=0
+    py_date = datetime(year=1989, month=4, day=12, hour=hour, minute=minute,
+                       second=second)  # used dummy date we only need time
     time_value = py_date.strftime("%I:%M:%S %p")
     return time_value
 
@@ -1094,9 +1196,8 @@ def print_except(e):
 
 
 def strip_list(l):
-    print(l)
+    # print(l)
     return [x.strip().lower().replace(" ", "").replace("batteryife", "batterylife") for x in l]
-
 
 
 def ignore(path):
@@ -1130,7 +1231,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
         purge_file(file_name)
         # h5file = tables.open_file("raw_data.h5", mode="w", driver="H5FD_CORE")
 
-        store = pandas.HDFStore(file_name)
+        store = pd.HDFStore(file_name)
 
     # table_f = h5file.create_table("/", "data", Animal, "Animal data in full resolution", expectedrows=33724492)
     # table_row = table_f.row
@@ -1140,7 +1241,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
         print('progress %s/%d' % (curr_file, len(file_paths)))
         if ignore(path):
             continue
-        # if "70091100056_2013-3-08_06-00-00_to_2013-3-14_06-00-00.xlsx" not in path:
+        # if "70101200027_2015-4-15_06-00-00_to_2015-4-20_06-00-00.xlsx" not in path:
         #     # print(curr_file)
         #     continue
 
@@ -1260,16 +1361,18 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         try:
                             date_string = xl_date_to_date(row_values[date_col_index], book) + " " + convert_excel_time(
                                 row_values[time_col_index], book)
+                            # print(date_string)
                         except TypeError as e:
                             print(e)
                             continue
 
                         epoch = int(datetime.strptime(date_string, '%d/%m/%Y %I:%M:%S %p').timestamp())
-                        control_station = farm_id#int(row_values[control_station_col_index])
+                        control_station = farm_id  # int(row_values[control_station_col_index])
                         serial_number = int(row_values[serial_number_col_index])
 
                         try:
-                            signal_strength = int(str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
+                            signal_strength = int(
+                                str(row_values[signal_strength_col_index]).replace("@", "").split('.')[0])
                         except (IndexError, NameError, UnboundLocalError, ValueError) as e:
                             # print(e)
                             # print(path)
@@ -1288,7 +1391,9 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                             print(path)
                             continue
 
-                        print(curr_file, len(file_paths), farm_id, sheet.name, row_values, path, first_sensor_value_col_index, battery_voltage_col_index, signal_strength_col_index, serial_number_col_index, date_col_index, time_col_index)
+                        # print(curr_file, len(file_paths), farm_id, sheet.name, row_values, path,
+                        #       first_sensor_value_col_index, battery_voltage_col_index, signal_strength_col_index,
+                        #       serial_number_col_index, date_col_index, time_col_index)
 
                         record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d" % (
                             date_string,
@@ -1300,7 +1405,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         transponders[serial_number] = ''
 
                         df.append(
-                            pandas.DataFrame({
+                            pd.DataFrame({
                                 'timestamp': epoch,
                                 'control_station': control_station,
                                 'serial_number': serial_number,
@@ -1317,15 +1422,17 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         if not None:
                             print(row_values)
                         log = "%d/%d--%s---%s---%s---%s" % (
-                        curr_file, len(file_paths), get_elapsed_time_string(start_time, time.time()), str(exception), path,
-                        record_log)
+                            curr_file, len(file_paths), get_elapsed_time_string(start_time, time.time()),
+                            str(exception), path,
+                            record_log)
                         print(log)
                         log_file.write(log + "\n")
 
                 print("transponders:", transponders.keys())
                 if len(df) == 0:
                     continue
-                store.append('/', value=pandas.concat(df), format='t', append=True,
+
+                store.append('/', value=pd.concat(df), format='t', append=True,
                              data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
                                            'battery_voltage', 'first_sensor_value'])
 
@@ -1342,15 +1449,15 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
 if __name__ == '__main__':
     print("start...")
-    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas_.h5")
 
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    db_name = "south_africa_debug"
+    db_name = "south_africa_debug_resamp_test4"
     create_and_connect_to_sql_db(db_name)
     drop_all_tables(db_name)
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")
+    # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
+    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5")

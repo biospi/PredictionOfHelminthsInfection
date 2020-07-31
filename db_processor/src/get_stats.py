@@ -19,8 +19,11 @@ if __name__ == '__main__':
     for file in ['delmas_famacha_data.json', 'cedara_famacha_data.json']:
         with open(file) as fp:
             data_famacha_dict = json.load(fp)
-            cpt_change = 0
-            cpt_no_change = 0
+            cpt_12 = 0
+            cpt_11 = 0
+            cpt_21 = 0
+            cpt_22 = 0
+            cpt_3 = 0
             weights = []
             for key, value in data_famacha_dict.items():
                 for i in range(len(value) - 1):
@@ -46,7 +49,6 @@ if __name__ == '__main__':
                         if int(date1[1]) < 4 and int(date2[2]) == 2012:
                             continue
 
-
                     famacha1 = curr[1]
                     famacha2 = next[1]
                     try:
@@ -54,11 +56,19 @@ if __name__ == '__main__':
                         int(famacha1)
                     except ValueError as e:
                         continue
-                    if (famacha2 == famacha1):
-                        cpt_change = cpt_change + 1
-                    else:
-                        cpt_no_change = cpt_no_change + 1
+                    if famacha1 == famacha2 == 1:
+                        cpt_11 = cpt_11 + 1
+                    if famacha1 == famacha2 == 2:
+                        cpt_22 = cpt_22 + 1
+                    if famacha1 == 1 and famacha2 == 2:
+                        cpt_12 = cpt_12 + 1
+                    if famacha1 == 2 and famacha2 == 1:
+                        cpt_21 = cpt_21 + 1
+                    if famacha1 >= 3:
+                        cpt_3 = cpt_3 + 1
+                    if famacha2 >= 3:
+                        cpt_3 = cpt_3 + 1
             mean_weight = statistics.mean(weights)
             print("mean weight=%f" % mean_weight)
-            print("cpt_change=%d cpt_no_change=%d" % (cpt_change, cpt_no_change))
+            print("cpt_11=%d cpt_22=%d cpt_12=%d cpt_21=%d cpt_3=%d" % (cpt_11, cpt_22, cpt_12, cpt_21, cpt_3))
 
