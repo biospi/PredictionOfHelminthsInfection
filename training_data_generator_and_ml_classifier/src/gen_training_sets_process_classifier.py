@@ -64,7 +64,7 @@ from scipy import interp
 from matplotlib.colors import LinearSegmentedColormap
 import scipy.stats
 
-from classifier.src.herd_map import create_herd_map, create_dataset_map
+from classifier.src.herd_map import create_herd_map, create_dataset_map, create_histogram
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -419,14 +419,18 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
     print("%s getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
         farm_sql_table_id, famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
-    rows_activity = execute_sql_query(sql_db, "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
-                                      " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
-                                      (farm_sql_table_id, resolution, date2, date1,
-                                       str(animal_id)))[0: expected_sample_count]
+    try:
+        rows_activity = execute_sql_query(sql_db, "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s"
+                                          " WHERE timestamp BETWEEN %s AND %s AND serial_number = %s" %
+                                          (farm_sql_table_id, resolution, date2, date1,
+                                           str(animal_id)))[0: expected_sample_count]
 
-    rows_herd = execute_sql_query(sql_db,
-        "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
-        (farm_sql_table_id, resolution, 50000000000, date2, date1))[0: expected_sample_count]
+        rows_herd = execute_sql_query(sql_db,
+            "SELECT timestamp, serial_number, first_sensor_value FROM %s_resolution_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
+            (farm_sql_table_id, resolution, 50000000000, date2, date1))[0: expected_sample_count]
+    except TypeError as e:
+        print(e)
+        return
 
     # activity_mean = normalize_activity_array_ascomb(rows_mean)
     herd_activity_list = [(x['first_sensor_value']) for x in rows_herd]
@@ -593,7 +597,7 @@ def get_expected_sample_count(resolution, days_before_test):
 
     expected_sample_n = expected_sample_n - 4 #todo fix resampling clipping
     print("expected sample count is %d." % expected_sample_n)
-    return expected_sample_n
+    return int(expected_sample_n)
 
 
 def contains_negative(list):
@@ -2426,8 +2430,8 @@ def process_day(params):
     dir = "%s/%s_sld_%d_dbt%d_%s" % (os.getcwd().replace('C', 'E'), resolution, sliding_w,
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_input_dict.json'
-    # if False:
-    if os.path.exists(class_input_dict_file_path):
+    if False:
+    # if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
@@ -2499,12 +2503,13 @@ def process_day(params):
             dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
         skipped_class_false, skipped_class_true = process_famacha_var(results)
-        f_id = farm_id+'_'+resolution+'_'+str(days_before_famacha_test)
-        print(f_id)
+
         for i in range(len(dataset_heatmap_data.keys())):
             print(list(dataset_heatmap_data.values())[i]['famacha'])
         # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
+        f_id = farm_id+'_'+resolution+'_'+str(days_before_famacha_test)
         create_dataset_map(dataset_heatmap_data, f_id)
+        create_histogram(dataset_heatmap_data, "rhistogram_"+f_id)
 
         class_input_dict = []
         print("create_activity_graph...")
@@ -2576,7 +2581,7 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['hour'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
+    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
@@ -2601,7 +2606,7 @@ if __name__ == '__main__':
         os.chdir(os.path.dirname(__file__).replace('C:', 'E:'))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["delmas_70101200027"]:
+        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()

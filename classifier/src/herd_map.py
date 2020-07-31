@@ -11,8 +11,8 @@ from matplotlib.dates import DateFormatter
 
 
 def plot_stacked_bar(data, series_labels, category_labels=None,
-                     show_values=False, value_format="{}", y_label=None,
-                     colors=None, grid=True, reverse=False):
+                     show_values=False, value_format="{}", y_label=None, x_label=None,
+                     colors=None, grid=False, reverse=False):
     """Plots a stacked bar chart with the data and labels provided.
 
     Keyword arguments:
@@ -58,6 +58,9 @@ def plot_stacked_bar(data, series_labels, category_labels=None,
     if y_label:
         plt.ylabel(y_label)
 
+    if x_label:
+        plt.xlabel(x_label)
+
     plt.legend()
 
     if grid:
@@ -70,15 +73,49 @@ def plot_stacked_bar(data, series_labels, category_labels=None,
                 plt.text(bar.get_x() + w/2, bar.get_y() + h/2,
                          value_format.format(h), ha="center",
                          va="center")
+    plt.gcf().autofmt_xdate()
 
 
-def create_histogram(data, farm_id):
+def create_histogram(input, farm_id):
     print("create histogram...")
-    for animal_id, value in data.items():
-        activity = value['activity']
-        time_axis = value['date']
-        famacha = value['famacha']
+    new_keys = ["("+str(list(input.keys())[n])+")  "+str(x) for n, x in enumerate(range(len(input.keys())))]
+    catalog = {}
+    for animal_id, value in input.items():
         valid = value['valid']
+        for v in valid:
+            if animal_id not in catalog:
+                catalog[animal_id] = {"valid_cpt": 0, "not_valid_cpt": 0, "sample_count": 0}
+            catalog[animal_id]['sample_count'] = catalog[animal_id]['sample_count'] + 1
+            if v:
+                catalog[animal_id]['valid_cpt'] = catalog[animal_id]['valid_cpt'] + 1
+            else:
+                catalog[animal_id]['not_valid_cpt'] = catalog[animal_id]['not_valid_cpt'] + 1
+
+    plt.figure(figsize=(12, 8))
+    catalog_sorted = dict(sorted(catalog.items(), key=lambda x: x[1]['sample_count'], reverse=True))
+
+    data = [
+        [d['valid_cpt'] for d in catalog_sorted.values()],
+        [d['not_valid_cpt'] for d in catalog_sorted.values()]
+    ]
+
+    category_labels = new_keys
+
+    plot_stacked_bar(
+        data,
+        ['Valid', 'Not Valid'],
+        category_labels=category_labels,
+        show_values=True,
+        value_format="{:.0f}",
+        colors=['tab:blue', 'tab:orange'],
+        y_label="Number of samples",
+        x_label="Animal ID"
+    )
+
+    print('saving fig...')
+
+    plt.savefig('%s.png' % farm_id)
+    plt.show()
 
 
 def create_dataset_map(data, farm_id, fontsize=20):
@@ -131,6 +168,8 @@ def create_dataset_map(data, farm_id, fontsize=20):
     date_tick_label = [i.strftime("%y/%m/%d %H:%M") for i in longes_xaxis]
     x = list(range(len(date_tick_label)))
     p = int(len(x) / 100)
+    if p <= 0:
+        p = 2
     ax.set_xticks(x[::p])
     ax.set_xticklabels(date_tick_label[::p])
     ax.pcolormesh(a_data)
