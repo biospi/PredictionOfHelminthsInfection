@@ -46,6 +46,7 @@ from scipy import interp
 from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
 import scipy.stats
+from sklearn.cross_decomposition import PLSRegression
 
 from sklearn import metrics
 import os
@@ -95,7 +96,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
-MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd_new/"
+MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd_new2/"
 META_DATA_LENGTH = 19
 
 
@@ -186,9 +187,9 @@ def get_prec_recall_fscore_support(test_y, pred_y):
     support_true = precision_recall_fscore_support_result[3][1]
     return precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true
 
-from matplotlib import ticker
+
 def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filename="", days=None, resolution=None, n_bin=8
-                                , style2=True):
+                                , style2=True, i=0):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
@@ -196,7 +197,9 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     # plt.subplots_adjust(top=0.75)
     min = abs(X_lda.min()) + 1
     max = abs(X_lda.max()) + 1
-    xx, yy = np.mgrid[-min:max:.01, -min:max:.01]
+    step = 0.1
+    print(min, max, step)
+    xx, yy = np.mgrid[-min:max:step, -min:max:step]
     grid = np.c_[xx.ravel(), yy.ravel()]
     probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
     offset_r = 0
@@ -284,7 +287,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, filena
     # plt.tight_layout()
 
     path = filename + '\\' + str(resolution) + '\\'
-    path_file = path + "%d_p.png" % days
+    path_file = path + "%d_%d_p.png" % (days, i)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     plt.savefig(path_file, bbox_inches='tight')
     print(path_file)
@@ -309,7 +312,6 @@ def plot_2D_decision_boundaries_(X, y, X_test, title, clf, i=0, filename="", day
     plt.savefig(path_file)
     plt.show()
     plt.close()
-    exit()
 
 
 def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0, filename=""):
@@ -511,6 +513,15 @@ def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=
 #     fig.show()
 #
 #
+
+def reduce_pls(output_dim, X_train, X_test, y_train, y_test):
+    print("reduce pls...")
+    clf = PLSRegression(n_components=output_dim)
+    X_train = clf.fit_transform(X_train, y_train)[0]
+    X_test = clf.fit_transform(X_test, y_test)[0]
+    return X_train, X_test, y_train, y_test
+
+
 def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
     # if output_dim not in [1, 2, 3]:
@@ -553,6 +564,9 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
     if dim_reduc == 'LDA':
         X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
 
+    if dim_reduc == 'PLS':
+        X_train, X_test, y_train, y_test = reduce_pls(n, X_train, X_test, y_train, y_test)
+
     if dim_reduc == 'PCA':
         X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
 
@@ -568,6 +582,9 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
 def process_fold2(n, X, y, X_t, y_t, dim_reduc=None):
     if dim_reduc is None:
         return X, y
+
+    if dim_reduc == 'PLS':
+        X_train, X_test, y_train, y_test = reduce_pls(n, X, X_t, y, y_t)
 
     if dim_reduc == 'LDA':
         X_train, X_test, y_train, y_test = reduce_lda(n, X, X_t, y, y_t)
@@ -736,7 +753,7 @@ def compute_model2(X, y, X_t, y_t, clf, dim=None, dim_reduc=None, clf_name=None,
     return acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, clf_name
 
 
-def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=None, clf_name=None):
+def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=None, clf_name=None, outfname=None):
     # if clf_name not in ['SVM', 'MLP']:
     #     raise ValueError("available classifiers are SVM and MLP.")
 
@@ -774,10 +791,10 @@ def compute_model(X, y, train_index, test_index, i, clf, dim=None, dim_reduc=Non
         plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=i)
 
     if dim == 2:
-        plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=i)
+        plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=i, style2=False, days=0, resolution=resolution, filename=outfname)
 
     if dim == 1:
-        plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=i)
+        plot_2D_decision_boundaries_(X_lda, y_lda, X_test, title, clf, i=i, filename=outfname, days=0, resolution=resolution)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -803,11 +820,34 @@ def f_importances(coef, names, X_train):
     plt.show()
 
 
-def process_fold_classic(n, X, y, dim_reduc=None):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=0)
+def process_fold_classic(n, X, y, dim_reduc=None, outfname=None):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+    for i, trace in enumerate(X_train):
+        label = y_train[i]
+        path = outfname + '\\' + str(resolution) + '\\train\\'
+        path_file = path + "%d_%d.png" % (label, i)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        plt.clf()
+        plt.bar(range(0, len(trace)), trace)
+        plt.savefig(path_file, bbox_inches='tight')
+        print(path_file)
+
+    for i, trace in enumerate(X_test):
+        label = y_train[i]
+        path = outfname + '\\' + str(resolution) + '\\test\\'
+        path_file = path + "%d_%d.png" % (label, i)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        plt.clf()
+        plt.bar(range(0, len(trace)), trace)
+        plt.savefig(path_file, bbox_inches='tight')
+        print(path_file)
 
     if dim_reduc is None:
         return X, y, X_train, X_test, y_train, y_test
+
+    if dim_reduc == 'PLS':
+        X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = reduce_pls(n, X_train, X_test, y_train, y_test)
 
     if dim_reduc == 'LDA':
         X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = reduce_lda(n, X_train, X_test, y_train, y_test)
@@ -821,11 +861,44 @@ def process_fold_classic(n, X, y, dim_reduc=None):
     return X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
 
 
-def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
+def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc, days, resolution):
     print("compute_model_classic_split...")
-    X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold_classic(2, X, y, dim_reduc=dim_reduc)
+    X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold_classic(2, X, y, dim_reduc="PLS", outfname=outfname)
 
-    print(X_train)
+    print(pd.DataFrame(X_train))
+    print(pd.DataFrame(X_test))
+
+    for i, trace in enumerate(X_train):
+        label = y_train[i]
+        path = outfname + '\\' + str(resolution) + '\\train\\reduced\\'
+        path_file = path + "%d_%d.png" % (label, i)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        plt.clf()
+        plt.bar(range(0, len(trace)), trace)
+        plt.savefig(path_file, bbox_inches='tight')
+        print(path_file)
+
+    for i, trace in enumerate(X_test):
+        label = y_test[i]
+        path = outfname + '\\' + str(resolution) + '\\test\\reduced\\'
+        path_file = path + "%d_%d.png" % (label, i)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        plt.clf()
+        plt.bar(range(0, len(trace)), trace)
+        plt.savefig(path_file, bbox_inches='tight')
+        print(path_file)
+
+    for i, trace in enumerate(X):
+        label = y[i]
+        path = outfname + '\\' + str(resolution) + '\\train\\X\\'
+        path_file = path + "%d_%d.png" % (label, i)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        plt.clf()
+        plt.bar(range(0, len(trace)), trace)
+        plt.savefig(path_file, bbox_inches='tight')
+        print(path_file)
+
+
     clf.fit(X_train, y_train)
 
     print("Best estimator found by grid search:")
@@ -853,7 +926,7 @@ def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
                 np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1))
 
     if dim == 2:
-        plot_2D_decision_boundaries(X_lda, y_lda, X_test, title, clf, i=0, filename=outfname)
+        plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, i=0, filename=outfname, days=days, resolution=resolution, style2=False)
 
     # skplt.metrics.plot_roc_curve(y_test, y_probas, title='ROC Curves\n%s' % title)
     # plt.show()
@@ -866,7 +939,7 @@ def compute_model_classic_split(outfname, clf, clf_name, dim, X, y, dim_reduc):
 
 from sklearn.linear_model import LinearRegression
 def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=None, y_col='label', outfname=None, classic_split=None,
-            days=None, resolution=None):
+            days=None, resolution=None, df_original=None):
     if clf_name not in ['SVM', 'MLP', 'LREG', 'LDA']:
         raise ValueError('classifier %s is not available! available clf_name are MPL, LREG, SVM' % clf_name)
     scores_2d, scores_3d, scores_full = [], [], []
@@ -882,6 +955,20 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     clf_name_full, clf_name_2d, clf_name_3d = '', '', ''
 
     X, y = process_data_frame(data_frame, y_col=y_col)
+    #TODO animal wise split
+
+    CV_iterator = []
+    serials = list(set(df_original['serial']))
+    chunks = [serials[x:x + 2] for x in range(0, len(serials), 2)]
+    for i, chunck in enumerate(chunks):
+        if len(chunck) == 2:
+            train_indices = df_original[(df_original['serial'] == chunck[0]) | (df_original['serial'] == chunck[1])].index.values.astype(int)
+            test_indices = df_original[(df_original['serial'] != chunck[0]) | (df_original['serial'] != chunck[1])].index.values.astype(int)
+        else:
+            train_indices = df_original[(df_original['serial'] == chunck[0])].index.values.astype(int)
+            test_indices = df_original[(df_original['serial'] != chunck[0])].index.values.astype(int)
+        CV_iterator.append((train_indices, test_indices))
+
     rkf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
     # rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond) / 10))
     # kf.get_n_splits(X)
@@ -889,7 +976,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
     # clf = LDA()
     # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
     # clf = GridSearchCV(SVC(kernel='rbf', probability=True), param_grid, cv=kf)
-    clf = SVC(kernel='linear', probability=True, C=0.00001)
+    clf = SVC(kernel='linear', probability=True)
     #
     # if clf_name == 'LREG':
     #     # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
@@ -903,18 +990,18 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
 
     if df2 is None:
         print("finding best estimator...")
-        clf.fit(X, y)
+        # clf.fit(X, y)
         # clf = clf.best_estimator_
         if classic_split:
-            compute_model_classic_split(outfname, clf, clf_name, 2, X, y, dim_reduc)
+            compute_model_classic_split(outfname, clf, clf_name, 2, X, y, dim_reduc, days, resolution)
         else:
-            for i, (train_index, test_index) in enumerate(rkf.split(X)):
+            for i, (train_index, test_index) in enumerate(CV_iterator):
                 print("progress %d/%d" % (i, fold))
                 # acc_full, p_false_full, p_true_full, r_false_full, r_true_full, fs_false_full, fs_true_full, s_false_full, s_true_full, clf_name_full = compute_model(X, y, train_index, test_index, i, clf, clf_name=clf_name)
                 # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d, clf_name_3d, sr_3d = compute_model(
                 #     X, y, train_index, test_index, i, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name)
                 acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, clf_name_2d, sr_2d = compute_model(
-                    X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name)
+                    X, y, train_index, test_index, i, clf, dim=2, dim_reduc=dim_reduc, clf_name=clf_name, outfname=outfname)
                 # acc_1d, p_false_1d, p_true_1d, r_false_1d, r_true_1d, fs_false_1d, fs_true_1d, s_false_1d, s_true_1d, clf_name_1d, sr_1d = compute_model(
                 #     X, y, train_index, test_index, i, clf, dim=1, dim_reduc=dim_reduc, clf_name=clf_name)
 
@@ -992,7 +1079,7 @@ def process(data_frame, fold=10, dim_reduc=None, clf_name=None, df2=None, fname=
         # clf = LinearRegression(probability=True)
         # clf.fit(X, y)
         # clf = clf.best_estimator_
-        clf = SVC(kernel='linear', probability=True)
+        clf = SVC(kernel='linear', probability=True,  C=0.00001)
         X_t, y_t = process_data_frame(df2, y_col=y_col)
         # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
         # clf_name_3d = compute_model2(X, y, X_t, y_t, clf, dim=3, dim_reduc=dim_reduc, clf_name=clf_name, fname=fname)
@@ -1027,7 +1114,8 @@ def find_type_for_mem_opt(df):
 
 
 def load_df_from_datasets(fname, label_col):
-    df = pd.read_csv(fname, nrows=1, sep=",", header=None)
+    df = pd.read_csv(fname, nrows=5, sep=",", header=None)
+
     type_dict = find_type_for_mem_opt(df)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False, dtype=type_dict)
     sample_count = data_frame.shape[1]
@@ -1065,6 +1153,10 @@ def load_df_from_datasets(fname, label_col):
     # data_frame = data_frame[data_frame.previous_famacha_score2 > 0]
     # data_frame = data_frame[data_frame.previous_famacha_score3 > 0]
 
+    grouped_by_id = data_frame.copy()
+    # for region, df_serial in data_frame.groupby('serial'):
+    #     print(df_serial)
+    #     grouped_by_id.append(df_serial)
     data_frame_original = data_frame.copy()
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
@@ -1083,15 +1175,15 @@ def load_df_from_datasets(fname, label_col):
     #     # plt.show()
     # data_frame.drop(data_frame.index[row_to_delete])
     # print(data_frame)
-    return data_frame_original, data_frame, cols_to_keep
+    return data_frame_original, data_frame, cols_to_keep, grouped_by_id
 
 
 def start(fname1=None, fname2=None, half_period_split=False, label_col='label', outfname=None, classic_split=None, days=None, resolution=None):
     if fname2 is not None:
         print("use different two different dataset for training and testing.\n"
               "training set:%s\n testing set:%s" % (fname1, fname2))
-        _, df1, cols_to_keep = load_df_from_datasets(fname1, label_col)
-        _, df2, cols_to_keep_2 = load_df_from_datasets(fname2, label_col)
+        _, df1, cols_to_keep, grouped_by_id = load_df_from_datasets(fname1, label_col)
+        _, df2, cols_to_keep_2, grouped_by_id = load_df_from_datasets(fname2, label_col)
         df1 = df1[cols_to_keep]
         df2 = df2[cols_to_keep]
         print(df1.shape)
@@ -1109,10 +1201,8 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
         return
 
     print("loading dataset...")
-    data_frame, _, cols_to_keep = load_df_from_datasets(fname1, label_col)
+    data_frame, _, cols_to_keep, grouped_by_id = load_df_from_datasets(fname1, label_col)
     list_of_df = [g for _, g in data_frame.groupby(['famacha_score'])]
-
-
 
     if half_period_split:
         data_frame['date1'] = pd.to_datetime(data_frame['date1'], dayfirst=True)
@@ -1158,10 +1248,12 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
-        process(data_frame, dim_reduc='LDA', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split, days=days, resolution=resolution)
+        process(data_frame, dim_reduc='LDA', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split, days=days, resolution=resolution, df_original=grouped_by_id)
 
 
 if __name__ == '__main__':
+
+
 
     # dir = MAIN_DIR + "10min_sld_6_dbt6_cedara_70091100056/training_sets/"
     # # os.chdir(dir)
@@ -1194,26 +1286,29 @@ if __name__ == '__main__':
             #       half_period_split=True,
             #       days=day, resolution=resolution,
             #       outfname="half\\cedara")
-            
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-                  fname2=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-                  outfname="cross_farm\\trained_on_delmas_test_on_cedara",
-                  days=day, resolution=resolution)
 
-            start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-                  fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-                  outfname="cross_farm\\trained_on_cedara_test_on_delmas",
-                  days=day, resolution=resolution)
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
+            #       outfname="half_split\\delmas_half", days=day, resolution=resolution)
+
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/0_00_1_00_0_00/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
+                  outfname="half_split\\cedara_half", days=day, resolution=resolution)
+            
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/0_00_5_00_0_00/training_sets/cwt_.data" % (resolution, day),
+                  outfname="PLS",
+                  days=day, resolution=resolution, classic_split=True)
+
+            # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+            #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+            #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",
+            #       days=day, resolution=resolution)
 
             # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
             #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",
             #       days=day, resolution=resolution)
             # 
-            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
-            #       outfname="half_split\\delmas_half", days=day, resolution=resolution)
-            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
-            #       outfname="half_split\\cedara_half", days=day, resolution=resolution)
+
+
 
 
     # start(fname1=MAIN_DIR + "10min_sld_0_dbt7_delmas_70101200027/training_sets/cwt_.data", classic_split=True,

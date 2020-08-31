@@ -5,6 +5,7 @@ from datetime import datetime
 from ipython_genutils.py3compat import xrange
 import json
 from sys import exit
+import pandas as pd
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -40,6 +41,11 @@ def find_sheet_containing_valid_famacha(book, farm_name, path):
                 if 'bothaville' in farm_name:
                     if "Neus" in row_values and "Kwak keel" in row_values and "Sender nr" in row_values:
                         map[sheet.name] = {"id_col_index": row_values.index("Sender nr"), "famacha_col_index": row_values.index("Kwak keel")-1}
+                        continue
+
+                    if "Neus" in row_values and "Kwak keel" in row_values and "Sk/Bk ID" in row_values:
+                        map[sheet.name] = {"id_col_index": row_values.index("Sk/Bk ID"), "famacha_col_index": row_values.index("Kwak keel")-1}
+
                 if 'cedara' in farm_name:
 
                     if 'FC' not in sheet.name:
@@ -60,12 +66,21 @@ def format_date(date):
 
 
 def build_famacha_data(map, book, data):
+    df = pd.read_csv("E:/SouthAfrica/Metadata/BOTHAVILLE data/Bothaville Sender nr.csv", sep=",")
     for key, value in map.items():
         sheet = book.sheet_by_name(key)
         for row_index in xrange(0, sheet.nrows):
             row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
             try:
+
                 id = str(row_values[value['id_col_index']]).split('.')[0]
+                id_map = df.set_index('Sk ID').T.to_dict('list')
+                id_map = {str(key): "40121100" + str(value[0]).split('.')[0] if len(str(value[0]).split('.')[0]) == 3 else "4012110" + str(value[0]).split('.')[0] for key, value in id_map.items()}
+                # id_map = {str(key): int(value) for key, value in id_map.items()}
+
+                if id in id_map:
+                    id = id_map[id]
+
                 if len(id) < 10:
                     continue
                 id = int(id)
@@ -75,10 +90,14 @@ def build_famacha_data(map, book, data):
                 print(e)
                 continue
             print(id, famacha, date)
-            if id in data:
-                data[id].append([date, famacha, id, 0])
+            if id in data.keys():
+                if [date, famacha, id, 0] in data[int(id)]:
+                    continue
+                data[int(id)].append([date, famacha, id, 0])
             else:
-                data[id] = [[date, famacha, id, 0]]
+                data[int(id)] = [[date, famacha, id, 0]]
+
+    data = {int(key): value for key, value in data.items()}
     return data
 
 
@@ -95,17 +114,18 @@ def process_files(file_paths, farm_name=''):
         data = build_famacha_data(map, book, data)
     print('dumping result to json file...')
     print(data)
-    with open(__location__+'\\%s_famacha_data_with_age.json' % farm_name, 'w') as fp:
-        print('')
+    filepath = __location__+'\\%s_famacha_data_with_age.json' % farm_name
+    with open(filepath, 'w') as fp:
+        print(filepath)
         json.dump(data, fp)
 
 
 if __name__ == '__main__':
     print("start...")
     start_time = time.time()
-    xls_files = find_data_files("E:/SouthAfrica/Metadata/CEDARA2 data", extension='.xls')
-    # xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
-    process_files(xls_files, farm_name="cedara")
+    # xls_files = find_data_files("E:/SouthAfrica/Metadata/CEDARA2 data", extension='.xls')
+    xls_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.xls')
+    process_files(xls_files, farm_name="bothaville")
 
     # pdf_files = find_data_files("E:/SouthAfrica/Metadata/BOTHAVILLE data", extension='.pdf')
 

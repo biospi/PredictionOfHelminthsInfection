@@ -686,7 +686,7 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     return data
 
 
-def process_raw_h5files(path):
+def process_raw_h5files(path, resolution):
     print(path)
     h5_raw = tables.open_file(path, "r")
     data = h5_raw.root.table
@@ -713,7 +713,7 @@ def process_raw_h5files(path):
 
     for group in animal_list_grouped_by_farmid:
         farm_id = str(group[0][1])
-        process_raw_file(farm_id, group)
+        process_raw_file(farm_id, group, resolution)
 
 
 def create_mean_median_animal_(data):
@@ -857,12 +857,61 @@ def create_dataframe(list_data):
     df = pd.DataFrame(list_data)
     df.columns = ['timestamp', 'farm_id', 'serial_number', 'signal_strength', 'battery_voltage', 'first_sensor_value',
                   'date', 'date_str']
+    df = df.drop_duplicates(subset=['timestamp', 'first_sensor_value'], keep=False)
     df = df.sort_values(by='date')
+    df.rename({'date': 'index'}, axis=1, inplace=True)
     return df
 
 
-def resample(res, data):
-    data = data.set_index('date')
+histogram_array_dur = np.array([])
+
+
+def thresholded_resample(df, THRESH):
+    print("thresholded_resample...")
+    cpt = 0
+    # THRESH = 10
+    row_to_del = []
+    to_del = []
+
+    activity_col = df["first_sensor_value"]
+
+    gap = []
+    # for i, activity in enumerate(activity_col.values):
+    #     if np.isnan(activity):
+    #         cpt_gap += 1
+    #         gap.append(i)
+    #         continue
+    #     global histogram_array_dur
+    #     histogram_array_dur = np.append(histogram_array_dur, len(gap))
+    #     cpt_gap = 0
+    #     gap = []
+    global histogram_array_dur
+    for i, activity in enumerate(activity_col.values):
+        if cpt >= THRESH:
+            cpt = 0
+            to_del.extend(row_to_del)
+            row_to_del = []
+            # df.drop(df.index[row_to_del], inplace=True)
+
+        if np.isnan(activity):
+            cpt += 1
+            row_to_del.append(i)
+
+            gap.append(i)
+            continue
+        cpt = 0
+        row_to_del = []
+
+        histogram_array_dur = np.append(histogram_array_dur, len(gap))
+        gap = []
+
+    df.drop(df.index[to_del], inplace=True)
+    return df
+
+
+def resample_df(res, data):
+    print("resample_df ", res)
+    data = data.set_index('index')
     data.index.name = None
     data.index = pd.to_datetime(data.index)
     data['signal_strength_2'] = data['signal_strength']
@@ -871,7 +920,15 @@ def resample(res, data):
                                      battery_voltage='mean',
                                      first_sensor_value='sum', date_str='first'
                                      ), skipna=False)
+    df.loc[np.isnan(df['timestamp']), 'first_sensor_value'] = np.nan
+    df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
+    df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    df = df.reset_index()
+    return df
 
+
+def resample(res, data):
+    df = resample_df(res, data)
     # data.resample(res, on='date', how={'timestamp': np.median, 'farm_id': np.median, 'serial_number': np.median, 'signal_strength': np.mean,
     #                         'battery_voltage': np.mean, 'first_sensor_value': np.sum, 'date_str': np.mean
     #                         })
@@ -881,11 +938,11 @@ def resample(res, data):
         df.plot(x='timestamp', y='first_sensor_value')
         plt.show()
 
-    df.loc[df.battery_voltage.isnull(), 'first_sensor_value'] = np.nan
-    df = df.reset_index()
-    df['ts'] = df['index'].values.astype(np.int64) // 10 ** 9
-    df['ds'] = df['index'].dt.strftime('%Y-%m-%dT%H:%M')
-    subset = df[['ts', 'ds', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
+    # df.loc[df.battery_voltage.isnull(), 'first_sensor_value'] = np.nan
+    # df = df.reset_index()
+    # df['ts'] = df.index.values.astype(np.int64) // 10 ** 9
+    # df['ds'] = df.index.dt.strftime('%Y-%m-%dT%H:%M')
+    subset = df[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
                  'first_sensor_value']]
 
     subset = subset.assign(
@@ -903,7 +960,7 @@ def resample(res, data):
     return data
 
 
-def process_raw_file(farm_id, data):
+def process_raw_file(farm_id, data, threshold_gap):
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
     table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
@@ -954,13 +1011,17 @@ def process_raw_file(farm_id, data):
             # data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
             # data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
             # data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
-            data_resampled_10min.extend(resample('10min', animal_records_df))
-            # activity_data.append(resample('10min', animal_records_df))
-            data_resampled_5min.extend(resample('5min', animal_records_df))
-            data_resampled_hour.extend(resample('H', animal_records_df))
-            data_resampled_day.extend(resample('D', animal_records_df))
-            data_resampled_week.extend(resample('W', animal_records_df))
-            data_resampled_month.extend(resample('M', animal_records_df))
+            df_raw = resample_df('1T', animal_records_df)
+            df_thresh = thresholded_resample(df_raw, threshold_gap)
+            data_resampled_10min.extend(resample('10min', df_thresh))
+            data_resampled_day.extend(resample('D', df_thresh))
+
+            # # activity_data.append(resample('10min', animal_records_df))
+            # # data_resampled_5min.extend(resample('5min', df_thresh))
+            # data_resampled_hour.extend(resample('H', df_thresh))
+            # data_resampled_day.extend(resample('D', df_thresh))
+            # data_resampled_week.extend(resample('W', df_thresh))
+            # data_resampled_month.extend(resample('M', df_thresh))
         else:
             iterable = [animal_records]
             # func1 = partial(resample_to_min, first_timestamp, last_timestamp)
@@ -992,6 +1053,15 @@ def process_raw_file(farm_id, data):
             data_resampled_10min.extend(r6)
             data_resampled_5min.extend(r7)
     # save data in db
+
+    global histogram_array_dur
+    _ = plt.hist(histogram_array_dur, bins='auto')  # arguments are passed to np.histogram
+    plt.title("Histogram of gap duration")
+    plt.show()
+    plt.savefig('histogram_of_gap_duration_%s.png' % farm_id)
+
+    del histogram_array_dur
+
     print("saving data to db...")
     # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
     # exit(0)
@@ -1186,7 +1256,7 @@ def dump_cell(sheet, rowx, colx):
 
 
 def empty_list(l):
-    return len(l) == l.count('') or l.count('') > 4 or len(l) > 20 or len(l) < 5
+    return len(l) == l.count('')
 
 
 def print_except(e):
@@ -1303,6 +1373,9 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                                     farm_id = int(row_values[control_station_col_index])
                                 except ValueError as e:
                                     print(e)
+                                except IndexError as e:
+                                    print(e)
+                                    continue
                                 serial_number_col_index = 3
                                 signal_strength_col_index = 4
                                 battery_voltage_col_index = 5
@@ -1449,15 +1522,16 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
 if __name__ == '__main__':
     print("start...")
-    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas_.h5")
-
-    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "bothaville.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    db_name = "south_africa_debug_resamp_test4"
-    create_and_connect_to_sql_db(db_name)
-    drop_all_tables(db_name)
-    # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5")
+    for resolution in [60*3, 60*4, 60*5, 60*6, 60*7, 60*8, 60*9, 60*10]:
+        db_name = "south_africa_debug_resamp_test_%dmin" % resolution
+        create_and_connect_to_sql_db(db_name)
+        # drop_all_tables(db_name)
+        process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", resolution)
+        # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara.h5", resolution)

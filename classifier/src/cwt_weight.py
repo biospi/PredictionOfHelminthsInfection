@@ -48,6 +48,8 @@ from sklearn.feature_selection import RFE, RFECV
 from sklearn.svm import SVR
 from classifier.src.my_lda import process_lda
 from sklearn.linear_model import LassoCV, Lasso
+from matplotlib.colors import LogNorm
+from sklearn.cross_decomposition import PLSRegression
 
 DATA_ = []
 CWT_RES = 1000000
@@ -119,7 +121,7 @@ def low_pass_filter(signal, thresh=0.35, wavelet="db4"):
 
 
 def compute_cwt(activity, hd=False):
-    return compute_cwt_sd(activity, scale=80)
+    return compute_cwt_hd(activity, scale=80)
     # if hd:
     #     return compute_cwt_hd(activity)
     # else:
@@ -135,65 +137,92 @@ def compute_cwt_sd(activity, scale=80):
 
     coefs, freqs = pywt.cwt(np.asarray(activity_i), scales, w, sampling_period=sampling_period)
 
-    print('shapes:')
-    print(coefs.shape)
+    # print('shapes:')
+    # print(coefs.shape)
     diff = coefs.shape[1]
     n = int(coefs.shape[1] / 10)
     coefs = coefs[:, n:-n]
     diff = diff - coefs.shape[1]
-    print(coefs.shape, diff)
+    # print(coefs.shape, diff)
 
     cwt = [element for tupl in coefs for element in tupl]
     # indexes = np.asarray(list(range(coef.shape[1])))
     indexes = []
     # cwt = [x if x > -0.1 else 0 for x in cwt]
-    return cwt, coefs, freqs, indexes, scales, 1, 'morlet'
+    return cwt, coefs, freqs, indexes, scales, 1, 'morlet', []
 
 
-# def compute_cwt_hd(activity):
-#     print("compute_cwt...")
-#     # t, activity = dummy_sin()
-#     num_steps = len(activity)
-#     x = np.arange(num_steps)
-#     y = activity
-#     y = interpolate(y)
-#
-#     delta_t = (x[1] - x[0]) * 1
-#     scales = np.arange(1, num_steps + 1) / 1
-#     freqs = 1 / (wavelet.Morlet().flambda() * scales)
-#     wavelet_type = 'morlet'
-#     # y = [0 if x is np.nan else x for x in y] #todo fix
-#     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
-#
-#     # print("*********************************************")
-#     # print(y)
-#     # print(coefs)
-#     # print("*******************************************")
-#     # iwave = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
-#     # plt.plot(iwave)
-#     # plt.show()
-#     # plt.plot(activity)
-#     # plt.show()
-#     #
-#     # plt.matshow((coefs.real))
-#     # plt.show()
-#     # exit()
-#     #todo clip extrimities
-#     # n_cols = int(coefs.shape[1]/10)
-#     # coefs = coefs[:, n_cols:-n_cols]
-#
-#     print('shapes:')
-#     print(coefs.shape)
-#     diff = coefs.shape[1]
-#     n = int(coefs.shape[1] / 8)
-#     coefs = coefs[:, n:-n]
-#     diff = diff - coefs.shape[1]
-#     print(coefs.shape, diff)
-#
-#     cwt = [element for tupl in coefs.real for element in tupl]
-#     # indexes = np.asarray(list(range(len(coefs.real))))
-#     indexes = []
-#     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type
+def mask_cwt(cwt, coi):
+    print("masking cwt...")
+    for i in range(coi.shape[0]):
+        col = cwt[:, i]
+        max_index = int(coi[i])
+        indexes_to_keep = np.array(list(range(max_index, col.shape[0])))
+        total_indexes = np.array(range(col.shape[0]))
+        diff = list(set(indexes_to_keep).symmetric_difference(total_indexes))
+        # print(indexes_to_keep)
+        if len(indexes_to_keep) == 0:
+            continue
+        col[indexes_to_keep] = -1
+    return cwt
+
+
+def compute_cwt_hd(activity, scale=80):
+    print("compute_cwt...")
+    # t, activity = dummy_sin()
+    scales = even_list(scale)
+
+    num_steps = len(activity)
+    x = np.arange(num_steps)
+    y = activity
+    y = interpolate(y)
+
+    delta_t = (x[1] - x[0]) * 1
+    # scales = np.arange(1, int(num_steps/10))
+    freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
+    wavelet_type = 'mexicanhat'
+    # y = [0 if x is np.nan else x for x in y] #todo fix
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
+
+    coefs_masked = mask_cwt(coefs.real, coi)
+    # plt.matshow(coefs_masked)
+    # plt.plot(coi)
+    # plt.show()
+    # print("*********************************************")
+    # print(y)
+    # print(coefs)
+    # print("*******************************************")
+    # iwave = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
+    # plt.plot(iwave)
+    # plt.show()
+    # plt.plot(activity)
+    # plt.show()
+    #
+    # plt.matshow((coefs.real))
+    # plt.show()
+    # exit()
+    #todo clip extrimities
+    # n_cols = int(coefs.shape[1]/10)
+    # coefs = coefs[:, n_cols:-n_cols]
+
+    # print('shapes:')
+    # print(coefs.shape)
+    # diff = coefs.shape[1]
+    # n = int(coefs.shape[1] / 8)
+    # coefs = coefs[:, n:-n]
+    # diff = diff - coefs.shape[1]
+    # print(coefs.shape, diff)
+    #
+    # cwt = [element for tupl in coefs_masked for element in tupl]
+    cwt = []
+    for element in coefs_masked:
+        for tupl in element:
+            if np.isnan(tupl) or tupl < 0:
+                continue
+            cwt.append(tupl)
+    # indexes = np.asarray(list(range(len(coefs.real))))
+    indexes = []
+    return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
 
 
 META_DATA_LENGTH = 19
@@ -557,24 +586,24 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
     # if output_dim not in [1, 2, 3]:
     #     raise ValueError("available dimension for features reduction are 1, 2 and 3.")
-    if output_dim == 3:
-        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
-        y_train = np.append(y_train, (3, 4))
-        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
-        y_test = np.append(y_test, (3, 4))
-    if output_dim == 2:
-        X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
-        y_train = np.append(y_train, 3)
-        X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
-        y_test = np.append(y_test, 3)
-    clf = LDA(n_components=output_dim)
-    X_train = clf.fit_transform(X_train, y_train)
-    X_test = clf.fit_transform(X_test, y_test)
-    if output_dim != 1:
-        X_train = X_train[0:-(output_dim - 1)]
-        y_train = y_train[0:-(output_dim - 1)]
-        X_test = X_test[0:-(output_dim - 1)]
-        y_test = y_test[0:-(output_dim - 1)]
+    # if output_dim == 3:
+    #     X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1]), np.ones(X_train.shape[1])])))
+    #     y_train = np.append(y_train, (3, 4))
+    #     X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1]), np.ones(X_train.shape[1])])))
+    #     y_test = np.append(y_test, (3, 4))
+    # if output_dim == 2:
+    #     X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
+    #     y_train = np.append(y_train, 3)
+    #     X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
+    #     y_test = np.append(y_test, 3)
+    clf = PLSRegression(n_components=output_dim)
+    X_train = clf.fit_transform(X_train, y_train)[0]
+    X_test = clf.fit_transform(X_test, y_test)[0]
+    # if output_dim != 1:
+    #     X_train = X_train[0:-(output_dim - 1)]
+    #     y_train = y_train[0:-(output_dim - 1)]
+    #     X_test = X_test[0:-(output_dim - 1)]
+    #     y_test = y_test[0:-(output_dim - 1)]
 
     return X_train, X_test, y_train, y_test, clf
 
@@ -1211,6 +1240,7 @@ def get_cwt_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     global DATA_
     DATA_ = []
     print(out_fname)
+    X_cwt = pd.DataFrame()
     # results = []
     #data_frame = data_frame.fillna(-1)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
@@ -1234,7 +1264,7 @@ def get_cwt_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     print("finished computing herd mean.")
 
     print("computing herd cwt")
-    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _ = compute_cwt(herd_mean)
+    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _, coi = compute_cwt(herd_mean)
     DATA_.append({'coef_shape': coefs_herd_mean.shape, 'freqs': freqs_h})
     print("finished calculating herd cwt.")
 
@@ -1259,12 +1289,15 @@ def get_cwt_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
         activity = np.divide(activity, herd_mean)
 
         print(len(activity), "%d/%d ..." % (cpt, len(X)))
-        cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+        cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type, coi = compute_cwt(activity)
+        print(len(activity), len(cwt))
+        # if cpt == 0:
+            # X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
 
-        if cpt == 0:
-            X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
+        # X_cwt.loc[cpt] = cwt
 
-        X_cwt.loc[cpt] = cwt
+        X_cwt = X_cwt.append(dict(enumerate(np.array(cwt))), ignore_index=True)
+
         cpt += 1
         # print(X_cwt)
 
@@ -1305,10 +1338,9 @@ def get_cwt_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     # exit()
 
     class0_mean = np.average(class0_t, axis=0)
-    _, coefs_class0_mean, _, _, _, _, _ = compute_cwt(class0_mean)
+    _, coefs_class0_mean, _, _, _, _, _, coi = compute_cwt(class0_mean)
     class1_mean = np.average(class1_t, axis=0)
-    _, coefs_class1_mean, _, _, _, _, _ = compute_cwt(class1_mean)
-
+    _, coefs_class1_mean, _, _, _, _, _, coi = compute_cwt(class1_mean)
 
     # plt.bar(range(0, len(class0_mean)), class0_mean)
     # plt.show()
@@ -1322,8 +1354,6 @@ def get_cwt_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
 
     y = data_frame["label"].values.flatten()
     y = y.astype(int)
-
-
 
     X_cwt['label'] = y
     # results.append([X_cwt, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean])
@@ -1564,10 +1594,13 @@ def get_min_max(data, ignore=[0, 1, 2, 5, 6, 7, 8]):
     for n, item in enumerate(data):
         if n in ignore: #todo fix exclude certain graphs axis
             continue
-        cwt_list.append(item[0].min())
-        cwt_list.append(item[0].max())
-        icwt_list.append(min(item[1]))
-        icwt_list.append(max(item[1]))
+
+        a = item[0][~np.isnan(item[0])]
+        b = item[1][~np.isnan(item[1])]
+        cwt_list.append(a.min())
+        cwt_list.append(a.max())
+        icwt_list.append(b.min())
+        icwt_list.append(b.max())
 
     return min(cwt_list), max(cwt_list), min(icwt_list), max(icwt_list)
 
@@ -1586,7 +1619,8 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         scales, delta_t, wavelet_type, class0_mean, class1_mean, herd_mean, coefs_class0_mean, coefs_class1_mean, coefs_herd_mean = data[i]
         # df = shuffle(df)
         X = df[df.columns[0:df.shape[1] - 1]]
-        y = df['label']
+        X = X.fillna(-1)
+        y = df['label'].values
         # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4,
         #                                                     random_state=int((datetime.now().microsecond)/10), stratify=y)
 
@@ -1602,23 +1636,23 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         # diff = diff - X.shape[1]
         # print(X.shape, diff)
 
-        # X_o = X.copy()
-        for i in range(y[y == 0].shape[0]):
-            dummy_features = np.ones(X.shape[1])
-            #dummy_features = np.array(range(X.shape[1]))*0.0001
-            # dummy_features = X_o.loc[i].values
-            # dummy_features = np.random.rand(X.shape[1])
-            X = np.vstack((X, dummy_features))
-            dummy_target = 2
-            y = np.append(y, dummy_target)
+        X_o = X.copy()
+        # for i in range(y[y == 0].shape[0]):
+        #     dummy_features = np.ones(X.shape[1])
+        #     #dummy_features = np.array(range(X.shape[1]))*0.0001
+        #     # dummy_features = X_o.loc[i].values
+        #     # dummy_features = np.random.rand(X.shape[1])
+        #     X = np.vstack((X, dummy_features))
+        #     dummy_target = 2
+        #     y = np.append(y, dummy_target)
 
         X_train, X_test, y_train, y_test = X, X, y, y
         #clf = LogisticRegression(C=1e10)
 
         # clf = LDA(n_components=2)
         # clf = Lasso(alpha=0.1)
-        # clf = OneVsRestClassifier(SVC(kernel='linear', probability=True), n_jobs=3)
-        clf = SVC(kernel='linear', probability=True)
+        clf = OneVsRestClassifier(SVC(kernel='linear', probability=True), n_jobs=3)
+        #clf = SVC(kernel='linear', probability=True)
 
         print("finding best...")
         # weight_best_lasso = lasso_feature_selection(X, y, coefs_herd_mean.shape, n_job=-1)
@@ -1626,7 +1660,10 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         # weight_best_rec = weight_best_lasso
 
         print("fit...")
-        clf.fit(X_train, y_train)
+        X_train_svm = X_train.copy()
+        y_train_svm = y_train.copy()
+
+        clf.fit(X_train_svm, y_train_svm)
 
         X_lda, _, y_lda, _, clf_lda = reduce_lda(2, X, X, y, y)
         clf_lda.fit(X_lda, y_lda)
@@ -1659,8 +1696,8 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
         # weight2 = np.multiply(doc, clf.coef_[2])
 
         weight0 = clf.coef_[0]
-        weight1 = clf.coef_[1]
-        weight2 = clf.coef_[2]
+        weight1 = clf.coef_[0]
+        weight2 = clf.coef_[0]
 
         pad_value = abs(np.prod(DATA_[0]['coef_shape']) - weight0.shape[0])
         for n in range(pad_value):
@@ -1707,8 +1744,8 @@ def explain_cwt(dfs, data, data_frame, data_frame_0,
 
             v_min_map, v_max_map, ymin2, ymax2 = get_min_max(data_to_plot)
             print("v_min_map, v_max_map", v_min_map, v_max_map)
-            v_min_map = -0.13794706803426268
-            v_max_map = 0.11997465366804147
+            # v_min_map = -0.13794706803426268
+            # v_max_map = 0.11997465366804147
             v_min_map_, v_max_map_, ymin2_, ymax2_ = get_min_max(data_to_plot, ignore=[3, 4, 5, 6, 7, 8])
 
             for i, item in enumerate(data_to_plot):
@@ -1757,7 +1794,7 @@ def get_mean_cwt(X):
         activity = np.asarray(activity)
         class0.append(activity)
     class0 = np.average(class0, axis=0)
-    _, coefs_class0, freqs, _, scales, _, _ = compute_cwt(class0)
+    _, coefs_class0, freqs, _, scales, _, _, coi= compute_cwt(class0)
     return coefs_class0
 
 
@@ -1790,7 +1827,7 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     # herd_mean = np.average(herd_data, axis=0)
     # herd_mean = interpolate(herd_mean)
     print("computing herd cwt")
-    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _ = compute_cwt(herd_mean)
+    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _, coi= compute_cwt(herd_mean)
     DATA_.append({'coef_shape': coefs_herd_mean.shape, 'freqs': freqs_h})
     print("finished calculating herd cwt.")
     # herd_mean = minmax_scale(herd_mean, feature_range=(0, 1))
@@ -1818,7 +1855,7 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
             # activity = interpolate(activity)
 
             print(len(activity), "%d/%d ..." % (i, len(X)))
-            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+            cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type, coi = compute_cwt(activity)
 
             # if len(DATA_) < 1:
             #     DATA_.append({'coef_shape': coefs_herd_mean.shape, 'freqs': freqs_h})
@@ -1859,14 +1896,15 @@ def process_data_frame(data_frame, data_frame_0, out_fname=None, df_hum=None, df
     class0_mean = []
     if len(class0) > 0:
         class0_mean = np.average(class0, axis=0)
-        _, coefs_class0_mean, _, _, _, _, _ = compute_cwt(class0_mean)
+        _, coefs_class0_mean, _, _, _, _, _, coi = compute_cwt(class0_mean)
     class1_mean = np.average(class1, axis=0)
     del class1
-    _, coefs_class1_mean, _, _, _, _, _ = compute_cwt(class1_mean)
+    _, coefs_class1_mean, _, _, _, _, _, coi = compute_cwt(class1_mean)
     X = X_cwt
     y = data_frame["label"].values.flatten()
     y = y.astype(int)
-    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, coefs_herd_mean, herd_mean
+    return X.values, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean,\
+           coefs_class1_mean, coefs_herd_mean, herd_mean
 
 
 # def process2(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None, resolution=None,

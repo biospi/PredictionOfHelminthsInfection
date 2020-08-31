@@ -20,6 +20,7 @@ import pathlib
 from sklearn import datasets
 from mlxtend.plotting import plot_decision_regions
 import scikitplot as skplt
+from sklearn.cross_decomposition import PLSRegression
 
 
 def even_list(n):
@@ -195,6 +196,13 @@ def process_data_frame_(data_frame, y_col='label'):
     return X, y
 
 
+def reduce_pls(output_dim, X, y):
+    print("reduce pls...")
+    clf = PLSRegression(n_components=output_dim)
+    X_pls = clf.fit_transform(X, y)[0]
+    return X_pls, y
+
+
 def reduce_lda(output_dim, X, y):
     # lda implementation require 3 input class for 2d output and 4 input class for 3d output
     # if output_dim not in [1, 2, 3]:
@@ -348,6 +356,15 @@ def generate_fake_data_to_import():
     fname = 'dummy_data.csv'
     purge_file(fname)
     X, y = datasets.make_blobs(n_samples=50, centers=2, n_features=100, center_box=(0, 10))
+
+    for i in range(10):
+        print(i)
+        X = np.vstack((X, np.array([np.zeros(X.shape[1])])))
+        y = np.append(y, np.random.randint(2, size=1)[0])
+
+        # X = np.vstack((X, np.array([np.ones(X.shape[1])*-1])))
+        # y = np.append(y, np.random.randint(2, size=1)[0])
+
     df = pd.DataFrame(X)
     df, hearder = rename_df_cols(df)
     df['label'] = y
@@ -394,6 +411,11 @@ def f_importances(coef, names):
 
 if __name__ == "__main__":
     print("start...")
+
+    activity = list([np.nan]*10)
+    cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
+
+
     fname, features_names = generate_fake_data_to_import()
     df = pd.read_csv(fname, sep=",")
 
@@ -406,8 +428,8 @@ if __name__ == "__main__":
         X_lda, y = reduce_lda(2, X, y)
 
     print("fitting...")
-    # clf = SVC(kernel='linear', probability=True)
-    clf = LogisticRegression(C=1e10)
+    clf = SVC(kernel='linear', probability=True)
+    # clf = LogisticRegression(C=1e10)
 
     X_train, X_test, y_train, y_test = train_test_split(X_lda if ENABLE_LDA_DR else X, y,
                                                         test_size=0.4, random_state=0, stratify=y)
@@ -420,12 +442,12 @@ if __name__ == "__main__":
     print(classification_report(y_test, y_pred))
     y_proba = clf.predict_proba(X_test)
     print_proba_report(X_test, y_proba)
-    save_roc_curve(y_test, y_proba)
+    # save_roc_curve(y_test, y_proba)
 
     if ENABLE_LDA_DR:
         plot_2D_decision_boundaries(X_lda, y, X_test, 'title', clf, save=True)
 
-    if isinstance(clf, LogisticRegression):
-        f_importances(clf.coef_[0], features_names)
-    if isinstance(clf, SVC):
-        f_importances(clf.coef_, features_names)
+    # if isinstance(clf, LogisticRegression):
+    #     f_importances(clf.coef_[0], features_names)
+    # if isinstance(clf, SVC):
+    #     f_importances(clf.coef_, features_names)

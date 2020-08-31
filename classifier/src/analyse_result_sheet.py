@@ -8,6 +8,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 import statistics
 import numpy as np
+from sys import exit
 
 def get_ranged_value(col_name):
     col_data = [float(x) for x in row[col_name].split(' ')]
@@ -23,9 +24,9 @@ if __name__ == '__main__':
     except (OSError, FileNotFoundError) as e:
         print(e)
 
-    fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\cedara_70091100056_results_report_2020_06_12_19_58_48.csv"
+    # fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\cedara_70091100056_results_report_2020_06_12_19_58_48.csv"
     #fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd\\cedara_70091100056_results_report_2020_04_13_06_41_36.csv"
-
+    fname = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\sd_new2\\delmas_70101200027_results_report_2020_08_21_09_10_18.csv"
     df = pd.read_csv(fname, sep=",")
     df.columns = [x.replace(' ', '') for x in df.columns]
     df = df[df.classifier != "empty"]
@@ -33,7 +34,28 @@ if __name__ == '__main__':
     df["input"] = df["input"].str.replace("\n", '')
     # df = df.sort_values('accuracy_cv', ascending=False)
     print(df)
-    df = df[['accuracy_cv', 'accuracy_list', 'days_before_test', 'resolution', 'input', 'proba_y_false', 'proba_y_true', 'sliding_w', 'classifier', 'precision_true', 'precision_false', 'class_true_count', 'class_false_count']]
+    df = df[['accuracy_cv', 'threshold_nan', 'threshold_zeros', 'threshold_entropy', 'accuracy_list', 'days_before_test', 'resolution', 'input', 'proba_y_false', 'proba_y_true', 'sliding_w', 'classifier', 'precision_true', 'precision_false', 'class_true_count', 'class_false_count']]
+    df = df[['accuracy_cv', 'threshold_nan', 'threshold_zeros', 'threshold_entropy']]
+
+    df1 = df[(df['threshold_zeros'] == 0) & (df['threshold_entropy'] == 0)]
+    df1 = df1.sort_values('threshold_nan')
+    df1.plot.bar(x='threshold_nan', y='accuracy_cv', rot=0)
+    plt.show()
+    print(df1)
+
+    df2 = df[(df['threshold_nan'] == 0) & (df['threshold_entropy'] == 0)]
+    df2 = df2.sort_values('threshold_zeros')
+    df2.plot.bar(x='threshold_zeros', y='accuracy_cv', rot=0)
+    plt.show()
+    print(df2)
+
+    df3 = df[(df['threshold_nan'] == 0) & (df['threshold_zeros'] == 0)]
+    df3 = df3.sort_values('threshold_entropy')
+    df3.plot.bar(x='threshold_entropy', y='accuracy_cv', rot=90)
+    plt.show()
+    print(df3)
+
+    exit(0)
     df['a'] = df.apply(lambda row: sum([float(x) for x in str(row.precision_true).split(' ')])/len(row.precision_true.split(' ')), axis=1)
     df = df.sort_values('a', ascending=False)
     print(df)
