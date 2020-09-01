@@ -96,7 +96,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('max_colwidth', -1)
 
 np.random.seed(0)
-MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd_new2/"
+MAIN_DIR = "E:/Users/fo18103/PycharmProjects/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/20min/"
 META_DATA_LENGTH = 19
 
 
@@ -1289,11 +1289,11 @@ if __name__ == '__main__':
 
             # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
             #       outfname="half_split\\delmas_half", days=day, resolution=resolution)
-
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/0_00_1_00_0_00/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
-                  outfname="half_split\\cedara_half", days=day, resolution=resolution)
+            #
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/0_00_1_00_0_00/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
+            #       outfname="half_split\\cedara_half", days=day, resolution=resolution)
             
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/0_00_5_00_0_00/training_sets/cwt_.data" % (resolution, day),
+            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/0_00_0_00_0_00/training_sets/cwt_.data" % (resolution, day),
                   outfname="PLS",
                   days=day, resolution=resolution, classic_split=True)
 

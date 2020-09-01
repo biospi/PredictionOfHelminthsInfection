@@ -710,14 +710,14 @@ def interpolate(input_activity):
         return input_activity
 
 
-def create_activity_graph(activity, folder, filename, title=None, sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
+def create_activity_graph(animal_id, activity, folder, filename, title=None, sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     activity = [-20 if x is None else x for x in activity]
     fig = plt.figure()
     plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
     path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    fig.savefig('%s/%d_%s' % (path, len(activity), filename.replace(".", "_")))
+    fig.savefig('%s/%s_%d_%s' % (path, animal_id, len(activity), filename.replace(".", "_")))
     print(len(activity), filename.replace(".", "_"))
     fig.clear()
     plt.close(fig)
@@ -995,7 +995,7 @@ def create_training_set(result, dir, options=[]):
 
 
 def create_training_sets(data, dir_path):
-    # path1, options1 = create_training_set(data, dir_path, options=["activity"])
+    path1, options1 = create_training_set(data, dir_path, options=["activity"])
     path2, options2 = create_training_set(data, dir_path, options=["cwt"])
     # path3, options3 = create_training_set(data, dir_path, options=["weight"])
     # path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
@@ -1011,7 +1011,7 @@ def create_training_sets(data, dir_path):
 
     return [
 
-            # {"path": path1, "options": options1},
+            {"path": path1, "options": options1},
             {"path": path2, "options": options2}
             # {"path": path3, "options": options3},
             # {"path": path4, "options": options4},
@@ -1379,9 +1379,13 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, X_train_r, y_train
     handles.append(db_line)
 
     plt.legend(loc=2, fancybox=True, framealpha=0.4, handles=handles)
-    plt.title(title)
-    ttl = ax.title
-    ttl.set_position([.57, 0.97])
+    title = ax.set_title(title)
+    fig.tight_layout()
+    title.set_y(1.05)
+    fig.subplots_adjust(top=5.8)
+    # ax.set_title(title)
+    # ttl = ax.title
+    # ttl.set_position([.57, 0.97])
     # plt.tight_layout()
 
     # path = filename + '\\' + str(resolution) + '\\'
@@ -2569,10 +2573,10 @@ def process_day(params):
                 except (OSError, FileNotFoundError) as e:
                     print(e)
         else:
-            # try:
-            #     shutil.rmtree(dir)
-            # except (OSError, FileNotFoundError) as e:
-            #     print(e)
+            try:
+                shutil.rmtree(dir)
+            except (OSError, FileNotFoundError) as e:
+                print(e)
             filename = init_result_file(dir, farm_id)
             filename_s = init_result_file(dir, farm_id, simplified_results=True)
             print("force create!")
@@ -2614,11 +2618,11 @@ def process_day(params):
                 #     meta.append(result['famacha_score'])
                 # meta_data.append(meta)
 
-                result['is_valid'] = True
+                result['is_valid'] = is_valid
+                if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
+                    result['is_valid'] = False
                 result['reason'] = reason
                 result['entropy'] = h
-                if not is_valid:
-                    result['is_valid'] = False
 
                 result["nan_threshold"] = nan_threshold
                 result["zeros_threshold"] = zeros_threshold
@@ -2657,26 +2661,28 @@ def process_day(params):
             class_input_dict = []
             # exit(-1)
             print("create_activity_graph...")
-
+            print("could find %d samples." % len(results))
             for idx in range(len(results)):
                 result = results[idx]
 
-                sub_sub_folder = result["reason"] + "/" + str(result["animal_id"]) + "/"
+                sub_sub_folder = str(result["is_valid"]) + "/"
 
                 pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 filename_graph = create_filename(result)
                 if create_activity_graph_enabled:
 
-                    create_activity_graph(result["activity"], dir, filename_graph,
+                    create_activity_graph(str(result["animal_id"]), result["activity"], dir, filename_graph,
                                           title=create_graph_title(result, "time"),
                                           sub_sub_folder=sub_sub_folder)
 
                 if not result['is_valid']:
-                    results[idx] = None
+                    # results[idx] = None
                     continue
-                if result['ignore']:
-                    results[idx] = None
-                    continue
+
+                print("result valid %d for %s." % (idx, str(result["animal_id"])))
+                # if result['ignore']:
+                #     results[idx] = None
+                #     continue
                 # pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 # filename = create_filename(result)
                 # if create_activity_graph_enabled:

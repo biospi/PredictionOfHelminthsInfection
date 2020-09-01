@@ -863,48 +863,43 @@ def create_dataframe(list_data):
     return df
 
 
-histogram_array_dur = np.array([])
+histogram_array_dur = ()
 
+def isNaN(num):
+    return num != num
 
 def thresholded_resample(df, THRESH):
     print("thresholded_resample...")
-    cpt = 0
-    # THRESH = 10
-    row_to_del = []
-    to_del = []
-
     activity_col = df["first_sensor_value"]
-
-    gap = []
-    # for i, activity in enumerate(activity_col.values):
-    #     if np.isnan(activity):
-    #         cpt_gap += 1
-    #         gap.append(i)
-    #         continue
-    #     global histogram_array_dur
-    #     histogram_array_dur = np.append(histogram_array_dur, len(gap))
-    #     cpt_gap = 0
-    #     gap = []
     global histogram_array_dur
-    for i, activity in enumerate(activity_col.values):
+    i = 0
+    cpt = 0
+    row_to_del = ()
+    to_del = ()
+    gap = ()
+    activity_list = tuple(activity_col.values.tolist())
+    print("activity_list_size=", len(activity_list))
+    for activity in activity_list:
         if cpt >= THRESH:
             cpt = 0
-            to_del.extend(row_to_del)
-            row_to_del = []
-            # df.drop(df.index[row_to_del], inplace=True)
+            to_del = to_del + row_to_del
+            row_to_del = ()
 
-        if np.isnan(activity):
+        if isNaN(activity):
             cpt += 1
-            row_to_del.append(i)
+            row_to_del = row_to_del + (i,)
 
-            gap.append(i)
+            gap = gap + (i,)
+            i += 1
             continue
         cpt = 0
-        row_to_del = []
+        row_to_del = ()
 
-        histogram_array_dur = np.append(histogram_array_dur, len(gap))
-        gap = []
-
+        histogram_array_dur = histogram_array_dur + (len(gap),)
+        gap = ()
+        i += 1
+    to_del = list(to_del)
+    print("drop=", len(to_del))
     df.drop(df.index[to_del], inplace=True)
     return df
 
@@ -1055,7 +1050,7 @@ def process_raw_file(farm_id, data, threshold_gap):
     # save data in db
 
     global histogram_array_dur
-    _ = plt.hist(histogram_array_dur, bins='auto')  # arguments are passed to np.histogram
+    _ = plt.hist(list(histogram_array_dur), bins='auto')  # arguments are passed to np.histogram
     plt.title("Histogram of gap duration")
     plt.show()
     plt.savefig('histogram_of_gap_duration_%s.png' % farm_id)

@@ -186,6 +186,24 @@ def label_color(row, j):
     return np.nan
 
 
+def pad_for_visualization(activity_data, dil=10):
+    for array in activity_data:
+        pad = True
+        cpt_pad = 0
+        for k, item in enumerate(array):
+            if np.isnan(item):
+                pad = True
+
+            if pad:
+                array[k] = np.nan
+                cpt_pad += 1
+
+            if cpt_pad > dil:
+                cpt_pad = 0
+                pad = False
+    return activity_data
+
+
 def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
     print("create dataset map...")
 
@@ -203,6 +221,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
     cpt_21 = 0
     cpt_22 = 0
     cpt_11 = 0
+    cpt_nan = 0
     df1 = None
     animal_ids = []
     for j, (animal_id, value) in enumerate(data.items()):
@@ -286,7 +305,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
             df1["del"] = df1.apply(lambda row: mark_to_del(row), axis=1)
             #df1 = df1[(df1["del"] == 0)]
             df1["del2"] = df1.apply(lambda row: mark_to_del2(row), axis=1)
-            df1 = df1[(df1["del2"] <= 5000)]
+            df1 = df1[(df1["del2"] <= 50000)]
             del df1["del2"]
             del df1["del"]
 
@@ -327,6 +346,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
 
     min_date = df1.index.values[0]
     max_date = df1.index.values[-1]
+    rectangles = []
     for n, col in enumerate(df1.columns):
         if str(col).isdigit():
 
@@ -355,8 +375,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
             activity = list(divide_chunks(activity, chunck_size, reduced=False))
 
             for i, _ in enumerate(activity):
-                # if np.isnan(valid[i]):
-                #     continue
+
                 color = 'lime'
                 if famacha[i] == 1:
                     color = 'red'
@@ -372,7 +391,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
                     cpt_11 = cpt_11 + 1
 
                 startTime = dates[i][0]
-                endTime = dates[i][1]
+                endTime = startTime + np.timedelta64(7, 'D')
 
                 start = mdates.date2num(startTime)
                 end = mdates.date2num(endTime)
@@ -380,14 +399,22 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
 
                 top_col = np.nanmax(np.array([int(x) if x.isdigit() else np.nan for x in list(df1.columns.values)]))
                 y_pos = int(col)
+
                 lw = 1
                 if famacha[i] < 0:
-                    color = 'black'
-                    width = 0
-                    lw = 0
-                ax.add_patch(Rectangle((start, y_pos), width,
-                                       1, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=None))
+                    lw = 1
+                    color = 'grey'
+                    cpt_nan = cpt_nan + 1
+                    # width = 0
+                    # lw = 0
+                rec = Rectangle((start, y_pos), width, 1, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=None)
+                if famacha[i] < 0:
+                    ax.add_patch(rec)
+                else:
+                    rectangles.append(rec)
     print("ready to plot...")
+    for r in rectangles:
+        ax.add_patch(r)
 
     df1 = df1[activity_cols]
     df1 = df1.reindex(natsorted(df1.columns), axis=1)
@@ -397,6 +424,8 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
     print(max_v, min_v, med_v)
 
     activity_data = df1.values.T
+
+    # activity_data = pad_for_visualization(activity_data, dil=1500)
 
     dates = [datetime.date(x) for x in df1.index]
     x = np.array([mdates.date2num(x) for x in dates])
@@ -446,7 +475,8 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
     patch2 = mpatches.Patch(color='orange', label='2 -> 1 (%d)' % cpt_21)
     patch3 = mpatches.Patch(color='cyan', label='2 -> 2 (%d)' % cpt_22)
     patch4 = mpatches.Patch(color='lime', label='1 -> 1 (%d)' % cpt_11)
-    plt.legend(handles=[patch1, patch2, patch3, patch4])
+    patch5 = mpatches.Patch(color='grey', label='nan (%d)' % cpt_nan)
+    plt.legend(handles=[patch1, patch2, patch3, patch4, patch5])
 
     fig.show()
     print('saving fig...')
@@ -570,13 +600,13 @@ if __name__ == "__main__":
                   "date": [time_range, time_range_, time_range__], "famacha": [1, 1, 1] , "famacha_previous": [2, 2, 1], "valid": [True, False, True]}
             }
 
-    date_range1 = dummy_date_range(date(2010, 1, 1), date(2011, 1, 1))
-    date_range2 = dummy_date_range(date(2011, 1, 2), date(2012, 1, 2))
+    date_range1 = dummy_date_range(date(2000, 1, 1), date(2100, 1, 1))
+    date_range2 = dummy_date_range(date(2100, 1, 2), date(2200, 1, 3))
     s = len(date_range1)
     null_array = [np.nan]*s
     non_null_array = [1]*s
     null_array2 = [1]*s
-    for i in range(0, int(s/1.1)):
+    for i in range(int(s/2), int(s/2)+1):
         null_array2[i] = np.nan
 
     test = np.array(null_array2)
@@ -589,3 +619,5 @@ if __name__ == "__main__":
 
     # create_histogram(data, "farm_id")
     create_dataset_map(data.copy(), "farm_id", chunck_size=s)
+# 80302
+# 36524
