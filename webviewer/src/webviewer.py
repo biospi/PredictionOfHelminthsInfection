@@ -42,7 +42,8 @@ __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 global sql_db
-db_name = "south_africa_debug_resamp_test4"
+
+db_name = "south_africa_debug_resamp_1440min"
 
 
 def get_date_range(layout_data, herd=False):
@@ -449,11 +450,11 @@ def get_resolution_string(value):
     if value == 2:
         result = 'resolution_10min'
     if value == 3:
-        result = 'resolution_5min'
+        result = 'resolution_10min'
     if value == 4:
-        result = 'resolution_min'
+        result = 'resolution_10min'
     if value == 5:
-        result = 'resolution_min'
+        result = 'resolution_10min'
     return result
 
 
@@ -644,9 +645,9 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         if 'Ascomb' in normalize:
             a = normalize_activity_array_anscomb(a)
 
-        if 'HMeanDiff' in normalize:
-            if i[1] != 50000000000 and i[1] != 60000000000:
-                a = normalize_histogram_mean_diff(activity_mean_l, a)
+        # if 'HMeanDiff' in normalize:
+        #     if i[1] != 50000000000 and i[1] != 60000000000:
+        #         a = normalize_histogram_mean_diff(activity_mean_l, a)
         activity_list.append(a)
         t, layout_histogram = build_histogram_graph(a, i[1])
         traces_histogram.append(t)
@@ -799,8 +800,8 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
                 activity = [anscombe(x) if x is not None else None for x in activity]
                 activity_mean_l = [anscombe(x) if x is not None else None for x in activity_mean_l]
 
-            if 'HMeanDiff' in normalize:
-                activity = normalize_histogram_mean_diff(activity_mean_l, activity, True, i)
+            # if 'HMeanDiff' in normalize:
+            #     activity = normalize_histogram_mean_diff(activity_mean_l, activity, True, i)
             # activity, _ = compute_histogram(interpolate(activity))
 
 
@@ -1251,7 +1252,7 @@ def execute_sql_query(query, records=None, log_enabled=True):
             cursor.execute(query)
         rows = cursor.fetchall()
         for row in rows:
-            if log_enabled:
+            if False:
                 print("SQL Answer: %s" % row)
         return rows
     except Exception as e:
@@ -1901,7 +1902,7 @@ if __name__ == '__main__':
                                               x['serial_number'] == serial_number])
 
             if 'sql' == 'sql':
-                serial_numbers_rows = execute_sql_query("SELECT DISTINCT(serial_number) FROM %s_resolution_month" % farm_id)
+                serial_numbers_rows = execute_sql_query("SELECT DISTINCT(serial_number) FROM %s_resolution_week" % farm_id)
                 serial_numbers = [x['serial_number'] for x in serial_numbers_rows]
                 print("getting data in file...")
                 map = {}

@@ -305,7 +305,7 @@ def create_dataset_map(data, farm_id, fontsize=20, chunck_size=7):
             df1["del"] = df1.apply(lambda row: mark_to_del(row), axis=1)
             #df1 = df1[(df1["del"] == 0)]
             df1["del2"] = df1.apply(lambda row: mark_to_del2(row), axis=1)
-            df1 = df1[(df1["del2"] <= 50000)]
+            df1 = df1[(df1["del2"] <= 1000)]
             del df1["del2"]
             del df1["del"]
 

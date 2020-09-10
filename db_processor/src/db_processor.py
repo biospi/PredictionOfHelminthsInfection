@@ -7,6 +7,7 @@ import uuid
 import math
 from datetime import datetime, timedelta, time
 from sys import exit
+import itertools
 
 import numpy as np
 # import openpyxl
@@ -365,9 +366,9 @@ def init_database(farm_id):
 
     print("store data in sql database...")
     # create_sql_table("%s_resolution_min" % farm_id)
-    create_sql_table_("%s_resolution_5min" % farm_id)
+    # create_sql_table_("%s_resolution_5min" % farm_id)
     create_sql_table_("%s_resolution_10min" % farm_id)
-    create_sql_table_("%s_resolution_month" % farm_id)
+    # create_sql_table_("%s_resolution_month" % farm_id)
     create_sql_table_("%s_resolution_week" % farm_id)
     create_sql_table_("%s_resolution_day" % farm_id)
     create_sql_table_("%s_resolution_hour" % farm_id)
@@ -686,7 +687,7 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     return data
 
 
-def process_raw_h5files(path, resolution):
+def process_raw_h5files(path, thresh):
     print(path)
     h5_raw = tables.open_file(path, "r")
     data = h5_raw.root.table
@@ -713,7 +714,7 @@ def process_raw_h5files(path, resolution):
 
     for group in animal_list_grouped_by_farmid:
         farm_id = str(group[0][1])
-        process_raw_file(farm_id, group, resolution)
+        process_raw_file(farm_id, group, thresh)
 
 
 def create_mean_median_animal_(data):
@@ -769,24 +770,24 @@ def create_mean_median_animal_(data):
 
 
 def create_indexes(farm_id):
-    execute_sql_query(
-        "CREATE INDEX ix__%s_resolution_month__sn__ts on %s_resolution_month(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
+    # execute_sql_query(
+    #     "CREATE INDEX ix__%s_resolution_month__sn__ts on %s_resolution_month(serial_number, timestamp, first_sensor_value )" % (
+    #         farm_id, farm_id), log_enabled=True)
     execute_sql_query(
         "CREATE INDEX ix__%s_resolution_week__sn__ts on %s_resolution_week(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
+            farm_id, farm_id), log_enabled=True)
     execute_sql_query(
         "CREATE INDEX ix__%s_resolution_day__sn__ts on %s_resolution_day(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
+            farm_id, farm_id), log_enabled=True)
     execute_sql_query(
         "CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
+            farm_id, farm_id), log_enabled=True)
     execute_sql_query(
         "CREATE INDEX ix__%s_resolution_10min__sn__ts on %s_resolution_10min(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
-    execute_sql_query(
-        "CREATE INDEX ix__%s_resolution_5min__sn__ts on %s_resolution_5min(serial_number, timestamp, first_sensor_value )" % (
-        farm_id, farm_id), log_enabled=True)
+            farm_id, farm_id), log_enabled=True)
+    # execute_sql_query(
+    #     "CREATE INDEX ix__%s_resolution_5min__sn__ts on %s_resolution_5min(serial_number, timestamp, first_sensor_value )" % (
+    #         farm_id, farm_id), log_enabled=True)
     # execute_sql_query("CREATE INDEX ix__%s_resolution_min__sn__ts on %s_resolution_min(serial_number, timestamp, first_sensor_value )" % (farm_id, farm_id), log_enabled=True)
 
 
@@ -863,51 +864,38 @@ def create_dataframe(list_data):
     return df
 
 
-histogram_array_dur = ()
+def using_clump(a):
+    return [a[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(a))]
+
 
 def isNaN(num):
     return num != num
 
-def thresholded_resample(df, THRESH):
-    print("thresholded_resample...")
-    activity_col = df["first_sensor_value"]
-    global histogram_array_dur
-    i = 0
-    cpt = 0
-    row_to_del = ()
-    to_del = ()
-    gap = ()
-    activity_list = tuple(activity_col.values.tolist())
-    print("activity_list_size=", len(activity_list))
-    for activity in activity_list:
-        if cpt >= THRESH:
-            cpt = 0
-            to_del = to_del + row_to_del
-            row_to_del = ()
 
-        if isNaN(activity):
-            cpt += 1
-            row_to_del = row_to_del + (i,)
-
-            gap = gap + (i,)
-            i += 1
-            continue
-        cpt = 0
-        row_to_del = ()
-
-        histogram_array_dur = histogram_array_dur + (len(gap),)
-        gap = ()
-        i += 1
-    to_del = list(to_del)
-    print("drop=", len(to_del))
-    df.drop(df.index[to_del], inplace=True)
-    return df
+def thresholded_interpol(df_1min, thresh):
+    print("thresholded_interpol...")
+    data = pd.DataFrame(df_1min["first_sensor_value"])
+    mask = data.copy()
+    df = pd.DataFrame(data["first_sensor_value"])
+    df['new'] = ((df.notnull() != df.shift().notnull()).cumsum())
+    df['ones'] = 1
+    mask["first_sensor_value"] = (df.groupby('new')['ones'].transform('count') < thresh) | data[
+        "first_sensor_value"].notnull()
+    interpolated = data.interpolate().bfill()[mask]
+    df_1min["first_sensor_value"] = interpolated
+    histogram_array_dur = []
+    # clump = using_clump(data["first_sensor_value"].values)
+    len_holes = [len(list(g)) for k, g in itertools.groupby(data["first_sensor_value"].values, lambda x: np.isnan(x)) if k]
+    for nan_gap in len_holes:
+        histogram_array_dur.append(nan_gap)
+    print("thresholded_interpol done.")
+    return df_1min, histogram_array_dur
 
 
 def resample_df(res, data):
     print("resample_df ", res)
-    data = data.set_index('index')
-    data.index.name = None
+    # data = data.set_index('index')
+    # data.index.name = None
     data.index = pd.to_datetime(data.index)
     data['signal_strength_2'] = data['signal_strength']
     df = data.resample(res).agg(dict(timestamp='first', farm_id='first',
@@ -915,44 +903,228 @@ def resample_df(res, data):
                                      battery_voltage='mean',
                                      first_sensor_value='sum', date_str='first'
                                      ), skipna=False)
-    df.loc[np.isnan(df['timestamp']), 'first_sensor_value'] = np.nan
+    # df.loc[np.isnan(df['timestamp']), 'first_sensor_value'] = np.nan
     df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
     df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
     df = df.reset_index()
+    df.loc[df.isnull().any(axis=1), ["first_sensor_value"]] = np.nan
     return df
+
+
+def resample_1min(df_raw):
+    start = time.time()
+    print("resample_1min...")
+    df_raw = df_raw.set_index('index')
+    df_raw.index.name = None
+    df_raw.index = pd.to_datetime(df_raw.index)
+    start_date = min(df_raw.index.array).replace(second=0)
+    end_date = max(df_raw.index.array).replace(second=0)
+    date_range = np.array(pd.date_range(start_date, end_date, freq='1T', normalize=False))
+    df_1min = pd.DataFrame(date_range)
+    df_1min.index = date_range
+    df_raw.index.name = 'index'
+    for col in df_raw.columns:
+        df_1min[col] = np.nan
+    del df_1min[0]
+
+    t0 = df_1min.index[0].value
+    dt = df_1min.index[1].value - df_1min.index[0].value
+
+    N = df_raw.shape[0] - 1
+    i = N
+    while i > 0:
+        row_raw = df_raw.iloc[i, :]
+        x = df_raw.index[i].value
+        bin = int((x - t0) / dt)
+        if isNaN(df_1min.at[df_1min.index[bin], 'timestamp']):
+            df_1min.at[df_1min.index[bin], 'timestamp'] = row_raw.timestamp
+            df_1min.at[df_1min.index[bin], 'farm_id'] = row_raw.farm_id
+            df_1min.at[df_1min.index[bin], 'serial_number'] = row_raw.serial_number
+            df_1min.at[df_1min.index[bin], 'signal_strength'] = row_raw.signal_strength
+            df_1min.at[df_1min.index[bin], 'battery_voltage'] = row_raw.battery_voltage
+            df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
+            df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
+        else:
+            # print("Multiple binned time stamps, preforming a shift:")
+            repeat = 1
+            space = 0
+            begIdx = i
+            j = begIdx - 1
+            endIdx = 0
+            endBin = 0
+            x0_bin = bin
+            #            fail = 0
+            while True:
+                # For debuging
+                # print("idx x0: %d  idx x1: %d \n" % (j+1, j), df_raw.iloc[list(range(j, j + 2)), :])
+                x1 = df_raw.index[j].value
+                x1_bin = int((x1 - t0) / dt)
+                dBin = x0_bin - x1_bin - 1
+                if dBin < 0:
+                    repeat += 1
+                elif dBin > 0:
+                    space += dBin
+                if space >= repeat:
+                    endIdx = j
+                    endBin = x1_bin
+                    break
+                x0_bin = x1_bin
+                j -= 1
+            #                fail += 1
+            #                if fail > 50:
+            #                    break
+            #            if fail > 50:
+            #                print("Error with time stamps in data: !!!")
+            #                print("idx x0: %d  idx x1: %d \n" % (begIdx, j), df_raw.iloc[list(range(j, begIdx + 2)), :])
+            #                break
+            # print("Space found: Realign data to correct time stamp...")
+            # print("Raw data Index: [Begin, End] =  [%d, %d]" % (begIdx, endIdx))
+            for k in range(begIdx, endIdx - 1, -1):
+                # For debuging
+                # print("idx x0: %d \n" % k, df_raw.iloc[list(range(k, k +1)), :])
+                row_raw = df_raw.iloc[k, :]
+                bin -= 1
+                if isNaN(df_1min.at[df_1min.index[bin], 'timestamp']):
+                    df_1min.at[df_1min.index[bin], 'timestamp'] = row_raw.timestamp
+                    df_1min.at[df_1min.index[bin], 'farm_id'] = row_raw.farm_id
+                    df_1min.at[df_1min.index[bin], 'serial_number'] = row_raw.serial_number
+                    df_1min.at[df_1min.index[bin], 'signal_strength'] = row_raw.signal_strength
+                    df_1min.at[df_1min.index[bin], 'battery_voltage'] = row_raw.battery_voltage
+                    df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
+                    df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
+            i = endIdx
+        i -= 1
+
+    # for row_raw in df_raw.itertuples():
+    #     x = row_raw.Index.value
+    #     bin = int((x-t0)/dt)
+    #     if isNaN(df_1min.at[df_1min.index[bin], 'timestamp']):
+    #         df_1min.at[df_1min.index[bin], 'timestamp'] = row_raw.timestamp
+    #         df_1min.at[df_1min.index[bin], 'farm_id'] = row_raw.farm_id
+    #         df_1min.at[df_1min.index[bin], 'serial_number'] = row_raw.serial_number
+    #         df_1min.at[df_1min.index[bin], 'signal_strength'] = row_raw.signal_strength
+    #         df_1min.at[df_1min.index[bin], 'battery_voltage'] = row_raw.battery_voltage
+    #         df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
+    #         df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
+    #     else:
+    #         if isNaN(df_1min.at[df_1min.index[bin+1], 'timestamp']):
+    #             df_1min.at[df_1min.index[bin+1], 'timestamp'] = row_raw.timestamp
+    #             df_1min.at[df_1min.index[bin+1], 'farm_id'] = row_raw.farm_id
+    #             df_1min.at[df_1min.index[bin+1], 'serial_number'] = row_raw.serial_number
+    #             df_1min.at[df_1min.index[bin+1], 'signal_strength'] = row_raw.signal_strength
+    #             df_1min.at[df_1min.index[bin+1], 'battery_voltage'] = row_raw.battery_voltage
+    #             df_1min.at[df_1min.index[bin+1], 'first_sensor_value'] = row_raw.first_sensor_value
+    #             df_1min.at[df_1min.index[bin+1], 'date_str'] = row_raw.date_str
+    #         else:
+    #             print("multiple bin warning ", row_raw.timestamp, bin, row_raw.date_str, idx)
+    #             print(df_raw.iloc[list(range(idx-4, idx+4)), :])
+    #     idx += 1
+    # i = 0
+    # scaning_range = 3
+    # for row_1min in df_1min.itertuples():
+    #     date_1min = row_1min.Index
+    #     if i == df_raw.shape[0] - scaning_range:
+    #         break
+    #     df_to_scan = df_raw.iloc[list(range(i, i+scaning_range)), :]
+    #     cpt_not_same_min = 0
+    #     for row_raw in df_to_scan.itertuples():
+    #         date_raw = row_raw.Index
+    #         if is_in_same_minute(date_1min, date_raw):
+    #             cpt_not_same_min += 1
+    #             if isNaN(df_1min.at[row_1min.Index, 'timestamp']):
+    #                 df_1min.at[row_1min.Index, 'timestamp'] = row_raw.timestamp
+    #                 df_1min.at[row_1min.Index, 'farm_id'] = row_raw.farm_id
+    #                 df_1min.at[row_1min.Index, 'serial_number'] = row_raw.serial_number
+    #                 df_1min.at[row_1min.Index, 'signal_strength'] = row_raw.signal_strength
+    #                 df_1min.at[row_1min.Index, 'battery_voltage'] = row_raw.battery_voltage
+    #                 df_1min.at[row_1min.Index, 'first_sensor_value'] = row_raw.first_sensor_value
+    #                 df_1min.at[row_1min.Index, 'date_str'] = row_raw.date_str
+    #             else:
+    #                 next_time = row_1min.Index + timedelta(minutes=1)
+    #                 df_1min.at[next_time, 'timestamp'] = row_raw.timestamp
+    #                 df_1min.at[next_time, 'farm_id'] = row_raw.farm_id
+    #                 df_1min.at[next_time, 'serial_number'] = row_raw.serial_number
+    #                 df_1min.at[next_time, 'signal_strength'] = row_raw.signal_strength
+    #                 df_1min.at[next_time, 'battery_voltage'] = row_raw.battery_voltage
+    #                 df_1min.at[next_time, 'first_sensor_value'] = row_raw.first_sensor_value
+    #                 df_1min.at[next_time, 'date_str'] = row_raw.date_str
+    #     if cpt_not_same_min == 0:
+    #         continue
+    #     i += 1
+    end = time.time()
+    print("Elapsed = %s" % (end - start))
+    print(df_raw)
+    print(df_1min)
+    return df_1min
+
+
+def is_in_same_dminute(date1, date2):
+    if date1.date() != date2.date():
+        return False
+    if date1.hour != date2.hour:
+        return False
+    if date1.minute != date2.minute:
+        return False
+    return True
 
 
 def resample(res, data):
     df = resample_df(res, data)
-    # data.resample(res, on='date', how={'timestamp': np.median, 'farm_id': np.median, 'serial_number': np.median, 'signal_strength': np.mean,
-    #                         'battery_voltage': np.mean, 'first_sensor_value': np.sum, 'date_str': np.mean
-    #                         })
-    # df = df.reset_index()
-    if res == 'H':
-        print(df)
-        df.plot(x='timestamp', y='first_sensor_value')
-        plt.show()
+    df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
 
-    # df.loc[df.battery_voltage.isnull(), 'first_sensor_value'] = np.nan
-    # df = df.reset_index()
-    # df['ts'] = df.index.values.astype(np.int64) // 10 ** 9
-    # df['ds'] = df.index.dt.strftime('%Y-%m-%dT%H:%M')
     subset = df[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
                  'first_sensor_value']]
 
-    subset = subset.assign(
-        serial_number=df['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
+    subset = subset.assign(serial_number=df['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
+    subset = subset.assign(serial_number=df['farm_id'].max())
+    subset = subset.assign(serial_number=df['signal_strength'].max())
+    subset = subset.assign(serial_number=df['signal_strength_2'].max())
+    subset = subset.assign(serial_number=df['battery_voltage'].max())
+
     data = [(np.nan if np.isnan(x[0]) else int(x[0]),
-               str(x[1]),
-               None if np.isnan(x[2]) else int(x[2]),
-               None if np.isnan(x[3]) else int(x[3]),
-               None if np.isnan(x[4]) else int(x[4]),
-               None if np.isnan(x[5]) else int(x[5]),
-               None if np.isnan(x[6]) else int(x[6])) for x in subset.to_numpy()]
+             str(x[1]),
+             None if np.isnan(x[2]) else int(x[2]),
+             None if np.isnan(x[3]) else int(x[3]),
+             None if np.isnan(x[4]) else int(x[4]),
+             None if np.isnan(x[5]) else int(x[5]),
+             None if np.isnan(x[6]) else int(x[6])) for x in subset.to_numpy()]
 
     # activity = [None if np.isnan(x[6]) else int(x[6]) for x in subset.to_numpy()]
 
     return data
+
+
+def build_data_from_raw(animal_records_df, threshold_gap, res=None):
+    df_raw = resample_1min(animal_records_df)
+    df_linterpolated, gap_data = thresholded_interpol(df_raw, threshold_gap)
+    df_processed = resample(res, df_linterpolated)
+    return df_processed, gap_data
+
+
+def process(animal_records, threshold_gap, res):
+    animal_records_df = create_dataframe(animal_records)
+    df_10min, gap_data = build_data_from_raw(animal_records_df, threshold_gap, res=res)
+    return [df_10min, gap_data]
+
+
+async_results_10min = []
+async_results_day = []
+async_results_hour = []
+async_results_week = []
+
+
+def save_result_10min(result):
+    async_results_10min.append(result)
+
+def save_result_day(result):
+    async_results_day.append(result)
+
+def save_result_hour(result):
+    async_results_hour.append(result)
+
+def save_result_week(result):
+    async_results_week.append(result)
 
 
 def process_raw_file(farm_id, data, threshold_gap):
@@ -975,94 +1147,61 @@ def process_raw_file(farm_id, data, threshold_gap):
     data_resampled_week = []
     data_resampled_month = []
 
-    MULTI_THREADING_ENABLED = False
+    MULTI_THREADING_ENABLED = True
 
+    histogram_array_dur = []
     if MULTI_THREADING_ENABLED:
-        pool = Pool(processes=5)
+        pool = Pool(processes=6)
+        for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
+            if len(animal_records) <= 1:
+                continue
+            pool.apply_async(process, (animal_records, threshold_gap, '10min',), callback=save_result_10min)
 
-    animal_serial_number_to_ignore = []
-    activity_data = []
-    animals_id = []
-    time_range = []
-    for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
-        print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
-        # find first and last record date.
-        # if len(animal_records) < 100:
-        #     continue
-        serial_number = animal_records[0][2]
-        animals_id.append(serial_number)
-        if serial_number in animal_serial_number_to_ignore:
-            continue
-        first_timestamp, last_timestamp = get_first_last_timestamp(animal_records)
-        animal_records_df = create_dataframe(animal_records)
-        # print(df)
-        # df.plot(x='date', y='first_sensor_value')
-        # plt.show()
-        if not MULTI_THREADING_ENABLED:
-            # data_resampled_min.extend(resample_to_min(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
-            # data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
-            df_raw = resample_df('1T', animal_records_df)
-            df_thresh = thresholded_resample(df_raw, threshold_gap)
-            data_resampled_10min.extend(resample('10min', df_thresh))
-            data_resampled_day.extend(resample('D', df_thresh))
+            pool.apply_async(process, (animal_records, threshold_gap, 'D',), callback=save_result_day)
 
-            # # activity_data.append(resample('10min', animal_records_df))
-            # # data_resampled_5min.extend(resample('5min', df_thresh))
-            # data_resampled_hour.extend(resample('H', df_thresh))
-            # data_resampled_day.extend(resample('D', df_thresh))
-            # data_resampled_week.extend(resample('W', df_thresh))
-            # data_resampled_month.extend(resample('M', df_thresh))
-        else:
-            iterable = [animal_records]
-            # func1 = partial(resample_to_min, first_timestamp, last_timestamp)
-            func2 = partial(resample_to_hour, first_timestamp, last_timestamp)
-            func3 = partial(resample_to_day, first_timestamp, last_timestamp)
-            func4 = partial(resample_to_week, first_timestamp, last_timestamp)
-            func5 = partial(resample_to_month, first_timestamp, last_timestamp)
-            func6 = partial(resample_to_10min, first_timestamp, last_timestamp)
-            func7 = partial(resample_to_5min, first_timestamp, last_timestamp)
-            # result_func1 = pool.map_async(func1, iterable)
-            result_func2 = pool.map_async(func2, iterable)
-            result_func3 = pool.map_async(func3, iterable)
-            result_func4 = pool.map_async(func4, iterable)
-            result_func5 = pool.map_async(func5, iterable)
-            result_func6 = pool.map_async(func6, iterable)
-            result_func7 = pool.map_async(func7, iterable)
-            # r1 = result_func1.get()[0]
-            r2 = result_func2.get()[0]
-            r3 = result_func3.get()[0]
-            r4 = result_func4.get()[0]
-            r5 = result_func5.get()[0]
-            r6 = result_func6.get()[0]
-            r7 = result_func7.get()[0]
-            # data_resampled_min.extend(r1)
-            data_resampled_hour.extend(r2)
-            data_resampled_day.extend(r3)
-            data_resampled_week.extend(r4)
-            data_resampled_month.extend(r5)
-            data_resampled_10min.extend(r6)
-            data_resampled_5min.extend(r7)
-    # save data in db
+            pool.apply_async(process, (animal_records, threshold_gap, 'H',), callback=save_result_hour)
 
-    global histogram_array_dur
-    _ = plt.hist(list(histogram_array_dur), bins='auto')  # arguments are passed to np.histogram
-    plt.title("Histogram of gap duration")
-    plt.show()
-    plt.savefig('histogram_of_gap_duration_%s.png' % farm_id)
+            pool.apply_async(process, (animal_records, threshold_gap, 'W'), callback=save_result_week)
+        pool.close()
+        pool.join()
+        for item in async_results_10min:
+            data_resampled_10min.extend(item[0])
+            histogram_array_dur.extend(item[1])
+        for item in async_results_day:
+            data_resampled_day.extend(item[0])
+        for item in async_results_hour:
+            data_resampled_hour.extend(item[0])
+        for item in async_results_week:
+            data_resampled_week.extend(item[0])
+    else:
+        for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
+            print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
+            if len(animal_records) <= 1:
+                continue
+            print("animal_records=", len(animal_records))
+            result = process(animal_records, threshold_gap, '10min')
+            data_resampled_10min.extend(result[0])
+            histogram_array_dur.extend(result[1])
 
-    del histogram_array_dur
+            result = process(animal_records, threshold_gap, 'D')
+            data_resampled_day.extend(result[0])
+
+            result = process(animal_records, threshold_gap, 'H')
+            data_resampled_hour.extend(result[0])
+
+            result = process(animal_records, threshold_gap, 'W')
+            data_resampled_week.extend(result[0])
+
+    plot_histogram(histogram_array_dur, farm_id, threshold_gap)
+
+    histogram_array_dur = []
 
     print("saving data to db...")
     # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
     # exit(0)
 
-    data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
-    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
+    # data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
+    # insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
 
     data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
     insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
@@ -1076,8 +1215,8 @@ def process_raw_file(farm_id, data, threshold_gap):
     data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
     insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
 
-    data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
-    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
+    # data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
+    # insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
 
     # data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
     # insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
@@ -1106,127 +1245,6 @@ def process_raw_file(farm_id, data, threshold_gap):
     print(get_elapsed_time_string(start_time, time.time()))
     print("finished processing raw file.")
 
-
-def process_raw_file2(farm_id, data):
-    start_time = time.time()
-    farm_id = format_farm_id(farm_id)
-    table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
-    print("process data for farm %s." % farm_id)
-
-    # group records by animal id/serial number
-    groups = defaultdict(list)
-    for obj in data:
-        groups[obj[2]].append(obj)
-    animal_list_grouped_by_serialn = list(groups.values())
-
-    data_resampled_min = []
-    data_resampled_5min = []
-    data_resampled_10min = []
-    data_resampled_hour = []
-    data_resampled_day = []
-    data_resampled_week = []
-    data_resampled_month = []
-
-    MULTI_THREADING_ENABLED = True
-
-    if MULTI_THREADING_ENABLED:
-        pool = Pool(processes=5)
-
-    animal_serial_number_to_ignore = []
-    for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
-        print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
-        # find first and last record date.
-        if len(animal_records) < 100:
-            continue
-        serial_number = animal_records[0][2]
-        if serial_number in animal_serial_number_to_ignore:
-            continue
-        first_timestamp, last_timestamp = get_first_last_timestamp(animal_records)
-        if not MULTI_THREADING_ENABLED:
-            data_resampled_min.extend(resample_to_min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
-            data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
-            data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
-            data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
-        else:
-            iterable = [animal_records]
-            func1 = partial(resample_to_min, first_timestamp, last_timestamp)
-            func2 = partial(resample_to_hour, first_timestamp, last_timestamp)
-            func3 = partial(resample_to_day, first_timestamp, last_timestamp)
-            func4 = partial(resample_to_week, first_timestamp, last_timestamp)
-            func5 = partial(resample_to_month, first_timestamp, last_timestamp)
-            func6 = partial(resample_to_10min, first_timestamp, last_timestamp)
-            func7 = partial(resample_to_5min, first_timestamp, last_timestamp)
-            result_func1 = pool.map_async(func1, iterable)
-            result_func2 = pool.map_async(func2, iterable)
-            result_func3 = pool.map_async(func3, iterable)
-            result_func4 = pool.map_async(func4, iterable)
-            result_func5 = pool.map_async(func5, iterable)
-            result_func6 = pool.map_async(func6, iterable)
-            result_func7 = pool.map_async(func7, iterable)
-            r1 = result_func1.get()[0]
-            r2 = result_func2.get()[0]
-            r3 = result_func3.get()[0]
-            r4 = result_func4.get()[0]
-            r5 = result_func5.get()[0]
-            r6 = result_func6.get()[0]
-            r7 = result_func7.get()[0]
-            data_resampled_min.extend(r1)
-            data_resampled_hour.extend(r2)
-            data_resampled_day.extend(r3)
-            data_resampled_week.extend(r4)
-            data_resampled_month.extend(r5)
-            data_resampled_10min.extend(r6)
-            data_resampled_5min.extend(r7)
-    # save data in db
-    print("saving data to db...")
-
-    data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
-    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
-
-    data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
-    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
-
-    data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
-    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
-
-    data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
-    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
-
-    data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
-    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
-
-    data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
-    insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
-
-    data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
-    insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
-
-    create_indexes(farm_id)
-    sql_db_flush()
-
-    # if sys.argv[1] == 'h5':
-    #     table_m.append(data_resampled_month)
-    #     table_w.append(data_resampled_week)
-    #     table_d.append(data_resampled_day)
-    #     table_h.append(data_resampled_hour)
-    #     table_min.append(data_resampled_min)
-    #     table_10min.append(data_resampled_min)
-    #     table_5min.append(data_resampled_min)
-    #     table_m.flush()
-    #     table_w.flush()
-    #     table_d.flush()
-    #     table_h.flush()
-    #     table_min.flush()
-    #     table_10min.flush()
-    #     table_5min.flush()
-
-    print(len(data_resampled_min), len(data_resampled_5min), len(data_resampled_10min), len(data_resampled_hour),
-          len(data_resampled_day), len(data_resampled_week), len(data_resampled_month))
-    print(get_elapsed_time_string(start_time, time.time()))
-    print("finished processing raw file.")
 
 
 def xl_date_to_date(xldate, wb):
@@ -1515,6 +1533,45 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     store.close()
 
 
+def plot_histogram(x, farm_id, threshold_gap):
+    if len(x) == 0:
+        print("empty input in plot histogram!")
+        return
+    print("lenght=", len(x))
+    print("max=", max(x))
+    print("min=", min(x))
+    x = pd.Series(x)
+
+    # histogram on linear scale
+    plt.subplot(211)
+    num_bins = max(x)
+    hist, bins, _ = plt.hist(x, bins=num_bins)
+    # histogram on log scale.
+    # Use non-equal bin sizes, such that they look equal on log scale.
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    plt.subplot(212)
+    plt.hist(x, bins=logbins)
+    plt.xscale('log')
+    plt.show()
+    print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+    # plt.imsave('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+
+    # num_bins = max(x)
+    # fig, ax = plt.subplots()
+    # # the histogram of the data
+    # print("max=", max(x))
+    # print("min=", min(x))
+    # ax.hist(x, num_bins, density=1)
+    # ax.set_xlabel('gap lenght (minutes)')
+    # ax.set_ylabel('count')
+    # ax.set_title('Histogram')
+    # # Tweak spacing to prevent clipping of ylabel
+    # fig.tight_layout()
+    # plt.show()
+    # print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+    # fig.savefig('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+
+
 if __name__ == '__main__':
     print("start...")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas.h5")
@@ -1524,9 +1581,9 @@ if __name__ == '__main__':
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
 
-    for resolution in [60*3, 60*4, 60*5, 60*6, 60*7, 60*8, 60*9, 60*10]:
-        db_name = "south_africa_debug_resamp_test_%dmin" % resolution
+    for thresh in [60*1, 60*24, 60*24*7, 60*12]:
+        db_name = "south_africa_debug_resamp_%dmin" % thresh
         create_and_connect_to_sql_db(db_name)
-        # drop_all_tables(db_name)
-        process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", resolution)
+        drop_all_tables(db_name)
+        process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", thresh)
         # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara.h5", resolution)

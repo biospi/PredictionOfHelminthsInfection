@@ -127,7 +127,7 @@ RESULT_FILE_HEADER_R = "sample_id, class, class_prediction, prob_0, prob_1, fold
 
 skipped_class_false, skipped_class_true = -1, -1
 META_DATA_LENGTH = 19
-
+DB_NAME = "south_africa_debug_resamp_600min"
 
 class NoDaemonProcess(multiprocessing.Process):
     # make 'daemon' attribute always return False
@@ -251,7 +251,7 @@ def pad(a, N):
 
 
 def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015",
-                            db_name="south_africa_debug_resamp_test_20min",
+                            db_name=DB_NAME,
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     sql_db = pymysql.connect(host=db_server_name, user=db_user, password=db_password,
@@ -321,6 +321,7 @@ def normalize_histogram_mean_diff(activity_mean, activity):
 
         scale[n] = r
         idx.append(n)
+
     median = math.fabs(statistics.median(sorted(set(scale))))
     #print(scale)
     for i in idx:
@@ -597,7 +598,7 @@ def get_expected_sample_count(resolution, days_before_test):
     if resolution == "day":
         expected_sample_n = days_before_test
 
-    expected_sample_n = expected_sample_n - 4 #todo fix resampling clipping
+    expected_sample_n = expected_sample_n - 10 #todo fix resampling clipping
     print("expected sample count is %d." % expected_sample_n)
     return int(expected_sample_n)
 
@@ -2659,7 +2660,7 @@ def process_day(params):
                 continue
 
             class_input_dict = []
-            # exit(-1)
+
             print("create_activity_graph...")
             print("could find %d samples." % len(results))
             for idx in range(len(results)):
@@ -2763,7 +2764,7 @@ if __name__ == '__main__':
     print('args=', sys.argv)
     print("pandas", pd.__version__)
 
-    src_folders = ["20min\\"]
+    src_folders = [DB_NAME + "\\"]
     for src_folder in src_folders:
         os.chdir(os.path.dirname(__file__).replace('C:', 'E:'))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
