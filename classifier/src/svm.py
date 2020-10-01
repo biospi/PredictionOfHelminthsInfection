@@ -1248,7 +1248,7 @@ def start(fname1=None, fname2=None, half_period_split=False, label_col='label', 
     else:
         data_frame = data_frame.sample(frac=1).reset_index(drop=True)
         data_frame = data_frame.fillna(-1)
-        process(data_frame, dim_reduc='LDA', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split, days=days, resolution=resolution, df_original=grouped_by_id)
+        process(data_frame, dim_reduc='PLS', clf_name='LREG', y_col=label_col, outfname=outfname, classic_split=classic_split, days=days, resolution=resolution, df_original=grouped_by_id)
 
 
 if __name__ == '__main__':
@@ -1293,14 +1293,14 @@ if __name__ == '__main__':
             # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/0_00_1_00_0_00/training_sets/cwt_.data" % (resolution, day), half_period_split=True,
             #       outfname="half_split\\cedara_half", days=day, resolution=resolution)
             
-            start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/0_00_0_00_0_00/training_sets/cwt_.data" % (resolution, day),
-                  outfname="PLS",
-                  days=day, resolution=resolution, classic_split=True)
+            # start(fname1=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/0_00_0_00_0_00/training_sets/cwt_.data" % (resolution, day),
+            #       outfname="PLS",
+            #       days=day, resolution=resolution, classic_split=True)
 
-            # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
-            #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
-            #       outfname="cross_farm\\trained_on_cedara_test_on_delmas",
-            #       days=day, resolution=resolution)
+            start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
+                  fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),
+                  outfname="cross_farm\\trained_on_cedara_test_on_delmas",
+                  days=day, resolution=resolution)
 
             # start(fname2=MAIN_DIR + "%s_sld_0_dbt%d_delmas_70101200027/training_sets/cwt_.data" % (resolution, day),
             #       fname1=MAIN_DIR + "%s_sld_0_dbt%d_cedara_70091100056/training_sets/cwt_.data" % (resolution, day),

@@ -35,11 +35,12 @@ from multiprocessing import Pool
 # from pycel import ExcelCompiler
 # import cryptography #need to be imported or pip install cryptography
 import matplotlib.pyplot as plt
+import pathlib
 
 from classifier.src.herd_map import create_herd_map
 
 sql_db = None
-MAX_ACTIVITY_COUNT_BIO = 450
+MAX_ACTIVITY_COUNT_BIO = 480
 pd.set_option('display.max_columns', 48)
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_rows', 1000)
@@ -191,7 +192,7 @@ def purge_file(filename):
     print("purge %s..." % filename)
     try:
         os.remove(filename)
-    except FileNotFoundError:
+    except (FileNotFoundError, PermissionError):
         print("file not found.")
 
 
@@ -369,9 +370,9 @@ def init_database(farm_id):
     # create_sql_table_("%s_resolution_5min" % farm_id)
     create_sql_table_("%s_resolution_10min" % farm_id)
     # create_sql_table_("%s_resolution_month" % farm_id)
-    create_sql_table_("%s_resolution_week" % farm_id)
-    create_sql_table_("%s_resolution_day" % farm_id)
-    create_sql_table_("%s_resolution_hour" % farm_id)
+    # create_sql_table_("%s_resolution_week" % farm_id)
+    # create_sql_table_("%s_resolution_day" % farm_id)
+    # create_sql_table_("%s_resolution_hour" % farm_id)
     return None, None, None, None, None, None, None
 
     if sys.argv[1] == 'h5':
@@ -695,7 +696,11 @@ def process_raw_h5files(path, thresh):
     print("loading data...")
     for idx, x in enumerate(data):  # need idx for data iteration?
         farm_id = x['control_station']
-        # if farm_id != 70101200027: #todo remove
+        # if farm_id != 70091100056: #todo remove
+        #     continue
+        # if x['serial_number'] not in [40121100797]:
+        #     continue
+        # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
         #     continue
         if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
             continue
@@ -704,7 +709,7 @@ def process_raw_h5files(path, thresh):
                  datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
                                    '%Y-%m-%dT%H:%M:%S'))
         list_raw.append(value)
-        # if idx > 900000:  # todo remove
+        # if idx > 10000:  # todo remove
         #     break
     # group records by farm id/control_station
     groups = defaultdict(list)
@@ -773,15 +778,15 @@ def create_indexes(farm_id):
     # execute_sql_query(
     #     "CREATE INDEX ix__%s_resolution_month__sn__ts on %s_resolution_month(serial_number, timestamp, first_sensor_value )" % (
     #         farm_id, farm_id), log_enabled=True)
-    execute_sql_query(
-        "CREATE INDEX ix__%s_resolution_week__sn__ts on %s_resolution_week(serial_number, timestamp, first_sensor_value )" % (
-            farm_id, farm_id), log_enabled=True)
-    execute_sql_query(
-        "CREATE INDEX ix__%s_resolution_day__sn__ts on %s_resolution_day(serial_number, timestamp, first_sensor_value )" % (
-            farm_id, farm_id), log_enabled=True)
-    execute_sql_query(
-        "CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (
-            farm_id, farm_id), log_enabled=True)
+    # execute_sql_query(
+    #     "CREATE INDEX ix__%s_resolution_week__sn__ts on %s_resolution_week(serial_number, timestamp, first_sensor_value )" % (
+    #         farm_id, farm_id), log_enabled=True)
+    # execute_sql_query(
+    #     "CREATE INDEX ix__%s_resolution_day__sn__ts on %s_resolution_day(serial_number, timestamp, first_sensor_value )" % (
+    #         farm_id, farm_id), log_enabled=True)
+    # execute_sql_query(
+    #     "CREATE INDEX ix__%s_resolution_hour__sn__ts on %s_resolution_hour(serial_number, timestamp, first_sensor_value )" % (
+    #         farm_id, farm_id), log_enabled=True)
     execute_sql_query(
         "CREATE INDEX ix__%s_resolution_10min__sn__ts on %s_resolution_10min(serial_number, timestamp, first_sensor_value )" % (
             farm_id, farm_id), log_enabled=True)
@@ -850,6 +855,8 @@ def create_mean_median_animal(data):
         median_data.append(median_record)
 
     result = mean_data + median_data
+    print("median animal lenght=", len(median_data))
+    print("mean animal lenght=", len(mean_data))
 
     return result
 
@@ -858,7 +865,7 @@ def create_dataframe(list_data):
     df = pd.DataFrame(list_data)
     df.columns = ['timestamp', 'farm_id', 'serial_number', 'signal_strength', 'battery_voltage', 'first_sensor_value',
                   'date', 'date_str']
-    df = df.drop_duplicates(subset=['timestamp', 'first_sensor_value'], keep=False)
+    df = df.drop_duplicates(subset=['timestamp', 'first_sensor_value'])
     df = df.sort_values(by='date')
     df.rename({'date': 'index'}, axis=1, inplace=True)
     return df
@@ -873,7 +880,7 @@ def isNaN(num):
 
 
 def thresholded_interpol(df_1min, thresh):
-    print("thresholded_interpol...")
+    print("thresholded_interpol...", thresh)
     data = pd.DataFrame(df_1min["first_sensor_value"])
     mask = data.copy()
     df = pd.DataFrame(data["first_sensor_value"])
@@ -883,13 +890,32 @@ def thresholded_interpol(df_1min, thresh):
         "first_sensor_value"].notnull()
     interpolated = data.interpolate().bfill()[mask]
     df_1min["first_sensor_value"] = interpolated
-    histogram_array_dur = []
+    histogram_array_nan_dur , histogram_array_no_activity_dur = [], []
     # clump = using_clump(data["first_sensor_value"].values)
     len_holes = [len(list(g)) for k, g in itertools.groupby(data["first_sensor_value"].values, lambda x: np.isnan(x)) if k]
     for nan_gap in len_holes:
-        histogram_array_dur.append(nan_gap)
-    print("thresholded_interpol done.")
-    return df_1min, histogram_array_dur
+        histogram_array_nan_dur.append(nan_gap)
+
+    len_no_activity = [len(list(g)) for k, g in itertools.groupby(data["first_sensor_value"].values, lambda x: x == 0) if k]
+    for zero_gap in len_no_activity:
+        histogram_array_no_activity_dur.append(zero_gap)
+
+    print("thresholded_interpol done.", thresh)
+
+    df_linterpolated = df_1min.copy()
+    df_linterpolated['signal_strength_2'] = df_linterpolated['signal_strength']
+    df_linterpolated['timestamp'] = df_linterpolated.index.values.astype(np.int64) // 10 ** 9
+    df_linterpolated['date_str'] = df_linterpolated.index.strftime('%Y-%m-%dT%H:%M')
+    df_linterpolated = df_linterpolated.assign(farm_id=df_linterpolated['farm_id'].max())
+
+    df_linterpolated = df_linterpolated[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
+                 'first_sensor_value']]
+
+    df_linterpolated = df_linterpolated.assign(serial_number=df_linterpolated['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
+
+    df_linterpolated[['signal_strength', 'signal_strength_2', 'battery_voltage']] = df_linterpolated[['signal_strength', 'signal_strength_2', 'battery_voltage']].fillna(value=0)
+
+    return df_linterpolated, histogram_array_nan_dur, histogram_array_no_activity_dur
 
 
 def resample_df(res, data):
@@ -897,19 +923,45 @@ def resample_df(res, data):
     # data = data.set_index('index')
     # data.index.name = None
     data.index = pd.to_datetime(data.index)
-    data['signal_strength_2'] = data['signal_strength']
-    df = data.resample(res).agg(dict(timestamp='first', farm_id='first',
+    df = data.resample(res).agg(dict(timestamp='first',
                                      serial_number='first', signal_strength='min', signal_strength_2='max',
                                      battery_voltage='mean',
                                      first_sensor_value='sum', date_str='first'
                                      ), skipna=False)
+    df = df[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
+                 'first_sensor_value']]
+    # df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    # df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
     # df.loc[np.isnan(df['timestamp']), 'first_sensor_value'] = np.nan
-    df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
-    df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
-    df = df.reset_index()
-    df.loc[df.isnull().any(axis=1), ["first_sensor_value"]] = np.nan
+    # df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
+    # df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    # df = df.reset_index()
+    # df.loc[df.isnull().any(axis=1), ["first_sensor_value"]] = np.nan
     return df
 
+def resample_1min_simple(data):
+    print("resample_1min_simple...")
+    # data = data.set_index('index')
+    # data.index.name = None
+    data.index = pd.to_datetime(data['index'])
+    data.index.name = None
+    del data['index']
+    df = data.resample('1min').agg(dict(timestamp='first', farm_id='first',
+                                     serial_number='first', signal_strength='min',
+                                     battery_voltage='mean',
+                                     first_sensor_value='sum', date_str='first'
+                                     ), skipna=False)
+    df = df[['timestamp', 'date_str', 'farm_id', 'serial_number', 'signal_strength', 'battery_voltage', 'first_sensor_value']]
+    # df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    # df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
+    df.loc[np.isnan(df['timestamp']), 'first_sensor_value'] = np.nan
+    df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
+    df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
+    df['serial_number'] = df['serial_number'][df['serial_number'].notnull()].values[0]
+    df['farm_id'] = df['farm_id'][df['farm_id'].notnull()].values[0]
+    # df = df.reset_index()
+    # df.loc[df.isnull().any(axis=1), ["first_sensor_value"]] = np.nan
+    return df
 
 def resample_1min(df_raw):
     start = time.time()
@@ -1053,8 +1105,8 @@ def resample_1min(df_raw):
     #     i += 1
     end = time.time()
     print("Elapsed = %s" % (end - start))
-    print(df_raw)
-    print(df_1min)
+    # print(df_raw)
+    # print(df_1min)
     return df_1min
 
 
@@ -1068,44 +1120,34 @@ def is_in_same_dminute(date1, date2):
     return True
 
 
-def resample(res, data):
-    df = resample_df(res, data)
-    df['timestamp'] = df.index.values.astype(np.int64) // 10 ** 9
-    df['date_str'] = df.index.strftime('%Y-%m-%dT%H:%M')
-
-    subset = df[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
-                 'first_sensor_value']]
-
-    subset = subset.assign(serial_number=df['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
-    subset = subset.assign(serial_number=df['farm_id'].max())
-    subset = subset.assign(serial_number=df['signal_strength'].max())
-    subset = subset.assign(serial_number=df['signal_strength_2'].max())
-    subset = subset.assign(serial_number=df['battery_voltage'].max())
-
+def get_db_data(df):
     data = [(np.nan if np.isnan(x[0]) else int(x[0]),
              str(x[1]),
              None if np.isnan(x[2]) else int(x[2]),
              None if np.isnan(x[3]) else int(x[3]),
              None if np.isnan(x[4]) else int(x[4]),
              None if np.isnan(x[5]) else int(x[5]),
-             None if np.isnan(x[6]) else int(x[6])) for x in subset.to_numpy()]
-
+             None if np.isnan(x[6]) else int(x[6])) for x in df.to_numpy()]
     # activity = [None if np.isnan(x[6]) else int(x[6]) for x in subset.to_numpy()]
-
     return data
 
 
-def build_data_from_raw(animal_records_df, threshold_gap, res=None):
-    df_raw = resample_1min(animal_records_df)
-    df_linterpolated, gap_data = thresholded_interpol(df_raw, threshold_gap)
-    df_processed = resample(res, df_linterpolated)
-    return df_processed, gap_data
+def build_data_from_raw(farm_id, animal_records_df, threshold_gap, res=None):
+    # df_raw_cleaned = resample_1min(animal_records_df)
+    df_raw_cleaned = resample_1min(animal_records_df)
+    export_rawdata_to_csv(df_raw_cleaned, farm_id, threshold_gap)
+
+    df_linterpolated, gap_nan_data, gap_zero_data = thresholded_interpol(df_raw_cleaned, threshold_gap)
+    df_resample = resample_df(res, df_linterpolated)
+    print(df_resample)
+    data_db = get_db_data(df_resample)
+    return data_db, gap_nan_data, gap_zero_data
 
 
-def process(animal_records, threshold_gap, res):
+def process(farm_id, animal_records, threshold_gap, res):
     animal_records_df = create_dataframe(animal_records)
-    df_10min, gap_data = build_data_from_raw(animal_records_df, threshold_gap, res=res)
-    return [df_10min, gap_data]
+    data, gap_data, gap_zero_data = build_data_from_raw(farm_id, animal_records_df, threshold_gap, res=res)
+    return [data, gap_data, gap_zero_data]
 
 
 async_results_10min = []
@@ -1117,17 +1159,45 @@ async_results_week = []
 def save_result_10min(result):
     async_results_10min.append(result)
 
+
 def save_result_day(result):
     async_results_day.append(result)
 
+
 def save_result_hour(result):
     async_results_hour.append(result)
+
 
 def save_result_week(result):
     async_results_week.append(result)
 
 
-def process_raw_file(farm_id, data, threshold_gap):
+def export_data_to_csv(data, farm_id, threshold_gap, resolution):
+    print("exporting data...")
+    filename = "%s_%d_%s_debug.csv" % (farm_id, threshold_gap, resolution)
+    df = pd.DataFrame(data)
+    df.columns = ['epoch', 'datetime', 'animal_id', 's1', 's2', 'battery', 'activity']
+    df_sub = df[['epoch', 'datetime', 'animal_id', 'activity']]
+    purge_file(filename)
+    df_sub.to_csv(filename, sep=',', index=False)
+    print(filename)
+
+
+def export_rawdata_to_csv(df, farm_id, threshold_gap):
+    print("exporting data...")
+    animal_id = int(df[df['serial_number'].isna() == False]['serial_number'].unique()[0])
+    path = "csv_debug/%s/%d/" % (farm_id, threshold_gap)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    filename_path = path + "%d_raw.csv" % (animal_id)
+    df_sub = df[['timestamp', 'first_sensor_value']]
+    df_sub['timestamp'] = df_sub.index.values.astype(np.int64) // 10 ** 9
+    purge_file(filename_path)
+    df_sub.to_csv(filename_path, sep=',', index=False)
+    print(filename_path)
+
+
+def process_raw_file(farm_id, data, threshold_gap, resolution='5min'):
+
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
     table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
@@ -1149,52 +1219,62 @@ def process_raw_file(farm_id, data, threshold_gap):
 
     MULTI_THREADING_ENABLED = True
 
-    histogram_array_dur = []
+    histogram_array_nan_dur, histogram_array_zero_dur = [], []
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=6)
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
             if len(animal_records) <= 1:
                 continue
-            pool.apply_async(process, (animal_records, threshold_gap, '10min',), callback=save_result_10min)
+            print("animal_records=", len(animal_records))
+            pool.apply_async(process, (farm_id, animal_records, threshold_gap, resolution,), callback=save_result_10min)
 
-            pool.apply_async(process, (animal_records, threshold_gap, 'D',), callback=save_result_day)
-
-            pool.apply_async(process, (animal_records, threshold_gap, 'H',), callback=save_result_hour)
-
-            pool.apply_async(process, (animal_records, threshold_gap, 'W'), callback=save_result_week)
+            # pool.apply_async(process, (animal_records, threshold_gap, 'D',), callback=save_result_day)
+            #
+            # pool.apply_async(process, (animal_records, threshold_gap, 'H',), callback=save_result_hour)
+            #
+            # pool.apply_async(process, (animal_records, threshold_gap, 'W'), callback=save_result_week)
         pool.close()
         pool.join()
         for item in async_results_10min:
             data_resampled_10min.extend(item[0])
-            histogram_array_dur.extend(item[1])
-        for item in async_results_day:
-            data_resampled_day.extend(item[0])
-        for item in async_results_hour:
-            data_resampled_hour.extend(item[0])
-        for item in async_results_week:
-            data_resampled_week.extend(item[0])
+            histogram_array_nan_dur.extend(item[1])
+            histogram_array_zero_dur.extend(item[2])
+        # for item in async_results_10min:
+        #     data_resampled_day.extend(item[0])
+        #     break
+        # for item in async_results_10min:
+        #     data_resampled_hour.extend(item[0])
+        #     break
+        # for item in async_results_10min:
+        #     data_resampled_week.extend(item[0])
+        #     break
     else:
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
             print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
+            if idx == 79:
+                print("debug")
             if len(animal_records) <= 1:
                 continue
             print("animal_records=", len(animal_records))
-            result = process(animal_records, threshold_gap, '10min')
+            result = process(farm_id, animal_records, threshold_gap, resolution)
             data_resampled_10min.extend(result[0])
-            histogram_array_dur.extend(result[1])
+            histogram_array_nan_dur.extend(result[1])
+            histogram_array_zero_dur.extend(result[2])
 
-            result = process(animal_records, threshold_gap, 'D')
-            data_resampled_day.extend(result[0])
+            # # result = process(animal_records, threshold_gap, 'D')
+            # data_resampled_day.extend(result[0])
+            #
+            # # result = process(animal_records, threshold_gap, 'H')
+            # data_resampled_hour.extend(result[0])
+            #
+            # # result = process(animal_records, threshold_gap, 'W')
+            # data_resampled_week.extend(result[0])
 
-            result = process(animal_records, threshold_gap, 'H')
-            data_resampled_hour.extend(result[0])
+    plot_histogram(histogram_array_nan_dur, farm_id, threshold_gap, "histogram of nan gaps")
 
-            result = process(animal_records, threshold_gap, 'W')
-            data_resampled_week.extend(result[0])
+    plot_histogram(histogram_array_zero_dur, farm_id, threshold_gap, "histogram of zero gaps")
 
-    plot_histogram(histogram_array_dur, farm_id, threshold_gap)
-
-    histogram_array_dur = []
+    histogram_array_nan_dur = []
 
     print("saving data to db...")
     # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
@@ -1203,17 +1283,18 @@ def process_raw_file(farm_id, data, threshold_gap):
     # data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
     # insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
 
-    data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
-    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
-
-    data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
-    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
-
-    data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
-    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
+    # data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
+    # insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
+    #
+    # data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
+    # insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
+    #
+    # data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
+    # insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
 
     data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
-    insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
+    export_data_to_csv(data_resampled_10min, farm_id, threshold_gap, resolution)
+    insert_m_record_to_sql_table_("%s_resolution_%s" % (farm_id, resolution), data_resampled_10min)
 
     # data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
     # insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
@@ -1533,28 +1614,38 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     store.close()
 
 
-def plot_histogram(x, farm_id, threshold_gap):
-    if len(x) == 0:
-        print("empty input in plot histogram!")
-        return
-    print("lenght=", len(x))
-    print("max=", max(x))
-    print("min=", min(x))
-    x = pd.Series(x)
+def plot_histogram(x, farm_id, threshold_gap, title):
+    try:
+        if len(x) == 0:
+            print("empty input in plot histogram!")
+            return
+        print("lenght=", len(x))
+        print("max=", max(x))
+        print("min=", min(x))
+        x = pd.Series(x)
 
-    # histogram on linear scale
-    plt.subplot(211)
-    num_bins = max(x)
-    hist, bins, _ = plt.hist(x, bins=num_bins)
-    # histogram on log scale.
-    # Use non-equal bin sizes, such that they look equal on log scale.
-    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
-    plt.subplot(212)
-    plt.hist(x, bins=logbins)
-    plt.xscale('log')
-    plt.show()
-    print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
-    # plt.imsave('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+
+        # histogram on linear scale
+        plt.subplot(211)
+        plt.title(title)
+        num_bins = int(max(list(set(x))))
+        print("building histogram...")
+        hist, bins, _ = plt.hist(x, bins=num_bins+1, histtype='step')
+        # histogram on log scale.
+        # Use non-equal bin sizes, such that they look equal on log scale.
+        logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+        plt.subplot(212)
+
+        print("building log histogram...")
+        plt.hist(x, bins=num_bins+1, histtype='step')
+        # plt.xscale('log')
+        plt.yscale('log', nonposy='clip')
+        print('histogram_of_gap_duration_%s_%d.png' % (str(farm_id) + title, threshold_gap))
+        plt.savefig('histogram_of_gap_duration_%s_%d.png' % (str(farm_id) + title, threshold_gap))
+        plt.show()
+        # plt.imsave()
+    except Exception as e:
+        print(e)
 
     # num_bins = max(x)
     # fig, ax = plt.subplots()
@@ -1573,17 +1664,22 @@ def plot_histogram(x, farm_id, threshold_gap):
 
 
 if __name__ == '__main__':
+    # Ntotal = 1000
+    # data = 0.05 * np.random.randn(Ntotal) + 0.5
     print("start...")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "bothaville.h5")
-    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara.h5")
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
-
-    for thresh in [60*1, 60*24, 60*24*7, 60*12]:
-        db_name = "south_africa_debug_resamp_%dmin" % thresh
-        create_and_connect_to_sql_db(db_name)
-        drop_all_tables(db_name)
-        process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", thresh)
-        # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara.h5", resolution)
+    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
+    # exit(-1)
+    for farm in ["delmas"]:
+        for thresh in [60*6]:
+        # for thresh in [10, 60, 60*6, 60*12, 60*24, 60*24*7]:
+            db_name = "south_africa_%s_resamp_%dmin" % (farm, thresh)
+            create_and_connect_to_sql_db(db_name)
+            drop_all_tables(db_name)
+            # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", thresh)
+            process_raw_h5files("E:\SouthAfrica\Tracking Data\\%s\\raw_data_%s_debug.h5" % (farm.capitalize(), farm), thresh)

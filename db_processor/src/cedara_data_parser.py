@@ -72,11 +72,19 @@ if __name__ == '__main__':
     print(data)
     print('finished')
     print('dumping result to json file...')
-    print(data)
+
+    old_keys = data.keys()
+    data_formated = {}
+    for key in old_keys:
+        new_key = "4001130" + str(key).zfill(4)
+        for item in data[key]:
+            item[2] = new_key
+        data_formated[new_key] = data[key]
+    print(data_formated)
     farm_name = "cedara"
     with open(__location__+'\\%s_famacha_data.json' % farm_name, 'w') as fp:
         print('')
-        json.dump(data, fp)
+        json.dump(data_formated, fp)
 
 
         # break
