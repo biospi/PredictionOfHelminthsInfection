@@ -13,6 +13,10 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
+from sys import exit
+from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.utils import shuffle
 
 
 META_DATA_LENGTH = 19
@@ -43,44 +47,80 @@ def load_df_from_datasets(fname, label_col='label'):
     df = pd.read_csv(fname, nrows=1, sep=",", header=None)
     # print(df)
     type_dict = find_type_for_mem_opt(df)
+    data_col_n = df.iloc[[0]].size
+    type_dict = {}
+    for n, i in enumerate(range(0, data_col_n)):
+        if n < (data_col_n - 5):
+            type_dict[str(i)] = np.float16
+        else:
+            type_dict[str(i)] = np.str
 
     data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
     data_frame = data_frame.drop_duplicates()
-    # print(data_frame)
-    sample_count = df.shape[1]
-    hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-19] = "label"
-    hearder[-18] = "elem_in_row"
-    hearder[-17] = "date1"
-    hearder[-16] = "date2"
-    hearder[-15] = "serial"
-    hearder[-14] = "famacha_score"
-    hearder[-13] = "previous_famacha_score"
-    hearder[-12] = "previous_famacha_score2"
-    hearder[-11] = "previous_famacha_score3"
-    hearder[-10] = "previous_famacha_score4"
-
-    hearder[-9] = "dtf1"
-    hearder[-8] = "dtf2"
-    hearder[-7] = "dtf3"
-    hearder[-6] = "dtf4"
-    hearder[-5] = "dtf5"
-
-    hearder[-4] = "nd1"
-    hearder[-3] = "nd2"
-    hearder[-2] = "nd3"
-    hearder[-1] = "nd4"
-
-    data_frame.columns = hearder
+    sample_count = data_frame.shape[1]
+    header = [str(n) for n in range(0, sample_count)]
+    header[-5] = "label"
+    header[-4] = "elem_in_row"
+    header[-3] = "date1"
+    header[-2] = "date2"
+    header[-1] = "serial"
+    data_frame.columns = header
     data_frame_original = data_frame.copy()
-    cols_to_keep = hearder[:-META_DATA_LENGTH]
-    cols_to_keep.append(label_col)
-    data_frame = data_frame[cols_to_keep]
-    return data_frame_original, data_frame, cols_to_keep
+    data_frame = data_frame.loc[:, :'label']
+    np.random.seed(0)
+    data_frame = data_frame.sample(frac=1).reset_index(drop=True)
+    data_frame = data_frame.fillna(-1)
+    data_frame = shuffle(data_frame)
+    print(data_frame)
 
 
-def process_cross_farm(data_frame1, data_frame2, y_col='label'):
+
+    # # print(data_frame)
+    # sample_count = df.shape[1]
+    # hearder = [str(n) for n in range(0, sample_count)]
+    # hearder[-19] = "label"
+    # hearder[-18] = "elem_in_row"
+    # hearder[-17] = "date1"
+    # hearder[-16] = "date2"
+    # hearder[-15] = "serial"
+    # hearder[-14] = "famacha_score"
+    # hearder[-13] = "previous_famacha_score"
+    # hearder[-12] = "previous_famacha_score2"
+    # hearder[-11] = "previous_famacha_score3"
+    # hearder[-10] = "previous_famacha_score4"
+    #
+    # hearder[-9] = "dtf1"
+    # hearder[-8] = "dtf2"
+    # hearder[-7] = "dtf3"
+    # hearder[-6] = "dtf4"
+    # hearder[-5] = "dtf5"
+    #
+    # hearder[-4] = "nd1"
+    # hearder[-3] = "nd2"
+    # hearder[-2] = "nd3"
+    # hearder[-1] = "nd4"
+    #
+    # data_frame.columns = hearder
+    # data_frame_original = data_frame.copy()
+    # cols_to_keep = hearder[:-META_DATA_LENGTH]
+    # cols_to_keep.append(label_col)
+    # data_frame = data_frame[cols_to_keep]
+    return data_frame_original, data_frame
+
+
+def process_cross_farm(data_frame1, data_frame2, y_col='label', downsample_false_class=False):
     print("process cross farm..")
+
+    if downsample_false_class:
+        df_true = data_frame1[data_frame1['label'] == True]
+        df_false = data_frame1[data_frame1['label'] == False]
+        df_false = df_false.head(df_true.shape[0])
+        data_frame1 = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+
+        df_true = data_frame2[data_frame2['label'] == True]
+        df_false = data_frame2[data_frame2['label'] == False]
+        df_false = df_false.head(df_true.shape[0])
+        data_frame2 = pd.concat([df_true, df_false], ignore_index=True, sort=False)
 
     y1 = data_frame1[y_col].values.flatten()
     y1 = y1.astype(int)
@@ -90,26 +130,59 @@ def process_cross_farm(data_frame1, data_frame2, y_col='label'):
     y2 = y2.astype(int)
     X2 = data_frame2[data_frame2.columns[2:data_frame2.shape[1] - 1]]
 
+    print("training", "class0=", y1[y1 == 0].size, "class1=", y1[y1 == 1].size)
+    print("test", "class0=", y2[y2 == 0].size, "class1=", y2[y2 == 1].size)
+
     print("->SVC")
-    pipe = Pipeline([('svc', SVC(probability=True))])
+    pipe = Pipeline([('svc', SVC(probability=True, class_weight='balanced'))])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
 
     print("->StandardScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
 
-    print("->MinMaxScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
+    print("->LDA")
+    pipe = Pipeline([('lda', LDA())])
+    pipe.fit(X1.copy(), y1.copy())
+    y_pred = pipe.predict(X2.copy())
+    print(classification_report(y2, y_pred))
+
+    print("->PLSRegression(10)")
+    pipe = Pipeline([('pls', PLSRegression(n_components=10))])
+    pipe.fit(X1.copy(), y1.copy())
+    y_pred = pipe.predict(X2.copy())
+    print(classification_report(y2, np.round(y_pred)))
+
+    print("->PCA(10)->SVC")
+    pipe = Pipeline([('pca', PCA(n_components=10)), ('svc', SVC(probability=True, class_weight='balanced'))])
+    pipe.fit(X1.copy(), y1.copy())
+    y_pred = pipe.predict(X2.copy())
+    print(classification_report(y2, y_pred))
+
+    print("->StandardScaler->LDA(1)->SVC")
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True, class_weight='balanced'))])
+    pipe.fit(X1.copy(), y1.copy())
+    y_pred = pipe.predict(X2.copy())
+    print(classification_report(y2, y_pred))
+
+    print("->LDA(1)->SVC")
+    pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True, class_weight='balanced'))])
+    pipe.fit(X1.copy(), y1.copy())
+    y_pred = pipe.predict(X2.copy())
+    print(classification_report(y2, y_pred))
+
+    print("->LDA(1)->LDA")
+    pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
 
 
-def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
+def process_data_frame(data_frame, y_col='label', downsample_false_class=False):
     print("*******************************************************************")
     print("downsample_false_class=", downsample_false_class)
     print("*******************************************************************")
@@ -126,7 +199,7 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
 
     print("trying pipeline")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=0.30)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=0.40)
     print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
     print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
 
@@ -135,34 +208,34 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
     plt.show()
 
     print("->SVC")
-    pipe = Pipeline([('svc', SVC(probability=True))])
+    pipe = Pipeline([('svc', SVC(probability=True, kernel='rbf'))])
     pipe.fit(X_train.copy(), y_train.copy())
     y_pred = pipe.predict(X_test.copy())
     print(classification_report(y_test, y_pred))
 
-    print("->LDA")
-    pipe = Pipeline([('lda', LDA())])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-
-    print("->PLSRegression(10)")
-    pipe = Pipeline([('pls', PLSRegression(n_components=10))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, np.round(y_pred)))
-
-    print("->PLSRegression(100)")
-    pipe = Pipeline([('pls', PLSRegression(n_components=100))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, np.round(y_pred)))
-
-    print("->StandardScaler->PLSRegression(10)")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('pls', PLSRegression(n_components=10))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, np.round(y_pred)))
+    # print("->LDA")
+    # pipe = Pipeline([('lda', LDA())])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    #
+    # print("->PLSRegression(10)")
+    # pipe = Pipeline([('pls', PLSRegression(n_components=10))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, np.round(y_pred)))
+    #
+    # print("->PLSRegression(100)")
+    # pipe = Pipeline([('pls', PLSRegression(n_components=100))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, np.round(y_pred)))
+    #
+    # print("->StandardScaler->PLSRegression(10)")
+    # pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('pls', PLSRegression(n_components=10))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, np.round(y_pred)))
 
     print("->StandardScaler->SVC")
     pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
@@ -176,17 +249,17 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
     y_pred = pipe.predict(X_test.copy())
     print(classification_report(y_test, np.round(y_pred)))
 
-    print("->StandardScaler->LDA(1)->SVC")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-
-    print("->LDA(1)->SVC")
-    pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
+    # print("->StandardScaler->LDA(1)->SVC")
+    # pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    #
+    # print("->LDA(1)->SVC")
+    # pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
 
     print("->LDA(1)->LDA")
     pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
@@ -194,23 +267,23 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
     y_pred = pipe.predict(X_test.copy())
     print(classification_report(y_test, y_pred))
 
-    print("->PCA(1)->SVC")
-    pipe = Pipeline([('pca', PCA(n_components=1)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-
-    print("->PCA(10)->SVC")
-    pipe = Pipeline([('pca', PCA(n_components=10)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-
-    print("->PCA(30)->SVC")
-    pipe = Pipeline([('pca', PCA(n_components=30)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
+    # print("->PCA(1)->SVC")
+    # pipe = Pipeline([('pca', PCA(n_components=1)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    #
+    # print("->PCA(10)->SVC")
+    # pipe = Pipeline([('pca', PCA(n_components=10)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    #
+    # print("->PCA(30)->SVC")
+    # pipe = Pipeline([('pca', PCA(n_components=30)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
 
     print("*******************************************")
     print("STEP BY STEP")
@@ -232,30 +305,6 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
                                 X_train_r.copy(),
                                 y_train.copy())
     print("->LDA(1)->LDA")
-    plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
-                                X_reduced.copy(),
-                                y_reduced.copy(),
-                                X_test_r.copy(),
-                                y_test.copy(),
-                                X_train_r.copy(),
-                                y_train.copy())
-
-    clf_pls = PLSRegression(n_components=1)
-    X_train_r = clf_pls.fit_transform(X_train.copy(), y_train.copy())[0]
-    X_test_r = clf_pls.transform(X_test.copy())
-
-    X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
-    y_reduced = np.concatenate((y_train, y_test), axis=0)
-
-    print("->PLS(1)->SVC")
-    plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-                                X_reduced.copy(),
-                                y_reduced.copy(),
-                                X_test_r.copy(),
-                                y_test.copy(),
-                                X_train_r.copy(),
-                                y_train.copy())
-    print("->PLS(1)->LDA")
     plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
                                 X_reduced.copy(),
                                 y_reduced.copy(),
@@ -409,17 +458,23 @@ if __name__ == "__main__":
     #dataset_filepath = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
     dataset_filepath = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_60\\7_2\\training_sets\\cwt_.data"
 
-    data_frame_original, data_frame, _ = load_df_from_datasets(dataset_filepath)
+    data_frame_original, data_frame = load_df_from_datasets(dataset_filepath)
 
-    process_data_frame(data_frame, downsample_false_class=True)
+    # process_data_frame(data_frame, downsample_false_class=True)
     process_data_frame(data_frame, downsample_false_class=False)
 
+    exit(-1)
 
-    dataset_filepath1 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
-    dataset_filepath2 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_720\\7_1\\training_sets\\cwt_.data"
+
+    dataset_filepath1 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_6\\training_sets\\cwt_.data"
+    dataset_filepath2 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_720\\7_6\\training_sets\\cwt_.data"
 
     _, data_frame1, _ = load_df_from_datasets(dataset_filepath1)
     _, data_frame2, _ = load_df_from_datasets(dataset_filepath2)
     process_cross_farm(data_frame1, data_frame2)
 
+    print("********************************************************************")
 
+    _, data_frame1, _ = load_df_from_datasets(dataset_filepath2)
+    _, data_frame2, _ = load_df_from_datasets(dataset_filepath1)
+    process_cross_farm(data_frame1, data_frame2)

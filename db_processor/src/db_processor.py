@@ -688,7 +688,7 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     return data
 
 
-def process_raw_h5files(path, thresh):
+def process_raw_h5files(path, thresh, farm):
     print(path)
     h5_raw = tables.open_file(path, "r")
     data = h5_raw.root.table
@@ -696,8 +696,15 @@ def process_raw_h5files(path, thresh):
     print("loading data...")
     for idx, x in enumerate(data):  # need idx for data iteration?
         farm_id = x['control_station']
-        # if farm_id != 70091100056: #todo remove
-        #     continue
+
+        if farm == "cedara":
+            if farm_id != 70091100056: #todo remove
+                continue
+
+        if farm == "delmas":
+            if farm_id != 70101200027: #todo remove
+                continue
+
         # if x['serial_number'] not in [40121100797]:
         #     continue
         # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
@@ -1675,11 +1682,11 @@ if __name__ == '__main__':
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # exit(-1)
-    for farm in ["delmas"]:
-        for thresh in [60*6]:
+    for farm in ["delmas", "cedara"]:
+        for thresh in [60]:
         # for thresh in [10, 60, 60*6, 60*12, 60*24, 60*24*7]:
             db_name = "south_africa_%s_resamp_%dmin" % (farm, thresh)
             create_and_connect_to_sql_db(db_name)
             drop_all_tables(db_name)
             # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", thresh)
-            process_raw_h5files("E:\SouthAfrica\Tracking Data\\%s\\raw_data_%s_debug.h5" % (farm.capitalize(), farm), thresh)
+            process_raw_h5files("E:\SouthAfrica\Tracking Data\\%s\\raw_data_%s_debug.h5" % (farm.capitalize(), farm), thresh, farm)

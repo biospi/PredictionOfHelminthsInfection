@@ -538,62 +538,14 @@ def entropy2(labels, base=None):
 
 
 def is_activity_data_valid(activity_raw, activity_prepocessed, hour_gap):
-
-    # if np.isnan(np.array(activity_raw, dtype=np.float)).any():
-    #     return False, 'has_nan'
-    # else:
-    #     return True, 'ok'
-
-
-
-    # activity = activity_raw
-    # threshold_nan_coef = 5
-    # threshold_zeros_coef = 2
-    # nan_threshold = len(activity) / threshold_nan_coef
-    # zeros_threshold = len(activity) / threshold_zeros_coef
-    #
-    #
-    # activity_np = np.asarray(activity, dtype=np.float)
-    # np.nan_to_num(activity_np, nan=-1)
-    # a, b = np.unique(activity_np, return_counts=True)
-    # most_abundant_value = a[b.argmax()]
-    # occurance = b.max()
-    # print(most_abundant_value, occurance)
-    # if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
-    #     return False, 'most'
-    #
-    # nan_count = activity.count(None)
-    # zeros_count = activity.count(0)
-    # # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    # if nan_count > int(nan_threshold/1) or zeros_count > zeros_threshold :#or contains_negative(activity):
-    #     return False, 'zeros'
-    #
-    # # plt.plot(activity_np)
-    # # plt.show()
-    #
-    # h = entropy2(activity_np)
-    # print(h)
-    # ENTROPY_THRESH = 3.5
-    # if h <= ENTROPY_THRESH:
-    #     return False, 'entro'
-    #
-    # return True, 'ok'
-
     zeros_count = activity_raw.count(0)
     threshold_zeros_coef = 2
     zeros_threshold = len(activity_raw) / threshold_zeros_coef
     if zeros_count > zeros_threshold :#or contains_negative(activity):
         return False, 'zeros'
 
-
     len_no_activity = [len(list(g)) for k, g in itertools.groupby(activity_raw, lambda x: x == 0)
                        if k]
-
-    # activity_np = np.asarray(activity_prepocessed, dtype=np.float)
-    # h = entropy2(activity_np)
-    #
-    # if h <= 3.5:
-    #     return False, "entropy"
 
     for zero_gap in len_no_activity:
         if zero_gap > 10 * 6 * hour_gap:
@@ -603,54 +555,6 @@ def is_activity_data_valid(activity_raw, activity_prepocessed, hour_gap):
         return False,'has_nan'
 
     return True, 'ok'
-
-    # reason = 'ok'
-    # # nan_threshold, zeros_threshold = 0, 0
-    # activity_np = np.asarray(activity, dtype=np.float)
-    # np.nan_to_num(activity_np, nan=-1)
-    # a, b = np.unique(activity_np, return_counts=True)
-    # most_abundant_value = a[b.argmax()]
-    # occurance = b.max()
-    # print(most_abundant_value, occurance)
-    # # if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
-    # #     reason = 'nan'
-    # #     return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # nan_count = activity.count(None)
-    # zeros_count = activity.count(0)
-    # # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    #
-    # if threshold_nan_coef == 0:
-    #     nan_threshold = 0
-    # else:
-    #     nan_threshold = len(activity) / threshold_nan_coef
-    #
-    # if threshold_zeros_coef == 0:
-    #     zeros_threshold = 0
-    # else:
-    #     zeros_threshold = len(activity) / threshold_zeros_coef
-    #
-    # if threshold_nan_coef > 0:
-    #     if nan_count > int(nan_threshold/1):#or contains_negative(activity):
-    #         reason = 'nan'
-    #         return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # if threshold_zeros_coef > 0:
-    #     if zeros_count > zeros_threshold :#or contains_negative(activity):
-    #         reason = 'zeros'
-    #         return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # # plt.plot(activity_np)
-    # # plt.show()
-    #
-    # h = entropy2(activity_np)
-    # print(h)
-    # if ENTROPY_THRESH > 0:
-    #     if h <= ENTROPY_THRESH:
-    #         reason = 'entropy'
-    #         return False, nan_threshold, zeros_threshold, h, reason
-    #
-    # return True, nan_threshold, zeros_threshold, h, reason
 
 
 def multiple(m, n):
@@ -738,7 +642,7 @@ def mask_cwt(cwt, coi):
     return cwt
 
 
-def compute_cwt(activity, scale=80):
+def compute_cwt(activity, scale=160):
     print("compute_cwt...")
     # t, activity = dummy_sin()
     scales = even_list(scale)
@@ -994,10 +898,15 @@ def create_training_sets(data, dir_path):
 
 
 def create_graph_title(data, domain):
-    hum_1 = ','.join([str(int(x)) for x in data["humidity"][0:1]])
-    hum_2 = ','.join([str(int(x)) for x in data["humidity"][-1:]])
-    temp_1 = ','.join([str(int(x)) for x in data["temperature"][0:1]])
-    temp_2 = ','.join([str(int(x)) for x in data["temperature"][-1:]])
+    # hum_1 = ','.join([str(int(x)) for x in data["humidity"][0:1]])
+    # hum_2 = ','.join([str(int(x)) for x in data["humidity"][-1:]])
+    # temp_1 = ','.join([str(int(x)) for x in data["temperature"][0:1]])
+    # temp_2 = ','.join([str(int(x)) for x in data["temperature"][-1:]])
+
+    hum_1 = 'e'
+    hum_2 = 'e'
+    temp_1 = 'e'
+    temp_2 = 'e'
     if domain == "time":
         act_1 = ','.join([str(int(x)) for x in data["activity"][0:1] if x is not None])
         act_2 = ','.join([str(int(x)) for x in data["activity"][-1:] if x is not None])
@@ -1178,176 +1087,7 @@ def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_c
     # X = pd.DataFrame(X)
     # X = normalize(X, norm='max')
 
-    print("trying pipeline")
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=0.25)
-    print("training", "0:", y_train[y_train == 0].size, "1:", y_train[y_train == 1].size)
-    print("test", "0:", y_test[y_test == 0].size, "1:", y_test[y_test == 1].size)
-
-    plt.hist(X_train.values.flatten(), bins='auto', histtype='step', density=True)
-    plt.title("Distribution of training data")
-    plt.show()
-
-    pipe = Pipeline([('scaler', StandardScaler()), ('pls', PLSRegression(n_components=1))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    pipe = Pipeline([('scaler', StandardScaler()), ('pls', PLSRegression(n_components=2))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('pls', PLSRegression(n_components=2))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    pipe = Pipeline([('scaler', StandardScaler()), ('pls', PLSRegression(n_components=3))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    pipe = Pipeline([('scaler', StandardScaler()), ('pls', PLSRegression(n_components=10))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    pipe = Pipeline([('scaler', StandardScaler()), ('pls', PLSRegression(n_components=100))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, np.round(y_pred)))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('scaler', StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('scaler', preprocessing.Normalizer()), ('lda', LDA(n_components=1)), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('lda', LDA(n_components=1)), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('scaler', StandardScaler()), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
-    pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(class_weight='balanced'))])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('svc', SVC(class_weight='balanced'))])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('forest', RandomForestClassifier())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('forest', RandomForestClassifier())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('scaler', preprocessing.MaxAbsScaler()), ('svc', SVC())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-
-    pipe = Pipeline([('lda', LDA(n_components=1))])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-    pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    print(pipe.named_steps)
-    print(classification_report(y_test, y_pred))
-
-
-    clf_lda = LDA(n_components=1)
-    X_train_r = clf_lda.fit_transform(X_train, y_train)
-    X_test_r = clf_lda.fit_transform(X_test, y_test)
-
-    X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
-    y_reduced = np.concatenate((y_train, y_test), axis=0)
-
-    title, file_path = plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, resolution,
-                                                   X_reduced,
-                                                   y_reduced,
-                                                   X_test_r,
-                                                   y_test,
-                                                   X_train_r,
-                                                   y_train,
-                                                   folder="test", options=[], i=0)
-
-    title, file_path = plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, resolution,
-                                                   X_reduced,
-                                                   y_reduced,
-                                                   X_test_r,
-                                                   y_test,
-                                                   X_train_r,
-                                                   y_train,
-                                                   folder="test", options=[], i=0)
-
-    exit(-1)
-
-
-
-    X = preprocessing.MinMaxScaler().fit_transform(X)
-
-
+    X = preprocessing.StandardScaler().fit_transform(X)
     return X, y
 
 
@@ -1791,7 +1531,7 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
         y_test = np.append(y_test, 3)
     clf_lda = LDA(n_components=output_dim)
     X_train = clf_lda.fit_transform(X_train, y_train)
-    X_test = clf_lda.fit_transform(X_test, y_test)
+    X_test = clf_lda.fit_transform(X_test)
     if output_dim != 1:
         X_train = X_train[0:-(output_dim - 1)]
         y_train = y_train[0:-(output_dim - 1)]
@@ -1804,7 +1544,7 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
 def reduce_pca(output_dim, X_train, X_test, y_train, y_test):
     clf = PCA(n_components=output_dim)
     X_train = clf.fit_transform(X_train)
-    X_test = clf.fit_transform(X_test)
+    X_test = clf.transform(X_test)
     return clf, X_train, X_test, y_train, y_test
 
 
@@ -1812,7 +1552,7 @@ def reduce_pls(output_dim, X_train, X_test, y_train, y_test):
     print("reduce pls...")
     clf = PLSRegression(n_components=output_dim)
     X_train = clf.fit_transform(X_train, y_train)[0]
-    X_test = clf.fit_transform(X_test, y_test)[0]
+    X_test = clf.transform(X_test)
     return clf, X_train, X_test, y_train, y_test
 
 
@@ -1876,9 +1616,7 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
             clf = GridSearchCV(LDA(), param_grid, n_jobs=6)
         else:
             clf = SVC(probability=True)
-            clf = LDA()
-            # clf = SVC(C=1, break_ties=False, cache_size=200, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3, gamma=1, kernel='rbf', max_iter=-1, probability=True, random_state=None, shrinking=True, tol=0.001, verbose=False)
- 
+
         clf.fit(X_train_f, y_train_f)
         if isinstance(clf, GridSearchCV):
             clf = clf.best_estimator_
@@ -1923,7 +1661,7 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
     title = 'empty'
 
     try:
-        title, file_path = plot_2D_decision_boundaries(clone(clf), clf_name, dim_reduc_name, dim, nfold, resolution, X_reduced,
+        title, file_path = plot_2D_decision_boundaries(SVC(probability=True), clf_name, dim_reduc_name, dim, nfold, resolution, X_reduced,
                                                 y_reduced, X_test_r, y_test_r, X_train_r, y_train_r,
                                                 folder=folder, options=options, i=i)
     except Exception as e:
@@ -2530,11 +2268,10 @@ def process_classifiers(filename, filename_s, inputs, dir, resolution, dbt, farm
         for result in [
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir,
             #                   options=input["options"], resolution=resolution),
-            # process(data_frame, fold=10, clf_name='SVM', folder=dir,
-            #         options=input["options"], resolution=resolution)
+            process(data_frame, fold=10, clf_name='SVM', folder=dir, options=input["options"], resolution=resolution),
             # process(data_frame, fold=5, dim_reduc='PLS', clf_name='SVM', folder=dir, options=input["options"],
             #         resolution=resolution, farm_id=farm_id, df_original=data_frame_original),
-            process(data_frame, fold=2, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
+            process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
                     resolution=resolution, farm_id=farm_id, df_original=data_frame_original)
             # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
             #                   options=input["options"], resolution=resolution)
@@ -2724,8 +2461,8 @@ def process_day(days_before_famacha_test, resolution, farm_id, csv_folder, csv_d
         #     json.dump(data_famacha_dict, outfile)
 
         class_input_dict_file_path = dir + '/class_input_dict.json'
-        # if False:
-        if os.path.exists(class_input_dict_file_path):
+        if False:
+        # if os.path.exists(class_input_dict_file_path):
             print('training sets already created skip to processing.')
             with open(class_input_dict_file_path, "r") as read_file:
                 class_input_dict = json.load(read_file)
@@ -2874,7 +2611,7 @@ def process_day(days_before_famacha_test, resolution, farm_id, csv_folder, csv_d
         try:
             with open(class_input_dict_file_path) as f:
                 saved_data = json.load(f)
-            process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+            # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
         except FileNotFoundError as e:
             print(e)
             continue
@@ -2906,8 +2643,12 @@ def parse_csv_db_name(path):
 
 
 if __name__ == '__main__':
-    csv_db_path = sys.argv[1]
-    famacha_file_path = sys.argv[2]
+    # csv_db_path = sys.argv[1]
+    # famacha_file_path = sys.argv[2]
+
+    csv_db_path = "E:\\Users\\fo18103\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_60\\cedara_70091100056_60_10min.csv"
+    famacha_file_path = "E:\\Users\\fo18103\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_60\\cedara_famacha_data.json"
+
     print("csv_db_path=", csv_db_path)
     print("famacha_file_path=", famacha_file_path)
     days_before_famacha_test = 7
