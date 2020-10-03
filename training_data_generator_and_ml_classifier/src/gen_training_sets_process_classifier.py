@@ -1524,10 +1524,11 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
         X_reduced = np.concatenate((X_train, X_test), axis=0)
         y_reduced = np.concatenate((y_train, y_test), axis=0)
 
-        X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = X_reduced[train_index], X_reduced[
-            test_index], \
+        X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = X_reduced[train_index], X_reduced[test_index], \
                                                                            y_reduced[train_index], \
                                                                            y_reduced[test_index]
+
+
         return clf, X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
 
     except ValueError as e:
@@ -1539,20 +1540,37 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
-    clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
-                                                                  dim_reduc=dim_reduc_name)
-    if X_lda is None:
-        simplified_results = {"accuracy": -1,
-                              "specificity": -1,
-                              "recall": -1,
-                              "precision": -1,
-                              "proba_y_true": -1,
-                              "proba_y_false": -1,
-                              "f-score": -1}
-        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
+    # clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+    #     #                                                               dim_reduc=dim_reduc_name)
+    X_lda = None
+    y_lda = None
+
+    X_train = X[train_index]
+    X_test  = X[test_index]
+    y_train = y[train_index]
+    y_test  = y[test_index]
+
+
+
+    X_lda = X_test
+    y_lda = y_test
+
+    # if X_lda is None:
+    #     simplified_results = {"accuracy": -1,
+    #                           "specificity": -1,
+    #                           "recall": -1,
+    #                           "precision": -1,
+    #                           "proba_y_true": -1,
+    #                           "proba_y_false": -1,
+    #                           "f-score": -1}
+    #     return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
 
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
+
+    clf = SVC(probability=True, kernel="linear")
+
     clf.fit(X_train, y_train)
+
     print("Best estimator found by grid search:")
     # print(clf.best_estimator_)
 
@@ -1567,44 +1585,46 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
     support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
+    title = "%s-%s %dD %dFCV" % (clf_name, "no_reduc", 0, nfold)
+    file_path = "empty"
+    if False:
+        if 'MLP' in clf_name and hasattr(clf, "hidden_layer_sizes"):
+            clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
 
-    if 'MLP' in clf_name and hasattr(clf, "hidden_layer_sizes"):
-        clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
+        if 'KNN' in clf_name and hasattr(clf, "n_neighbors"):
+            clf_name = "%s%s" % (clf_name, str(clf.n_neighbors).replace(' ', ''))
 
-    if 'KNN' in clf_name and hasattr(clf, "n_neighbors"):
-        clf_name = "%s%s" % (clf_name, str(clf.n_neighbors).replace(' ', ''))
+        print((
+                    clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
+                    acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                    p_y_false*100, p_y_true*100,
+                    np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
+                    np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
+                    np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options)))
 
-    print((
-                clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
-                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
-                p_y_false*100, p_y_true*100,
-                np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
-                np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
-                np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options)))
+        title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ndataset: class0=%d;' \
+                'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s \n' % (
+                    clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
+                    acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
+                    p_y_false*100, p_y_true*100,
+                    np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
+                    np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
+                    np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
-    title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ndataset: class0=%d;' \
-            'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s \n' % (
-                clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
-                acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
-                p_y_false*100, p_y_true*100,
-                np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
-                np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
-                np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
+        file_path = 'empty'
 
-    file_path = 'empty'
+        try:
+            if dim == 1 and enalble_1Dplot:
+                file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
 
-    try:
-        if dim == 1 and enalble_1Dplot:
-            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
+            if dim == 2 and enalble_2Dplot:
+                file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
 
-        if dim == 2 and enalble_2Dplot:
-            file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
-
-        if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
-                file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
-                                                        options=options, i=i)
-    except Exception as e:
-        print(e)
+            if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
+                    file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
+                                                            options=options, i=i)
+        except Exception as e:
+            print(e)
 
 
     simplified_results = {"accuracy": acc, "specificity": recall_false,
