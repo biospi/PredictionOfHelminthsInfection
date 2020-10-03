@@ -1200,15 +1200,15 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, fig, title, options, folder, i=0):
     fig.savefig(final_path)
 
 
-def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=None, i=0, options=None, n_bin=8):
+def plot_2D_decision_boundaries(X_train, X_test, y_train, y_test, title, clf, folder=None, i=0, options=None, n_bin=8):
     print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
     fig, ax = plt.subplots(figsize=(7., 4.8))
     # plt.subplots_adjust(top=0.75)
-    min = abs(X_lda.min()) + 1
-    max = abs(X_lda.max()) + 1
-    print(X_lda.shape)
+    min = abs(X_train.min()) + 1
+    max = abs(X_train.max()) + 1
+    print(X_train.shape)
     print(min, max)
     if np.max([min, max]) > 100:
         return
@@ -1237,8 +1237,8 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder
     # ax_c.set_ticks([0, .25, 0.5, 0.75, 1])
     # ax_c.ax.set_yticklabels(['0', '0.15', '0.3', '0.45', '0.6', '0.75', '0.9', '1'])
 
-    X_lda_0 = X_lda[y_lda == 0]
-    X_lda_1 = X_lda[y_lda == 1]
+    X_lda_0 = X_train[y_train == 0]
+    X_lda_1 = X_train[y_train == 1]
 
     X_lda_0_t = X_test[y_test == 0]
     X_lda_1_t = X_test[y_test == 1]
@@ -1298,13 +1298,13 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder
     return final_path
 
 
-def plot_2D_decision_boundaries_(X, y, X_test, y_test, title, clf, folder=None, options=None, i=0):
+def plot_2D_decision_boundaries_(X_train, X_test, y_train, y_test, title, clf, folder=None, options=None, i=0):
     fig = plt.figure(figsize=(8, 7), dpi=100)
     plt.subplots_adjust(top=0.80)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
     contourf_kwargs = {'alpha': 0.2}
     scatter_highlight_kwargs = {'s': 120, 'label': 'Test data', 'alpha': 0.7}
-    plot_decision_regions(X, y, clf=clf, legend=2,
+    plot_decision_regions(X_test, y_test, clf=clf, legend=2,
                           X_highlight=X_test,
                           scatter_kwargs=scatter_kwargs,
                           contourf_kwargs=contourf_kwargs,
@@ -1531,26 +1531,24 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
             plt.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39 / 255, 111 / 255, 158 / 255))
             plt.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251 / 255, 119 / 255, 0 / 255))
 
-            plt.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c=(0 / 255, 111 / 255, 158 / 255))
-            plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(0 / 255, 119 / 255, 0 / 255))
-
-
+            plt.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c=(39 / 255, 111 / 255, 158 / 255), edgecolor="black")
+            plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(251 / 255, 119 / 255, 0 / 255), edgecolor="black")
             plt.show()
 
 
         # if dim_reduc == 'PCA':
         #     X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
 
-        X_reduced = np.concatenate((X_train, X_test), axis=0)
+        # X_reduced = np.concatenate((X_train, X_test), axis=0)
+        #
+        # y_reduced = np.concatenate((y_train, y_test), axis=0)
+        #
+        # X_train_reduced = X_reduced[train_index]
+        # X_test_reduced = X_reduced[test_index]
+        # y_train_reduced = y_reduced[train_index]
+        # y_test_reduced = y_reduced[test_index]
 
-        y_reduced = np.concatenate((y_train, y_test), axis=0)
-
-        X_train_reduced = X_reduced[train_index]
-        X_test_reduced = X_reduced[test_index]
-        y_train_reduced = y_reduced[train_index]
-        y_test_reduced = y_reduced[test_index]
-
-        return clf_lda_fitted, X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
+        return clf_lda_fitted, X_train, X_test, y_train, y_test
 
         # return clf, None, None, X_train, X_test, y_train, y_test
 
@@ -1563,42 +1561,10 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
-    clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+    clf, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                        dim_reduc=dim_reduc_name)
-    # X_lda = None
-    # y_lda = None
 
-    # X_train = X[train_index]
-    # X_test  = X[test_index]
-    # y_train = y[train_index]
-    # y_test  = y[test_index]
-
-    # with open('X_train.npy', 'wb') as f:
-    #     np.save(f, X_train)
-    # with open('X_test.npy', 'wb') as f:
-    #     np.save(f, X_test)
-
-    # lda = LDA(n_components=1)
-    # X_train = lda.fit_transform(X_train, y_train)
-    # X_test = lda.transform(X_test)
-    # clf, X_train, X_test, y_train, y_test = reduce_lda(2, X_train, X_test, y_train, y_test)
-
-
-    # with open('X_train_after.npy', 'wb') as f:
-    #     np.save(f, X_train)
-    # with open('X_test_after.npy', 'wb') as f:
-    #     np.save(f, X_test)
-
-    # X_reduced = np.concatenate((X_train, X_test), axis=0)
-    # y_reduced = np.concatenate((y_train, y_test), axis=0)
-
-    # X_lda = X_test
-    # y_lda = y_test
-
-    # print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
-
-    # clf = SVC(probability=True, kernel="linear")
-    # clf = LDA(n_components=2)
+    clf = SVC(probability=True, kernel='linear')
     clf.fit(X_train, y_train)
     print(i)
     print("Best estimator found by grid search:")
@@ -1611,8 +1577,6 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     acc = accuracy_score(y_test, y_pred)
     # acc_val = accuracy_score(y_val, y_pred_val)
     print(classification_report(y_test, y_pred))
-
-
 
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
     support_false, support_true = get_prec_recall_fscore_support(
@@ -1631,16 +1595,13 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                     clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
                     acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
                     p_y_false*100, p_y_true*100,
-                    np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                     np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                     np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options)))
 
-        title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ndataset: class0=%d;' \
-                'class1=%d\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s \n' % (
+        title = '%s-%s %dD %dFCV\nfold_i=%d, acc=%.1f%%, p0=%d%%, p1=%d%%, r0=%d%%, r1=%d%%, p0=%d%%, p1=%d%%\ntraining: class0=%d; class1=%d\ntesting: class0=%d; class1=%d\nresolution=%s input=%s \n' % (
                     clf_name, '' if dim_reduc_name is None else dim_reduc_name, dim, nfold, i,
                     acc * 100, precision_false * 100, precision_true * 100, recall_false * 100, recall_true * 100,
                     p_y_false*100, p_y_true*100,
-                    np.count_nonzero(y_lda == 0), np.count_nonzero(y_lda == 1),
                     np.count_nonzero(y_train == 0), np.count_nonzero(y_train == 1),
                     np.count_nonzero(y_test == 0), np.count_nonzero(y_test == 1), resolution, ','.join(options))
 
@@ -1648,13 +1609,13 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
 
         try:
             if dim == 1 and enalble_1Dplot:
-                file_path = plot_2D_decision_boundaries_(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
+                file_path = plot_2D_decision_boundaries_(X_train, X_test, y_train, y_test, title, clf, folder=folder, options=options, i=i)
 
             if dim == 2 and enalble_2Dplot:
-                file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
+                file_path = plot_2D_decision_boundaries(X_train, X_test, y_train, y_test, title, clf, folder=folder, options=options, i=i)
 
             if dim == 3 and enalble_3Dplot and 'LREG' not in clf_name and 'MLP' not in clf_name and 'KNN' not in clf_name:
-                    file_path = plot_3D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder,
+                    file_path = plot_3D_decision_boundaries(X_test, y_test, title, clf, folder=folder,
                                                             options=options, i=i)
         except Exception as e:
             print(e)
@@ -1667,7 +1628,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                           "precision": precision_score(y_test, y_pred, average='weighted'),
                           "f-score": f1_score(y_test, y_pred, average='weighted')}
 
-    return clf, X_lda, y_lda, title, acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
+    return clf, X_test, y_test, title, acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, \
            title.split('\n')[0], file_path, simplified_results, p_y_false, p_y_true
 
 
@@ -1792,13 +1753,11 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             #     X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
             #     clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
 
-            clf, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
+            clf, X_test, y_test, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
                 X, y, train_index, test_index, i, dim=2, dim_reduc_name=dim_reduc,
                 clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
 
-            if X_lda_2d is None:
-                continue
 
             # acc_3d, p_false_3d, p_true_3d, r_false_3d, r_true_3d, fs_false_3d, fs_true_3d, s_false_3d, s_true_3d,\
             # clf_name_3d, file_path_3d, sr_3d = compute_model(
@@ -1827,7 +1786,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             simplified_results_2d.append(sr_2d)
             proba_y_false_2d.append(pr_y_false_2d)
             proba_y_true_2d.append(pr_y_true_2d)
-            viz = plot_roc_curve(clf, X_lda_2d, y_lda_2d,
+            viz = plot_roc_curve(clf, X_test, y_test,
                                  name='',
                                  label='_Hidden',
                                  alpha=0, lw=1, ax=ax_roc_2d)
