@@ -1298,7 +1298,7 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder
     return final_path
 
 
-def plot_2D_decision_boundaries_(X, y, X_test, title, clf, folder=None, options=None, i=0):
+def plot_2D_decision_boundaries_(X, y, X_test, y_test, title, clf, folder=None, options=None, i=0):
     fig = plt.figure(figsize=(8, 7), dpi=100)
     plt.subplots_adjust(top=0.80)
     scatter_kwargs = {'s': 120, 'edgecolor': None, 'alpha': 0.7}
@@ -1540,37 +1540,43 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
                   folder=None, options=None, resolution=None, enalble_1Dplot=True,
                   enalble_2Dplot=True, enalble_3Dplot=True, nfold=1):
 
-    # clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
-    #     #                                                               dim_reduc=dim_reduc_name)
+    clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
+                                                                       dim_reduc=dim_reduc_name)
     X_lda = None
     y_lda = None
 
-    X_train = X[train_index]
-    X_test  = X[test_index]
-    y_train = y[train_index]
-    y_test  = y[test_index]
+    # X_train = X[train_index]
+    # X_test  = X[test_index]
+    # y_train = y[train_index]
+    # y_test  = y[test_index]
+
+    with open('X_train.npy', 'wb') as f:
+        np.save(f, X_train)
+    with open('X_test.npy', 'wb') as f:
+        np.save(f, X_test)
+
+    # lda = LDA(n_components=1)
+    # X_train = lda.fit_transform(X_train, y_train)
+    # X_test = lda.transform(X_test)
+    clf, X_train, X_test, y_train, y_test = reduce_lda(1, X_train, X_test, y_train, y_test)
+
+    with open('X_train_after.npy', 'wb') as f:
+        np.save(f, X_train)
+    with open('X_test_after.npy', 'wb') as f:
+        np.save(f, X_test)
+
 
 
 
     X_lda = X_test
     y_lda = y_test
 
-    # if X_lda is None:
-    #     simplified_results = {"accuracy": -1,
-    #                           "specificity": -1,
-    #                           "recall": -1,
-    #                           "precision": -1,
-    #                           "proba_y_true": -1,
-    #                           "proba_y_false": -1,
-    #                           "f-score": -1}
-    #     return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1
-
     print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
 
     clf = SVC(probability=True, kernel="linear")
-
+    # clf = LDA(n_components=2)
     clf.fit(X_train, y_train)
-
+    print(i)
     print("Best estimator found by grid search:")
     # print(clf.best_estimator_)
 
@@ -1582,12 +1588,15 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     # acc_val = accuracy_score(y_val, y_pred_val)
     print(classification_report(y_test, y_pred))
 
+    exit(-1)
+
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
     support_false, support_true = get_prec_recall_fscore_support(
         y_test, y_pred)
     title = "%s-%s %dD %dFCV" % (clf_name, "no_reduc", 0, nfold)
     file_path = "empty"
-    if False:
+    if True:
+        dim = 1
         if 'MLP' in clf_name and hasattr(clf, "hidden_layer_sizes"):
             clf_name = "%s%s" % (clf_name, str(clf.best_estimator_.hidden_layer_sizes).replace(' ', ''))
 
@@ -1615,7 +1624,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
 
         try:
             if dim == 1 and enalble_1Dplot:
-                file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
+                file_path = plot_2D_decision_boundaries_(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
 
             if dim == 2 and enalble_2Dplot:
                 file_path = plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder=folder, options=options, i=i)
