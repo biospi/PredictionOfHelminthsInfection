@@ -1269,9 +1269,12 @@ def plot_2D_decision_boundaries(X_lda, y_lda, X_test, y_test, title, clf, folder
     handles.append(db_line)
 
     plt.legend(loc=2, fancybox=True, framealpha=0.4, handles=handles)
-    plt.title(title)
-    ttl = ax.title
-    ttl.set_position([.57, 0.97])
+
+    plt.figtext(.5, .855, title, fontsize=8, ha='center')
+
+    # plt.title(title)
+    # ttl = ax.title
+    # ttl.set_position([.57, 0.97])
     # plt.tight_layout()
 
     # path = filename + '\\' + str(resolution) + '\\'
@@ -2359,9 +2362,9 @@ def process_day(params):
     dir = "%s/%s_sld_%d_dbt%d_%s" % (os.getcwd().replace('C', 'E'), resolution, sliding_w,
                                      days_before_famacha_test, farm_id)
     class_input_dict_file_path = dir + '/class_in ut_dict.json'
-    if False:
+    # if False:
     #     print("force create!")
-    # if os.path.exists(class_input_dict_file_path):
+    if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
