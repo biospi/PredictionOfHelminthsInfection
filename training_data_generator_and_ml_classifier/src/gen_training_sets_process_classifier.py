@@ -431,14 +431,13 @@ def get_training_data(sql_db, curr_data_famacha, i, data_famacha_list, data_fama
         print("absent activity records. skip.", "found %d" % len(rows_activity), "expected %d" % expected_sample_count)
         return
 
+    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
     # data_activity = normalize_activity_array_ascomb(data_activity)
     herd_activity_list = anscombe_list(herd_activity_list)
     activity_list = anscombe_list(activity_list)
 
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
-
-    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
 
     # print("mapping activity to famacha score progress=%d/%d ..." % (i, len(data_famacha_flattened)))
     idx = 0
@@ -1090,6 +1089,7 @@ def parse_report(report):
 
 
 def process_data_frame(data_frame, y_col='label'):
+    data_frame.drop_duplicates()
     data_frame = data_frame.fillna(-1)
     cwt_shape = data_frame[data_frame.columns[0:2]].values
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - META_DATA_LENGTH]].values
@@ -1483,9 +1483,12 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
         y_train = np.append(y_train, 3)
         X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
         y_test = np.append(y_test, 3)
+
     clf = LDA(n_components=output_dim)
     X_train = clf.fit_transform(X_train, y_train)
-    X_test = clf.fit_transform(X_test, y_test)
+    # X_test = clf.fit_transform(X_test, y_test)
+    X_test = clf.transform(X_test)
+
     if output_dim != 1:
         X_train = X_train[0:-(output_dim - 1)]
         y_train = y_train[0:-(output_dim - 1)]
