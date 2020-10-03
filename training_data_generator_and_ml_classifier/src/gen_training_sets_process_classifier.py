@@ -1510,26 +1510,49 @@ def reduce_pca(output_dim, X_train, X_test, y_train, y_test):
 
 
 def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
-    X_train, X_test, y_train, y_test = X[train_index], X[test_index], y[train_index], y[test_index]
+    X_train = X[train_index]
+    X_test  = X[test_index]
+    y_train = y[train_index]
+    y_test  = y[test_index]
 
     if dim_reduc is None:
         return X, y, X_train, X_test, y_train, y_test
     try:
         if dim_reduc == 'LDA':
-            clf, X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
+            plt.clf()
+            clf_lda_fitted, X_train, X_test, y_train, y_test = reduce_lda(n, X_train, X_test, y_train, y_test)
 
-        if dim_reduc == 'PCA':
-            X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
+            X_lda_0 = X_train[y_train == 0]
+            X_lda_1 = X_train[y_train == 1]
+
+            X_lda_0_t = X_test[y_test == 0]
+            X_lda_1_t = X_test[y_test == 1]
+
+            plt.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39 / 255, 111 / 255, 158 / 255))
+            plt.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251 / 255, 119 / 255, 0 / 255))
+
+            plt.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c=(0 / 255, 111 / 255, 158 / 255))
+            plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(0 / 255, 119 / 255, 0 / 255))
+
+
+            plt.show()
+
+
+        # if dim_reduc == 'PCA':
+        #     X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
 
         X_reduced = np.concatenate((X_train, X_test), axis=0)
+
         y_reduced = np.concatenate((y_train, y_test), axis=0)
 
-        X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = X_reduced[train_index], X_reduced[test_index], \
-                                                                           y_reduced[train_index], \
-                                                                           y_reduced[test_index]
+        X_train_reduced = X_reduced[train_index]
+        X_test_reduced = X_reduced[test_index]
+        y_train_reduced = y_reduced[train_index]
+        y_test_reduced = y_reduced[test_index]
 
+        return clf_lda_fitted, X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
 
-        return clf, X_reduced, y_reduced, X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced
+        # return clf, None, None, X_train, X_test, y_train, y_test
 
     except ValueError as e:
         print(e)
@@ -1542,38 +1565,39 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
 
     clf, X_lda, y_lda, X_train, X_test, y_train, y_test = process_fold(dim, X, y, train_index, test_index,
                                                                        dim_reduc=dim_reduc_name)
-    X_lda = None
-    y_lda = None
+    # X_lda = None
+    # y_lda = None
 
     # X_train = X[train_index]
     # X_test  = X[test_index]
     # y_train = y[train_index]
     # y_test  = y[test_index]
 
-    with open('X_train.npy', 'wb') as f:
-        np.save(f, X_train)
-    with open('X_test.npy', 'wb') as f:
-        np.save(f, X_test)
+    # with open('X_train.npy', 'wb') as f:
+    #     np.save(f, X_train)
+    # with open('X_test.npy', 'wb') as f:
+    #     np.save(f, X_test)
 
     # lda = LDA(n_components=1)
     # X_train = lda.fit_transform(X_train, y_train)
     # X_test = lda.transform(X_test)
-    clf, X_train, X_test, y_train, y_test = reduce_lda(1, X_train, X_test, y_train, y_test)
-
-    with open('X_train_after.npy', 'wb') as f:
-        np.save(f, X_train)
-    with open('X_test_after.npy', 'wb') as f:
-        np.save(f, X_test)
+    # clf, X_train, X_test, y_train, y_test = reduce_lda(2, X_train, X_test, y_train, y_test)
 
 
+    # with open('X_train_after.npy', 'wb') as f:
+    #     np.save(f, X_train)
+    # with open('X_test_after.npy', 'wb') as f:
+    #     np.save(f, X_test)
 
+    # X_reduced = np.concatenate((X_train, X_test), axis=0)
+    # y_reduced = np.concatenate((y_train, y_test), axis=0)
 
-    X_lda = X_test
-    y_lda = y_test
+    # X_lda = X_test
+    # y_lda = y_test
 
-    print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
+    # print(clf_name, "null" if dim is None else dim, X_train.shape, "fitting...")
 
-    clf = SVC(probability=True, kernel="linear")
+    # clf = SVC(probability=True, kernel="linear")
     # clf = LDA(n_components=2)
     clf.fit(X_train, y_train)
     print(i)
@@ -1588,7 +1612,7 @@ def compute_model(X, y, train_index, test_index, i, clf=None, dim=None, dim_redu
     # acc_val = accuracy_score(y_val, y_pred_val)
     print(classification_report(y_test, y_pred))
 
-    exit(-1)
+
 
     precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true,\
     support_false, support_true = get_prec_recall_fscore_support(
