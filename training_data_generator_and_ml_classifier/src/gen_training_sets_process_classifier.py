@@ -617,6 +617,15 @@ def entropy2(labels, base=None):
 
 
 def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
+    # nan_threshold = len(activity) / threshold_nan_coef
+    # zeros_threshold = len(activity) / threshold_zeros_coef
+    # nan_count = activity.count(None)
+    # zeros_count = activity.count(0)
+    # # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
+    # if nan_count > nan_threshold or zeros_count > zeros_threshold or contains_negative(activity):
+    #     return False, nan_threshold, zeros_threshold, 0
+    # return True, nan_threshold, zeros_threshold, 0
+
 
     # nan_threshold, zeros_threshold = 0, 0
     nan_threshold = len(activity) / threshold_nan_coef
@@ -643,7 +652,7 @@ def is_activity_data_valid(activity, threshold_nan_coef, threshold_zeros_coef):
 
     h = entropy2(activity_np)
     print(h)
-    ENTROPY_THRESH = 3.5
+    ENTROPY_THRESH = 2.5
     if h <= ENTROPY_THRESH:
         return False, nan_threshold, zeros_threshold, h
 
@@ -912,33 +921,33 @@ def create_training_set(result, dir, options=[]):
 
 
 def create_training_sets(data, dir_path):
-    path1, options1 = create_training_set(data, dir_path, options=["activity"])
+    # path1, options1 = create_training_set(data, dir_path, options=["activity"])
     path2, options2 = create_training_set(data, dir_path, options=["cwt"])
     # path3, options3 = create_training_set(data, dir_path, options=["weight"])
     # path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
     # path5, options5 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
-    path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
+    # path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
+    # path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
     # path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
     # path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
     # path10, options10 = create_training_set(data, dir_path, options=["cwt", "temperature"])
-    path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
-    path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
+    # path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
+    # path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
     # path13, options13 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature", "weight"])
 
     return [
-        {"path": path1, "options": options1},
-            {"path": path2, "options": options2},
+        # {"path": path1, "options": options1},
+            {"path": path2, "options": options2}
             # {"path": path3, "options": options3},
             # {"path": path4, "options": options4},
             # {"path": path5, "options": options5},
-            {"path": path6, "options": options6},
-            {"path": path7, "options": options7},
+            # {"path": path6, "options": options6},
+            # {"path": path7, "options": options7},
             # {"path": path8, "options": options8},
             # {"path": path9, "options": options9},
             # {"path": path10, "options": options10},
-            {"path": path11, "options": options11},
-            {"path": path12, "options": options12}
+            # {"path": path11, "options": options11},
+            # {"path": path12, "options": options12}
             # {"path": path13, "options": options13}
         ]
 
@@ -1649,7 +1658,7 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         return {"error": str(e)}
     # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     # kf.get_n_splits(X)
-    rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=int((datetime.now().microsecond)/10))
+    rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond)/10))
 
     scores, scores_1d, scores_2d, scores_3d = [], [], [], []
     precision_false, precision_false_1d, precision_false_2d, precision_false_3d = [], [], [], []
@@ -2346,10 +2355,10 @@ def process_day(params):
     # herd_data = []
     dir = "%s/%s_sld_%d_dbt%d_%s" % (os.getcwd().replace('C', 'E'), resolution, sliding_w,
                                      days_before_famacha_test, farm_id)
-    class_input_dict_file_path = dir + '/class_input_dict.json'
-    # if False:
+    class_input_dict_file_path = dir + '/class_in ut_dict.json'
+    if False:
     #     print("force create!")
-    if os.path.exists(class_input_dict_file_path):
+    # if os.path.exists(class_input_dict_file_path):
         print('training sets already created skip to processing.')
         with open(class_input_dict_file_path, "r") as read_file:
             class_input_dict = json.load(read_file)
@@ -2449,11 +2458,11 @@ def process_day(params):
 
 def process_sliding_w(params):
     start_time = time.time()
-    zipped = zip(['10min', '5min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
+    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
     for i, item in enumerate(zipped):
         print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
         # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [1, 2, 3, 4, 5, 6, 7, 14, 21]
+        days_before_famacha_test_l = [7]
         resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
         pool = Pool(processes=3)
         pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
@@ -2474,7 +2483,7 @@ if __name__ == '__main__':
         os.chdir(os.path.dirname(__file__))
         pathlib.Path(src_folder).mkdir(parents=True, exist_ok=True)
         os.chdir(src_folder)
-        for farm_id in ["cedara_70091100056"]:
+        for farm_id in ["delmas_70101200027"]:
             pool = NonDaemonicPool(processes=1)
             pool.map(process_sliding_w, zip([0], itertools.repeat(farm_id), itertools.repeat(src_folder)))
             pool.close()
