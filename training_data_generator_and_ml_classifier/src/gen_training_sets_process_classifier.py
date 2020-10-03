@@ -1535,22 +1535,7 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
             plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(251 / 255, 119 / 255, 0 / 255), edgecolor="black")
             plt.show()
 
-
-        # if dim_reduc == 'PCA':
-        #     X_train, X_test, y_train, y_test = reduce_pca(n, X_train, X_test, y_train, y_test)
-
-        # X_reduced = np.concatenate((X_train, X_test), axis=0)
-        #
-        # y_reduced = np.concatenate((y_train, y_test), axis=0)
-        #
-        # X_train_reduced = X_reduced[train_index]
-        # X_test_reduced = X_reduced[test_index]
-        # y_train_reduced = y_reduced[train_index]
-        # y_test_reduced = y_reduced[test_index]
-
         return clf_lda_fitted, X_train, X_test, y_train, y_test
-
-        # return clf, None, None, X_train, X_test, y_train, y_test
 
     except ValueError as e:
         print(e)
