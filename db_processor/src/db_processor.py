@@ -680,6 +680,8 @@ def process_raw_h5files(path):
     list_raw = []
     print("loading data...")
     for idx, x in enumerate(data):  # need idx for data iteration?
+        # if idx > 5000:
+        #     continue
         farm_id = x['control_station']
         # if farm_id != 70101200027: #todo remove
         #     continue
@@ -858,42 +860,42 @@ def process_raw_file(farm_id, data):
         first_timestamp, last_timestamp = get_first_last_timestamp(animal_records)
         if not MULTI_THREADING_ENABLED:
             # data_resampled_min.extend(resample_to_min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_5min.extend(resample_to_5min(first_timestamp, last_timestamp, animal_records))
             data_resampled_10min.extend(resample_to_10min(first_timestamp, last_timestamp, animal_records))
-            data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
-            data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
-            data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
-            data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_hour.extend(resample_to_hour(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_day.extend(resample_to_day(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_week.extend(resample_to_week(first_timestamp, last_timestamp, animal_records))
+            # data_resampled_month.extend(resample_to_month(first_timestamp, last_timestamp, animal_records))
         else:
             iterable = [animal_records]
             # func1 = partial(resample_to_min, first_timestamp, last_timestamp)
-            func2 = partial(resample_to_hour, first_timestamp, last_timestamp)
-            func3 = partial(resample_to_day, first_timestamp, last_timestamp)
-            func4 = partial(resample_to_week, first_timestamp, last_timestamp)
-            func5 = partial(resample_to_month, first_timestamp, last_timestamp)
+            # func2 = partial(resample_to_hour, first_timestamp, last_timestamp)
+            # func3 = partial(resample_to_day, first_timestamp, last_timestamp)
+            # func4 = partial(resample_to_week, first_timestamp, last_timestamp)
+            # func5 = partial(resample_to_month, first_timestamp, last_timestamp)
             func6 = partial(resample_to_10min, first_timestamp, last_timestamp)
-            func7 = partial(resample_to_5min, first_timestamp, last_timestamp)
+            # func7 = partial(resample_to_5min, first_timestamp, last_timestamp)
             # result_func1 = pool.map_async(func1, iterable)
-            result_func2 = pool.map_async(func2, iterable)
-            result_func3 = pool.map_async(func3, iterable)
-            result_func4 = pool.map_async(func4, iterable)
-            result_func5 = pool.map_async(func5, iterable)
+            # result_func2 = pool.map_async(func2, iterable)
+            # result_func3 = pool.map_async(func3, iterable)
+            # result_func4 = pool.map_async(func4, iterable)
+            # result_func5 = pool.map_async(func5, iterable)
             result_func6 = pool.map_async(func6, iterable)
-            result_func7 = pool.map_async(func7, iterable)
+            # result_func7 = pool.map_async(func7, iterable)
             # r1 = result_func1.get()[0]
-            r2 = result_func2.get()[0]
-            r3 = result_func3.get()[0]
-            r4 = result_func4.get()[0]
-            r5 = result_func5.get()[0]
+            # r2 = result_func2.get()[0]
+            # r3 = result_func3.get()[0]
+            # r4 = result_func4.get()[0]
+            # r5 = result_func5.get()[0]
             r6 = result_func6.get()[0]
-            r7 = result_func7.get()[0]
+            # r7 = result_func7.get()[0]
             # data_resampled_min.extend(r1)
-            data_resampled_hour.extend(r2)
-            data_resampled_day.extend(r3)
-            data_resampled_week.extend(r4)
-            data_resampled_month.extend(r5)
+            # data_resampled_hour.extend(r2)
+            # data_resampled_day.extend(r3)
+            # data_resampled_week.extend(r4)
+            # data_resampled_month.extend(r5)
             data_resampled_10min.extend(r6)
-            data_resampled_5min.extend(r7)
+            # data_resampled_5min.extend(r7)
     #save data in db
     print("saving data to db...")
 
@@ -1352,5 +1354,6 @@ if __name__ == '__main__':
     db_name = "south_africa_debug"
     create_and_connect_to_sql_db(db_name)
     drop_all_tables(db_name)
-    process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
+
+    # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Cedara\\raw_data_cedara_debug.h5")
     process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas.h5")
