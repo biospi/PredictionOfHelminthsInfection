@@ -1092,10 +1092,10 @@ def process_data_frame(data_frame, y_col='label'):
     data_frame.drop_duplicates()
     data_frame = data_frame.fillna(-1)
     cwt_shape = data_frame[data_frame.columns[0:2]].values
-    X = data_frame[data_frame.columns[2:data_frame.shape[1] - META_DATA_LENGTH]].values
+    X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]].values
     X = normalize(X)
     X = preprocessing.MinMaxScaler().fit_transform(X)
-    y = data_frame[y_col].values.flatten()
+    y = data_frame[y_col].values
     y = y.astype(int)
     return X, y
 
@@ -1531,8 +1531,8 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
             plt.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39 / 255, 111 / 255, 158 / 255))
             plt.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251 / 255, 119 / 255, 0 / 255))
 
-            plt.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c=(39 / 255, 111 / 255, 158 / 255), edgecolor="black")
-            plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c=(251 / 255, 119 / 255, 0 / 255), edgecolor="black")
+            plt.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], c="green")
+            plt.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], c="red")
             plt.show()
 
         return clf_lda_fitted, X_train, X_test, y_train, y_test
@@ -1663,7 +1663,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
         return {"error": str(e)}
     # kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     # kf.get_n_splits(X)
-    rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond)/10))
+    #rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=int((datetime.now().microsecond)/10))
+    rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=1122666)
 
     scores, scores_1d, scores_2d, scores_3d = [], [], [], []
     precision_false, precision_false_1d, precision_false_2d, precision_false_3d = [], [], [], []
@@ -1678,29 +1679,29 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     proba_y_false, proba_y_true , proba_y_false_2d, proba_y_true_2d = [], [], [], []
     clf_name_full, clf_name_1d, clf_name_2d, clf_name_3d = '', '', '', ''
     file_path_1d, file_path_2d, file_path_3d, file_path = '', '', '', ''
-    clf = None
-    if clf_name == 'SVM':
-        param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-        # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
-        clf = SVC(kernel='linear', probability=True)
-
-    # if clf_name == 'LDA':
-    #     clf = LDA()
-
-    if clf_name == 'LREG':
-        param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
-        clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, n_jobs=2)
-
-    if clf_name == 'KNN':
-        param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-        clf = GridSearchCV(KNeighborsClassifier(), param_grid)
-
-    if clf_name == 'MLP':
-        param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
-                      'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
-        clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid)
-
-    print("looking for best hyperparameters...")
+    # clf = None
+    # if clf_name == 'SVM':
+    #     param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
+    #     # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=2)
+    #     clf = SVC(kernel='linear', probability=True)
+    #
+    # # if clf_name == 'LDA':
+    # #     clf = LDA()
+    #
+    # if clf_name == 'LREG':
+    #     param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
+    #     clf = GridSearchCV(LogisticRegression(random_state=int((datetime.now().microsecond)/10), solver='lbfgs', multi_class='multinomial', max_iter=100000), param_grid, n_jobs=2)
+    #
+    # if clf_name == 'KNN':
+    #     param_grid = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+    #     clf = GridSearchCV(KNeighborsClassifier(), param_grid)
+    #
+    # if clf_name == 'MLP':
+    #     param_grid = {'hidden_layer_sizes': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 2), (4, 3), (4, 4), (2, 2), (3, 3)],
+    #                   'alpha': [1e-8, 1e-8, 1e-10, 1e-11, 1e-12]}
+    #     clf = GridSearchCV(MLPClassifier(solver='sgd', random_state=1, max_iter=2000), param_grid)
+    #
+    # print("looking for best hyperparameters...")
     # try:
     #     clf.fit(X, y)
     # except ValueError as e:
@@ -1713,8 +1714,14 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
     mean_fpr_2d = np.linspace(0, 1, 100)
     tprs_2d = []
     aucs_2d = []
+    
 
-    for i, (train_index, test_index) in enumerate(rkf.split(X)):
+    #for i, (train_index, test_index) in enumerate(rkf.split(X)):
+    cv_index = rkf.split(X)
+    i = 0
+    for train_index, test_index in cv_index:
+
+
         if dim_reduc is None:
             clf, X_lda, y_lda, title, acc, p_false, p_true, r_false, r_true, fs_false, fs_true, s_false, s_true, clf_name_full, file_path, sr, p_y_false, p_y_true = compute_model(
                 X, y, train_index, test_index, i, clf_name=clf_name,
@@ -1737,7 +1744,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             # clf_name_1d, file_path_1d, sr_1d = compute_model(
             #     X, y, train_index, test_index, i, clf=clf, dim=1, dim_reduc_name=dim_reduc,
             #     clf_name=clf_name, folder=folder, options=options, resolution=resolution, nfold=fold)
-
+            print(train_index)
+            print(test_index)
             clf, X_test, y_test, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d,\
             clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d = compute_model(
                 X, y, train_index, test_index, i, dim=2, dim_reduc_name=dim_reduc,
@@ -1779,6 +1787,8 @@ def process(data_frame, fold=3, dim_reduc=None, clf_name=None, folder=None, opti
             interp_tpr[0] = 0.0
             tprs_2d.append(interp_tpr)
             aucs_2d.append(viz.roc_auc)
+
+            i+=1
 
             # scores_3d.append(acc_3d)
             # precision_false_3d.append(p_false_3d)
@@ -2155,7 +2165,9 @@ def load_df_from_datasets(fname, label_col):
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
-    data_frame = shuffle(data_frame)
+    #data_frame = shuffle(data_frame)
+    data_frame = data_frame.sort_values(by='label', ascending=False)
+    data_frame = data_frame.reset_index(drop=True)
     return data_frame_original, data_frame, cols_to_keep
 
 
