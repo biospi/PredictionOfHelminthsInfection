@@ -688,38 +688,51 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     return data
 
 
-def process_raw_h5files(path):
-    print(path)
-    h5_raw = tables.open_file(path, "r")
-    data = h5_raw.root.table
-    list_raw = []
-    print("loading data...")
-    for idx, x in enumerate(data):  # need idx for data iteration?
-        farm_id = x['control_station']
-        # if farm_id != 70091100056: #todo remove
-        #     continue
-        # if x['serial_number'] not in [40121100797]:
-        #     continue
-        # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
-        #     continue
-        if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
-            continue
-        value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
-                 x['first_sensor_value'], datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
-                 datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
-                                   '%Y-%m-%dT%H:%M:%S'))
-        list_raw.append(value)
-        if idx > 10000:  # todo remove
-            break
-    # group records by farm id/control_station
-    groups = defaultdict(list)
-    for i, obj in enumerate(list_raw):
-        groups[obj[1]].append(obj)
-    animal_list_grouped_by_farmid = list(groups.values())
+def thresholded_interpol(df_1min, thresh):
+    print("thresholded_interpol...", thresh)
+    data = pd.DataFrame(df_1min["first_sensor_value"])
+    mask = data.copy()
+    df = pd.DataFrame(data["first_sensor_value"])
+    df['new'] = ((df.notnull() != df.shift().notnull()).cumsum())
+    df['ones'] = 1
+    mask["first_sensor_value"] = (df.groupby('new')['ones'].transform('count') < thresh) | data[
+        "first_sensor_value"].notnull()
+    interpolated = data.interpolate().bfill()[mask]
+    df_1min["first_sensor_value"] = interpolated
+    histogram_array_nan_dur , histogram_array_no_activity_dur = [], []
+    # clump = using_clump(data["first_sensor_value"].values)
+    len_holes = [len(list(g)) for k, g in itertools.groupby(data["first_sensor_value"].values, lambda x: np.isnan(x)) if k]
+    for nan_gap in len_holes:
+        histogram_array_nan_dur.append(nan_gap)
 
-    for group in animal_list_grouped_by_farmid:
-        farm_id = str(group[0][1])
-        process_raw_file(farm_id, group)
+    len_no_activity = [len(list(g)) for k, g in itertools.groupby(data["first_sensor_value"].values, lambda x: x == 0) if k]
+    for zero_gap in len_no_activity:
+        histogram_array_no_activity_dur.append(zero_gap)
+
+    print("thresholded_interpol done.", thresh)
+
+    # df_linterpolated = df_1min.copy()
+    # df_linterpolated['signal_strength_2'] = df_linterpolated['signal_strength']
+    # df_linterpolated['timestamp'] = df_linterpolated.index.values.astype(np.int64) // 10 ** 9
+    # df_linterpolated['date_str'] = df_linterpolated.index.strftime('%Y-%m-%dT%H:%M')
+    # df_linterpolated = df_linterpolated.assign(farm_id=df_linterpolated['farm_id'].max())
+    #
+    # df_linterpolated = df_linterpolated[['timestamp', 'date_str', 'serial_number', 'signal_strength', 'signal_strength_2', 'battery_voltage',
+    #              'first_sensor_value']]
+    #
+    # df_linterpolated = df_linterpolated.assign(serial_number=df_linterpolated['serial_number'].max())  # fills in gap when agg fails because of empty sensor value
+    #
+    # df_linterpolated[['signal_strength', 'signal_strength_2', 'battery_voltage']] = df_linterpolated[['signal_strength', 'signal_strength_2', 'battery_voltage']].fillna(value=0)
+
+    return df_1min
+
+
+def process_csv(path, zero_to_nan_threh, interpolation_thesh):
+    print("loading data...", path)
+    df = pd.read_csv(path, sep=",")
+    df_interpolated = thresholded_interpol(df.copy(), interpolation_thesh)
+
+    print(df_interpolated)
 
 
 def create_mean_median_animal_(data):
@@ -1400,10 +1413,14 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
 if __name__ == '__main__':
     print("start...")
-    raw_h5_filepath = "E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5"
+    csv_file = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\csv_export\\backfill_1min\\delmas_70101200027\\40101310016.csv"
+    zero_to_nan_threh = 20
+    interpolation_thesh = 3
 
     if len(sys.argv) > 1:
-        print("arg: raw_h5_filepath")
-        raw_h5_filepath = sys.argv[1]
+        print("arg: csv_file zero_to_nan_threh interpolation_thesh")
+        csv_file = sys.argv[1]
+        zero_to_nan_threh = sys.argv[2]
+        interpolation_thesh = sys.argv[3]
 
-    process_raw_h5files(raw_h5_filepath)
+    process_csv(csv_file, zero_to_nan_threh, interpolation_thesh)
