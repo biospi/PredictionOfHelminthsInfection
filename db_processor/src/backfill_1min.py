@@ -1025,7 +1025,6 @@ def resample_1min(df_raw):
 def build_data_from_raw(farm_id, animal_records_df):
     df_raw_cleaned = resample_1min(animal_records_df)
     animal_id = int(df_raw_cleaned['serial_number'][df_raw_cleaned['serial_number'].notnull()].values[0])
-    df_raw_cleaned[df_raw_cleaned['serial_number'].notnull()]
     df_raw_cleaned_sub = df_raw_cleaned[['timestamp', 'date_str', 'first_sensor_value']]
     df_raw_cleaned_sub_fill = df_raw_cleaned_sub.copy()
     df_raw_cleaned_sub_fill['timestamp'] = df_raw_cleaned_sub_fill.index.values.astype(np.int64) // 10 ** 9
