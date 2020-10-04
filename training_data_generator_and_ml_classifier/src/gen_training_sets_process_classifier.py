@@ -538,119 +538,21 @@ def entropy2(labels, base=None):
 
 
 def is_activity_data_valid(activity_raw, activity_prepocessed, hour_gap):
-
-    # if np.isnan(np.array(activity_raw, dtype=np.float)).any():
-    #     return False, 'has_nan'
-    # else:
-    #     return True, 'ok'
-
-
-
-    # activity = activity_raw
-    # threshold_nan_coef = 5
-    # threshold_zeros_coef = 2
-    # nan_threshold = len(activity) / threshold_nan_coef
-    # zeros_threshold = len(activity) / threshold_zeros_coef
-    #
-    #
-    # activity_np = np.asarray(activity, dtype=np.float)
-    # np.nan_to_num(activity_np, nan=-1)
-    # a, b = np.unique(activity_np, return_counts=True)
-    # most_abundant_value = a[b.argmax()]
-    # occurance = b.max()
-    # print(most_abundant_value, occurance)
-    # if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
-    #     return False, 'most'
-    #
-    # nan_count = activity.count(None)
-    # zeros_count = activity.count(0)
-    # # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    # if nan_count > int(nan_threshold/1) or zeros_count > zeros_threshold :#or contains_negative(activity):
-    #     return False, 'zeros'
-    #
-    # # plt.plot(activity_np)
-    # # plt.show()
-    #
-    # h = entropy2(activity_np)
-    # print(h)
-    # ENTROPY_THRESH = 3.5
-    # if h <= ENTROPY_THRESH:
-    #     return False, 'entro'
-    #
-    # return True, 'ok'
-
     zeros_count = activity_raw.count(0)
     threshold_zeros_coef = 2
     zeros_threshold = len(activity_raw) / threshold_zeros_coef
-    if zeros_count > zeros_threshold :#or contains_negative(activity):
+    if zeros_count > zeros_threshold:
         return False, 'zeros'
 
-
-    len_no_activity = [len(list(g)) for k, g in itertools.groupby(activity_raw, lambda x: x == 0)
-                       if k]
-
-    # activity_np = np.asarray(activity_prepocessed, dtype=np.float)
-    # h = entropy2(activity_np)
-    #
-    # if h <= 3.5:
-    #     return False, "entropy"
-
+    len_no_activity = [len(list(g)) for k, g in itertools.groupby(activity_raw, lambda x: x == 0) if k]
     for zero_gap in len_no_activity:
-        if zero_gap > 10 * 6 * hour_gap:
+        if zero_gap > hour_gap:
             return False, 'has_zeros'
 
     if np.isnan(np.array(activity_prepocessed, dtype=np.float)).any():
-        return False,'has_nan'
+        return False, 'has_nan'
 
     return True, 'ok'
-
-    # reason = 'ok'
-    # # nan_threshold, zeros_threshold = 0, 0
-    # activity_np = np.asarray(activity, dtype=np.float)
-    # np.nan_to_num(activity_np, nan=-1)
-    # a, b = np.unique(activity_np, return_counts=True)
-    # most_abundant_value = a[b.argmax()]
-    # occurance = b.max()
-    # print(most_abundant_value, occurance)
-    # # if most_abundant_value == np.nan or occurance > 2500 or most_abundant_value > 500:
-    # #     reason = 'nan'
-    # #     return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # nan_count = activity.count(None)
-    # zeros_count = activity.count(0)
-    # # print(nan_count, zeros_count, nan_threshold, zeros_threshold)
-    #
-    # if threshold_nan_coef == 0:
-    #     nan_threshold = 0
-    # else:
-    #     nan_threshold = len(activity) / threshold_nan_coef
-    #
-    # if threshold_zeros_coef == 0:
-    #     zeros_threshold = 0
-    # else:
-    #     zeros_threshold = len(activity) / threshold_zeros_coef
-    #
-    # if threshold_nan_coef > 0:
-    #     if nan_count > int(nan_threshold/1):#or contains_negative(activity):
-    #         reason = 'nan'
-    #         return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # if threshold_zeros_coef > 0:
-    #     if zeros_count > zeros_threshold :#or contains_negative(activity):
-    #         reason = 'zeros'
-    #         return False, nan_threshold, zeros_threshold, 0, reason
-    #
-    # # plt.plot(activity_np)
-    # # plt.show()
-    #
-    # h = entropy2(activity_np)
-    # print(h)
-    # if ENTROPY_THRESH > 0:
-    #     if h <= ENTROPY_THRESH:
-    #         reason = 'entropy'
-    #         return False, nan_threshold, zeros_threshold, h, reason
-    #
-    # return True, nan_threshold, zeros_threshold, h, reason
 
 
 def multiple(m, n):
@@ -2703,7 +2605,7 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1, expected_sampl
 
 
 def process_day(days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, data_famacha_dict, create_input_visualisation_eanable=False):
-    for i, hour_gap in enumerate([1]):
+    for i, hour_gap in enumerate([0, 2, 3, 4, 5]):
         dir = "%s/%d_%d" % (csv_folder, days_before_famacha_test, hour_gap)
         create_cwt_graph_enabled = True
         create_activity_graph_enabled = True
@@ -2874,7 +2776,7 @@ def process_day(days_before_famacha_test, resolution, farm_id, csv_folder, csv_d
         try:
             with open(class_input_dict_file_path) as f:
                 saved_data = json.load(f)
-            process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+            # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
         except FileNotFoundError as e:
             print(e)
             continue
@@ -2908,10 +2810,15 @@ def parse_csv_db_name(path):
 if __name__ == '__main__':
     csv_db_path = sys.argv[1]
     famacha_file_path = sys.argv[2]
+
+    csv_db_path = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_60\\delmas_70101200027_60_10min.csv"
+    famacha_file_path = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_60\\delmas_famacha_data.json"
+
     print("csv_db_path=", csv_db_path)
     print("famacha_file_path=", famacha_file_path)
     days_before_famacha_test = 7
     resolution, farm_id, csv_folder = parse_csv_db_name(csv_db_path)
+
     process_day(days_before_famacha_test, resolution, farm_id, csv_folder, load_db_from_csv(csv_db_path), get_famacha_data(famacha_file_path))
 
     merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),

@@ -688,7 +688,7 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     return data
 
 
-def process_raw_h5files(path, thresh):
+def process_raw_h5files(path):
     print(path)
     h5_raw = tables.open_file(path, "r")
     data = h5_raw.root.table
@@ -709,8 +709,8 @@ def process_raw_h5files(path, thresh):
                  datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
                                    '%Y-%m-%dT%H:%M:%S'))
         list_raw.append(value)
-        # if idx > 10000:  # todo remove
-        #     break
+        if idx > 10000:  # todo remove
+            break
     # group records by farm id/control_station
     groups = defaultdict(list)
     for i, obj in enumerate(list_raw):
@@ -719,7 +719,7 @@ def process_raw_h5files(path, thresh):
 
     for group in animal_list_grouped_by_farmid:
         farm_id = str(group[0][1])
-        process_raw_file(farm_id, group, thresh)
+        process_raw_file(farm_id, group)
 
 
 def create_mean_median_animal_(data):
@@ -1132,11 +1132,12 @@ def get_db_data(df):
     return data
 
 
-def build_data_from_raw(farm_id, animal_records_df, threshold_gap, res=None):
+def build_data_from_raw(farm_id, animal_records_df, res=None):
     # df_raw_cleaned = resample_1min(animal_records_df)
     df_raw_cleaned = resample_1min(animal_records_df)
-    export_rawdata_to_csv(df_raw_cleaned, farm_id, threshold_gap)
-
+    export_rawdata_to_csv(df_raw_cleaned, farm_id)
+    #todo var thresh value
+    threshold_gap = 0
     df_linterpolated, gap_nan_data, gap_zero_data = thresholded_interpol(df_raw_cleaned, threshold_gap)
     df_resample = resample_df(res, df_linterpolated)
     print(df_resample)
@@ -1144,9 +1145,9 @@ def build_data_from_raw(farm_id, animal_records_df, threshold_gap, res=None):
     return data_db, gap_nan_data, gap_zero_data
 
 
-def process(farm_id, animal_records, threshold_gap, res):
+def process(farm_id, animal_records, res):
     animal_records_df = create_dataframe(animal_records)
-    data, gap_data, gap_zero_data = build_data_from_raw(farm_id, animal_records_df, threshold_gap, res=res)
+    data, gap_data, gap_zero_data = build_data_from_raw(farm_id, animal_records_df, res=res)
     return [data, gap_data, gap_zero_data]
 
 
@@ -1183,10 +1184,10 @@ def export_data_to_csv(data, farm_id, threshold_gap, resolution):
     print(filename)
 
 
-def export_rawdata_to_csv(df, farm_id, threshold_gap):
+def export_rawdata_to_csv(df, farm_id):
     print("exporting data...")
     animal_id = int(df[df['serial_number'].isna() == False]['serial_number'].unique()[0])
-    path = "csv_debug/%s/%d/" % (farm_id, threshold_gap)
+    path = "csv_debug/%s/" % (farm_id)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename_path = path + "%d_raw.csv" % (animal_id)
     df_sub = df[['timestamp', 'first_sensor_value']]
@@ -1196,7 +1197,7 @@ def export_rawdata_to_csv(df, farm_id, threshold_gap):
     print(filename_path)
 
 
-def process_raw_file(farm_id, data, threshold_gap, resolution='5min'):
+def process_raw_file(farm_id, data, resolution='10min'):
 
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
@@ -1226,7 +1227,7 @@ def process_raw_file(farm_id, data, threshold_gap, resolution='5min'):
             if len(animal_records) <= 1:
                 continue
             print("animal_records=", len(animal_records))
-            pool.apply_async(process, (farm_id, animal_records, threshold_gap, resolution,), callback=save_result_10min)
+            pool.apply_async(process, (farm_id, animal_records, resolution,), callback=save_result_10min)
 
             # pool.apply_async(process, (animal_records, threshold_gap, 'D',), callback=save_result_day)
             #
@@ -1256,7 +1257,7 @@ def process_raw_file(farm_id, data, threshold_gap, resolution='5min'):
             if len(animal_records) <= 1:
                 continue
             print("animal_records=", len(animal_records))
-            result = process(farm_id, animal_records, threshold_gap, resolution)
+            result = process(farm_id, animal_records, resolution)
             data_resampled_10min.extend(result[0])
             histogram_array_nan_dur.extend(result[1])
             histogram_array_zero_dur.extend(result[2])
@@ -1675,11 +1676,12 @@ if __name__ == '__main__':
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\msinga", "raw_data_msinga_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # exit(-1)
-    for farm in ["delmas"]:
-        for thresh in [60*6]:
-        # for thresh in [10, 60, 60*6, 60*12, 60*24, 60*24*7]:
-            db_name = "south_africa_%s_resamp_%dmin" % (farm, thresh)
-            create_and_connect_to_sql_db(db_name)
-            drop_all_tables(db_name)
+    # for farm in ["delmas"]:
+    #     for thresh in [10]:
+    #     # for thresh in [10, 60, 60*6, 60*12, 60*24, 60*24*7]:
+    #         db_name = "south_africa_%s_resamp_%dmin" % (farm, thresh)
+    #         create_and_connect_to_sql_db(db_name)
+    #         drop_all_tables(db_name)
             # process_raw_h5files("E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5", thresh)
-            process_raw_h5files("E:\SouthAfrica\Tracking Data\\%s\\raw_data_%s_debug.h5" % (farm.capitalize(), farm), thresh)
+    farm = "delmas"
+    process_raw_h5files("E:\SouthAfrica\Tracking Data\\%s\\raw_data_%s_debug.h5" % (farm.capitalize(), farm))

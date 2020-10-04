@@ -13,6 +13,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
+from sys import exit
 
 
 META_DATA_LENGTH = 19
@@ -240,29 +241,29 @@ def process_data_frame(data_frame, y_col='label', downsample_false_class=True):
                                 X_train_r.copy(),
                                 y_train.copy())
 
-    clf_pls = PLSRegression(n_components=1)
-    X_train_r = clf_pls.fit_transform(X_train.copy(), y_train.copy())[0]
-    X_test_r = clf_pls.transform(X_test.copy())
-
-    X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
-    y_reduced = np.concatenate((y_train, y_test), axis=0)
-
-    print("->PLS(1)->SVC")
-    plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-                                X_reduced.copy(),
-                                y_reduced.copy(),
-                                X_test_r.copy(),
-                                y_test.copy(),
-                                X_train_r.copy(),
-                                y_train.copy())
-    print("->PLS(1)->LDA")
-    plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
-                                X_reduced.copy(),
-                                y_reduced.copy(),
-                                X_test_r.copy(),
-                                y_test.copy(),
-                                X_train_r.copy(),
-                                y_train.copy())
+    # clf_pls = PLSRegression(n_components=1)
+    # X_train_r = clf_pls.fit_transform(X_train.copy(), y_train.copy())[0]
+    # X_test_r = clf_pls.transform(X_test.copy())
+    #
+    # X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
+    # y_reduced = np.concatenate((y_train, y_test), axis=0)
+    #
+    # print("->PLS(1)->SVC")
+    # plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
+    #                             X_reduced.copy(),
+    #                             y_reduced.copy(),
+    #                             X_test_r.copy(),
+    #                             y_test.copy(),
+    #                             X_train_r.copy(),
+    #                             y_train.copy())
+    # print("->PLS(1)->LDA")
+    # plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
+    #                             X_reduced.copy(),
+    #                             y_reduced.copy(),
+    #                             X_test_r.copy(),
+    #                             y_test.copy(),
+    #                             X_train_r.copy(),
+    #                             y_train.copy())
 
 
 def get_proba(y_probas, y_pred):
@@ -414,7 +415,7 @@ if __name__ == "__main__":
     process_data_frame(data_frame, downsample_false_class=True)
     process_data_frame(data_frame, downsample_false_class=False)
 
-
+    exit(-1)
     dataset_filepath1 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
     dataset_filepath2 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_720\\7_1\\training_sets\\cwt_.data"
 
