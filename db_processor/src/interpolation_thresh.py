@@ -37,7 +37,6 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import pathlib
 
-from classifier.src.herd_map import create_herd_map
 
 sql_db = None
 MAX_ACTIVITY_COUNT_BIO = 480
@@ -139,15 +138,21 @@ if __name__ == '__main__':
     __location__ = os.path.realpath(
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     print(__location__)
-    csv_file = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\40101310026.csv"
-    zero_to_nan_threh = 20
-    interpolation_thesh = 3
 
-    if len(sys.argv) > 1:
-        print("arg: csv_file zero_to_nan_threh interpolation_thesh")
-        csv_file = sys.argv[1]
-        zero_to_nan_threh = sys.argv[2]
-        interpolation_thesh = sys.argv[3]
-    farm_id = csv_file.split('\\')[-2]
-    animal_id = csv_file.split('\\')[-1].replace('.csv','')
-    process_csv(csv_file, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id)
+    for csv_file in glob.glob("C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"):
+
+        # csv_file = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\40101310026.csv"
+
+        zero_to_nan_threh = 20
+        interpolation_thesh = 3
+
+        if len(sys.argv) > 1:
+            print("arg: csv_file zero_to_nan_threh interpolation_thesh")
+            csv_file = sys.argv[1]
+            zero_to_nan_threh = sys.argv[2]
+            interpolation_thesh = sys.argv[3]
+            print(zero_to_nan_threh, interpolation_thesh, csv_file)
+
+        farm_id = csv_file.split('\\')[-2]
+        animal_id = csv_file.split('\\')[-1].replace('.csv','')
+        process_csv(csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)

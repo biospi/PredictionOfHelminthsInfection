@@ -37,7 +37,7 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import pathlib
 
-from classifier.src.herd_map import create_herd_map
+
 
 sql_db = None
 MAX_ACTIVITY_COUNT_BIO = 480
@@ -125,7 +125,7 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
 
 def export_rawdata_to_csv(df, dir_path):
     print("exporting data...")
-    filename_path = dir_path + "%median.csv"
+    filename_path = dir_path + "median.csv"
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print(filename_path)
@@ -151,7 +151,9 @@ if __name__ == '__main__':
 
         df_median[str(idx)] = df['first_sensor_value']
 
-    compute_median = df_median.median()
+    compute_median = pd.DataFrame(df_median.median(axis=1, skipna=True))
     compute_median["timestamp"] = df["timestamp"]
     compute_median["date_str"] = df["date_str"]
-    export_rawdata_to_csv(csv_dir[:-5])
+    compute_median = compute_median.rename(columns={0: "first_sensor_value"})
+
+    export_rawdata_to_csv(compute_median, csv_dir[:-5])

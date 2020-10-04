@@ -37,7 +37,7 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import pathlib
 
-from classifier.src.herd_map import create_herd_map
+
 
 sql_db = None
 MAX_ACTIVITY_COUNT_BIO = 480
