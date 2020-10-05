@@ -168,8 +168,8 @@ if __name__ == '__main__':
     compute_median = compute_median[["timestamp", "date_str", "first_sensor_value"]]
 
     for i, col in enumerate(df_raw.columns):
-        df_raw[col].plot(alpha=0.5)
-    compute_median["first_sensor_value"].plot(color="black")
+        df_raw[col][200000: 200300].plot(alpha=0.5)
+    compute_median["first_sensor_value"][200000: 200300].plot(color="black")
     plt.show()
 
     export_rawdata_to_csv(compute_median, csv_dir[:-5], thresh_i, thresh_zero2nan)

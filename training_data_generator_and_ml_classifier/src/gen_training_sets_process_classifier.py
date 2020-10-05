@@ -343,7 +343,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         return
 
     activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
-    herd_activity_list = anscombe_list(herd_activity_list[0: expected_sample_count])
+    herd_activity_list = anscombe_list(herd_activity_list)
     activity_list = anscombe_list(activity_list[0: expected_sample_count])
 
     idx = 0
@@ -376,25 +376,12 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         dates_list_formated.append(curr_datetime.strftime('%d/%m/%Y %H:%M'))
         idx += 1
 
-    # activity_list = [a_i - b_i if a_i is not None and b_i is not None else None for a_i, b_i in
-    #                  zip(activity_list, activity_mean)]
-
-    # activity_list_np = np.array(activity_list, dtype=np.float)
-    # activity_mean_np = np.array(activity_mean, dtype=np.float)
-
-    # activity_list_np = np.divide(activity_list_np, activity_mean_np)
-    # activity_list_np = np.where(np.isnan(activity_list_np), None, activity_list_np)
-    # activity_list = activity_list_np.tolist()
-
     prev_famacha_score1, prev_famacha_score2, prev_famacha_score3, prev_famacha_score4 = get_prev_famacha_score(
         animal_id,
         famacha_test_date,
         data_famacha_dict,
         famacha_score)
     indexes.reverse()
-
-    # herd_activity_list = anscombe_list(herd_activity_list)
-    # activity_list = anscombe_list(activity_list)
 
     data = {"famacha_score_increase": False, "famacha_score": famacha_score, "weight": weight_list,
             "previous_famacha_score1": prev_famacha_score1,
@@ -525,7 +512,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def is_activity_data_valid(activity_raw, activity_prepocessed, hour_gap):
+def is_activity_data_valid(activity_raw, activity_prepocessed, thresh_z2n, thresh_i):
     zeros_count = activity_raw.count(0)
     threshold_zeros_coef = 2
     zeros_threshold = len(activity_raw) / threshold_zeros_coef
@@ -2658,7 +2645,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             if result is None:
                 continue
 
-            is_valid, reason = is_activity_data_valid(result["activity_raw"], result["activity"], hour_gap)
+            is_valid, reason = is_activity_data_valid(result["activity_raw"], result["activity"], thresh_z2n, thresh_i)
 
             result['is_valid'] = is_valid
             if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
