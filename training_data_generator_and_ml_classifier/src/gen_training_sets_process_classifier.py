@@ -2716,7 +2716,6 @@ if __name__ == '__main__':
             file_median = file
             break
 
-
     MULTI_THREADING_ENABLED = True
 
     if MULTI_THREADING_ENABLED:
