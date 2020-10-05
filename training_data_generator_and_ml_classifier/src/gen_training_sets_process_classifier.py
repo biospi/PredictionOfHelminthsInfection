@@ -342,9 +342,9 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
         return
 
-    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
-    herd_activity_list = anscombe_list(herd_activity_list)
-    activity_list = anscombe_list(activity_list[0: expected_sample_count])
+    # activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
+    # herd_activity_list = anscombe_list(herd_activity_list)
+    # activity_list = anscombe_list(activity_list)
 
     idx = 0
     indexes = []
@@ -2579,6 +2579,18 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     return activity, time_range
 
 
+def resample_traces(resolution, activity, herd):
+    print("resampling trace")
+    index = pd.date_range('1/1/2000', periods=len(activity), freq='T')
+    activity_series = pd.Series(activity, index=index)
+    activity_series_r = activity_series.resample(resolution).sum()
+    activity_r = activity_series_r.values
+    herd_series = pd.Series(herd, index=index)
+    herd_series_r = herd_series.resample(resolution).sum()
+    herd_r = herd_series_r.values
+    return activity_r, herd_r
+
+
 def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, csv_median, data_famacha_dict, create_input_visualisation_eanable=False):
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = True
@@ -2644,6 +2656,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
             if result is None:
                 continue
+
+            activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
             is_valid, reason = is_activity_data_valid(result["activity_raw"], result["activity"], thresh_z2n, thresh_i)
 
