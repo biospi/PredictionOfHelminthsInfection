@@ -14,6 +14,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 from sys import exit
+import sys
 
 
 META_DATA_LENGTH = 19
@@ -409,6 +410,9 @@ if __name__ == "__main__":
     print("start")
     #dataset_filepath = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
     dataset_filepath = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\delmas_70101200027_60\\7_2\\training_sets\\cwt_.data"
+
+    if len(sys.argv) > 1:
+        dataset_filepath = sys.argv[1]
 
     data_frame_original, data_frame, _ = load_df_from_datasets(dataset_filepath)
 

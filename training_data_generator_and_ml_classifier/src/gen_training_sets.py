@@ -76,7 +76,7 @@ def get_weight(curr_datetime, data_famacha_dict, animal_id):
             try:
                 weight = float(data[3])
             except ValueError as e:
-                print(e)
+                # print(e)
                 weight = None
     return weight
 
@@ -92,7 +92,8 @@ def get_temp_humidity(date, data):
                 humidity = int(item['humidity'])
                 temp = int(item['temp_c'])
     except KeyError as e:
-        print("could not find weather data!", e)
+        # print("could not find weather data!", e)
+        pass
 
     return temp, humidity
 
@@ -105,7 +106,7 @@ def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_
     try:
         list = data_famacha[str(serial_number)]
     except KeyError as e:
-        print(e)
+        # print(e)
         exit()
     for i in range(1, len(list)):
         item = list[i]
@@ -114,22 +115,22 @@ def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_
                 previous_score1 = int(list[i - 1][1])
             except ValueError as e:
                 previous_score1 = -1
-                print(e)
+                # print(e)
             try:
                 previous_score2 = int(list[i - 2][1])
             except ValueError as e:
                 previous_score2 = -1
-                print(e)
+                # print(e)
             try:
                 previous_score3 = int(list[i - 3][1])
             except ValueError as e:
                 previous_score3 = -1
-                print(e)
+                # print(e)
             try:
                 previous_score4 = int(list[i - 4][1])
             except ValueError as e:
                 previous_score4 = -1
-                print(e)
+                # print(e)
             break
     return previous_score1, previous_score2, previous_score3, previous_score4
 
@@ -224,7 +225,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     try:
         famacha_score = int(curr_data_famacha[1])
     except ValueError as e:
-        print("error while parsing famacha score!", e)
+        # print("error while parsing famacha score!", e)
         return
 
     animal_id = int(curr_data_famacha[2])
@@ -235,23 +236,28 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     try:
         dtf1 = data_famacha_list[i][0]
     except IndexError as e:
-        print(e)
+        # print(e)
+        pass
     try:
         dtf2 = data_famacha_list[i + 1][0]
     except IndexError as e:
-        print(e)
+        # print(e)
+        pass
     try:
         dtf3 = data_famacha_list[i + 2][0]
     except IndexError as e:
-        print(e)
+        # print(e)
+        pass
     try:
         dtf4 = data_famacha_list[i + 3][0]
     except IndexError as e:
-        print(e)
+        # print(e)
+        pass
     try:
         dtf5 = data_famacha_list[i + 4][0]
     except IndexError as e:
-        print(e)
+        # print(e)
+        pass
 
     nd1, nd2, nd3, nd4 = 0, 0, 0, 0
     if len(dtf2) > 0 and len(dtf1) > 0:
@@ -263,7 +269,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     if len(dtf5) > 0 and len(dtf4) > 0:
         nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
 
-    print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
+    # print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
     rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
@@ -277,7 +283,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
 
     if len(rows_activity) < expected_sample_count:
         l = len(rows_activity)
-        print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
+        # print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
         return
 
     # activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
@@ -303,8 +309,9 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         try:
             weight = float(curr_data_famacha[3])
         except ValueError as e:
-            print("weight=", weight)
-            print(e)
+            # print("weight=", weight)
+            # print(e)
+            pass
 
         weight_list.append(weight)
 
@@ -404,7 +411,7 @@ def get_expected_sample_count(resolution, days_before_test):
         expected_sample_n = days_before_test
 
     expected_sample_n = expected_sample_n + 1 #todo fix clipping
-    print("expected sample count is %d." % expected_sample_n)
+    # print("expected sample count is %d." % expected_sample_n)
     return int(expected_sample_n)
 
 
@@ -435,7 +442,7 @@ def create_activity_graph(animal_id, activity, folder, filename, title=None,
     path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s_%d_%s' % (path, animal_id, len(activity), filename.replace(".", "_")))
-    print(len(activity), filename.replace(".", "_"))
+    # print(len(activity), filename.replace(".", "_"))
     fig.clear()
     plt.close(fig)
 
@@ -454,7 +461,7 @@ def create_hd_cwt_graph(coefs, cwt_lengh, folder, filename, title=None, sub_fold
     path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%d_%s' % (path, cwt_lengh, filename.replace('.', '')))
-    print(cwt_lengh, filename.replace('.', ''))
+    # print(cwt_lengh, filename.replace('.', ''))
     fig.clear()
     plt.close(fig)
 
@@ -477,7 +484,7 @@ def mask_cwt(cwt, coi):
 
 
 def compute_cwt(activity, scale=80):
-    print("compute_cwt...")
+    # print("compute_cwt...")
     # t, activity = dummy_sin()
     scales = even_list(scale)
     num_steps = len(activity)
@@ -567,8 +574,8 @@ def create_training_set(result, dir, resolution, days_before_famacha_test, farm_
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
-    print("set size is %d, %s.....%s" % (
-        len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
+    # print("set size is %d, %s.....%s" % (
+    #     len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
     with open(filename, 'a') as outfile:
         outfile.write(training_str_flatten)
         outfile.write('\n')
@@ -656,9 +663,10 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     try:
         time_range = [datetime.fromtimestamp(x) for x in time_range]
     except ValueError as e:
-        print("error while converting time", e)
-        print(time_range)
-        print(csv_df)
+        pass
+        # print("error while converting time", e)
+        # print(time_range)
+        # print(csv_df)
 
     return activity, time_range
 
@@ -675,7 +683,7 @@ def resample_traces(resolution, activity, herd):
 
 
 def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
-    print("animal file=", file)
+    # print("animal file=", file)
     csv_df = load_db_from_csv(file)
     csv_median = load_db_from_csv(file_median)
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
@@ -686,7 +694,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     try:
         shutil.rmtree(dir, ignore_errors=True)
     except (OSError, FileNotFoundError) as e:
-        print(e)
+        # print(e)
+        pass
 
     dataset_heatmap_data = {}
     data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
@@ -698,7 +707,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
                                        days_before_famacha_test)
         except KeyError as e:
             result = None
-            print(e)
+            # print(e)
 
         if result is None:
             continue
@@ -706,7 +715,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
         is_valid, reason = is_activity_data_valid(result["activity_raw"])
-        print("sample is valid=", is_valid)
+        # print("sample is valid=", is_valid)
 
         result["activity"] = activity_resampled.tolist()
 
@@ -749,8 +758,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     #         print(dataset_heatmap_data)
 
     class_input_dict = []
-    print("create_activity_graph...")
-    print("could find %d samples." % len(results))
+    # print("create_activity_graph...")
+    # print("could find %d samples." % len(results))
     for idx in range(len(results)):
         result = results[idx]
         sub_sub_folder = str(result["is_valid"]) + "/"
@@ -765,7 +774,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         if not result['is_valid']:
             continue
 
-        print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
+        # print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
         cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
 
         result["cwt"] = cwt
@@ -781,7 +790,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         results[idx] = None
         gc.collect()
 
-        print("create_activity_graph done.")
+        # print("create_activity_graph done.")
 
 
 def parse_csv_db_name(path):
