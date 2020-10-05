@@ -2332,126 +2332,119 @@ def format_options(options):
         'indexes', 'i')
 
 
-def process_classifiers(filename, filename_s, inputs, dir, resolution, dbt, farm_id, label_col='label'):
-    print("start classification...", inputs)
-    sliding_w, thresh_nan, thresh_zeros, thresh_entropy = 0, 0, 0, 0  # todo remove old thresholds
+def process_classifiers(traintest_dataset_file_path, result_filename, result_filename_simplified, option, dir, resolution, dbt, farm_id, label_col='label'):
+    print("start classification...", option)
     start_time = time.time()
-    for input in inputs:
-        if 'cwt' not in input["path"]:
+    data_frame_original, data_frame, _ = load_df_from_datasets(traintest_dataset_file_path, label_col)
+    print(data_frame)
+    sample_count = data_frame.shape[1]
+    try:
+        class_true_count = data_frame[label_col].value_counts().to_dict()[True]
+        class_false_count = data_frame[label_col].value_counts().to_dict()[False]
+    except KeyError as e:
+        print("error while checking class distribution!", e)
+    print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
+    print("current_file is", input)
+
+    for result in [
+        # process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir,
+        #                   options=inputs, resolution=resolution),
+        # process(data_frame, fold=10, clf_name='SVM', folder=dir,
+        #         options=inputs, resolution=resolution)
+        # process(data_frame, fold=5, dim_reduc='PLS', clf_name='SVM', folder=dir, options=inputs,
+        #         resolution=resolution, farm_id=farm_id, df_original=data_frame_original),
+        process(data_frame, fold=2, dim_reduc='LDA', clf_name='SVM', folder=dir, options=option,
+                resolution=resolution, farm_id=farm_id, df_original=data_frame_original)
+        # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
+        #                   options=inputs, resolution=resolution)
+        # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
+        #         options=inputs, resolution=resolution)
+    ]:
+        time_proc = get_elapsed_time_string(start_time, time.time())
+
+        if result is None:
             continue
-        print("input=", input)
 
-        data_frame_original, data_frame, _ = load_df_from_datasets(input["path"], label_col)
-        print(data_frame)
-        sample_count = data_frame.shape[1]
-        try:
-            class_true_count = data_frame[label_col].value_counts().to_dict()[True]
-            class_false_count = data_frame[label_col].value_counts().to_dict()[False]
-        except KeyError as e:
-            print(e)
-            continue
-        print("class_true_count=%d and class_false_count=%d" % (class_true_count, class_false_count))
-        print("current_file is", input)
+        if '1d_reduced' in result:
+            r_1d = result['1d_reduced']
+            append_result_file(result_filename, r_1d['accuracy'], r_1d['scores'], r_1d['precision_true'],
+                               r_1d['precision_false'],
+                               r_1d['recall_true'], r_1d['recall_false'], r_1d['fscore_true'],
+                               r_1d['fscore_false'], r_1d['support_true'], r_1d['support_false'],
+                               class_true_count,
+                               class_false_count, result['fold'], r_1d['proba_y_false'], r_1d['proba_y_true'],
+                               resolution, dbt, 0, 0, 0, 0, time_proc,
+                               sample_count,
+                               data_frame.shape[0],
+                               traintest_dataset_file_path, option, r_1d['clf_name'], r_1d['db_file_path'])
+        if '2d_reduced' in result:
+            r_2d = result['2d_reduced']
+            append_result_file(result_filename, r_2d['accuracy'], r_2d['scores'], r_2d['precision_true'],
+                               r_2d['precision_false'],
+                               r_2d['recall_true'], r_2d['recall_false'], r_2d['fscore_true'],
+                               r_2d['fscore_false'], r_2d['support_true'], r_2d['support_false'],
+                               class_true_count,
+                               class_false_count, result['fold'], r_2d['proba_y_false'], r_2d['proba_y_true'],
+                               resolution, dbt, 0, 0, 0, 0, time_proc,
+                               sample_count,
+                               data_frame.shape[0],
+                               traintest_dataset_file_path, option, r_2d['clf_name'], r_2d['db_file_path'])
+        if '3d_reduced' in result:
+            r_3d = result['3d_reduced']
+            append_result_file(result_filename, r_3d['accuracy'], r_3d['scores'], r_3d['precision_true'],
+                               r_3d['precision_false'],
+                               r_3d['recall_true'], r_3d['recall_false'], r_3d['fscore_true'],
+                               r_3d['fscore_false'], r_3d['support_true'], r_3d['support_false'],
+                               class_true_count,
+                               class_false_count, result['fold'], r_3d['proba_y_false'], r_3d['proba_y_true'],
+                               resolution, dbt, 0, 0, 0, 0, time_proc,
+                               sample_count,
+                               data_frame.shape[0],
+                               traintest_dataset_file_path, option, r_3d['clf_name'], r_3d['db_file_path'])
 
-        for result in [
-            # process(data_frame, fold=5, dim_reduc='LDA', clf_name='SVM', folder=dir,
-            #                   options=input["options"], resolution=resolution),
-            # process(data_frame, fold=10, clf_name='SVM', folder=dir,
-            #         options=input["options"], resolution=resolution)
-            # process(data_frame, fold=5, dim_reduc='PLS', clf_name='SVM', folder=dir, options=input["options"],
-            #         resolution=resolution, farm_id=farm_id, df_original=data_frame_original),
-            process(data_frame, fold=2, dim_reduc='LDA', clf_name='SVM', folder=dir, options=input["options"],
-                    resolution=resolution, farm_id=farm_id, df_original=data_frame_original)
-            # process(data_frame, fold=5, dim_reduc='LDA', clf_name='KNN', folder=dir,
-            #                   options=input["options"], resolution=resolution)
-            # process(data_frame, fold=10, dim_reduc='LDA', clf_name='MLP', folder=dir,
-            #         options=input["options"], resolution=resolution)
-        ]:
-            time_proc = get_elapsed_time_string(start_time, time.time())
+        if 'not_reduced' in result:
+            r = result['not_reduced']
+            append_result_file(result_filename, r['accuracy'], r['scores'], r['precision_true'], r['precision_false'],
+                               r['recall_true'], r['recall_false'], r['fscore_true'],
+                               r['fscore_false'], r['support_true'], r['support_false'], class_true_count,
+                               class_false_count, result['fold'], r['proba_y_false'], r['proba_y_true'],
+                               resolution, dbt, 0, 0, 0, 0, time_proc,
+                               sample_count,
+                               data_frame.shape[0],
+                               traintest_dataset_file_path, option, r['clf_name'], r['db_file_path'])
 
-            if result is None:
-                continue
-
-            if '1d_reduced' in result:
-                r_1d = result['1d_reduced']
-                append_result_file(filename, r_1d['accuracy'], r_1d['scores'], r_1d['precision_true'],
-                                   r_1d['precision_false'],
-                                   r_1d['recall_true'], r_1d['recall_false'], r_1d['fscore_true'],
-                                   r_1d['fscore_false'], r_1d['support_true'], r_1d['support_false'],
-                                   class_true_count,
-                                   class_false_count, result['fold'], r_1d['proba_y_false'], r_1d['proba_y_true'],
-                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, thresh_entropy, time_proc,
-                                   sample_count,
-                                   data_frame.shape[0],
-                                   input["path"], input["options"], r_1d['clf_name'], r_1d['db_file_path'])
-            if '2d_reduced' in result:
-                r_2d = result['2d_reduced']
-                append_result_file(filename, r_2d['accuracy'], r_2d['scores'], r_2d['precision_true'],
-                                   r_2d['precision_false'],
-                                   r_2d['recall_true'], r_2d['recall_false'], r_2d['fscore_true'],
-                                   r_2d['fscore_false'], r_2d['support_true'], r_2d['support_false'],
-                                   class_true_count,
-                                   class_false_count, result['fold'], r_2d['proba_y_false'], r_2d['proba_y_true'],
-                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, thresh_entropy, time_proc,
-                                   sample_count,
-                                   data_frame.shape[0],
-                                   input["path"], input["options"], r_2d['clf_name'], r_2d['db_file_path'])
-            if '3d_reduced' in result:
-                r_3d = result['3d_reduced']
-                append_result_file(filename, r_3d['accuracy'], r_3d['scores'], r_3d['precision_true'],
-                                   r_3d['precision_false'],
-                                   r_3d['recall_true'], r_3d['recall_false'], r_3d['fscore_true'],
-                                   r_3d['fscore_false'], r_3d['support_true'], r_3d['support_false'],
-                                   class_true_count,
-                                   class_false_count, result['fold'], r_3d['proba_y_false'], r_3d['proba_y_true'],
-                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, thresh_entropy, time_proc,
-                                   sample_count,
-                                   data_frame.shape[0],
-                                   input["path"], input["options"], r_3d['clf_name'], r_3d['db_file_path'])
-
-            if 'not_reduced' in result:
-                r = result['not_reduced']
-                append_result_file(filename, r['accuracy'], r['scores'], r['precision_true'], r['precision_false'],
-                                   r['recall_true'], r['recall_false'], r['fscore_true'],
-                                   r['fscore_false'], r['support_true'], r['support_false'], class_true_count,
-                                   class_false_count, result['fold'], r['proba_y_false'], r['proba_y_true'],
-                                   resolution, dbt, sliding_w, thresh_nan, thresh_zeros, thresh_entropy, time_proc,
-                                   sample_count,
-                                   data_frame.shape[0],
-                                   input["path"], input["options"], r['clf_name'], r['db_file_path'])
-
-            if 'simplified_results' in result:
-                if 'simplified_results_2d' in result['simplified_results']:
-                    item = result['simplified_results']['simplified_results_2d']
-                    append_simplified_result_file(filename_s, r_2d['clf_name'], item['accuracy'],
-                                                  item['specificity'],
-                                                  item['recall'], item['precision'], item['f-score'],
-                                                  item['proba_y_false_list'], item['proba_y_true_list'],
-                                                  dbt, sliding_w, resolution,
-                                                  format_options(input["options"]))
-                if 'simplified_results_1d' in result['simplified_results']:
-                    item = result['simplified_results']['simplified_results_1d']
-                    append_simplified_result_file(filename_s, r_1d['clf_name'], item['accuracy'],
-                                                  item['specificity'],
-                                                  item['recall'], item['precision'], item['f-score'],
-                                                  item['proba_y_false_list'], item['proba_y_true_list'],
-                                                  dbt, sliding_w, resolution,
-                                                  format_options(input["options"]))
-                if 'simplified_results_3d' in result['simplified_results']:
-                    item = result['simplified_results']['simplified_results_3d']
-                    append_simplified_result_file(filename_s, r_3d['clf_name'], item['accuracy'],
-                                                  item['specificity'],
-                                                  item['recall'], item['precision'], item['f-score'],
-                                                  item['proba_y_false_list'], item['proba_y_true_list'],
-                                                  dbt, sliding_w, resolution,
-                                                  format_options(input["options"]))
-                if 'simplified_results_full' in result['simplified_results']:
-                    item = result['simplified_results']['simplified_results_full']
-                    append_simplified_result_file(filename_s, r['clf_name'], item['accuracy'], item['specificity'],
-                                                  item['recall'], item['precision'], item['f-score'],
-                                                  item['proba_y_false_list'], item['proba_y_true_list'],
-                                                  dbt, sliding_w, resolution,
-                                                  format_options(input["options"]))
+        if 'simplified_results' in result:
+            if 'simplified_results_2d' in result['simplified_results']:
+                item = result['simplified_results']['simplified_results_2d']
+                append_simplified_result_file(result_filename_simplified, r_2d['clf_name'], item['accuracy'],
+                                              item['specificity'],
+                                              item['recall'], item['precision'], item['f-score'],
+                                              item['proba_y_false_list'], item['proba_y_true_list'],
+                                              dbt, 0, resolution,
+                                              format_options(option))
+            if 'simplified_results_1d' in result['simplified_results']:
+                item = result['simplified_results']['simplified_results_1d']
+                append_simplified_result_file(result_filename_simplified, r_1d['clf_name'], item['accuracy'],
+                                              item['specificity'],
+                                              item['recall'], item['precision'], item['f-score'],
+                                              item['proba_y_false_list'], item['proba_y_true_list'],
+                                              dbt, 0, resolution,
+                                              format_options(option))
+            if 'simplified_results_3d' in result['simplified_results']:
+                item = result['simplified_results']['simplified_results_3d']
+                append_simplified_result_file(result_filename_simplified, r_3d['clf_name'], item['accuracy'],
+                                              item['specificity'],
+                                              item['recall'], item['precision'], item['f-score'],
+                                              item['proba_y_false_list'], item['proba_y_true_list'],
+                                              dbt, 0, resolution,
+                                              format_options(option))
+            if 'simplified_results_full' in result['simplified_results']:
+                item = result['simplified_results']['simplified_results_full']
+                append_simplified_result_file(result_filename_simplified, r['clf_name'], item['accuracy'], item['specificity'],
+                                              item['recall'], item['precision'], item['f-score'],
+                                              item['proba_y_false_list'], item['proba_y_true_list'],
+                                              dbt, 0, resolution,
+                                              format_options(option))
 
 
 def merge_results(filename=None, filter=None, simplified_report=False):
@@ -2685,44 +2678,44 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 def parse_csv_db_name(path):
     split = path.split('\\')[-3].split('_')
     farm_id = split[0] + "_" + split[1]
-    threshold_interpol = int(path.split('\\')[-2].split('_')[-3])
-    threshold_zeros2nan = int(path.split('\\')[-2].split('_')[-1])
+    threshold_interpol = int(path.split('/')[-2].split('_')[-3])
+    threshold_zeros2nan = int(path.split('/')[-2].split('_')[-1])
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
 def parse_input_params(file_path):
-    split = file_path.split('\\')
+    split = file_path.split('/')
     option = split[-1].split('.')[0].split('__')[0]
     param_split = split[-1].split('.')[0].split('__')[1].split('_')
     farm_id = param_split[0] + "_" + param_split[1]
-    day_before_famacha = int(param_split[2].replace('dbft',''))
+    days_before_famacha_test = int(param_split[2].replace('dbft',''))
     resolution = param_split[-1]
-    location =
+    location = '/'.join(file_path.split('/')[0:-1])
     return option, farm_id, days_before_famacha_test, resolution, location
 
 
 if __name__ == '__main__':
-
+    print("args: traintest_dataset_file_path")
     if len(sys.argv) > 1:
-        print("args: traintest_dataset_file_path")
         traintest_dataset_file_path = sys.argv[1]
+    else:
+        exit(-1)
 
     print("traintest_dataset_file_path=", traintest_dataset_file_path)
 
-    # filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
-
     option, farm_id, days_before_famacha_test, resolution, location = parse_input_params(traintest_dataset_file_path)
 
-    filename = init_result_file(dir, farm_id)
-    filename_s = init_result_file(dir, farm_id, simplified_results=True)
+    filename_result_csv_export = init_result_file(traintest_dataset_file_path, farm_id)
+    filename_result_csv_export_simplified = init_result_file(traintest_dataset_file_path, farm_id, simplified_results=True)
     try:
-        shutil.rmtree(dir + "/analysis")
-        shutil.rmtree(dir + "/decision_boundaries_graphs")
-        shutil.rmtree(dir + "/roc_curve")
+        shutil.rmtree(traintest_dataset_file_path + "/analysis")
+        shutil.rmtree(traintest_dataset_file_path + "/decision_boundaries_graphs")
+        shutil.rmtree(traintest_dataset_file_path + "/roc_curve")
     except (OSError, FileNotFoundError) as e:
         print(e)
 
-    process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+    process_classifiers(traintest_dataset_file_path, filename_result_csv_export, filename_result_csv_export_simplified,
+                        option, traintest_dataset_file_path, resolution, days_before_famacha_test, farm_id)
 
     merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
                   filter='%s_results_simplified.csv' % farm_id,
