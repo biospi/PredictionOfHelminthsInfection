@@ -123,9 +123,9 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
     export_rawdata_to_csv(df_interpolated, farm_id, animal_id, interpolation_thesh)
 
 
-def export_rawdata_to_csv(df, dir_path):
+def export_rawdata_to_csv(df, dir_path, thresh_i, thresh_zero2nan):
     print("exporting data...")
-    filename_path = dir_path + "median.csv"
+    filename_path = dir_path + "median_thesh_interpol_%d_zeros_%d.csv" % (thresh_i, thresh_zero2nan)
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print(filename_path)
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     __location__ = os.path.realpath(
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     print(__location__)
-    csv_dir = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\interpolated_1min\\delmas_70101200027\\interpolation_thesh_3\\*.csv"
+    csv_dir = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\interpolated_1min\\delmas_70101200027\\interpolation_thesh_interpol_3_zeros_5\\*.csv"
     if len(sys.argv) > 1:
         print("arg: csv_dir")
         csv_dir = sys.argv[1]
@@ -144,11 +144,21 @@ if __name__ == '__main__':
     df_median = pd.DataFrame()
 
     files = glob.glob(csv_dir)
+    if len(files) == 0:
+        print("no files in %s" % csv_dir)
+        exit(-1)
+
+    thresh_i = None
+    thresh_zero2nan = None
     for idx, file in enumerate(files):
+        print(file)
+        if 'median' in file:
+            continue
         farm_id = file.split('\\')[-2]
         animal_id = file.split('\\')[-1].replace('.csv', '')
+        thresh_i = int(animal_id.split('_')[2])
+        thresh_zero2nan = int(animal_id.split('_')[4])
         df = pd.read_csv(file, sep=",")
-
         df_median[str(idx)] = df['first_sensor_value']
 
     compute_median = pd.DataFrame(df_median.median(axis=1, skipna=True))
@@ -156,4 +166,4 @@ if __name__ == '__main__':
     compute_median["date_str"] = df["date_str"]
     compute_median = compute_median.rename(columns={0: "first_sensor_value"})
 
-    export_rawdata_to_csv(compute_median, csv_dir[:-5])
+    export_rawdata_to_csv(compute_median, csv_dir[:-5], thresh_i, thresh_zero2nan)
