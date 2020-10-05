@@ -408,8 +408,8 @@ def get_expected_sample_count(resolution, days_before_test):
     return int(expected_sample_n)
 
 
-def is_activity_data_valid(activity_resampled):
-    if np.isnan(activity_resampled).any():
+def is_activity_data_valid(activity_raw):
+    if np.isnan(activity_raw).any():
         return False, 'has_nan'
     return True, 'ok'
 
@@ -705,7 +705,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
         activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
-        is_valid, reason = is_activity_data_valid(activity_resampled)
+        is_valid, reason = is_activity_data_valid(result["activity_raw"])
         print("sample is valid=", is_valid)
 
         result["activity"] = activity_resampled.tolist()
@@ -731,6 +731,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
         dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
         dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
+
 
     skipped_class_false, skipped_class_true = process_famacha_var(results)
     # if create_input_visualisation_eanable:
