@@ -767,6 +767,9 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
     class_input_dict = []
     # print("create_activity_graph...")
     # print("could find %d samples." % len(results))
+
+    exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id)
+
     print("computing cwts and set for file %d...", idx)
     for idx in range(len(results)):
         result = results[idx]
@@ -803,6 +806,43 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
     print("computing cwts and set for file %d done", idx)
 
 
+def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id):
+    print("exporting_data_info_to_txt.")
+    total_sample_11 = 0
+    total_sample_12 = 0
+
+    nan_sample_11 = 0
+    nan_sample_12 = 0
+
+    usable_11 = 0
+    usable_12 = 0
+
+    for item in results:
+        if item['famacha_score_increase']:
+            total_sample_12 += 1
+        if not item['famacha_score_increase']:
+            total_sample_11 += 1
+        if item['famacha_score_increase'] and not item['is_valid']:
+            nan_sample_12 += 1
+        if not item['famacha_score_increase'] and not item['is_valid']:
+            nan_sample_11 += 1
+
+        if item['famacha_score_increase'] and item['is_valid']:
+            usable_12 += 1
+        if not item['famacha_score_increase'] and item['is_valid']:
+            usable_11 += 1
+
+    filename = "%s/%s_result_interpol_%d_zeros_%d.txt" % (output_dir, animal_id, thresh_i, thresh_z2n)
+    purge_file(filename)
+    report = "Total samples = %d \n 1 -> 1 = %d \n 1 -> 2 = %d\n Nan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+             "-> 1 = %d\n1 -> 2 =%d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
+                             nan_sample_12, usable_11, usable_12)
+
+    with open(filename, 'a') as outfile:
+        outfile.write(report)
+        outfile.write('\n')
+
+
 def parse_csv_db_name(path):
     split = path.split('/')[-3].split('_')
     farm_id = split[0] + "_" + split[1]
@@ -821,7 +861,7 @@ if __name__ == '__main__':
         famacha_file_path = sys.argv[3]
         n_days_before_famacha = int(sys.argv[4])
         resampling_resolution = sys.argv[5]
-        enable_graph_output = sys.argv[6]
+        enable_graph_output = bool(sys.argv[6])
         n_process = int(sys.argv[7])
     else:
         exit(-1)
