@@ -748,8 +748,8 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
         # dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
         # dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
-        if len(results) > 10:
-            break
+        # if len(results) > 10:
+        #     break
     print("processing file %d done" % idx)
     process_famacha_var(results)
     # if create_input_visualisation_eanable:
@@ -768,7 +768,7 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
     # print("create_activity_graph...")
     # print("could find %d samples." % len(results))
 
-    exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id)
+    total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id)
 
     print("computing cwts and set for file %d...", idx)
     for idx in range(len(results)):
@@ -804,6 +804,7 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
         # print("create_activity_graph done.")
 
     print("computing cwts and set for file %d done", idx)
+    return [total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12]
 
 
 def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id):
@@ -834,8 +835,21 @@ def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal
 
     filename = "%s/%s_result_interpol_%d_zeros_%d.txt" % (output_dir, animal_id, thresh_i, thresh_z2n)
     purge_file(filename)
-    report = "Total samples = %d \n 1 -> 1 = %d \n 1 -> 2 = %d\n Nan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+    report = "Total samples = %d\n 1 -> 1 = %d\n 1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
              "-> 1 = %d\n1 -> 2 =%d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
+                             nan_sample_12, usable_11, usable_12)
+
+    with open(filename, 'a') as outfile:
+        outfile.write(report)
+        outfile.write('\n')
+    return total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12
+
+def exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n, total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12):
+    print("exporting_data_info_to_txt.")
+    filename = "%s/result_interpol_%d_zeros_%d.txt" % (output_dir, thresh_i, thresh_z2n)
+    purge_file(filename)
+    report = "Total samples = %d\n 1 -> 1 = %d\n 1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+             "-> 1 = %d\n1 -> 2 = %d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
 
     with open(filename, 'a') as outfile:
@@ -850,6 +864,11 @@ def parse_csv_db_name(path):
     threshold_zeros2nan = int(path.split('/')[-2].split('_')[-1])
     return farm_id, threshold_interpol, threshold_zeros2nan
 
+async_info = []
+
+def save_info(result):
+    async_info.append(result)
+
 
 if __name__ == '__main__':
 
@@ -861,7 +880,7 @@ if __name__ == '__main__':
         famacha_file_path = sys.argv[3]
         n_days_before_famacha = int(sys.argv[4])
         resampling_resolution = sys.argv[5]
-        enable_graph_output = bool(sys.argv[6])
+        enable_graph_output = sys.argv[6].lower() == 'true'
         n_process = int(sys.argv[7])
     else:
         exit(-1)
@@ -883,7 +902,7 @@ if __name__ == '__main__':
         if 'median' in file:
             file_median = file
             break
-
+    files = files[0:7]
     famacha_data = get_famacha_data(famacha_file_path)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
@@ -895,10 +914,26 @@ if __name__ == '__main__':
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
             pool.apply_async(process_day, (enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,), callback=save_info)
         pool.close()
         pool.join()
+        total_sample_11 = []
+        total_sample_12 = []
+        nan_sample_11 = []
+        nan_sample_12 = []
+        usable_11 = []
+        usable_12 = []
+        for item in async_info:
+            print(item)
+            total_sample_11.append(item[0])
+            total_sample_12.append(item[1])
+            nan_sample_11.append(item[2])
+            nan_sample_12.append(item[3])
+            usable_11.append(item[4])
+            usable_12.append(item[5])
+        exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n,sum(total_sample_11), sum(total_sample_12),
+                                         sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
     else:
         for idx, file in enumerate(files):
-            process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
