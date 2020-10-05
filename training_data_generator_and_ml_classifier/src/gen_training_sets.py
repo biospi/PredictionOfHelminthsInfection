@@ -434,7 +434,7 @@ def even_list(n):
     return np.asarray(result, dtype=np.int32)
 
 
-def create_activity_graph(animal_id, activity, folder, filename, title=None,
+def create_activity_graph(output_dir, animal_id, activity, folder, filename, title=None,
                           sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     activity = [-10 if x == 0 else x for x in activity] #set 0 value to 10 for ease of visualisation
     # for a in activity:
@@ -444,7 +444,7 @@ def create_activity_graph(animal_id, activity, folder, filename, title=None,
     fig = plt.figure()
     plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
-    path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
+    path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%s_%d_%s' % (path, animal_id, len(activity), filename.replace(".", "_")))
     # print(len(activity), filename.replace(".", "_"))
@@ -452,7 +452,7 @@ def create_activity_graph(animal_id, activity, folder, filename, title=None,
     plt.close(fig)
 
 
-def create_hd_cwt_graph(coefs, cwt_lengh, folder, filename, title=None, sub_folder='training_sets_cwt_graphs',
+def create_hd_cwt_graph(output_dir, coefs, cwt_lengh, folder, filename, title=None, sub_folder='training_sets_cwt_graphs',
                         sub_sub_folder=None, freqs=None):
     fig, axs = plt.subplots(1)
     # ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
@@ -463,7 +463,7 @@ def create_hd_cwt_graph(coefs, cwt_lengh, folder, filename, title=None, sub_fold
     axs.set_ylabel('Frequency')
     axs.set_yscale('log')
 
-    path = "%s/%s/%s" % (folder, sub_folder, sub_sub_folder)
+    path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     fig.savefig('%s/%d_%s' % (path, cwt_lengh, filename.replace('.', '')))
     # print(cwt_lengh, filename.replace('.', ''))
@@ -523,7 +523,7 @@ def create_filename(data):
     return filename.replace('/', '-').replace(".", "_")
 
 
-def create_training_set(result, dir, resolution, days_before_famacha_test, farm_id, options=[]):
+def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, options=[]):
     training_set = []
     option = ""
     if "cwt" in options:
@@ -575,7 +575,7 @@ def create_training_set(result, dir, resolution, days_before_famacha_test, farm_
     training_set.append(result["nd2"])
     training_set.append(result["nd3"])
     training_set.append(result["nd4"])
-    path = "%s/training_sets" % dir
+    path = "%s/training_sets" % output_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
@@ -604,9 +604,9 @@ def create_training_set(result, dir, resolution, days_before_famacha_test, farm_
     return filename, options
 
 
-def create_training_sets(data, dir_path, resolution, days_before_famacha_test, farm_id):
-    path1, options1 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["activity"])
-    path2, options2 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["cwt"])
+def create_training_sets(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id):
+    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, options=["activity"])
+    path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, options=["cwt"])
 
     return [
         {"path": path1, "options": options1},
@@ -688,11 +688,11 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
+def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
-    create_cwt_graph_enabled = False
-    create_activity_graph_enabled = True
+    create_cwt_graph_enabled = enable_graph_output
+    create_activity_graph_enabled = enable_graph_output
     weather_data = None
     animal_id = int(file.split('\\')[-1].split('_')[0])
 
@@ -748,8 +748,8 @@ def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
         # dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
         # dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
-        # if len(results) > 10:
-        #     break
+        if len(results) > 10:
+            break
     print("processing file %d done" % idx)
     process_famacha_var(results)
     # if create_input_visualisation_eanable:
@@ -775,11 +775,11 @@ def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
         filename_graph = create_filename(result)
         if create_activity_graph_enabled:
 
-            create_activity_graph(str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
+            create_activity_graph(output_dir, str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
-        if not result['is_valid']:
+        # if not result['is_valid']:
             continue
 
         # print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
@@ -791,10 +791,10 @@ def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
         result["indexes_cwt"] = indexes_cwt
 
         if create_cwt_graph_enabled:
-            create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
+            create_hd_cwt_graph(output_dir, coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
                                 sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-        create_training_sets(result, dir, resolution, days_before_famacha_test, farm_id)
+        create_training_sets(output_dir, result, dir, resolution, days_before_famacha_test, farm_id)
         results[idx] = None
         gc.collect()
 
@@ -813,17 +813,20 @@ def parse_csv_db_name(path):
 
 if __name__ == '__main__':
 
-    print("args: csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution n_process")
+    print("args: output_dir csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution enable_graph_output n_process")
 
     if len(sys.argv) > 1:
-        csv_db_dir_path = sys.argv[1]
-        famacha_file_path = sys.argv[2]
-        n_days_before_famacha = int(sys.argv[3])
-        resampling_resolution = sys.argv[4]
-        n_process = int(sys.argv[5])
+        output_dir = sys.argv[1]
+        csv_db_dir_path = sys.argv[2]
+        famacha_file_path = sys.argv[3]
+        n_days_before_famacha = int(sys.argv[4])
+        resampling_resolution = sys.argv[5]
+        enable_graph_output = sys.argv[6]
+        n_process = int(sys.argv[7])
     else:
         exit(-1)
 
+    print("output_dir=", output_dir)
     print("csv_db_path=", csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
     print("n_days_before_famacha=", n_days_before_famacha)
@@ -851,11 +854,11 @@ if __name__ == '__main__':
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            pool.apply_async(process_day, (csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            pool.apply_async(process_day, (enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
         pool.close()
         pool.join()
     else:
         for idx, file in enumerate(files):
-            process_day(csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
