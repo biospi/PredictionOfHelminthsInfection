@@ -133,13 +133,14 @@ def export_rawdata_to_csv(df, dir_path, thresh_i, thresh_zero2nan):
 
 if __name__ == '__main__':
     print("start...")
-    __location__ = os.path.realpath(
-        os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    print(__location__)
-
+    # __location__ = os.path.realpath(
+    #     os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    # print(__location__)
+    print("arg: csv_dir")
     if len(sys.argv) > 1:
-        print("arg: csv_dir")
         csv_dir = sys.argv[1]
+    else:
+        exit(-1)
 
     df_raw = pd.DataFrame()
 
@@ -167,9 +168,10 @@ if __name__ == '__main__':
     compute_median = compute_median.rename(columns={0: "first_sensor_value"})
     compute_median = compute_median[["timestamp", "date_str", "first_sensor_value"]]
 
-    for i, col in enumerate(df_raw.columns):
-        df_raw[col][200000: 200300].plot(alpha=0.5)
-    compute_median["first_sensor_value"][200000: 200300].plot(color="black")
-    plt.show()
+    # for debugging
+    # for i, col in enumerate(df_raw.columns):
+    #     df_raw[col][200000: 200300].plot(alpha=0.5)
+    # compute_median["first_sensor_value"][200000: 200300].plot(color="black")
+    # plt.show()
 
     export_rawdata_to_csv(compute_median, csv_dir[:-5], thresh_i, thresh_zero2nan)

@@ -153,26 +153,27 @@ def export_rawdata_to_csv(df, farm_id, animal_id, thresh_interpol, thresh_zero2n
 
 if __name__ == '__main__':
     print("start...")
-    __location__ = os.path.realpath(
-        os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    print(__location__)
+    # __location__ = os.path.realpath(
+    #     os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    # print(__location__)
 
-    csv_dir_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"
-    zero_to_nan_threh = 60*4
-    interpolation_thesh = 60
-    n_process = 6
-
+    # csv_dir_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"
+    # zero_to_nan_threh = 60*4
+    # interpolation_thesh = 60
+    # n_process = 6
+    print("arg: csv_dir_path zero_to_nan_threh interpolation_thesh n_process")
     if len(sys.argv) > 1:
-        print("arg: csv_dir_path zero_to_nan_threh interpolation_thesh n_process")
         csv_dir_path = sys.argv[1]
         zero_to_nan_threh = sys.argv[2]
         interpolation_thesh = sys.argv[3]
         n_process = sys.argv[4]
+    else:
+        exit(-1)
 
     files = glob.glob(csv_dir_path)
     print("found %d files." % len(files))
 
-    MULTI_THREADING_ENABLED = True
+    MULTI_THREADING_ENABLED = (n_process > 1)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
