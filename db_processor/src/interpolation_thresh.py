@@ -175,20 +175,33 @@ if __name__ == '__main__':
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     print(__location__)
 
-    for csv_file in glob.glob("C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"):
+    csv_dir_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"
+    zero_to_nan_threh = 5
+    interpolation_thesh = 3
+    n_process = 6
 
-        # csv_file = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\40101310026.csv"
+    if len(sys.argv) > 1:
+        print("arg: csv_dir_path zero_to_nan_threh interpolation_thesh n_process")
+        csv_dir_path = sys.argv[1]
+        zero_to_nan_threh = sys.argv[2]
+        interpolation_thesh = sys.argv[3]
+        n_process = sys.argv[4]
 
-        zero_to_nan_threh = 5
-        interpolation_thesh = 3
+    files = glob.glob(csv_dir_path)
+    print("found %d files." % len(files))
 
-        if len(sys.argv) > 1:
-            print("arg: csv_file zero_to_nan_threh interpolation_thesh")
-            csv_file = sys.argv[1]
-            zero_to_nan_threh = sys.argv[2]
-            interpolation_thesh = sys.argv[3]
-            print(zero_to_nan_threh, interpolation_thesh, csv_file)
+    MULTI_THREADING_ENABLED = True
 
-        farm_id = csv_file.split('\\')[-2]
-        animal_id = csv_file.split('\\')[-1].replace('.csv','')
-        process_csv(csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)
+    if MULTI_THREADING_ENABLED:
+        pool = Pool(processes=n_process)
+        for idx, csv_file in enumerate(files):
+            farm_id = csv_file.split('\\')[-2]
+            animal_id = csv_file.split('\\')[-1].replace('.csv', '')
+            pool.apply_async(process_csv, (csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
+        pool.close()
+        pool.join()
+    else:
+        for csv_file in files:
+            farm_id = csv_file.split('\\')[-2]
+            animal_id = csv_file.split('\\')[-1].replace('.csv','')
+            process_csv(csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)
