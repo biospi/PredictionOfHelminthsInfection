@@ -225,14 +225,9 @@ def normalize_histogram_mean_diff(activity_mean, activity):
     for n, a in enumerate(activity):
         if np.isnan(a) or a==0 or np.isnan(activity_mean[n]):
             continue
-        try:
-            r = activity_mean[n] / a
-        except:
-            print(0)
-
+        r = activity_mean[n] / a
         scale[n] = r
         idx.append(n)
-
     median = math.fabs(statistics.median(sorted(set(scale))))
     for i in idx:
         activity[i] = activity[i] * median
