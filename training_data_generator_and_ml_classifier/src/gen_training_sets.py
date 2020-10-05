@@ -636,9 +636,10 @@ def create_graph_title(data, domain):
             str(data["famacha_score_increase"]))
 
 
-def load_db_from_csv(csv_db_path):
-    print("loading data from csv file...")
+def load_db_from_csv(csv_db_path, idx):
+    print("loading data from csv file %d" % (idx), csv_db_path)
     df = pd.read_csv(csv_db_path, sep=",")
+    print("file %d loaded" % idx)
     return df
 
 
@@ -682,10 +683,8 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
-    # print("animal file=", file)
-    csv_df = load_db_from_csv(file)
-    csv_median = load_db_from_csv(file_median)
+def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
+    csv_df = load_db_from_csv(file, idx)
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = False
     create_activity_graph_enabled = True
@@ -700,6 +699,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     dataset_heatmap_data = {}
     data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
     results = []
+    print("processing file %d" % idx)
     for i, curr_data_famacha in enumerate(data_famacha_list):
         try:
             result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_list.copy(),
@@ -728,23 +728,23 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
         results.append(result)
 
-        animal_id = str(curr_data_famacha[2])
+        # animal_id = str(curr_data_famacha[2])
+        #
+        # if animal_id not in dataset_heatmap_data.keys():
+        #     dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [],
+        #                                        "famacha_previous": [], "valid": []}
 
-        if animal_id not in dataset_heatmap_data.keys():
-            dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [],
-                                               "famacha_previous": [], "valid": []}
-
-        activity = [np.nan if x is None else x for x in result["activity"]]
-        dataset_heatmap_data[animal_id]["activity"].append(activity)
-        dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
-        dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
-        dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
-        dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
+        # activity = [np.nan if x is None else x for x in result["activity"]]
+        # dataset_heatmap_data[animal_id]["activity"].append(activity)
+        # dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
+        # dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
+        # dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
+        # dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
         # if len(results) > 10:
         #     break
-
-    skipped_class_false, skipped_class_true = process_famacha_var(results)
+    print("processing file %d done" % idx)
+    process_famacha_var(results)
     # if create_input_visualisation_eanable:
     #     try:
     #         for i in range(len(dataset_heatmap_data.keys())):
@@ -760,7 +760,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     class_input_dict = []
     # print("create_activity_graph...")
     # print("could find %d samples." % len(results))
-    print("starting chunck and filter...")
+    print("computing cwts and set for file %d...", idx)
     for idx in range(len(results)):
         result = results[idx]
         sub_sub_folder = str(result["is_valid"]) + "/"
@@ -792,7 +792,9 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         gc.collect()
 
         # print("create_activity_graph done.")
-    print("starting chunck and finished.")
+
+    print("computing cwts and set for file %d done", idx)
+
 
 def parse_csv_db_name(path):
     split = path.split('/')[-3].split('_')
@@ -837,17 +839,16 @@ if __name__ == '__main__':
     MULTI_THREADING_ENABLED = (n_process > 0)
 
     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+    csv_median = load_db_from_csv(file_median)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            print("idx=", idx)
-            pool.apply_async(process_day, (thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            pool.apply_async(process_day, (csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
         pool.close()
         pool.join()
     else:
         for idx, file in enumerate(files):
-            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-            process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            process_day(csv_median, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
