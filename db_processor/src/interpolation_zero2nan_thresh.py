@@ -101,13 +101,7 @@ def thresholded_interpol(df_1min, thresh):
 
 
 def zeros_to_nan(df_interpolated, zero_to_nan_threh):
-    print("thresholded_zeros_to_nan...", zero_to_nan_threh)
     data = pd.DataFrame(df_interpolated["first_sensor_value"])
-    # mask = data.copy()
-    # df = pd.DataFrame(data["first_sensor_value"])
-    # # df['new'] = ((df.notnull() != df.shift().notnull()).cumsum())
-    # # df['ones'] = 1
-    # cpt = 0
     bzidx = -1
     ezidx = -1
     difference = -1
@@ -137,18 +131,6 @@ def zeros_to_nan(df_interpolated, zero_to_nan_threh):
     df_interpolated_zero2nan = df_interpolated
     df_interpolated_zero2nan["first_sensor_value"] = data
     return df_interpolated_zero2nan
-    #
-    # df['new'] = (((df==0) != (df.shift() == 0)).cumsum())
-    # df['ones'] = 1
-    # group = df.groupby('new')['ones'].transform('count')
-    # mask["first_sensor_value"] = (group >= zero_to_nan_threh)
-    #
-    # dft = pd.DataFrame(df_interpolated["first_sensor_value"])
-    # set_to_nan = dft[dft == mask]
-    #
-    # interpolated = data.interpolate().bfill()[mask]
-    # df_interpolated["first_sensor_value"] = interpolated
-    #return df_interpolated
 
 
 def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id):
@@ -161,7 +143,7 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
 
 def export_rawdata_to_csv(df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
-    path = "csv_export/interpolated_1min/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (farm_id, thresh_interpol, thresh_zero2nan)
+    path = "csv_export/interpolated_zero2nan_1min/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (farm_id, thresh_interpol, thresh_zero2nan)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
     purge_file(filename_path)
@@ -176,8 +158,8 @@ if __name__ == '__main__':
     print(__location__)
 
     csv_dir_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\backfill_1min\\delmas_70101200027\\*.csv"
-    zero_to_nan_threh = 5
-    interpolation_thesh = 3
+    zero_to_nan_threh = 60*4
+    interpolation_thesh = 60
     n_process = 6
 
     if len(sys.argv) > 1:

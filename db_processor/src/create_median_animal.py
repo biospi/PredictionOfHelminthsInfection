@@ -136,7 +136,7 @@ if __name__ == '__main__':
     __location__ = os.path.realpath(
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     print(__location__)
-    csv_dir = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\interpolated_1min\\delmas_70101200027\\interpolation_thesh_interpol_3_zeros_5\\*.csv"
+    csv_dir = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\interpolated_zero2nan_1min\\delmas_70101200027\\test_median\\*.csv"
     if len(sys.argv) > 1:
         print("arg: csv_dir")
         csv_dir = sys.argv[1]
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     thresh_zero2nan = None
     for idx, file in enumerate(files):
         print(file)
-        if 'median' in file:
+        if 'median' in file.split('\\')[-1]:
             continue
         farm_id = file.split('\\')[-2]
         animal_id = file.split('\\')[-1].replace('.csv', '')
