@@ -2585,15 +2585,16 @@ def get_famacha_data(famacha_data_file_path):
     return data_famacha_dict
 
 
-def execute_df_query(csv_df, animal_id, resolution, date2, date1, expected_sample_count):
+def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     print("execute df query...", animal_id, resolution, date2, date1)
-    df = csv_df.loc[csv_df['animal_id'] == animal_id]
-    df["datetime64"] = pd.to_datetime(df['datetime'])
+    # df = csv_df.loc[csv_df['animal_id'] == animal_id]
+    df = csv_df.copy()
+    df["datetime64"] = pd.to_datetime(df['date_str'])
     start = pd.to_datetime(datetime.fromtimestamp(int(date2)))
     end = pd.to_datetime(datetime.fromtimestamp(int(date1)))
     df_ = df[df.datetime64.between(start, end)]
-    activity = df_["activity"].to_list()
-    time_range = df_["epoch"].to_list()
+    activity = df_["first_sensor_value"].to_list()
+    time_range = df_["timestamp"].to_list()
     try:
         time_range = [datetime.fromtimestamp(x) for x in time_range]
     except ValueError as e:
@@ -2601,11 +2602,11 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1, expected_sampl
         print(time_range)
         print(csv_df)
 
-    return activity[0: expected_sample_count], time_range[0: expected_sample_count]
+    return activity
 
 
 def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, data_famacha_dict, create_input_visualisation_eanable=False):
-    dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%dthreshold_zero2nan_%d" % (csv_folder.replace("\\*.csv", ""), farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
+    dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
     weather_data = None
@@ -2664,6 +2665,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
                                            data_famacha_dict, weather_data, resolution,
                                            days_before_famacha_test, expected_sample_count)
             except KeyError as e:
+                result = None
                 print(e)
 
             if result is None:
@@ -2830,7 +2832,7 @@ if __name__ == '__main__':
 
     for idx, file in enumerate(files):
         farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-        process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path, load_db_from_csv(file), get_famacha_data(famacha_file_path))
+        process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), get_famacha_data(famacha_file_path))
 
     merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
                   filter='%s_results_simplified.csv' % farm_id,
