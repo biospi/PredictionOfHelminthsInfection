@@ -220,8 +220,10 @@ def get_ndays_between_dates(date1, date2):
 def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution,
                       days_before_famacha_test):
     # print("generating new training pair....")
-    famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
-        "%d/%m/%Y")
+    # todo:sort out time
+    # famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
+    #     "%d/%m/%Y")
+    famacha_test_date = curr_data_famacha[0]
     try:
         famacha_score = int(curr_data_famacha[1])
     except ValueError as e:
@@ -229,45 +231,47 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         return
 
     animal_id = int(curr_data_famacha[2])
-    # find the activity data of that animal the n days before the test
+    # # find the activity data of that animal the n days before the test
     date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test)
-
-    dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
-    try:
-        dtf1 = data_famacha_list[i][0]
-    except IndexError as e:
-        # print(e)
-        pass
-    try:
-        dtf2 = data_famacha_list[i + 1][0]
-    except IndexError as e:
-        # print(e)
-        pass
-    try:
-        dtf3 = data_famacha_list[i + 2][0]
-    except IndexError as e:
-        # print(e)
-        pass
-    try:
-        dtf4 = data_famacha_list[i + 3][0]
-    except IndexError as e:
-        # print(e)
-        pass
-    try:
-        dtf5 = data_famacha_list[i + 4][0]
-    except IndexError as e:
-        # print(e)
-        pass
-
     nd1, nd2, nd3, nd4 = 0, 0, 0, 0
-    if len(dtf2) > 0 and len(dtf1) > 0:
-        nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
-    if len(dtf3) > 0 and len(dtf2) > 0:
-        nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
-    if len(dtf4) > 0 and len(dtf3) > 0:
-        nd3 = abs(get_ndays_between_dates(dtf3, dtf4))
-    if len(dtf5) > 0 and len(dtf4) > 0:
-        nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
+    dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
+    #
+    # dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
+    # try:
+    #     dtf1 = data_famacha_list[i][0]
+    # except IndexError as e:
+    #     # print(e)
+    #     pass
+    # try:
+    #     dtf2 = data_famacha_list[i + 1][0]
+    # except IndexError as e:
+    #     # print(e)
+    #     pass
+    # try:
+    #     dtf3 = data_famacha_list[i + 2][0]
+    # except IndexError as e:
+    #     # print(e)
+    #     pass
+    # try:
+    #     dtf4 = data_famacha_list[i + 3][0]
+    # except IndexError as e:
+    #     # print(e)
+    #     pass
+    # try:
+    #     dtf5 = data_famacha_list[i + 4][0]
+    # except IndexError as e:
+    #     # print(e)
+    #     pass
+    #
+    # nd1, nd2, nd3, nd4 = 0, 0, 0, 0
+    # if len(dtf2) > 0 and len(dtf1) > 0:
+    #     nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
+    # if len(dtf3) > 0 and len(dtf2) > 0:
+    #     nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
+    # if len(dtf4) > 0 and len(dtf3) > 0:
+    #     nd3 = abs(get_ndays_between_dates(dtf3, dtf4))
+    # if len(dtf5) > 0 and len(dtf4) > 0:
+    #     nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
 
     # print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
@@ -328,6 +332,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         data_famacha_dict,
         famacha_score)
     indexes.reverse()
+
 
     data = {"famacha_score_increase": False, "famacha_score": famacha_score, "weight": weight_list,
             "previous_famacha_score1": prev_famacha_score1,
@@ -689,6 +694,7 @@ def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
     create_cwt_graph_enabled = False
     create_activity_graph_enabled = True
     weather_data = None
+    animal_id = int(file.split('\\')[-1].split('_')[0])
 
     try:
         shutil.rmtree(dir, ignore_errors=True)
@@ -697,7 +703,8 @@ def process_day(csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
         pass
 
     dataset_heatmap_data = {}
-    data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
+    data_famacha_list = [y for x in data_famacha_dict.values() for y in x if y[2] == animal_id]
+
     results = []
     print("processing file %d" % idx)
     for i, curr_data_famacha in enumerate(data_famacha_list):
