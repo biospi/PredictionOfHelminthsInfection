@@ -298,29 +298,29 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     temperature_list = []
     dates_list_formated = []
 
-    for j, data_a in enumerate(rows_activity[0: expected_sample_count]):
-        # transform date in time for comparaison
-        curr_datetime = time_range[j]
-        timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
-        # temp, humidity = get_temp_humidity(curr_datetime, weather_data)
-        temp, humidity = 0, 0
-
-        weight = None
-        try:
-            weight = float(curr_data_famacha[3])
-        except ValueError as e:
-            # print("weight=", weight)
-            # print(e)
-            pass
-
-        weight_list.append(weight)
-
-        indexes.append(idx)
-        timestamp_list.append(timestamp)
-        temperature_list.append(temp)
-        humidity_list.append(humidity)
-        dates_list_formated.append(curr_datetime.strftime('%d/%m/%Y %H:%M'))
-        idx += 1
+    # for j, data_a in enumerate(rows_activity[0: expected_sample_count]):
+    #     # transform date in time for comparaison
+    #     curr_datetime = time_range[j]
+    #     timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
+    #     # temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+    #     temp, humidity = 0, 0
+    #
+    #     weight = None
+    #     try:
+    #         weight = float(curr_data_famacha[3])
+    #     except ValueError as e:
+    #         # print("weight=", weight)
+    #         # print(e)
+    #         pass
+    #
+    #     weight_list.append(weight)
+    #
+    #     indexes.append(idx)
+    #     timestamp_list.append(timestamp)
+    #     temperature_list.append(temp)
+    #     humidity_list.append(humidity)
+    #     dates_list_formated.append(curr_datetime.strftime('%d/%m/%Y %H:%M'))
+    #     idx += 1
 
     prev_famacha_score1, prev_famacha_score2, prev_famacha_score3, prev_famacha_score4 = get_prev_famacha_score(
         animal_id,
@@ -652,7 +652,7 @@ def get_famacha_data(famacha_data_file_path):
 
 
 def execute_df_query(csv_df, animal_id, resolution, date2, date1):
-    print("execute df query...", animal_id, resolution, date2, date1)
+    # print("execute df query...", animal_id, resolution, date2, date1)
     df = csv_df.copy()
     df["datetime64"] = pd.to_datetime(df['date_str'])
     start = pd.to_datetime(datetime.fromtimestamp(int(date2)))
@@ -760,6 +760,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     class_input_dict = []
     # print("create_activity_graph...")
     # print("could find %d samples." % len(results))
+    print("starting chunck and filter...")
     for idx in range(len(results)):
         result = results[idx]
         sub_sub_folder = str(result["is_valid"]) + "/"
@@ -791,7 +792,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         gc.collect()
 
         # print("create_activity_graph done.")
-
+    print("starting chunck and finished.")
 
 def parse_csv_db_name(path):
     split = path.split('/')[-3].split('_')
@@ -831,20 +832,22 @@ if __name__ == '__main__':
             file_median = file
             break
 
+    famacha_data = get_famacha_data(famacha_file_path)
+
     MULTI_THREADING_ENABLED = (n_process > 0)
+
+    farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+            print("idx=", idx)
             pool.apply_async(process_day, (thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median,
-                        get_famacha_data(famacha_file_path),))
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
         pool.close()
         pool.join()
     else:
         for idx, file in enumerate(files):
             farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
             process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median,
-                        get_famacha_data(famacha_file_path))
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
