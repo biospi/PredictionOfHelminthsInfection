@@ -355,7 +355,8 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         # transform date in time for comparaison
         curr_datetime = time_range[j]
         timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
-        temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+        # temp, humidity = get_temp_humidity(curr_datetime, weather_data)
+        temp, humidity = 0, 0
 
         weight = None
         try:
@@ -2546,12 +2547,12 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
     weather_data = None
-    try:
-        with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
-            weather_data = json.load(f)
-    except FileNotFoundError as e:
-        print("error while reading weather data file", e)
-        exit()
+    # try:
+    #     with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
+    #         weather_data = json.load(f)
+    # except FileNotFoundError as e:
+    #     print("error while reading weather data file", e)
+    #     exit()
 
     class_input_dict_file_path = dir + '/class_input_dict.json'
     # if False:
