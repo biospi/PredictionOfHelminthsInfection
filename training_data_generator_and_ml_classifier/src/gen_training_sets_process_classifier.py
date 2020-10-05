@@ -512,21 +512,9 @@ def entropy2(labels, base=None):
     return ent
 
 
-def is_activity_data_valid(activity_raw, activity_prepocessed, thresh_z2n, thresh_i):
-    zeros_count = activity_raw.count(0)
-    threshold_zeros_coef = 2
-    zeros_threshold = len(activity_raw) / threshold_zeros_coef
-    if zeros_count > zeros_threshold:
-        return False, 'zeros'
-
-    len_no_activity = [len(list(g)) for k, g in itertools.groupby(activity_raw, lambda x: x == 0) if k]
-    for zero_gap in len_no_activity:
-        if zero_gap > hour_gap:
-            return False, 'has_zeros'
-
-    if np.isnan(np.array(activity_prepocessed, dtype=np.float)).any():
+def is_activity_data_valid(activity_resampled):
+    if np.isnan(activity_resampled).any():
         return False, 'has_nan'
-
     return True, 'ok'
 
 
@@ -2659,7 +2647,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
             activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
-            is_valid, reason = is_activity_data_valid(result["activity_raw"], result["activity"], thresh_z2n, thresh_i)
+            is_valid, reason = is_activity_data_valid(activity_resampled)
 
             result['is_valid'] = is_valid
             if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
