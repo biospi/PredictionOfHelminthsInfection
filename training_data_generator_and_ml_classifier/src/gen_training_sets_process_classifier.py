@@ -223,17 +223,17 @@ def normalize_histogram_mean_diff(activity_mean, activity):
     scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
-        if a is None or a <= 0:
+        if np.isnan(a) or a==0 or np.isnan(activity_mean[n]):
             continue
-        if activity_mean[n] is None or np.isnan(activity_mean[n]):
-            continue
-        r = (int(activity_mean[n]) / int(a))
+        try:
+            r = activity_mean[n] / a
+        except:
+            print(0)
 
         scale[n] = r
         idx.append(n)
 
     median = math.fabs(statistics.median(sorted(set(scale))))
-    # print(scale)
     for i in idx:
         activity[i] = activity[i] * median
     return activity
@@ -283,8 +283,7 @@ def get_ndays_between_dates(date1, date2):
 
 
 def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution,
-                      days_before_famacha_test,
-                      expected_sample_count):
+                      days_before_famacha_test):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
         "%d/%m/%Y")
@@ -332,14 +331,15 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
 
     print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
-    rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1, expected_sample_count)
-    rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1, expected_sample_count)
+    rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1)
+    rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
 
-    # activity_mean = normalize_activity_array_ascomb(rows_mean)
     herd_activity_list = rows_herd
     herd_activity_list_raw = herd_activity_list.copy()
     activity_list = rows_activity
     activity_list_raw = activity_list.copy()
+
+    expected_sample_count = get_expected_sample_count("1min", days_before_famacha_test)
 
     if len(rows_activity) < expected_sample_count:
         # filter out missing activity data
@@ -347,17 +347,10 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
         return
 
-    # data_activity = normalize_activity_array_ascomb(data_activity)
     activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
-
     herd_activity_list = anscombe_list(herd_activity_list[0: expected_sample_count])
     activity_list = anscombe_list(activity_list[0: expected_sample_count])
 
-    # herd_activity_list = anscombe_list(herd_activity_list)
-    # activity_list = anscombe_list(activity_list)
-
-
-    # print("mapping activity to famacha score progress=%d/%d ..." % (i, len(data_famacha_flattened)))
     idx = 0
     indexes = []
     timestamp_list = []
@@ -492,7 +485,7 @@ def find_minimum_delay_beteen_test(data_famacha_flattened):
 
 def get_expected_sample_count(resolution, days_before_test):
     expected_sample_n = None
-    if resolution == "min":
+    if resolution == "1min":
         expected_sample_n = (24 * 60) * days_before_test
     if resolution == "5min":
         expected_sample_n = ((24 * 60) / 5) * days_before_test
@@ -503,7 +496,7 @@ def get_expected_sample_count(resolution, days_before_test):
     if resolution == "day":
         expected_sample_n = days_before_test
 
-    expected_sample_n = expected_sample_n - 10  # todo fix resampling clipping
+    expected_sample_n = expected_sample_n + 1 #todo fix clipping
     print("expected sample count is %d." % expected_sample_n)
     return int(expected_sample_n)
 
@@ -2601,7 +2594,7 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
         print(time_range)
         print(csv_df)
 
-    return activity
+    return activity, time_range
 
 
 def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, csv_median, data_famacha_dict, create_input_visualisation_eanable=False):
@@ -2610,7 +2603,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     create_activity_graph_enabled = True
     weather_data = None
 
-    expected_sample_count = get_expected_sample_count(resolution, days_before_famacha_test)
+
 
     # generate_training_sets(data_famacha_flattened)
     try:
@@ -2662,7 +2655,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             try:
                 result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_list.copy(),
                                            data_famacha_dict, weather_data, resolution,
-                                           days_before_famacha_test, expected_sample_count)
+                                           days_before_famacha_test)
             except KeyError as e:
                 result = None
                 print(e)
@@ -2809,19 +2802,17 @@ def parse_csv_db_name(path):
 
 if __name__ == '__main__':
 
-    csv_db_dir_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\interpolated_zero2nan_1min\\delmas_70101200027\\interpolation_thesh_interpol_60_zeros_240\\*.csv"
-    famacha_file_path = "C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\csv_export\\delmas_famacha_data.json"
-    n_days_before_famacha = 7
-    resampling_resolution = '10min'
-
     if len(sys.argv) > 1:
-        print("args: csv_db_dir_path, famacha_file_path, n_days_before_famacha")
+        print("args: csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution")
         csv_db_dir_path = sys.argv[1]
         famacha_file_path = sys.argv[2]
-        n_days_before_famacha = sys.argv[3]
+        n_days_before_famacha = int(sys.argv[3])
+        resampling_resolution = sys.argv[4]
 
     print("csv_db_path=", csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
+    print("n_days_before_famacha=", n_days_before_famacha)
+    print("resampling_resolution=", resampling_resolution)
 
     files = glob.glob(csv_db_dir_path)
     print("found %d files." % len(files))
