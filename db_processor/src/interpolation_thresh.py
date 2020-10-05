@@ -134,7 +134,9 @@ def zeros_to_nan(df_interpolated, zero_to_nan_threh):
             bzidx = i
             start_zero_count = True
 
-    return data
+    df_interpolated_zero2nan = df_interpolated
+    df_interpolated_zero2nan["first_sensor_value"] = data
+    return df_interpolated_zero2nan
     #
     # df['new'] = (((df==0) != (df.shift() == 0)).cumsum())
     # df['ones'] = 1
@@ -159,9 +161,9 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
 
 def export_rawdata_to_csv(df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
-    path = "csv_export/interpolated_1min/%s/interpolation_thesh_%d_%d/" % (farm_id, thresh_interpol, thresh_zero2nan)
+    path = "csv_export/interpolated_1min/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (farm_id, thresh_interpol, thresh_zero2nan)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    filename_path = path + "%s.csv" % animal_id
+    filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print(filename_path)
