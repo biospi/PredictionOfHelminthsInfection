@@ -696,12 +696,6 @@ def process_raw_h5files(path):
     print("loading data...")
     for idx, x in enumerate(data):  # need idx for data iteration?
         farm_id = x['control_station']
-        # if farm_id != 70091100056: #todo remove
-        #     continue
-        # if x['serial_number'] not in [40121100797]:
-        #     continue
-        # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
-        #     continue
         if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
             continue
         value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
@@ -709,8 +703,8 @@ def process_raw_h5files(path):
                  datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
                                    '%Y-%m-%dT%H:%M:%S'))
         list_raw.append(value)
-        if idx > 10000:  # todo remove
-            break
+        # if idx > 10000:  # todo remove
+        #     break
     # group records by farm id/control_station
     groups = defaultdict(list)
     for i, obj in enumerate(list_raw):
@@ -1085,9 +1079,9 @@ def process_raw_file(farm_id, data):
     MULTI_THREADING_ENABLED = True
 
     if MULTI_THREADING_ENABLED:
-        pool = Pool(processes=6)
+        pool = Pool(processes=7)
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
-            if len(animal_records) <= 100:
+            if len(animal_records) <= 1440: #if animal have less than 24 hours of data dismiss
                 continue
             print("animal_records=", len(animal_records))
             pool.apply_async(process, (farm_id, animal_records,), callback=save_result_1min)
