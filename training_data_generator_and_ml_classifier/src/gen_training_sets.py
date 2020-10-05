@@ -636,7 +636,7 @@ def create_graph_title(data, domain):
             str(data["famacha_score_increase"]))
 
 
-def load_db_from_csv(csv_db_path, idx):
+def load_db_from_csv(csv_db_path, idx=-1):
     print("loading data from csv file %d" % (idx), csv_db_path)
     df = pd.read_csv(csv_db_path, sep=",")
     print("file %d loaded" % idx)
@@ -850,5 +850,5 @@ if __name__ == '__main__':
         pool.join()
     else:
         for idx, file in enumerate(files):
-            process_day(csv_median, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            process_day(csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
