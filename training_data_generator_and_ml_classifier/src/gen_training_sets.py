@@ -425,9 +425,9 @@ def even_list(n):
 def create_activity_graph(animal_id, activity, folder, filename, title=None,
                           sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     activity = [-10 if x == 0 else x for x in activity] #set 0 value to 10 for ease of visualisation
-    for a in activity:
-        if np.isnan(a) or a == None:
-            raise ValueError("There should not be nan in trace at this stage!")
+    # for a in activity:
+    #     if np.isnan(a) or a == None:
+    #         raise ValueError("There should not be nan in trace at this stage!")
 
     fig = plt.figure()
     plt.bar(range(0, len(activity)), activity)
@@ -679,7 +679,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     csv_df = load_db_from_csv(file)
     csv_median = load_db_from_csv(file_median)
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
-    create_cwt_graph_enabled = True
+    create_cwt_graph_enabled = False
     create_activity_graph_enabled = True
     weather_data = None
 
@@ -732,6 +732,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
         dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
+        # if len(results) > 10:
+        #     break
 
     skipped_class_false, skipped_class_true = process_famacha_var(results)
     # if create_input_visualisation_eanable:
@@ -775,6 +777,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
                                 sub_sub_folder=sub_sub_folder, freqs=freqs)
 
+        create_training_sets(result, dir, resolution, days_before_famacha_test, farm_id)
         results[idx] = None
         gc.collect()
 
