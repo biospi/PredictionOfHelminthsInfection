@@ -778,7 +778,10 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
         filename_graph = create_filename(result)
         if create_activity_graph_enabled:
 
-            create_activity_graph(output_dir, str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
+            tag = "11"
+            if result["famacha_score_increase"]:
+                tag = "12"
+            create_activity_graph(output_dir, tag + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
@@ -835,7 +838,7 @@ def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal
 
     filename = "%s/%s_result_interpol_%d_zeros_%d.txt" % (output_dir, animal_id, thresh_i, thresh_z2n)
     purge_file(filename)
-    report = "Total samples = %d\n 1 -> 1 = %d\n 1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+    report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
              "-> 1 = %d\n1 -> 2 =%d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
 
@@ -848,7 +851,7 @@ def exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n, total_sam
     print("exporting_data_info_to_txt.")
     filename = "%s/result_interpol_%d_zeros_%d.txt" % (output_dir, thresh_i, thresh_z2n)
     purge_file(filename)
-    report = "Total samples = %d\n 1 -> 1 = %d\n 1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+    report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
              "-> 1 = %d\n1 -> 2 = %d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
 
@@ -902,7 +905,7 @@ if __name__ == '__main__':
         if 'median' in file:
             file_median = file
             break
-    files = files[0:7]
+
     famacha_data = get_famacha_data(famacha_file_path)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
