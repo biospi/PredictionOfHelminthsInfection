@@ -2538,7 +2538,10 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, csv_median, data_famacha_dict, create_input_visualisation_eanable=False):
+def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
+    print("animal file=", file)
+    csv_df = load_db_from_csv(file)
+    csv_median = load_db_from_csv(file_median)
     dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
@@ -2679,16 +2682,17 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
 
 def parse_csv_db_name(path):
-    split = path.split('\\')[-3].split('_')
+    split = path.split('/')[-3].split('_')
     farm_id = split[0] + "_" + split[1]
-    threshold_interpol = int(path.split('\\')[-2].split('_')[-3])
-    threshold_zeros2nan = int(path.split('\\')[-2].split('_')[-1])
+    threshold_interpol = int(path.split('/')[-2].split('_')[-3])
+    threshold_zeros2nan = int(path.split('/')[-2].split('_')[-1])
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
 if __name__ == '__main__':
 
-    print("args: csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution")
+    print("args: csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution n_process")
+
     if len(sys.argv) > 1:
         csv_db_dir_path = sys.argv[1]
         famacha_file_path = sys.argv[2]
@@ -2703,7 +2707,7 @@ if __name__ == '__main__':
     print("n_days_before_famacha=", n_days_before_famacha)
     print("resampling_resolution=", resampling_resolution)
 
-    files = glob.glob(csv_db_dir_path)
+    files = glob.glob(csv_db_dir_path+"*.csv")
     print("found %d files." % len(files))
     if len(files) == 0:
         print("no files in %s" % csv_db_dir_path)
@@ -2715,14 +2719,14 @@ if __name__ == '__main__':
             file_median = file
             break
 
-    MULTI_THREADING_ENABLED = False
+    MULTI_THREADING_ENABLED = (n_process > 0)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
             farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
             pool.apply_async(process_day, (thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
+                        csv_db_dir_path.replace("\\*.csv", ""), file, file_median,
                         get_famacha_data(famacha_file_path),))
         pool.close()
         pool.join()
@@ -2730,7 +2734,7 @@ if __name__ == '__main__':
         for idx, file in enumerate(files):
             farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
             process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
+                        csv_db_dir_path.replace("\\*.csv", ""), file, file_median,
                         get_famacha_data(famacha_file_path))
 
     # for idx, file in enumerate(files):
