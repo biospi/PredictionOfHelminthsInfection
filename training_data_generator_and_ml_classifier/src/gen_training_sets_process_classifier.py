@@ -730,7 +730,7 @@ def process_weight(activity, cwt):
     return weight_map_final.flatten().tolist()
 
 
-def create_training_set(result, dir, options=[]):
+def create_training_set(result, dir, resolution, days_before_famacha_test, farm_id, options=[]):
     training_set = []
     option = ""
     if "cwt" in options:
@@ -784,7 +784,7 @@ def create_training_set(result, dir, options=[]):
     training_set.append(result["nd4"])
     path = "%s/training_sets" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    filename = "%s/%s.data" % (path, option)
+    filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
     print("set size is %d, %s.....%s" % (
         len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
@@ -792,69 +792,32 @@ def create_training_set(result, dir, options=[]):
         outfile.write(training_str_flatten)
         outfile.write('\n')
 
-    filename_t = "%s/temperature.data" % path
-    temp_str_flatten = str(result["temperature"]).strip('[]').replace(' ', '').replace('None', 'NaN')
-    print("set size is %d, %s.....%s" % (
-        len(temp_str_flatten), temp_str_flatten[0:50], temp_str_flatten[-50:]))
-    with open(filename_t, 'a') as outfile_t:
-        outfile_t.write(temp_str_flatten)
-        outfile_t.write('\n')
-
-    filename_h = "%s/humidity.data" % path
-    hum_str_flatten = str(result["humidity"]).strip('[]').replace(' ', '').replace('None', 'NaN')
-    print("set size is %d, %s.....%s" % (
-        len(hum_str_flatten), hum_str_flatten[0:50], hum_str_flatten[-50:]))
-    with open(filename_h, 'a') as outfile_h:
-        outfile_h.write(hum_str_flatten)
-        outfile_h.write('\n')
+    # filename_t = "%s/temperature.data" % path
+    # temp_str_flatten = str(result["temperature"]).strip('[]').replace(' ', '').replace('None', 'NaN')
+    # print("set size is %d, %s.....%s" % (
+    #     len(temp_str_flatten), temp_str_flatten[0:50], temp_str_flatten[-50:]))
+    # with open(filename_t, 'a') as outfile_t:
+    #     outfile_t.write(temp_str_flatten)
+    #     outfile_t.write('\n')
+    #
+    # filename_h = "%s/humidity.data" % path
+    # hum_str_flatten = str(result["humidity"]).strip('[]').replace(' ', '').replace('None', 'NaN')
+    # print("set size is %d, %s.....%s" % (
+    #     len(hum_str_flatten), hum_str_flatten[0:50], hum_str_flatten[-50:]))
+    # with open(filename_h, 'a') as outfile_h:
+    #     outfile_h.write(hum_str_flatten)
+    #     outfile_h.write('\n')
 
     return filename, options
 
 
-# def create_training_sets(data, dir_path):
-#     training_file_path_hum_temp_activity, options_hum_temp_activity = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
-#     training_file_path_hum_temp_cwt, options_hum_temp_cwt = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
-#     training_file_path_activity, options_activity = create_training_set(data, dir_path, options=["activity"])
-#     training_file_path_cwt, options_cwt = create_training_set(data, dir_path, options=["cwt"])
-#
-#     return [
-#         {"path": training_file_path_hum_temp_activity, "options": options_hum_temp_activity},
-#         {"path": training_file_path_hum_temp_cwt, "options": options_hum_temp_cwt},
-#         {"path": training_file_path_activity, "options": options_activity},
-#         {"path": training_file_path_cwt, "options": options_cwt}
-#     ]
-
-
-def create_training_sets(data, dir_path):
-    path1, options1 = create_training_set(data, dir_path, options=["activity"])
-    path2, options2 = create_training_set(data, dir_path, options=["cwt"])
-    # path3, options3 = create_training_set(data, dir_path, options=["weight"])
-    # path4, options4 = create_training_set(data, dir_path, options=["activity", "temperature"])
-    # path5, options5 = create_training_set(data, dir_path, options=["activity", "humidity"])
-    # path6, options6 = create_training_set(data, dir_path, options=["activity", "weight"])
-    # path7, options7 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature"])
-    # # path8, options8 = create_training_set(data, dir_path, options=["activity", "humidity", "temperature", "weight"])
-    # # path9, options9 = create_training_set(data, dir_path, options=["cwt", "humidity"])
-    # # path10, options10 = create_training_set(data, dir_path, options=["cwt", "temperature"])
-    # path11, options11 = create_training_set(data, dir_path, options=["cwt", "weight"])
-    # path12, options12 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature"])
-    # path13, options13 = create_training_set(data, dir_path, options=["cwt", "humidity", "temperature", "weight"])
+def create_training_sets(data, dir_path, resolution, days_before_famacha_test, farm_id):
+    path1, options1 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["activity"])
+    path2, options2 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["cwt"])
 
     return [
-
         {"path": path1, "options": options1},
         {"path": path2, "options": options2}
-        # {"path": path3, "options": options3},
-        # {"path": path4, "options": options4},
-        # {"path": path5, "options": options5},
-        # {"path": path6, "options": options6},
-        # {"path": path7, "options": options7},
-        # {"path": path8, "options": options8},
-        # {"path": path9, "options": options9},
-        # {"path": path10, "options": options10},
-        # {"path": path11, "options": options11},
-        # {"path": path12, "options": options12}
-        # {"path": path13, "options": options13}
     ]
 
 
@@ -2592,129 +2555,130 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
 
     class_input_dict_file_path = dir + '/class_input_dict.json'
     # if False:
-    if os.path.exists(class_input_dict_file_path):
-        print('training sets already created skip to processing.')
-        with open(class_input_dict_file_path, "r") as read_file:
-            class_input_dict = json.load(read_file)
-            filename = init_result_file(dir, farm_id)
-            filename_s = init_result_file(dir, farm_id, simplified_results=True)
-            try:
-                shutil.rmtree(dir + "/analysis")
-                shutil.rmtree(dir + "/decision_boundaries_graphs")
-                shutil.rmtree(dir + "/roc_curve")
-            except (OSError, FileNotFoundError) as e:
-                print(e)
-    else:
+    # if os.path.exists(class_input_dict_file_path):
+    #     print('training sets already created skip to processing.')
+    #     with open(class_input_dict_file_path, "r") as read_file:
+    #         class_input_dict = json.load(read_file)
+    #         filename = init_result_file(dir, farm_id)
+    #         filename_s = init_result_file(dir, farm_id, simplified_results=True)
+    #         try:
+    #             shutil.rmtree(dir + "/analysis")
+    #             shutil.rmtree(dir + "/decision_boundaries_graphs")
+    #             shutil.rmtree(dir + "/roc_curve")
+    #         except (OSError, FileNotFoundError) as e:
+    #             print(e)
+    # else:
+    try:
+        shutil.rmtree(dir, ignore_errors=True)
+    except (OSError, FileNotFoundError) as e:
+        print(e)
+    #     filename = init_result_file(dir, farm_id)
+    #     filename_s = init_result_file(dir, farm_id, simplified_results=True)
+    #     print("force create!")
+    #     print('start training sets creation...')
+
+    dataset_heatmap_data = {}
+    data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
+    results = []
+    for i, curr_data_famacha in enumerate(data_famacha_list):
         try:
-            shutil.rmtree(dir, ignore_errors=True)
-        except (OSError, FileNotFoundError) as e:
+            result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_list.copy(),
+                                       data_famacha_dict, weather_data, resolution,
+                                       days_before_famacha_test)
+        except KeyError as e:
+            result = None
             print(e)
-        filename = init_result_file(dir, farm_id)
-        filename_s = init_result_file(dir, farm_id, simplified_results=True)
-        print("force create!")
-        print('start training sets creation...')
 
-        dataset_heatmap_data = {}
-        data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
-        results = []
-        for i, curr_data_famacha in enumerate(data_famacha_list):
-            try:
-                result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_list.copy(),
-                                           data_famacha_dict, weather_data, resolution,
-                                           days_before_famacha_test)
-            except KeyError as e:
-                result = None
-                print(e)
+        if result is None:
+            continue
 
-            if result is None:
-                continue
+        activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
-            activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
+        is_valid, reason = is_activity_data_valid(activity_resampled)
+        print("sample is valid=", is_valid)
 
-            is_valid, reason = is_activity_data_valid(activity_resampled)
-            print("sample is valid=", is_valid)
+        result["activity"] = activity_resampled.tolist()
 
-            result["activity"] = activity_resampled.tolist()
+        result['is_valid'] = is_valid
+        if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
+            result['is_valid'] = False
+            reason = 'missing_f'
 
-            result['is_valid'] = is_valid
-            if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
-                result['is_valid'] = False
-                reason = 'missing_f'
+        result['reason'] = reason
 
-            result['reason'] = reason
+        results.append(result)
 
-            results.append(result)
+        animal_id = str(curr_data_famacha[2])
 
-            animal_id = str(curr_data_famacha[2])
+        if animal_id not in dataset_heatmap_data.keys():
+            dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [],
+                                               "famacha_previous": [], "valid": []}
 
-            if animal_id not in dataset_heatmap_data.keys():
-                dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [],
-                                                   "famacha_previous": [], "valid": []}
+        activity = [np.nan if x is None else x for x in result["activity"]]
+        dataset_heatmap_data[animal_id]["activity"].append(activity)
+        dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
+        dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
+        dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
+        dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
-            activity = [np.nan if x is None else x for x in result["activity"]]
-            dataset_heatmap_data[animal_id]["activity"].append(activity)
-            dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
-            dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
-            dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
-            dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
+    skipped_class_false, skipped_class_true = process_famacha_var(results)
+    if create_input_visualisation_eanable:
+        try:
+            for i in range(len(dataset_heatmap_data.keys())):
+                print(list(dataset_heatmap_data.values())[i]['famacha'])
+            # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
+            f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
+            create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
+            create_histogram(dataset_heatmap_data, dir + "/" +"rhistogram_"+f_id)
+        except ValueError as e:
+            print("error while creating input visualisation", e)
+            print(dataset_heatmap_data)
 
-        skipped_class_false, skipped_class_true = process_famacha_var(results)
-        if create_input_visualisation_eanable:
-            try:
-                for i in range(len(dataset_heatmap_data.keys())):
-                    print(list(dataset_heatmap_data.values())[i]['famacha'])
-                # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
-                f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
-                create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
-                create_histogram(dataset_heatmap_data, dir + "/" +"rhistogram_"+f_id)
-            except ValueError as e:
-                print("error while creating input visualisation", e)
-                print(dataset_heatmap_data)
+    class_input_dict = []
+    print("create_activity_graph...")
+    print("could find %d samples." % len(results))
+    for idx in range(len(results)):
+        result = results[idx]
+        sub_sub_folder = str(result["is_valid"]) + "/"
+        pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+        filename_graph = create_filename(result)
+        if create_activity_graph_enabled:
 
-        class_input_dict = []
-        print("create_activity_graph...")
-        print("could find %d samples." % len(results))
-        for idx in range(len(results)):
-            result = results[idx]
-            sub_sub_folder = str(result["is_valid"]) + "/"
-            pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-            filename_graph = create_filename(result)
-            if create_activity_graph_enabled:
+            create_activity_graph(str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
+                                  title=create_graph_title(result, "time"),
+                                  sub_sub_folder=sub_sub_folder)
 
-                create_activity_graph(str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
-                                      title=create_graph_title(result, "time"),
-                                      sub_sub_folder=sub_sub_folder)
+        if not result['is_valid']:
+            continue
 
-            if not result['is_valid']:
-                continue
+        print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
+        cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
 
-            print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
-            cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
+        result["cwt"] = cwt
+        result["coef_shape"] = coef.shape
+        # result["cwt_weight"] = cwt_weight
+        result["indexes_cwt"] = indexes_cwt
 
-            result["cwt"] = cwt
-            result["coef_shape"] = coef.shape
-            # result["cwt_weight"] = cwt_weight
-            result["indexes_cwt"] = indexes_cwt
+        if create_cwt_graph_enabled:
+            create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
+                                sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-            if create_cwt_graph_enabled:
-                create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
-                                    sub_sub_folder=sub_sub_folder, freqs=freqs)
-
-            class_input_dict = create_training_sets(result, dir)  # warning! always returns the same result
-            if not os.path.exists(class_input_dict_file_path):
-                with open(class_input_dict_file_path, 'w') as fout:
-                    json.dump(class_input_dict, fout)
-            # remove item from stack
-            results[idx] = None
-            gc.collect()
+        class_input_dict = create_training_sets(result, dir, resolution, days_before_famacha_test, farm_id)  # warning! always returns the same result
+        # if not os.path.exists(class_input_dict_file_path):
+        #     with open(class_input_dict_file_path, 'w') as fout:
+        #         json.dump(class_input_dict, fout)
+        # remove item from stack
+        results[idx] = None
+        gc.collect()
 
         print("create_activity_graph done.")
-    try:
-        with open(class_input_dict_file_path) as f:
-            saved_data = json.load(f)
-        process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
-    except FileNotFoundError as e:
-        print(e)
+
+    # try:
+    #     with open(class_input_dict_file_path) as f:
+    #         saved_data = json.load(f)
+    #     # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+    # except FileNotFoundError as e:
+    #     print(e)
 
 
 def parse_csv_db_name(path):
@@ -2733,6 +2697,7 @@ if __name__ == '__main__':
         famacha_file_path = sys.argv[2]
         n_days_before_famacha = int(sys.argv[3])
         resampling_resolution = sys.argv[4]
+        n_process = int(sys.argv[5])
 
     print("csv_db_path=", csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
@@ -2751,12 +2716,33 @@ if __name__ == '__main__':
             file_median = file
             break
 
-    for idx, file in enumerate(files):
-        farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-        process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median), get_famacha_data(famacha_file_path))
 
-    merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
-                  filter='%s_results_simplified.csv' % farm_id,
-                  simplified_report=True)
-    merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
-                  filter='%s_results.csv' % farm_id)
+    MULTI_THREADING_ENABLED = True
+
+    if MULTI_THREADING_ENABLED:
+        pool = Pool(processes=n_process)
+        for idx, file in enumerate(files):
+            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+            pool.apply_async(process_day, (thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
+                        get_famacha_data(famacha_file_path),))
+        pool.close()
+        pool.join()
+    else:
+        for idx, file in enumerate(files):
+            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+            process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
+                        get_famacha_data(famacha_file_path))
+
+    # for idx, file in enumerate(files):
+    #     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+    #     process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median), get_famacha_data(famacha_file_path))
+
+    # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+
+    # merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
+    #               filter='%s_results_simplified.csv' % farm_id,
+    #               simplified_report=True)
+    # merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
+    #               filter='%s_results.csv' % farm_id)
