@@ -1,5 +1,6 @@
+import json
 import gc
-import glob
+import itertools
 import json
 import math
 import multiprocessing
@@ -12,7 +13,7 @@ import time
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 from sys import exit
-
+import glob
 import dateutil.relativedelta
 import joblib
 import matplotlib.pyplot as plt
@@ -27,11 +28,9 @@ from matplotlib.lines import Line2D
 from mlxtend.plotting import plot_decision_regions
 from scipy import interp
 from sklearn import preprocessing
-from sklearn.base import clone
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import auc
 from sklearn.metrics import classification_report, accuracy_score, precision_recall_fscore_support
 from sklearn.metrics import f1_score
@@ -41,10 +40,13 @@ from sklearn.metrics import recall_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import normalize
 from sklearn.svm import SVC
+
+from sklearn.base import clone
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -220,7 +222,7 @@ def normalize_histogram_mean_diff(activity_mean, activity):
     scale = [0 for _ in range(0, len(activity))]
     idx = []
     for n, a in enumerate(activity):
-        if np.isnan(a) or a==0 or np.isnan(activity_mean[n]):
+        if np.isnan(a) or a == 0 or np.isnan(activity_mean[n]):
             continue
         r = activity_mean[n] / a
         scale[n] = r
@@ -274,7 +276,8 @@ def get_ndays_between_dates(date1, date2):
     return delta.days
 
 
-def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution,
+def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data,
+                      resolution,
                       days_before_famacha_test):
     # print("generating new training pair....")
     famacha_test_date = datetime.fromtimestamp(time.mktime(time.strptime(curr_data_famacha[0], "%d/%m/%Y"))).strftime(
@@ -321,7 +324,8 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     if len(dtf5) > 0 and len(dtf4) > 0:
         nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
 
-    print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
+    print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (
+    famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
     rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
@@ -475,7 +479,7 @@ def get_expected_sample_count(resolution, days_before_test):
     if resolution == "day":
         expected_sample_n = days_before_test
 
-    expected_sample_n = expected_sample_n + 1 #todo fix clipping
+    expected_sample_n = expected_sample_n + 1  # todo fix clipping
     print("expected sample count is %d." % expected_sample_n)
     return int(expected_sample_n)
 
@@ -678,7 +682,8 @@ def compute_hd_cwt(activity):
 
 
 def create_filename(data):
-    filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d.png" % (data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
+    filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d.png" % (
+    data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
     -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"])
     return filename.replace('/', '-').replace(".", "_")
 
@@ -809,8 +814,10 @@ def create_training_set(result, dir, resolution, days_before_famacha_test, farm_
 
 
 def create_training_sets(data, dir_path, resolution, days_before_famacha_test, farm_id):
-    path1, options1 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["activity"])
-    path2, options2 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id, options=["cwt"])
+    path1, options1 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id,
+                                          options=["activity"])
+    path2, options2 = create_training_set(data, dir_path, resolution, days_before_famacha_test, farm_id,
+                                          options=["cwt"])
 
     return [
         {"path": path1, "options": options1},
@@ -849,7 +856,7 @@ def init_result_file(dir, farm_id, simplified_results=False):
     path = "%s/analysis" % dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s_results_simplified.csv" % (path, farm_id) if simplified_results else "%s/%s_results.csv" % (
-    path, farm_id)
+        path, farm_id)
     with open(filename, 'a') as outfile:
         outfile.write(RESULT_FILE_HEADER_SIMPLIFIED) if simplified_results else outfile.write(RESULT_FILE_HEADER)
         outfile.write('\n')
@@ -977,8 +984,7 @@ def parse_report(report):
     return precision_true, precision_false, score
 
 
-def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_class=True):
-
+def process_data_frame(data_frame, y_col='label', preproc=0, downsample_false_class=True):
     if downsample_false_class:
         df_true = data_frame[data_frame['label'] == True]
         df_false = data_frame[data_frame['label'] == False]
@@ -1049,42 +1055,42 @@ def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_c
     print(pipe.named_steps)
     print(classification_report(y_test, np.round(y_pred)))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('scaler', StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('scaler', preprocessing.Normalizer()), ('lda', LDA(n_components=1)), ('svc', SVC())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('lda', LDA(n_components=1)), ('svc', SVC())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('scaler', StandardScaler()), ('svc', SVC())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y)
     pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
@@ -1127,7 +1133,6 @@ def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_c
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-
     pipe = Pipeline([('lda', LDA(n_components=1))])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
@@ -1139,7 +1144,6 @@ def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_c
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
-
 
     clf_lda = LDA(n_components=1)
     X_train_r = clf_lda.fit_transform(X_train, y_train)
@@ -1168,10 +1172,7 @@ def process_data_frame(data_frame, y_col='label', preproc= 0, downsample_false_c
 
     exit(-1)
 
-
-
     X = preprocessing.MinMaxScaler().fit_transform(X)
-
 
     return X, y
 
@@ -1651,19 +1652,18 @@ def process_fold(n, X, y, train_index, test_index, dim_reduc=None):
     y_train_r, y_test_r = None, None
 
     if dim_reduc == 'LDA':
-        clf_r , X_train_r, X_test_r, y_train_r, y_test_r = reduce_lda(n, X_train, X_test, y_train, y_test)
+        clf_r, X_train_r, X_test_r, y_train_r, y_test_r = reduce_lda(n, X_train, X_test, y_train, y_test)
 
     if dim_reduc == 'PCA':
         clf_r, X_train_r, X_test_r, y_train_r, y_test_r = reduce_pca(n, X_train, X_test, y_train, y_test)
 
     if dim_reduc == 'PLS':
-       clf_r, X_train_r, X_test_r, y_train_r, y_test_r = reduce_pls(n, X_train, X_test, y_train, y_test)
+        clf_r, X_train_r, X_test_r, y_train_r, y_test_r = reduce_pls(n, X_train, X_test, y_train, y_test)
 
     X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
     y_reduced = np.concatenate((y_train_r, y_test_r), axis=0)
 
     return clf_r, X_reduced, y_reduced, X_train_r, X_test_r, y_train_r, y_test_r, X_train_f, X_test_f, y_train_f, y_test_f
-
 
 
 # cpt_sample = 0
@@ -1684,7 +1684,7 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
                               "proba_y_true": -1,
                               "proba_y_false": -1,
                               "f-score": -1}
-        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1,\
+        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1, \
                None, None, None, None, None, None, None, None, None, None
 
     print(clf_name)
@@ -1696,14 +1696,15 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
             print("grid search...")
             param_grid = {'C': [1, 10, 100, 1000], 'gamma': [1, 0.1, 0.001, 0.0001], 'kernel': ['linear', 'rbf']}
             # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10), 'kernel': ['linear', 'rbf']}
-            param_grid = {'n_components': [1, 2, None], 'solver': ['svd', 'lsqr', 'eigen'], 'tol': [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7, 1.0e-8]}
+            param_grid = {'n_components': [1, 2, None], 'solver': ['svd', 'lsqr', 'eigen'],
+                          'tol': [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7, 1.0e-8]}
             # clf = GridSearchCV(SVC(probability=True), param_grid, n_jobs=6)
             clf = GridSearchCV(LDA(), param_grid, n_jobs=6)
         else:
             clf = SVC(probability=True)
             clf = LDA()
             # clf = SVC(C=1, break_ties=False, cache_size=200, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3, gamma=1, kernel='rbf', max_iter=-1, probability=True, random_state=None, shrinking=True, tol=0.001, verbose=False)
- 
+
         clf.fit(X_train_f, y_train_f)
         if isinstance(clf, GridSearchCV):
             clf = clf.best_estimator_
@@ -1718,7 +1719,7 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
                               "proba_y_true": -1,
                               "proba_y_false": -1,
                               "f-score": -1}
-        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1,\
+        return None, None, None, "empty", -1, -1, -1, -1, -1, -1, -1, -1, -1, "empty", "empty", simplified_results, -1, -1, \
                None, None, None, None, None, None, None, None, None, None
     # joblib.dump(clf, "%s.model" % farm_id)
 
@@ -1748,9 +1749,10 @@ def compute_model(X, y, train_index, test_index, i, dim=None, dim_reduc_name=Non
     title = 'empty'
 
     try:
-        title, file_path = plot_2D_decision_boundaries(clone(clf), clf_name, dim_reduc_name, dim, nfold, resolution, X_reduced,
-                                                y_reduced, X_test_r, y_test_r, X_train_r, y_train_r,
-                                                folder=folder, options=options, i=i)
+        title, file_path = plot_2D_decision_boundaries(clone(clf), clf_name, dim_reduc_name, dim, nfold, resolution,
+                                                       X_reduced,
+                                                       y_reduced, X_test_r, y_test_r, X_train_r, y_train_r,
+                                                       folder=folder, options=options, i=i)
     except Exception as e:
         print("error while plotting 2d decision boundaries!", e)
 
@@ -1810,7 +1812,6 @@ def process(data_frame, fold=None, dim_reduc=None, clf_name=None, folder=None, o
         print(data_frame, dim_reduc, clf_name, folder, options, resolution, y_col)
         return {"error": str(e)}
 
-
     kf = StratifiedKFold(n_splits=fold, random_state=None, shuffle=True)
     kf.get_n_splits(X)
 
@@ -1825,7 +1826,7 @@ def process(data_frame, fold=None, dim_reduc=None, clf_name=None, folder=None, o
         print(e)
         return {}
 
-    c = int(len(serials)/8)
+    c = int(len(serials) / 8)
     chunks = [serials[x:x + c] for x in range(0, len(serials), c)]
 
     for i, chunck in enumerate(chunks):
@@ -1870,7 +1871,7 @@ def process(data_frame, fold=None, dim_reduc=None, clf_name=None, folder=None, o
         # else:
         #     train_indices = df_original[(df_original['serial'] == chunck[0])].index.values.astype(int)
         #     test_indices = df_original[(df_original['serial'] != chunck[0])].index.values.astype(int)
-        print("train_samples=%d test_samples=%d total=%d test|True=%d False=%d train|True=%d False=%d"  % (
+        print("train_samples=%d test_samples=%d total=%d test|True=%d False=%d train|True=%d False=%d" % (
             len(train_indices), len(test_indices), len(train_indices) + len(test_indices),
             df_original.iloc[test_indices]['label'].tolist().count(True),
             df_original.iloc[test_indices]['label'].tolist().count(False),
@@ -1901,7 +1902,7 @@ def process(data_frame, fold=None, dim_reduc=None, clf_name=None, folder=None, o
 
     filename_r = init_R_file(folder, farm_id, options)
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
-    # for i, (train_index, test_index) in enumerate(CV_iterator):
+        # for i, (train_index, test_index) in enumerate(CV_iterator):
         clf_fitted, X_lda_2d, y_lda_2d, title_2d, acc_2d, p_false_2d, p_true_2d, r_false_2d, r_true_2d, fs_false_2d, fs_true_2d, s_false_2d, s_true_2d, \
         clf_name_2d, file_path_2d, sr_2d, pr_y_false_2d, pr_y_true_2d, X_reduced, y_reduced, X_train_r, X_test_r, y_train_r, \
         y_test_r, X_train_f, X_test_f, y_train_f, y_test_f = compute_model(
@@ -2272,7 +2273,7 @@ def find_type_for_mem_opt(df):
 
 def sizeof_fmt(file_path, suffix='B'):
     num = os.path.getsize(file_path)
-    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
             formated_size = "%3.2f%s%s" % (num, unit, suffix)
             print("file size=%s" % formated_size)
@@ -2333,7 +2334,7 @@ def format_options(options):
 
 def process_classifiers(filename, filename_s, inputs, dir, resolution, dbt, farm_id, label_col='label'):
     print("start classification...", inputs)
-    sliding_w, thresh_nan, thresh_zeros, thresh_entropy = 0, 0, 0, 0 #todo remove old thresholds
+    sliding_w, thresh_nan, thresh_zeros, thresh_entropy = 0, 0, 0, 0  # todo remove old thresholds
     start_time = time.time()
     for input in inputs:
         if 'cwt' not in input["path"]:
@@ -2538,8 +2539,10 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, csv_median, data_famacha_dict, create_input_visualisation_eanable=False):
-    dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
+def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, csv_df, csv_median,
+                data_famacha_dict, create_input_visualisation_eanable=False):
+    dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
+    csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
     weather_data = None
@@ -2619,17 +2622,17 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
 
     skipped_class_false, skipped_class_true = process_famacha_var(results)
-    # if create_input_visualisation_eanable:
-    #     try:
-    #         for i in range(len(dataset_heatmap_data.keys())):
-    #             print(list(dataset_heatmap_data.values())[i]['famacha'])
-    #         # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
-    #         f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
-    #         create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
-    #         create_histogram(dataset_heatmap_data, dir + "/" +"rhistogram_"+f_id)
-    #     except ValueError as e:
-    #         print("error while creating input visualisation", e)
-    #         print(dataset_heatmap_data)
+    if create_input_visualisation_eanable:
+        try:
+            for i in range(len(dataset_heatmap_data.keys())):
+                print(list(dataset_heatmap_data.values())[i]['famacha'])
+            # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
+            f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
+            create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
+            create_histogram(dataset_heatmap_data, dir + "/" + "rhistogram_" + f_id)
+        except ValueError as e:
+            print("error while creating input visualisation", e)
+            print(dataset_heatmap_data)
 
     class_input_dict = []
     print("create_activity_graph...")
@@ -2640,8 +2643,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
         filename_graph = create_filename(result)
         if create_activity_graph_enabled:
-
-            create_activity_graph(str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
+            create_activity_graph(str(result["famacha_score_increase"]) + "_" + str(result["animal_id"]),
+                                  result["activity"], dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
@@ -2660,7 +2663,8 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
                                 sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-        class_input_dict = create_training_sets(result, dir, resolution, days_before_famacha_test, farm_id)  # warning! always returns the same result
+        class_input_dict = create_training_sets(result, dir, resolution, days_before_famacha_test,
+                                                farm_id)  # warning! always returns the same result
         # if not os.path.exists(class_input_dict_file_path):
         #     with open(class_input_dict_file_path, 'w') as fout:
         #         json.dump(class_input_dict, fout)
@@ -2686,61 +2690,42 @@ def parse_csv_db_name(path):
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
+def parse_input_params(file_path):
+    split = file_path.split('\\')
+    option = split[-1].split('.')[0].split('__')[0]
+    param_split = split[-1].split('.')[0].split('__')[1].split('_')
+    farm_id = param_split[0] + "_" + param_split[1]
+    day_before_famacha = int(param_split[2].replace('dbft',''))
+    resolution = param_split[-1]
+    location =
+    return option, farm_id, days_before_famacha_test, resolution, location
+
+
 if __name__ == '__main__':
 
-    print("args: csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution")
     if len(sys.argv) > 1:
-        csv_db_dir_path = sys.argv[1]
-        famacha_file_path = sys.argv[2]
-        n_days_before_famacha = int(sys.argv[3])
-        resampling_resolution = sys.argv[4]
-        n_process = int(sys.argv[5])
-    else:
-        exit(-1)
+        print("args: traintest_dataset_file_path")
+        traintest_dataset_file_path = sys.argv[1]
 
-    print("csv_db_path=", csv_db_dir_path)
-    print("famacha_file_path=", famacha_file_path)
-    print("n_days_before_famacha=", n_days_before_famacha)
-    print("resampling_resolution=", resampling_resolution)
+    print("traintest_dataset_file_path=", traintest_dataset_file_path)
 
-    files = glob.glob(csv_db_dir_path)
-    print("found %d files." % len(files))
-    if len(files) == 0:
-        print("no files in %s" % csv_db_dir_path)
-        exit(-1)
+    # filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
 
-    file_median = None
-    for idx, file in enumerate(files):
-        if 'median' in file:
-            file_median = file
-            break
+    option, farm_id, days_before_famacha_test, resolution, location = parse_input_params(traintest_dataset_file_path)
 
-    MULTI_THREADING_ENABLED = False
+    filename = init_result_file(dir, farm_id)
+    filename_s = init_result_file(dir, farm_id, simplified_results=True)
+    try:
+        shutil.rmtree(dir + "/analysis")
+        shutil.rmtree(dir + "/decision_boundaries_graphs")
+        shutil.rmtree(dir + "/roc_curve")
+    except (OSError, FileNotFoundError) as e:
+        print(e)
 
-    if MULTI_THREADING_ENABLED:
-        pool = Pool(processes=n_process)
-        for idx, file in enumerate(files):
-            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-            pool.apply_async(process_day, (thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
-                        get_famacha_data(famacha_file_path),))
-        pool.close()
-        pool.join()
-    else:
-        for idx, file in enumerate(files):
-            farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-            process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median),
-                        get_famacha_data(famacha_file_path))
+    process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
 
-    # for idx, file in enumerate(files):
-    #     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-    #     process_day(thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("\\*.csv", ""), load_db_from_csv(file), load_db_from_csv(file_median), get_famacha_data(famacha_file_path))
-
-    # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
-
-    # merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
-    #               filter='%s_results_simplified.csv' % farm_id,
-    #               simplified_report=True)
-    # merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
-    #               filter='%s_results.csv' % farm_id)
+    merge_results(filename="%s_results_simplified_report_%s.xlsx" % (farm_id, run_timestamp),
+                  filter='%s_results_simplified.csv' % farm_id,
+                  simplified_report=True)
+    merge_results(filename="%s_results_report_%s.xlsx" % (farm_id, run_timestamp),
+                  filter='%s_results.csv' % farm_id)
