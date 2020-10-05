@@ -2568,7 +2568,6 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
 
 
 def resample_traces(resolution, activity, herd):
-    print("resampling trace")
     index = pd.date_range('1/1/2000', periods=len(activity), freq='T')
     activity_series = pd.Series(activity, index=index)
     activity_series_r = activity_series.resample(resolution).sum()
@@ -2584,20 +2583,12 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
     create_cwt_graph_enabled = True
     create_activity_graph_enabled = True
     weather_data = None
-
-
-
-    # generate_training_sets(data_famacha_flattened)
     try:
         with open(os.path.join(__location__, '%s_weather.json' % farm_id.split('_')[0])) as f:
             weather_data = json.load(f)
     except FileNotFoundError as e:
         print("error while reading weather data file", e)
         exit()
-
-    # data_famacha_dict = generate_table_from_xlsx('Lange-Henry-Debbie-Skaap-Jun-2016a.xlsx')
-    # with open('C:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\db_processor\\src\\delmas_famacha_data.json', 'a') as outfile:
-    #     json.dump(data_famacha_dict, outfile)
 
     class_input_dict_file_path = dir + '/class_input_dict.json'
     # if False:
@@ -2622,14 +2613,7 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
         filename_s = init_result_file(dir, farm_id, simplified_results=True)
         print("force create!")
         print('start training sets creation...')
-        # try:
-        #     shutil.rmtree(dir)
-        # except (OSError, FileNotFoundError) as e:
-        #     print(e)
-        #     exit(-1)
 
-        # meta_data, activity_data, animals_id = [], [], []
-        # time_range = None
         dataset_heatmap_data = {}
         data_famacha_list = [y for x in data_famacha_dict.values() for y in x]
         results = []
@@ -2648,6 +2632,9 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
 
             is_valid, reason = is_activity_data_valid(activity_resampled)
+            print("sample is valid=", is_valid)
+
+            result["activity"] = activity_resampled.tolist()
 
             result['is_valid'] = is_valid
             if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
@@ -2677,23 +2664,19 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
                 for i in range(len(dataset_heatmap_data.keys())):
                     print(list(dataset_heatmap_data.values())[i]['famacha'])
                 # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
-                f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(hour_gap)
+                f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
                 create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
                 create_histogram(dataset_heatmap_data, dir + "/" +"rhistogram_"+f_id)
             except ValueError as e:
                 print("error while creating input visualisation", e)
                 print(dataset_heatmap_data)
 
-
         class_input_dict = []
-
         print("create_activity_graph...")
         print("could find %d samples." % len(results))
         for idx in range(len(results)):
             result = results[idx]
-
             sub_sub_folder = str(result["is_valid"]) + "/"
-
             pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
             filename_graph = create_filename(result)
             if create_activity_graph_enabled:
@@ -2703,35 +2686,16 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
                                       sub_sub_folder=sub_sub_folder)
 
             if not result['is_valid']:
-                # results[idx] = None
                 continue
 
             print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
-            # if result['ignore']:
-            #     results[idx] = None
-            #     continue
-            # pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
-            # filename = create_filename(result)
-            # if create_activity_graph_enabled:
-            #     create_activity_graph(result["activity"], dir, filename,
-            #                           title=create_graph_title(result, "time"),
-            #                           sub_sub_folder=str(result['famacha_score_increase']))
-
-            # cwt, coef, freqs, indexes_cwt = compute_cwt(result["activity"])
-            # if 'sd' in src or 'sp' in src:
-            #     print('sd')
-            #     cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type = compute_cwt(result["activity"])
-            # else:
-            #     print('hd')
             cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
 
-            # cwt_weight = process_weight(result["activity"], coef)
             result["cwt"] = cwt
             result["coef_shape"] = coef.shape
             # result["cwt_weight"] = cwt_weight
             result["indexes_cwt"] = indexes_cwt
 
-            # herd_data.append(result['herd'])
             if create_cwt_graph_enabled:
                 create_hd_cwt_graph(coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
                                     sub_sub_folder=sub_sub_folder, freqs=freqs)
@@ -2745,35 +2709,12 @@ def process_day(thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm
             gc.collect()
 
         print("create_activity_graph done.")
-        # herd_file_path = dir + '/%s_herd_activity.json' % farm_id
-        # herd_file_path = herd_file_path.replace('/', '\\')
-        # if not os.path.exists(herd_file_path):
-        #     with open(herd_file_path, 'w') as fout:
-        #         json.dump({'herd_activity': herd_data}, fout)
     try:
         with open(class_input_dict_file_path) as f:
             saved_data = json.load(f)
-        # process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
+        process_classifiers(filename, filename_s, class_input_dict, dir, resolution, days_before_famacha_test, farm_id)
     except FileNotFoundError as e:
         print(e)
-
-
-
-def process_sliding_w(params):
-    start_time = time.time()
-    zipped = zip(['10min'], itertools.repeat(params[0]), itertools.repeat(params[1]), itertools.repeat(params[2]))
-    for i, item in enumerate(zipped):
-        print("%d/%d res=%s farm=%s progress..." % (i, len(item), item[0], item[2]))
-        # days_before_famacha_test_l = range(1, 35)
-        days_before_famacha_test_l = [7]
-        resolution, sliding_w, farm_id, src_folder = item[0], item[1], item[2], item[3]
-        pool = Pool(processes=3)
-        pool.map(process_day, zip(days_before_famacha_test_l, itertools.repeat(resolution),
-                                  itertools.repeat(sliding_w), itertools.repeat(farm_id), itertools.repeat(src_folder))
-                 )
-        pool.close()
-        pool.join()
-    print(get_elapsed_time_string(start_time, time.time()))
 
 
 def parse_csv_db_name(path):
