@@ -7,7 +7,7 @@ import os.path
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
-# from ipython_genutils.py3compat import range
+# from ipython_genutils.py3compat import xrange
 # from tables import *
 import os.path
 # from openpyxl import load_workbook
@@ -116,17 +116,17 @@ def zeros_to_nan(df_interpolated, zero_to_nan_threh):
     return df_interpolated_zero2nan
 
 
-def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id):
+def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id):
     print("loading data...", path)
     df = pd.read_csv(path, sep=",")
     df_interpolated = thresholded_interpol(df.copy(), interpolation_thesh)
     data_zerofill_thresh = zeros_to_nan(df_interpolated, zero_to_nan_threh)
-    export_rawdata_to_csv(data_zerofill_thresh, farm_id, animal_id, interpolation_thesh, zero_to_nan_threh)
+    export_rawdata_to_csv(output_directory, data_zerofill_thresh, farm_id, animal_id, interpolation_thesh, zero_to_nan_threh)
 
 
-def export_rawdata_to_csv(df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
+def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
-    path = "csv_export/interpolated_zero2nan_1min/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (farm_id, thresh_interpol, thresh_zero2nan)
+    path = "%s/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (output_directory, farm_id, thresh_interpol, thresh_zero2nan)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
     purge_file(filename_path)
@@ -144,12 +144,13 @@ if __name__ == '__main__':
     # zero_to_nan_threh = 60*4
     # interpolation_thesh = 60
     # n_process = 6
-    print("arg: csv_dir_path zero_to_nan_threh interpolation_thesh n_process")
+    print("arg: output_dir csv_dir_path zero_to_nan_threh interpolation_thesh n_process")
     if len(sys.argv) > 1:
-        csv_dir_path = sys.argv[1]
-        zero_to_nan_threh = sys.argv[2]
-        interpolation_thesh = sys.argv[3]
-        n_process = int(sys.argv[4])
+        output_directory = sys.argv[1]
+        csv_dir_path = sys.argv[2]
+        zero_to_nan_threh = sys.argv[3]
+        interpolation_thesh = sys.argv[4]
+        n_process = int(sys.argv[5])
     else:
         exit(-1)
 
@@ -163,11 +164,11 @@ if __name__ == '__main__':
         for idx, csv_file in enumerate(files):
             farm_id = csv_file.split('\\')[-2]
             animal_id = csv_file.split('\\')[-1].replace('.csv', '')
-            pool.apply_async(process_csv, (csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
+            pool.apply_async(process_csv, (output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
         pool.close()
         pool.join()
     else:
         for csv_file in files:
             farm_id = csv_file.split('\\')[-2]
             animal_id = csv_file.split('\\')[-1].replace('.csv','')
-            process_csv(csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)
+            process_csv(output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)
