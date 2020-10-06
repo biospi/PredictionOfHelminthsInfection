@@ -162,13 +162,13 @@ if __name__ == '__main__':
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, csv_file in enumerate(files):
-            farm_id = csv_file.split('\\')[-2]
-            animal_id = csv_file.split('\\')[-1].replace('.csv', '')
+            farm_id = csv_file.split('/')[-2]
+            animal_id = csv_file.split('/')[-1].replace('.csv', '')
             pool.apply_async(process_csv, (output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
         pool.close()
         pool.join()
     else:
         for csv_file in files:
-            farm_id = csv_file.split('\\')[-2]
-            animal_id = csv_file.split('\\')[-1].replace('.csv','')
+            farm_id = csv_file.split('/')[-2]
+            animal_id = csv_file.split('/')[-1].replace('.csv','')
             process_csv(output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id)
