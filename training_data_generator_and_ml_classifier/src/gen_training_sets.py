@@ -99,39 +99,44 @@ def get_temp_humidity(date, data):
 
 
 def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_score):
-    previous_score1 = None
-    previous_score2 = None
-    previous_score3 = None
-    previous_score4 = None
     try:
-        list = data_famacha[str(serial_number)]
+        famacha_data_list = data_famacha[str(serial_number)]
     except KeyError as e:
-        # print(e)
+        print("error could not find famacha report data!", e)
         exit()
-    for i in range(1, len(list)):
-        item = list[i]
+    for i, item in enumerate(famacha_data_list):
+        previous_score1 = -1
+        previous_score2 = -1
+        previous_score3 = -1
+        previous_score4 = -1
+
         if item[0] == famacha_test_date:
-            try:
-                previous_score1 = int(list[i - 1][1])
-            except ValueError as e:
-                previous_score1 = -1
-                # print(e)
-            try:
-                previous_score2 = int(list[i - 2][1])
-            except ValueError as e:
-                previous_score2 = -1
-                # print(e)
-            try:
-                previous_score3 = int(list[i - 3][1])
-            except ValueError as e:
-                previous_score3 = -1
-                # print(e)
-            try:
-                previous_score4 = int(list[i - 4][1])
-            except ValueError as e:
-                previous_score4 = -1
-                # print(e)
-            break
+            idx1 = i - 1
+            if idx1 >= 0:
+                try:
+                    previous_score1 = int(famacha_data_list[idx1][1])
+                except ValueError:
+                    pass
+            idx2 = i - 2
+            if idx2 >= 0:
+                try:
+                    previous_score2 = int(famacha_data_list[idx2][1])
+                except ValueError:
+                    pass
+            idx3 = i - 3
+            if idx3 >= 0:
+                try:
+                    previous_score3 = int(famacha_data_list[idx3][1])
+                except ValueError:
+                    pass
+            idx4 = i - 4
+            if idx4 >= 0:
+                try:
+                    previous_score4 = int(famacha_data_list[idx4][1])
+                except ValueError:
+                    pass
+            return previous_score1, previous_score2, previous_score3, previous_score4
+
     return previous_score1, previous_score2, previous_score3, previous_score4
 
 
@@ -381,24 +386,34 @@ def save_result_in_file(results, filename):
 def process_famacha_var(results, count_skipped=True):
     print("computing classes...")
     skipped_class_false, skipped_class_true = 0, 0
-    for i in xrange(0, len(results) - 1):
-        curr_data = results[i]
-        next_data = results[i + 1]
-        if curr_data["animal_id"] != next_data["animal_id"]:  # not same animal id
-            if count_skipped:
-                skipped_class_false += 1
-            continue
-        if curr_data["famacha_score"] == next_data["famacha_score"]:  # same famacha score
-            next_data["famacha_score_increase"] = False
-            next_data["ignore"] = False
-        if curr_data["famacha_score"] < next_data["famacha_score"]:
-            print("famacha score changed from 1 to >2. creating new set...")
-            next_data["famacha_score_increase"] = True
-            next_data["ignore"] = False
-        if curr_data["famacha_score"] > next_data["famacha_score"]:
-            print("famacha score changed decreased. creating new set...")
-            next_data["famacha_score_increase"] = False
-            next_data["ignore"] = False
+    for sample_data in results:
+        famacha_score = sample_data['famacha_score']
+        famacha_score_previous = sample_data['previous_famacha_score1']
+        sample_data["ignore"] = True
+        if famacha_score_previous == 1 and famacha_score == 1:
+            sample_data["famacha_score_increase"] = False
+            sample_data["ignore"] = False
+
+        if famacha_score_previous == 1 and famacha_score >= 2:
+            sample_data["famacha_score_increase"] = True
+            sample_data["ignore"] = False
+
+        # next_data = results[i + 1]
+        # if curr_data["animal_id"] != next_data["animal_id"]:  # not same animal id
+        #     if count_skipped:
+        #         skipped_class_false += 1
+        #     continue
+        # if curr_data["famacha_score"] == next_data["famacha_score"]:  # same famacha score
+        #     next_data["famacha_score_increase"] = False
+        #     next_data["ignore"] = False
+        # if curr_data["famacha_score"] < next_data["famacha_score"]:
+        #     print("famacha score changed from 1 to >2. creating new set...")
+        #     next_data["famacha_score_increase"] = True
+        #     next_data["ignore"] = False
+        # if curr_data["famacha_score"] > next_data["famacha_score"]:
+        #     print("famacha score changed decreased. creating new set...")
+        #     next_data["famacha_score_increase"] = False
+        #     next_data["ignore"] = False
     return skipped_class_false, skipped_class_true
 
 
@@ -436,15 +451,14 @@ def even_list(n):
 
 def create_activity_graph(output_dir, animal_id, activity, folder, filename, title=None,
                           sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
-    activity = [-10 if x == 0 else x for x in activity] #set 0 value to 10 for ease of visualisation
-    activity = [-20 if np.isnan(x) else x for x in activity]
-    activity = [-20 if x is None else x for x in activity]
     # for a in activity:
     #     if np.isnan(a) or a == None:
     #         raise ValueError("There should not be nan in trace at this stage!")
 
     fig = plt.figure()
-    plt.bar(range(0, len(activity)), activity)
+    # plt.bar(range(0, len(activity)), activity)
+    plt.clf()
+    plt.plot(activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -525,13 +539,13 @@ def create_filename(data):
     return filename.replace('/', '-').replace(".", "_")
 
 
-def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, options=[]):
+def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=[]):
     training_set = []
     option = ""
     if "cwt" in options:
         training_set.extend(result["coef_shape"])
         training_set.extend(result["cwt"])
-        option = option + "cwt_"
+        option = option + "cwt"
     if "cwt_weight" in options:
         training_set.extend(result["cwt_weight"])
         option = option + "cwt_weight_"
@@ -540,7 +554,7 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
         option = option + "indexes_cwt_"
     if "activity" in options:
         training_set.extend(result["activity"])
-        option = option + "activity_"
+        option = option + "activity"
     if "indexes" in options:
         training_set.extend(result["indexes"])
         option = option + "indexes_"
@@ -579,7 +593,7 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     training_set.append(result["nd4"])
     path = "%s/training_sets" % output_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    filename = "%s/%s_%s_dbft%d_%s.data" % (path, option, farm_id, days_before_famacha_test, resolution)
+    filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.data" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
     # print("set size is %d, %s.....%s" % (
     #     len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
@@ -606,9 +620,9 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     return filename, options
 
 
-def create_training_sets(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id):
-    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, options=["activity"])
-    path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, options=["cwt"])
+def create_training_sets(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n):
+    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n,options=["activity"])
+    path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id,thresh_i, thresh_z2n, options=["cwt"])
 
     return [
         {"path": path1, "options": options1},
@@ -690,7 +704,8 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
+def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
+                resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
     result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = enable_graph_output
@@ -769,15 +784,18 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
     print("computing cwts and set for file %d...", idx)
     for idx in range(len(results)):
         result = results[idx]
-        sub_sub_folder = str(result["is_valid"]) + "/"
-        pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
-        filename_graph = create_filename(result)
+        if result["ignore"]:
+            continue
+
         if create_activity_graph_enabled:
+            sub_sub_folder = str(result["is_valid"]) + "/"
+            pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
+            filename_graph = create_filename(result)
 
             tag = "11"
             if result["famacha_score_increase"]:
                 tag = "12"
-            create_activity_graph(result_output_dir, tag + "_" + str(result["animal_id"]), result["activity"], result_output_dir, filename_graph,
+            create_activity_graph(result_output_dir, tag + "_" + result['reason'] + "_" + str(result["animal_id"]), result["activity"], result_output_dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
@@ -795,9 +813,9 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
         # create_hd_cwt_graph(output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
         #                     sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-        create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id)
+        create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
         results[idx] = None
-        gc.collect()
+        # gc.collect()
 
         # print("create_activity_graph done.")
 
@@ -864,17 +882,8 @@ def parse_csv_db_name(path):
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
-async_info = []
-
-
-def save_info(result):
-    async_info.append(result)
-
-
 if __name__ == '__main__':
-
     print("args: output_dir csv_db_dir_path famacha_file_path n_days_before_famacha resampling_resolution enable_graph_output n_process")
-
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
         csv_db_dir_path = sys.argv[2]
@@ -903,39 +912,40 @@ if __name__ == '__main__':
         if 'median' in file:
             file_median = file
             break
-    # files = files[0:10]
+
     famacha_data = get_famacha_data(famacha_file_path)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
 
     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
     csv_median = load_db_from_csv(file_median)
-    try:
-        shutil.rmtree(output_dir, ignore_errors=True)
-    except (OSError, FileNotFoundError) as e:
-        # print(e)
-        pass
+
+    results = []
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            pool.apply_async(process_day, (enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,), callback=save_info)
+            results.append(pool.apply_async(process_day, (enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,)))
         pool.close()
         pool.join()
+        del pool
+        print("multithreaded loop finished!")
         total_sample_11 = []
         total_sample_12 = []
         nan_sample_11 = []
         nan_sample_12 = []
         usable_11 = []
         usable_12 = []
-        for item in async_info:
-            print(item)
+        for r in results:
+            item = r.get()
             total_sample_11.append(item[0])
             total_sample_12.append(item[1])
             nan_sample_11.append(item[2])
             nan_sample_12.append(item[3])
             usable_11.append(item[4])
             usable_12.append(item[5])
+
         exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n,sum(total_sample_11), sum(total_sample_12),
                                          sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
     else:
