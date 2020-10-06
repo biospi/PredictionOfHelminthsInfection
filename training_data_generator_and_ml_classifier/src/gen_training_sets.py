@@ -704,10 +704,10 @@ def resample_traces(resolution, activity, herd):
     return activity_r, herd_r
 
 
-def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
+def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test,
                 resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
-    result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
+    # result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = enable_graph_output
     create_activity_graph_enabled = enable_graph_output
     weather_data = None
@@ -781,7 +781,7 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
 
     total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = exporting_data_info_to_txt(result_output_dir, results, thresh_i, thresh_z2n, animal_id)
 
-    print("computing cwts and set for file %d...", idx)
+    print("computing cwts and set for file %d..." % idx)
     for idx in range(len(results)):
         result = results[idx]
         if result["ignore"]:
@@ -858,20 +858,25 @@ def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal
     with open(filename, 'a') as outfile:
         outfile.write(report)
         outfile.write('\n')
+        outfile.close()
     return total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12
 
 
-def exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n, total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12):
-    print("exporting_data_info_to_txt.")
-    filename = "%s/result_interpol_%d_zeros_%d.txt" % (output_dir, thresh_i, thresh_z2n)
-    purge_file(filename)
+def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, total, total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12):
+    print("FINAL")
+    print("exporting_data_info_to_txt_final.")
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    filename_final = "%s/%s_result_days_%d_interpol_%d_zeros_%d.txt" % (output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n)
+    print(filename_final)
+    purge_file(filename_final)
     report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
-             "-> 1 = %d\n1 -> 2 = %d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
+             "-> 1 = %d\n1 -> 2 = %d\n" % (total, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
 
-    with open(filename, 'a') as outfile:
+    with open(filename_final, 'a') as outfile:
         outfile.write(report)
         outfile.write('\n')
+        outfile.close()
 
 
 def parse_csv_db_name(path):
@@ -922,10 +927,12 @@ if __name__ == '__main__':
 
     results = []
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
+        output_dir, farm_id, resampling_resolution, n_days_before_famacha, thresh_i, thresh_z2n)
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            results.append(pool.apply_async(process_day, (enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            results.append(pool.apply_async(process_day, (enable_graph_output, output_dir, result_output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,)))
         pool.close()
         pool.join()
@@ -937,18 +944,22 @@ if __name__ == '__main__':
         nan_sample_12 = []
         usable_11 = []
         usable_12 = []
-        for r in results:
-            item = r.get()
-            total_sample_11.append(item[0])
-            total_sample_12.append(item[1])
-            nan_sample_11.append(item[2])
-            nan_sample_12.append(item[3])
-            usable_11.append(item[4])
-            usable_12.append(item[5])
+        total = []
+        files_txt = glob.glob(result_output_dir + "/*.txt")
+        for file in files_txt:
+            with open(file) as f:
+                lines = [line.rstrip() for line in f]
+                total.append(int(lines[0].split('=')[1].strip()))
+                total_sample_11.append(int(lines[1].split('=')[1].strip()))
+                total_sample_12.append(int(lines[2].split('=')[1].strip()))
+                nan_sample_11.append(int(lines[4].split('=')[1].strip()))
+                nan_sample_12.append(int(lines[5].split('=')[1].strip()))
+                usable_11.append(int(lines[7].split('=')[1].strip()))
+                usable_12.append(int(lines[8].split('=')[1].strip()))
 
-        exporting_data_info_to_txt_final(output_dir, thresh_i, thresh_z2n,sum(total_sample_11), sum(total_sample_12),
+        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
                                          sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
     else:
         for idx, file in enumerate(files):
-            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, result_output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
