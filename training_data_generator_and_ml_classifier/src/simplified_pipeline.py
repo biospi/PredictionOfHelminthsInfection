@@ -13,9 +13,11 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
+from sklearn.datasets import make_blobs
 from sys import exit
 import sys
 import pathlib
+from sklearn import datasets
 
 
 META_DATA_LENGTH = 19
@@ -110,6 +112,72 @@ def process_cross_farm(data_frame1, data_frame2, y_col='label'):
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
+
+
+def dummy_run(X, y, test_size, filename):
+    print("dummy run!")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y,
+                                                        test_size=int(test_size) / 100)
+    print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
+    print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
+
+    # plt.hist(X_train, bins='auto', histtype='step', density=True)
+    # plt.title("Distribution of training data")
+    # plt.show()
+
+    with open(filename, 'a') as outfile:
+        print("->SVC")
+        outfile.write('->SVC')
+        pipe = Pipeline([('svc', SVC(probability=True))])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, y_pred))
+        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
+        outfile.write('\n')
+
+        print("->LDA")
+        outfile.write('->LDA')
+        pipe = Pipeline([('lda', LDA())])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, y_pred))
+
+        print("->StandardScaler->SVC")
+        outfile.write("->StandardScaler->SVC")
+        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, np.round(y_pred)))
+        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
+        outfile.write('\n')
+
+        print("->MinMaxScaler->SVC")
+        outfile.write("->MinMaxScaler->SVC")
+        pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, np.round(y_pred)))
+        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
+        outfile.write('\n')
+
+        print("->StandardScaler->LDA(1)->SVC")
+        outfile.write("->StandardScaler->LDA(1)->SVC")
+        pipe = Pipeline(
+            [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, y_pred))
+        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
+        outfile.write('\n')
+
+        print("->LDA(1)->SVC")
+        outfile.write("->LDA(1)->SVC")
+        pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
+        pipe.fit(X_train.copy(), y_train.copy())
+        y_pred = pipe.predict(X_test.copy())
+        print(classification_report(y_test, y_pred))
+        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
+        outfile.write('\n')
 
 
 def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, y_col='label', downsample_false_class=True):
@@ -431,6 +499,17 @@ def plot_2D_decision_boundaries(model, clf_name, dim_reduc_name, dim, nfold, res
 
 if __name__ == "__main__":
     print("args: output_dir dataset_filepath test_size")
+    print("********************************************************************")
+    iris = datasets.load_iris()
+    X = iris.data[:, :2]
+    y = iris.target
+    dummy_run(X, y, 40, "dummy_iris.txt")
+    print("********************************************************************")
+    X, y = make_blobs(n_samples=50, centers=2, n_features=100, center_box=(0, 10))
+    dummy_run(X, y, 40, "dummy_blob.txt")
+    print("********************************************************************")
+    exit(0)
+
 
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
@@ -447,8 +526,8 @@ if __name__ == "__main__":
     farm_id = split[1] + "_" + split[2]
     option = split[0]
 
-    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, downsample_false_class=True)
-    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option,  downsample_false_class=False)
+    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, downsample_false_class=True, mock=True)
+    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option,  downsample_false_class=False, mock=True)
 
     # exit(-1)
     # dataset_filepath1 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
