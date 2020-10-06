@@ -32,7 +32,7 @@ def purge_file(filename):
     print("purge %s..." % filename)
     try:
         os.remove(filename)
-    except (FileNotFoundError, PermissionError):
+    except:
         print("file not found.")
 
 
@@ -126,12 +126,20 @@ def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, 
 
 def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
-    print(output_directory)
-    pathlib.Path(output_directory).mkdir(parents=True, exist_ok=True)
+    print("output_directory=", output_directory)
+    try:
+        pathlib.Path(output_directory).mkdir(parents=True)
+    except:
+        pass
+    print("farm_id=", farm_id)
     path = "%s/%s/" % (output_directory, farm_id)
-    print(path)
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    print("path=",path)
+    try:
+        pathlib.Path(path).mkdir(parents=True)
+    except:
+        pass
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
+    print("purge_file")
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print(filename_path)
@@ -159,13 +167,14 @@ if __name__ == '__main__':
 
     files = glob.glob(csv_dir_path + "/*.csv")
     print("found %d files." % len(files))
-    files = files[0:1]
+    #files = files[0:1]
     MULTI_THREADING_ENABLED = (n_process > 1)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, csv_file in enumerate(files):
             csv_file = csv_file.replace("\\", "/")
+	    print(csv_file)
             farm_id = csv_file.split('/')[-2]
             animal_id = csv_file.split('/')[-1].replace('.csv', '')
             pool.apply_async(process_csv, (output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
