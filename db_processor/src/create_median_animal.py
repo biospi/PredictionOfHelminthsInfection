@@ -1,42 +1,24 @@
-import math
+import os.path
+from sys import exit
+import glob
+import itertools
 import os
 import os.path
-import re
-import statistics
-import uuid
-import math
-from datetime import datetime, timedelta, time
-from sys import exit
-import itertools
-
-import numpy as np
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
 # from ipython_genutils.py3compat import xrange
 # from tables import *
 import os.path
-from collections import defaultdict
-import dateutil.relativedelta
-import time
-import os
-import glob
-import xlrd
-import pandas as pd
 import sys
-import pymysql
-import tables
-import xlrd
-from ipython_genutils.py3compat import xrange
-from tables import *
-from functools import partial
-from multiprocessing import Pool
+from sys import exit
+
+import numpy as np
+import pandas as pd
+
 # from openpyxl import load_workbook
 # from pycel import ExcelCompiler
 # import cryptography #need to be imported or pip install cryptography
-import matplotlib.pyplot as plt
-import pathlib
-
 
 
 sql_db = None

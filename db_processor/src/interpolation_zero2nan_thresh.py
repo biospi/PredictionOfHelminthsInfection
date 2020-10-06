@@ -1,42 +1,25 @@
-import math
+import os.path
+from sys import exit
+import glob
+import itertools
 import os
 import os.path
-import re
-import statistics
-import uuid
-import math
-from datetime import datetime, timedelta, time
-from sys import exit
-import itertools
-
-import numpy as np
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
 # from ipython_genutils.py3compat import xrange
 # from tables import *
 import os.path
-from collections import defaultdict
-import dateutil.relativedelta
-import time
-import os
-import glob
-import xlrd
-import pandas as pd
-import sys
-import pymysql
-import tables
-import xlrd
-from ipython_genutils.py3compat import xrange
-from tables import *
-from functools import partial
-from multiprocessing import Pool
 # from openpyxl import load_workbook
 # from pycel import ExcelCompiler
 # import cryptography #need to be imported or pip install cryptography
-import matplotlib.pyplot as plt
 import pathlib
+import sys
+from multiprocessing import Pool
+from sys import exit
 
+import numpy as np
+import pandas as pd
 
 sql_db = None
 MAX_ACTIVITY_COUNT_BIO = 480
@@ -166,7 +149,7 @@ if __name__ == '__main__':
         csv_dir_path = sys.argv[1]
         zero_to_nan_threh = sys.argv[2]
         interpolation_thesh = sys.argv[3]
-        n_process = sys.argv[4]
+        n_process = int(sys.argv[4])
     else:
         exit(-1)
 

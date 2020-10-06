@@ -437,6 +437,8 @@ def even_list(n):
 def create_activity_graph(output_dir, animal_id, activity, folder, filename, title=None,
                           sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     activity = [-10 if x == 0 else x for x in activity] #set 0 value to 10 for ease of visualisation
+    activity = [-20 if np.isnan(x) else x for x in activity]
+    activity = [-20 if x is None else x for x in activity]
     # for a in activity:
     #     if np.isnan(a) or a == None:
     #         raise ValueError("There should not be nan in trace at this stage!")
@@ -446,7 +448,7 @@ def create_activity_graph(output_dir, animal_id, activity, folder, filename, tit
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    fig.savefig('%s/%s_%d_%s' % (path, animal_id, len(activity), filename.replace(".", "_")))
+    fig.savefig('%s/%s_%d_%s.png' % (path, animal_id, len(activity), filename.replace(".", "_")))
     # print(len(activity), filename.replace(".", "_"))
     fig.clear()
     plt.close(fig)
@@ -690,18 +692,12 @@ def resample_traces(resolution, activity, herd):
 
 def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thresh_z2n, days_before_famacha_test, resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
-    dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (csv_folder, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
+    result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = enable_graph_output
     create_activity_graph_enabled = enable_graph_output
     weather_data = None
     animal_id = int(file.split('\\')[-1].split('_')[0])
-
-    try:
-        shutil.rmtree(dir, ignore_errors=True)
-    except (OSError, FileNotFoundError) as e:
-        # print(e)
-        pass
-
+    pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
     dataset_heatmap_data = {}
     data_famacha_list = [y for x in data_famacha_dict.values() for y in x if y[2] == animal_id]
 
@@ -768,24 +764,24 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
     # print("create_activity_graph...")
     # print("could find %d samples." % len(results))
 
-    total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id)
+    total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = exporting_data_info_to_txt(result_output_dir, results, thresh_i, thresh_z2n, animal_id)
 
     print("computing cwts and set for file %d...", idx)
     for idx in range(len(results)):
         result = results[idx]
         sub_sub_folder = str(result["is_valid"]) + "/"
-        pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
         filename_graph = create_filename(result)
         if create_activity_graph_enabled:
 
             tag = "11"
             if result["famacha_score_increase"]:
                 tag = "12"
-            create_activity_graph(output_dir, tag + "_" + str(result["animal_id"]), result["activity"], dir, filename_graph,
+            create_activity_graph(result_output_dir, tag + "_" + str(result["animal_id"]), result["activity"], result_output_dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
-        # if not result['is_valid']:
+        if not result['is_valid']:
             continue
 
         # print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
@@ -796,11 +792,10 @@ def process_day(enable_graph_output, output_dir, csv_median, idx, thresh_i, thre
         # result["cwt_weight"] = cwt_weight
         result["indexes_cwt"] = indexes_cwt
 
-        if create_cwt_graph_enabled:
-            create_hd_cwt_graph(output_dir, coef, len(cwt), dir, filename_graph, title=create_graph_title(result, "freq"),
-                                sub_sub_folder=sub_sub_folder, freqs=freqs)
+        # create_hd_cwt_graph(output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
+        #                     sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-        create_training_sets(output_dir, result, dir, resolution, days_before_famacha_test, farm_id)
+        create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id)
         results[idx] = None
         gc.collect()
 
@@ -908,14 +903,18 @@ if __name__ == '__main__':
         if 'median' in file:
             file_median = file
             break
-
+    # files = files[0:10]
     famacha_data = get_famacha_data(famacha_file_path)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
 
     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
     csv_median = load_db_from_csv(file_median)
-
+    try:
+        shutil.rmtree(output_dir, ignore_errors=True)
+    except (OSError, FileNotFoundError) as e:
+        # print(e)
+        pass
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
