@@ -354,25 +354,25 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
         # y_pred = pipe.predict(X_test.copy())
         # print(classification_report(y_test, y_pred))
 
-    # print("*******************************************")
-    # print("STEP BY STEP")
-    # print("*******************************************")
-    #
-    # clf_lda = LDA(n_components=1)
-    # X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
-    # X_test_r = clf_lda.transform(X_test.copy())
-    #
-    # X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
-    # y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
-    #
-    # print("->LDA(1)->SVC")
-    # plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-    #                             X_reduced.copy(),
-    #                             y_reduced.copy(),
-    #                             X_test_r.copy(),
-    #                             y_test.copy(),
-    #                             X_train_r.copy(),
-    #                             y_train.copy())
+    print("*******************************************")
+    print("STEP BY STEP")
+    print("*******************************************")
+
+    clf_lda = LDA(n_components=1)
+    X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
+    X_test_r = clf_lda.transform(X_test.copy())
+
+    X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
+    y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
+
+    print("->LDA(1)->SVC")
+    plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
+                                X_reduced.copy(),
+                                y_reduced.copy(),
+                                X_test_r.copy(),
+                                y_test.copy(),
+                                X_train_r.copy(),
+                                y_train.copy())
     # print("->LDA(1)->LDA")
     # plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
     #                             X_reduced.copy(),
