@@ -124,11 +124,19 @@ def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_inter
         pathlib.Path(path).mkdir(parents=True)
     except:
         pass
+    path = path + "interpol_%d_zeros_%d/" %(thresh_interpol, thresh_zero2nan)
+    print("path2=", path)
+    try:
+        pathlib.Path(path).mkdir()
+        print("created path2")
+    except Exception as e:
+        print(e)
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
-    print("purge_file")
-    purge_file(filename_path)
+    #print("purge_file")
+    #purge_file(filename_path)
+    print("create_file=", filename_path)
     df.to_csv(filename_path, sep=',', index=False)
-    print(filename_path)
+    print("final file=", filename_path)
 
 
 if __name__ == '__main__':

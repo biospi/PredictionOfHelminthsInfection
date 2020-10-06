@@ -126,10 +126,10 @@ if __name__ == '__main__':
     thresh_zero2nan = None
     for idx, file in enumerate(files):
         print(file)
-        if 'median' in file.split('\\')[-1]:
+        if 'median' in file.split('/')[-1]:
             continue
-        farm_id = file.split('\\')[-2]
-        animal_id = file.split('\\')[-1].replace('.csv', '')
+        farm_id = file.split('/')[-2]
+        animal_id = file.split('/')[-1].replace('.csv', '')
         thresh_i = int(animal_id.split('_')[2])
         thresh_zero2nan = int(animal_id.split('_')[4])
         df = pd.read_csv(file, sep=",")
