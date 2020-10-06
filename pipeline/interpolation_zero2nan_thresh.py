@@ -127,7 +127,9 @@ def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, 
 def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
     path = "%s/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (output_directory, farm_id, thresh_interpol, thresh_zero2nan)
+    print("mkdir", path)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    print("mkdir done.")
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
