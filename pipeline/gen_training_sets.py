@@ -869,7 +869,11 @@ def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha,
         pathlib.Path(output_dir).mkdir(parents=True)
     except Exception as e:
         print(e)
-    filename_final = "%s/11_%d_12_%d_%s_result_days_%d_interpol_%d_zeros_%d.txt" % (total_sample_11, total_sample_12, output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n)
+    print("output_dir=", output_dir)
+    print("total_sample_11=", total_sample_11)
+    print("total_sample_12=", total_sample_12)
+
+    filename_final = "%s/11_%d_12_%d_%s_result_days_%d_interpol_%d_zeros_%d.txt" % (output_dir, total_sample_11, total_sample_12, farm_id, int(n_days_before_famacha), int(thresh_i),int(thresh_z2n))
     print(filename_final)
     #purge_file(filename_final)
     report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
@@ -881,8 +885,7 @@ def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha,
         outfile.write(report)
         outfile.write('\n')
         outfile.close()
-        print(report)
-
+    print(report)
 
 def parse_csv_db_name(path):
     split = path.split('/')[-3].split('_')
