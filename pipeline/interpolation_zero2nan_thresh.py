@@ -126,12 +126,11 @@ def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, 
 
 def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_interpol, thresh_zero2nan):
     print("exporting data...")
+    print(output_directory)
     pathlib.Path(output_directory).mkdir(parents=True, exist_ok=True)
-    pathlib.Path("%s/%s/" % (output_directory, farm_id)).mkdir(parents=True, exist_ok=True)
-    path = "%s/%s/interpolation_thesh_interpol_%d_zeros_%d/" % (output_directory, farm_id, thresh_interpol, thresh_zero2nan)
-    print("mkdir", path)
+    path = "%s/%s/" % (output_directory, farm_id)
+    print(path)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    print("mkdir done.")
     filename_path = path + "%s_interpol_%d_zeros_%d.csv" % (animal_id, thresh_interpol, thresh_zero2nan)
     purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
@@ -160,12 +159,13 @@ if __name__ == '__main__':
 
     files = glob.glob(csv_dir_path + "/*.csv")
     print("found %d files." % len(files))
-
+    files = files[0:1]
     MULTI_THREADING_ENABLED = (n_process > 1)
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, csv_file in enumerate(files):
+            csv_file = csv_file.replace("\\", "/")
             farm_id = csv_file.split('/')[-2]
             animal_id = csv_file.split('/')[-1].replace('.csv', '')
             pool.apply_async(process_csv, (output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
