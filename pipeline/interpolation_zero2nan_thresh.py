@@ -4,15 +4,7 @@ import glob
 import itertools
 import os
 import os.path
-# import openpyxl
-# import tables
-# from cassandra.cluster import Cluster
-# from ipython_genutils.py3compat import xrange
-# from tables import *
 import os.path
-# from openpyxl import load_workbook
-# from pycel import ExcelCompiler
-# import cryptography #need to be imported or pip install cryptography
 import pathlib
 import sys
 from multiprocessing import Pool
@@ -20,12 +12,6 @@ from sys import exit
 
 import numpy as np
 import pandas as pd
-
-sql_db = None
-MAX_ACTIVITY_COUNT_BIO = 480
-pd.set_option('display.max_columns', 48)
-pd.set_option('display.width', 1000)
-pd.set_option('display.max_rows', 1000)
 
 
 def purge_file(filename):
