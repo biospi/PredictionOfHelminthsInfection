@@ -19,30 +19,6 @@ import numpy as np
 import pandas as pd
 import pycwt as wavelet
 
-from ipython_genutils.py3compat import xrange
-# from matplotlib.colors import LinearSegmentedColormap
-# from matplotlib.lines import Line2D
-# from mlxtend.plotting import plot_decision_regions
-# from scipy import interp
-# from sklearn import preprocessing
-# from sklearn.base import clone
-# from sklearn.cross_decomposition import PLSRegression
-# from sklearn.decomposition import PCA
-# from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.metrics import auc
-# from sklearn.metrics import classification_report, accuracy_score, precision_recall_fscore_support
-# from sklearn.metrics import f1_score
-# from sklearn.metrics import plot_roc_curve
-# from sklearn.metrics import precision_score
-# from sklearn.metrics import recall_score
-# from sklearn.model_selection import GridSearchCV
-# from sklearn.model_selection import StratifiedKFold
-# from sklearn.model_selection import train_test_split
-# from sklearn.pipeline import Pipeline
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.preprocessing import normalize
-# from sklearn.svm import SVC
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))

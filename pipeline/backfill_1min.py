@@ -13,7 +13,7 @@ import numpy as np
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
-# from ipython_genutils.py3compat import xrange
+# from ipython_genutils.py3compat import range
 # from tables import *
 import os.path
 from collections import defaultdict
@@ -27,7 +27,6 @@ import sys
 import pymysql
 import tables
 import xlrd
-from ipython_genutils.py3compat import xrange
 from tables import *
 from functools import partial
 from multiprocessing import Pool
@@ -410,7 +409,7 @@ def resample_to_min(first_timestamp, last_timestamp, animal_records):
     data = []
     n_minutes_in_between = get_elapsed_minutes(first_timestamp, last_timestamp)
     structure_m = {}
-    for i in xrange(0, n_minutes_in_between):
+    for i in range(0, n_minutes_in_between):
         next_timestamp = first_timestamp + timedelta(minutes=i)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:%M")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -453,7 +452,7 @@ def resample_to_5min(first_timestamp, last_timestamp, animal_records):
     data = []
     n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 5)
     structure_m = {}
-    for i in xrange(0, n_minutes_in_between):
+    for i in range(0, n_minutes_in_between):
         next_timestamp = first_timestamp + timedelta(minutes=i * 5)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:%M")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -497,7 +496,7 @@ def resample_to_10min(first_timestamp, last_timestamp, animal_records):
     data = []
     n_minutes_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 10)
     structure_m = {}
-    for i in xrange(0, n_minutes_in_between):
+    for i in range(0, n_minutes_in_between):
         next_timestamp = first_timestamp + timedelta(minutes=i * 10)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:%M")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -537,7 +536,7 @@ def resample_to_hour(first_timestamp, last_timestamp, animal_records):
     data = []
     n_hours_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 60)
     structure_m = {}
-    for i in xrange(0, n_hours_in_between):
+    for i in range(0, n_hours_in_between):
         next_timestamp = first_timestamp + timedelta(hours=i)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT%H:00")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -576,7 +575,7 @@ def resample_to_day(first_timestamp, last_timestamp, animal_records):
     n_days_in_between = int(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24)
     structure_m = {}
     # build the time structure
-    for i in xrange(0, n_days_in_between):
+    for i in range(0, n_days_in_between):
         next_timestamp = first_timestamp + timedelta(days=i)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -615,7 +614,7 @@ def resample_to_week(first_timestamp, last_timestamp, animal_records):
     n_weeks_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24 / 7))
     structure_m = {}
     # build the time structure
-    for i in xrange(0, n_weeks_in_between):
+    for i in range(0, n_weeks_in_between):
         next_timestamp = first_timestamp + timedelta(days=i * 7)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -654,7 +653,7 @@ def resample_to_month(first_timestamp, last_timestamp, animal_records):
     n_months_in_between = int(math.ceil(get_elapsed_minutes(first_timestamp, last_timestamp) / 60 / 24 / 7 / 30))
     structure_m = {}
     # build the time structure
-    for i in xrange(0, n_months_in_between):
+    for i in range(0, n_months_in_between):
         next_timestamp = first_timestamp + timedelta(days=i * 30)
         next_timestamp_human_readable = next_timestamp.strftime("%Y-%m-%dT00:00")
         serial_number = animal_records[0][2]  # just take first record and get serial number
@@ -1209,11 +1208,11 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
                 print("start reading...")
                 found_col_index = False
-                for row_index in xrange(0, sheet.nrows):
+                for row_index in range(0, sheet.nrows):
                     # if row_index > 10:
                     #     break
                     try:
-                        row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
+                        row_values = [sheet.cell(row_index, col_index).value for col_index in range(0, sheet.ncols)]
                         if empty_list(row_values):
                             continue
                         # print(row_values)

@@ -7,7 +7,7 @@ import os.path
 # import openpyxl
 # import tables
 # from cassandra.cluster import Cluster
-# from ipython_genutils.py3compat import xrange
+# from ipython_genutils.py3compat import range
 # from tables import *
 import os.path
 # from openpyxl import load_workbook
