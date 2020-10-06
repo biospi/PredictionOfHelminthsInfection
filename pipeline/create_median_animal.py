@@ -99,7 +99,7 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
 def export_rawdata_to_csv(df, dir_path, thresh_i, thresh_zero2nan):
     print("exporting data...")
     print("dir_path=", dir_path)
-    filename_path = dir_path + "median_thesh_interpol_%d_zeros_%d.csv" % (thresh_i, thresh_zero2nan)
+    filename_path = dir_path + "median_interpol_%d_zeros_%d.csv" % (thresh_i, thresh_zero2nan)
     #purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print("output file=", filename_path)

@@ -38,10 +38,10 @@ skipped_class_false, skipped_class_true = -1, -1
 
 def purge_file(filename):
     print("purge %s..." % filename)
-    try:
-        os.remove(filename)
-    except FileNotFoundError:
-        print("file not found.")
+    #try:
+    #    os.remove(filename)
+    #except FileNotFoundError:
+    #    print("file not found.")
 
 
 def get_weight(curr_datetime, data_famacha_dict, animal_id):
@@ -250,7 +250,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     # if len(dtf3) > 0 and len(dtf2) > 0:
     #     nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
     # if len(dtf4) > 0 and len(dtf3) > 0:
-    #     nd3 = abs(get_ndays_between_dates(dtf3, dtf4))
+    #     nd3 = abs(get_ndays_between_dates(dtf2, dtf4))
     # if len(dtf5) > 0 and len(dtf4) > 0:
     #     nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
 
@@ -260,9 +260,9 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
     rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
 
     herd_activity_list = rows_herd
-    herd_activity_list_raw = herd_activity_list.copy()
+    herd_activity_list_raw = herd_activity_list
     activity_list = rows_activity
-    activity_list_raw = activity_list.copy()
+    activity_list_raw = activity_list
 
     expected_sample_count = get_expected_sample_count("1min", days_before_famacha_test)
 
@@ -437,7 +437,10 @@ def create_activity_graph(output_dir, animal_id, activity, folder, filename, tit
     plt.plot(activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    try:
+        pathlib.Path(path).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     fig.savefig('%s/%s_%d_%s.png' % (path, animal_id, len(activity), filename.replace(".", "_")))
     # print(len(activity), filename.replace(".", "_"))
     fig.clear()
@@ -456,7 +459,10 @@ def create_hd_cwt_graph(output_dir, coefs, cwt_lengh, folder, filename, title=No
     axs.set_yscale('log')
 
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    try:
+        pathlib.Path(path).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     fig.savefig('%s/%d_%s' % (path, cwt_lengh, filename.replace('.', '')))
     # print(cwt_lengh, filename.replace('.', ''))
     fig.clear()
@@ -568,14 +574,20 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     training_set.append(result["nd3"])
     training_set.append(result["nd4"])
     path = "%s/training_sets" % output_dir
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    try:
+        pathlib.Path(path).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.data" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
     # print("set size is %d, %s.....%s" % (
     #     len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
+    print("filename=", filename)
     with open(filename, 'a') as outfile:
         outfile.write(training_str_flatten)
         outfile.write('\n')
+
+    print("appended dataset")
 
     # filename_t = "%s/temperature.data" % path
     # temp_str_flatten = str(result["temperature"]).strip('[]').replace(' ', '').replace('None', 'NaN')
@@ -687,8 +699,19 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
     create_cwt_graph_enabled = enable_graph_output
     create_activity_graph_enabled = enable_graph_output
     weather_data = None
-    animal_id = int(file.split('\\')[-1].split('_')[0])
-    pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
+    print("file=", file)
+    print("split=", file.split('/'))
+    try:
+        animal_id = int(file.split('/')[-1].split('_')[0])
+    except Exception as e:
+        print("found median file!", e)
+        return [0, 0, 0, 0, 0, 0] 
+
+    print("result_output_dir=", result_output_dir)
+    try:
+        pathlib.Path(result_output_dir).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     dataset_heatmap_data = {}
     data_famacha_list = [y for x in data_famacha_dict.values() for y in x if y[2] == animal_id]
 
@@ -696,7 +719,8 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
     print("processing file %d" % idx)
     for i, curr_data_famacha in enumerate(data_famacha_list):
         try:
-            result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_list.copy(),
+            data_famacha_copy = data_famacha_list
+            result = get_training_data(csv_df, csv_median, curr_data_famacha, i, data_famacha_copy,
                                        data_famacha_dict, weather_data, resolution,
                                        days_before_famacha_test)
         except KeyError as e:
@@ -765,7 +789,7 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
 
         if create_activity_graph_enabled:
             sub_sub_folder = str(result["is_valid"]) + "/"
-            pathlib.Path(result_output_dir).mkdir(parents=True, exist_ok=True)
+            pathlib.Path(result_output_dir).mkdir(parents=True)
             filename_graph = create_filename(result)
 
             tag = "11"
@@ -841,18 +865,23 @@ def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal
 def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, total, total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12):
     print("FINAL")
     print("exporting_data_info_to_txt_final.")
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    try:
+        pathlib.Path(output_dir).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     filename_final = "%s/11_%d_12_%d_%s_result_days_%d_interpol_%d_zeros_%d.txt" % (total_sample_11, total_sample_12, output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n)
     print(filename_final)
-    purge_file(filename_final)
+    #purge_file(filename_final)
     report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
              "-> 1 = %d\n1 -> 2 = %d\n" % (total, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
 
+    print("filename_final=", filename_final)
     with open(filename_final, 'a') as outfile:
         outfile.write(report)
         outfile.write('\n')
         outfile.close()
+        print(report)
 
 
 def parse_csv_db_name(path):
@@ -873,17 +902,18 @@ if __name__ == '__main__':
         resampling_resolution = sys.argv[5]
         enable_graph_output = sys.argv[6].lower() == 'true'
         n_process = int(sys.argv[7])
+        print("enable_graph=", enable_graph_output)
     else:
         exit(-1)
 
-    print("output_dir=", output_dir)
-    print("csv_db_path=", csv_db_dir_path)
+    print("output_dir=",output_dir)
+    print("csv_db_path=",csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
     print("n_days_before_famacha=", n_days_before_famacha)
     print("resampling_resolution=", resampling_resolution)
 
-    files = glob.glob(csv_db_dir_path+"*.csv")
-    print("found %d files." % len(files))
+    files = glob.glob(csv_db_dir_path+"/*csv")
+    print("found %d files."% len(files))
     if len(files) == 0:
         print("no files in %s" % csv_db_dir_path)
         exit(-1)
@@ -902,7 +932,11 @@ if __name__ == '__main__':
     csv_median = load_db_from_csv(file_median)
 
     results = []
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    try:
+        print("output_dir=", output_dir)
+        pathlib.Path(output_dir).mkdir(parents=True)
+    except Exception as e:
+        print(e)
     result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
         output_dir, farm_id, resampling_resolution, n_days_before_famacha, thresh_i, thresh_z2n)
     if MULTI_THREADING_ENABLED:
@@ -912,7 +946,6 @@ if __name__ == '__main__':
                         csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,)))
         pool.close()
         pool.join()
-        del pool
         print("multithreaded loop finished!")
         total_sample_11 = []
         total_sample_12 = []
@@ -935,7 +968,31 @@ if __name__ == '__main__':
 
         exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
                                          sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
+        pool.terminate()
+
     else:
         for idx, file in enumerate(files):
-            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, result_output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
+            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, result_output_dir, csv_median, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
+        total_sample_11 = []
+        total_sample_12 = []
+        nan_sample_11 = []
+        nan_sample_12 = []
+        usable_11 = []
+        usable_12 = []
+        total = []
+        files_txt = glob.glob(result_output_dir + "/*.txt")
+        for file in files_txt:
+            with open(file) as f:
+                lines = [line.rstrip() for line in f]
+                total.append(int(lines[0].split('=')[1].strip()))
+                total_sample_11.append(int(lines[1].split('=')[1].strip()))
+                total_sample_12.append(int(lines[2].split('=')[1].strip()))
+                nan_sample_11.append(int(lines[4].split('=')[1].strip()))
+                nan_sample_12.append(int(lines[5].split('=')[1].strip()))
+                usable_11.append(int(lines[7].split('=')[1].strip()))
+                usable_12.append(int(lines[8].split('=')[1].strip()))
+
+        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
+                                         sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
+
+
