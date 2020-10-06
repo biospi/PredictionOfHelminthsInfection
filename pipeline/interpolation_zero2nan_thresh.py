@@ -154,7 +154,7 @@ if __name__ == '__main__':
     else:
         exit(-1)
 
-    files = glob.glob(csv_dir_path)
+    files = glob.glob(csv_dir_path + "/*.csv")
     print("found %d files." % len(files))
 
     MULTI_THREADING_ENABLED = (n_process > 1)
