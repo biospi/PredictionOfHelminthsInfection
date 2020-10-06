@@ -98,10 +98,11 @@ def process_csv(path, zero_to_nan_threh, interpolation_thesh, farm_id, animal_id
 
 def export_rawdata_to_csv(df, dir_path, thresh_i, thresh_zero2nan):
     print("exporting data...")
+    print("dir_path=", dir_path)
     filename_path = dir_path + "median_thesh_interpol_%d_zeros_%d.csv" % (thresh_i, thresh_zero2nan)
-    purge_file(filename_path)
+    #purge_file(filename_path)
     df.to_csv(filename_path, sep=',', index=False)
-    print(filename_path)
+    print("output file=", filename_path)
 
 
 if __name__ == '__main__':
@@ -116,7 +117,7 @@ if __name__ == '__main__':
         exit(-1)
 
     df_raw = pd.DataFrame()
-
+    print("csv_dir=", csv_dir)
     files = glob.glob(csv_dir)
     if len(files) == 0:
         print("no files in %s" % csv_dir)
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     thresh_i = None
     thresh_zero2nan = None
     for idx, file in enumerate(files):
-        print(file)
+        print("file=", file)
         if 'median' in file.split('/')[-1]:
             continue
         farm_id = file.split('/')[-2]
@@ -146,5 +147,6 @@ if __name__ == '__main__':
     #     df_raw[col][200000: 200300].plot(alpha=0.5)
     # compute_median["first_sensor_value"][200000: 200300].plot(color="black")
     # plt.show()
-
-    export_rawdata_to_csv(compute_median, csv_dir[:-5], thresh_i, thresh_zero2nan)
+    csv_dir = os.path.dirname(csv_dir) + "/"
+    print("csv_dir=", csv_dir)
+    export_rawdata_to_csv(compute_median, csv_dir, thresh_i, thresh_zero2nan)
