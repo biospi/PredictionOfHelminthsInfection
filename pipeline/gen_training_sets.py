@@ -873,7 +873,7 @@ def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha,
     print("total_sample_11=", total_sample_11)
     print("total_sample_12=", total_sample_12)
 
-    filename_final = "%s/11_%d_12_%d_%s_result_days_%d_interpol_%d_zeros_%d.txt" % (output_dir, total_sample_11, total_sample_12, farm_id, int(n_days_before_famacha), int(thresh_i),int(thresh_z2n))
+    filename_final = "%s/11_%d_12_%d_%s_result_days_%d_interpol_%d_zeros_%d.txt" % (output_dir, usable_11, usable_12, farm_id, int(n_days_before_famacha), int(thresh_i),int(thresh_z2n))
     print(filename_final)
     #purge_file(filename_final)
     report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
