@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import pathlib
+import glob2
 
 if __name__ == "__main__":
     print("args: output_folder datset_parent_folder")
@@ -13,7 +14,7 @@ if __name__ == "__main__":
         exit(-1)
 
     print("dataset_folder=", dataset_folder)
-    files = glob.glob(dataset_folder, recursive=True)
+    files = glob2.glob(dataset_folder, recursive=True)
     filter_files = []
     for file in files:
         file = file.replace("\\", '/')
