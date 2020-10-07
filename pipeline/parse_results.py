@@ -15,8 +15,11 @@ if __name__ == "__main__":
     else:
         exit(-1)
 
+    print("output_dir=", output_dir)
     print("dataset_folder=", dataset_folder)
+    print("searching txt files...")
     files = glob2.glob(dataset_folder)
+    print("found %d .txt files" % len(files))
     filter_files = []
     for file in files:
         file = file.replace("\\", '/')
@@ -132,7 +135,7 @@ if __name__ == "__main__":
             axs[1, j].set(xlabel='Threshold zeros')
             axs[1, j].legend(loc="upper left")
 
-        out_filename = "%s/png/%s_allthresh_%s_threshi_%d_thresh_z%d.png" % (output_dir, resolution, farm_id, thresh_interpol, thresh_zero)
+        out_filename = "%s/png/%s_allthresh_%s.png" % (output_dir, resolution, farm_id)
         fig.savefig(out_filename)
         fig.savefig(out_filename.replace(".png", ".svg").replace("png", "svg"))
         print("final file output=", out_filename)
