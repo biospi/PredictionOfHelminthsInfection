@@ -905,6 +905,7 @@ if __name__ == '__main__':
         resampling_resolution = sys.argv[5]
         enable_graph_output = sys.argv[6].lower() == 'true'
         n_process = int(sys.argv[7])
+        print("N_PROCESS=", n_process)
         print("enable_graph=", enable_graph_output)
     else:
         exit(-1)
@@ -930,6 +931,7 @@ if __name__ == '__main__':
     famacha_data = get_famacha_data(famacha_file_path)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
+    print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
 
     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
     csv_median = load_db_from_csv(file_median)

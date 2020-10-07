@@ -255,7 +255,7 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     plt.show()
 
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    filename = "%s\\%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.txt" % (output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
+    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.txt" % (output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
     with open(filename, 'a') as outfile:
         print("->SVC")
         outfile.write('->SVC\n')
