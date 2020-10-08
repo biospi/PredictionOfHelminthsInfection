@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -244,15 +246,15 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
 
-    print("trying pipeline")
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=int(test_size)/100)
+    t_s = test_size/100
+    print("test size in percent=", t_s)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
     print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
     print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
 
-    plt.hist(X_train.values.flatten(), bins='auto', histtype='step', density=True)
-    plt.title("Distribution of training data")
-    plt.show()
+    # plt.hist(X_train.values.flatten(), bins='auto', histtype='step', density=True)
+    # plt.title("Distribution of training data")
+    # plt.show()
 
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.txt" % (output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
@@ -354,25 +356,25 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
         # y_pred = pipe.predict(X_test.copy())
         # print(classification_report(y_test, y_pred))
 
-    print("*******************************************")
-    print("STEP BY STEP")
-    print("*******************************************")
-
-    clf_lda = LDA(n_components=1)
-    X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
-    X_test_r = clf_lda.transform(X_test.copy())
-
-    X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
-    y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
-
-    print("->LDA(1)->SVC")
-    plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-                                X_reduced.copy(),
-                                y_reduced.copy(),
-                                X_test_r.copy(),
-                                y_test.copy(),
-                                X_train_r.copy(),
-                                y_train.copy())
+    # print("*******************************************")
+    # print("STEP BY STEP")
+    # print("*******************************************")
+    #
+    # clf_lda = LDA(n_components=1)
+    # X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
+    # X_test_r = clf_lda.transform(X_test.copy())
+    #
+    # X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
+    # y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
+    #
+    # print("->LDA(1)->SVC")
+    # plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
+    #                             X_reduced.copy(),
+    #                             y_reduced.copy(),
+    #                             X_test_r.copy(),
+    #                             y_test.copy(),
+    #                             X_train_r.copy(),
+    #                             y_train.copy())
     # print("->LDA(1)->LDA")
     # plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
     #                             X_reduced.copy(),
@@ -566,6 +568,11 @@ if __name__ == "__main__":
     else:
         exit(-1)
 
+    print("output_dir=", output_dir)
+    print("dataset_filepath=", dataset_filepath)
+    print("test_size=", test_size)
+
+    print("loading dataset...")
     data_frame_original, data_frame, _ = load_df_from_datasets(dataset_filepath)
     split = dataset_filepath.split("/")[-1].split('.')[0].split('_')
     thresh_i = int(split[-3])
@@ -573,6 +580,11 @@ if __name__ == "__main__":
     days = int(split[4])
     farm_id = split[1] + "_" + split[2]
     option = split[0]
+    print("thresh_i=", thresh_i)
+    print("thresh_z=", thresh_z)
+    print("days=", days)
+    print("farm_id=", farm_id)
+    print("option=", option)
 
     process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, downsample_false_class=True)
     process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option,  downsample_false_class=False)
