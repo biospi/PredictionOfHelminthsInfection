@@ -15,11 +15,9 @@ if __name__ == "__main__":
     else:
         exit(-1)
 
-    print("output_dir=", output_dir)
     print("dataset_folder=", dataset_folder)
-    print("searching txt files...")
+    print("searching for files...")
     files = glob2.glob(dataset_folder)
-    print("found %d .txt files" % len(files))
     filter_files = []
     for file in files:
         file = file.replace("\\", '/')
@@ -32,7 +30,7 @@ if __name__ == "__main__":
         exit(-1)
     print("found %d files" % len(filter_files))
     farm_id = ""
-    df = pd.DataFrame(columns=['usable_11', 'usable_12', 'n_days_before_famacha', 'thresh_interpol', 'thresh_zero', 'resolution'])
+    df = pd.DataFrame(columns=['usable_11', 'usable_12', 'usable_11_total', 'usable_12_total', 'n_days_before_famacha', 'thresh_interpol', 'thresh_zero', 'resolution'])
     for i, file in enumerate(filter_files):
         print("file=", file)
         with open(file) as f:
@@ -40,23 +38,29 @@ if __name__ == "__main__":
             try:
                 usable_11 = int(lines[7].split('=')[1].strip())
                 usable_12 = int(lines[8].split('=')[1].strip())
+                usable_11_total = int(lines[1].split('=')[1].strip())
+                usable_12_total = int(lines[2].split('=')[1].strip())
                 split = file.split("/")[-1].split('_')
                 n_days_before_famacha = int(split[8])
                 thresh_interpol = int(split[10])
                 thresh_zero = int(split[12].replace(".txt", ""))
                 farm_id = split[4] + "_" + split[5]
                 resolution = file.split('/')[-2].split("_")[2]
+                usable_11_str = str(usable_11) + "_" + str(thresh_zero)
+                usable_12_str = str(usable_12) + "_" + str(thresh_zero)
             except Exception as e:
                 print("resolution=", resolution)
                 print("split=", split)
                 print("farm_id=", farm_id)
-                print("usable_11=", usable_11)
-                print("usable_12=", usable_12)
+                print("usable_11_total=", usable_11_total)
+                print("usable_12_total=", usable_12_total)
+                print("usable_11_str=", usable_11_str)
+                print("usable_12_str=", usable_12_str)
                 print("n_days_before_famacha=", n_days_before_famacha)
                 print("thresh_interpol=", thresh_interpol)
                 print("thresh_zero=", thresh_zero)
                 print("resolution=", resolution)
-            df.loc[i] = [usable_11, usable_12, n_days_before_famacha, thresh_interpol, thresh_zero, resolution]
+            df.loc[i] = [usable_11, usable_12, usable_11_total, usable_12_total, n_days_before_famacha, thresh_interpol, thresh_zero, resolution]
 
     print("DF")
     print(df)
@@ -116,26 +120,39 @@ if __name__ == "__main__":
     for i, df_g_days in enumerate(list_of_df_grouped_by_resolution):
         grouped_by_days = [g for _, g in df_g_days.groupby(['n_days_before_famacha'])]
         plt.clf()
-        fig, axs = plt.subplots(2, len(grouped_by_days), figsize=(18., 7.2))
+        fig, axs = plt.subplots(2, len(grouped_by_days), figsize=(30.40, 24.40))
         for j, df_g_days in enumerate(grouped_by_days):
-            df_g_days = df_g_days.sort_values(by=['thresh_interpol'])
             dbt = int(df_g_days["n_days_before_famacha"].values[0])
             resolution = df_g_days["resolution"].values[0]
-            axs[0, j].plot(df_g_days["thresh_interpol"], df_g_days["usable_11"], label="usable_11")
-            axs[0, j].plot(df_g_days["thresh_interpol"], df_g_days["usable_12"], label="usable_12")
+            grouped_by_threshz = [g for _, g in df_g_days.groupby(['thresh_zero'])]
+            for df_ in grouped_by_threshz:
+                df_ = df_.sort_values(by=['thresh_interpol'])
+                tz = int(df_["thresh_zero"].values[0])
+                tot_11 = df_g_days["usable_11_total"].values[0]
+                tot_12 = df_g_days["usable_12_total"].values[0]
+                axs[0, j].plot(df_["thresh_interpol"], df_["usable_11"], label="usable_1->1/%d tz %d" % (tot_11, tz))
+                axs[0, j].plot(df_["thresh_interpol"], df_["usable_12"], label="usable_1->2/%d tz %d" % (tot_12, tz))
             axs[0, j].set_title("%s %d days window" % (resolution, dbt))
             axs[0, j].set(xlabel='Threshold interpolation')
+            axs[0, j].set_ylim([df["usable_11"].min(), df["usable_11"].max()+10])
             axs[0, j].legend(loc="upper left")
 
-            df_g_days = df_g_days.sort_values(by=['thresh_zero'])
-            dbt = int(df_g_days["n_days_before_famacha"].values[0])
-            axs[1, j].plot(df_g_days["thresh_zero"], df_g_days["usable_11"], label="usable_11")
-            axs[1, j].plot(df_g_days["thresh_zero"], df_g_days["usable_12"], label="usable_12")
-            # axs[1, i].set_title("days before test=%d" % dbt)
+            # df_g_days = df_g_days.sort_values(by=['thresh_interpol'])
+            # dbt = int(df_g_days["n_days_before_famacha"].values[0])
+            grouped_by_threshi = [g for _, g in df_g_days.groupby(['thresh_interpol'])]
+            for df_ in grouped_by_threshi:
+                df_ = df_.sort_values(by=['thresh_zero'])
+                ti = int(df_["thresh_interpol"].values[0])
+                tot_11 = df_g_days["usable_11_total"].values[0]
+                tot_12 = df_g_days["usable_12_total"].values[0]
+                axs[1, j].plot(df_["thresh_zero"], df_["usable_11"], label="usable_1->1/%d ti %d" % (tot_11, ti))
+                axs[1, j].plot(df_["thresh_zero"], df_["usable_12"], label="usable_1->2/%d ti %d" % (tot_12, ti))
             axs[1, j].set(xlabel='Threshold zeros')
+            axs[1, j].set_ylim([df["usable_11"].min(), df["usable_11"].max()+10])
             axs[1, j].legend(loc="upper left")
 
-        out_filename = "%s/png/%s_allthresh_%s.png" % (output_dir, resolution, farm_id)
+        out_filename = "%s/png/%s_allthresh_%s_threshi_%d_thresh_z%d.png" % (output_dir, resolution, farm_id, thresh_interpol, thresh_zero)
+        fig.tight_layout()
         fig.savefig(out_filename)
         fig.savefig(out_filename.replace(".png", ".svg").replace("png", "svg"))
         print("final file output=", out_filename)
