@@ -6,6 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pathlib
 import glob2
+from random import randint
 
 if __name__ == "__main__":
     print("args: output_folder datset_parent_folder")
@@ -117,6 +118,8 @@ if __name__ == "__main__":
     # plt.close(fig)
     # plt.clf()
 
+    colors = ['tab:blue', 'tab:orange', 'tab:green','tab:red','tab:purple','tab:brown' ,'tab:pink','tab:gray','tab:olive','tab:cyan','b', 'g', 'r', 'm', 'k']
+
     for i, df_g_days in enumerate(list_of_df_grouped_by_resolution):
         grouped_by_days = [g for _, g in df_g_days.groupby(['n_days_before_famacha'])]
         plt.clf()
@@ -125,30 +128,38 @@ if __name__ == "__main__":
             dbt = int(df_g_days["n_days_before_famacha"].values[0])
             resolution = df_g_days["resolution"].values[0]
             grouped_by_threshz = [g for _, g in df_g_days.groupby(['thresh_zero'])]
+            cpt_color = 0
             for df_ in grouped_by_threshz:
                 df_ = df_.sort_values(by=['thresh_interpol'])
                 tz = int(df_["thresh_zero"].values[0])
                 tot_11 = df_g_days["usable_11_total"].values[0]
                 tot_12 = df_g_days["usable_12_total"].values[0]
-                axs[0, j].plot(df_["thresh_interpol"], df_["usable_11"], label="usable_1->1/%d tz %d" % (tot_11, tz))
-                axs[0, j].plot(df_["thresh_interpol"], df_["usable_12"], label="usable_1->2/%d tz %d" % (tot_12, tz))
+                # axs[0, j].plot(df_["thresh_interpol"], (df_["usable_11"]/tot_11)*100, label="usable_1->1/%d tz %d" % (tot_11, tz), color=colors[cpt_color], linestyle="-")
+                # axs[0, j].plot(df_["thresh_interpol"], (df_["usable_12"]/tot_12)*100, label="usable_1->2/%d tz %d" % (tot_12, tz), color=colors[cpt_color], linestyle="--")
+                axs[0, j].plot(df_["thresh_interpol"], df_["usable_11"], label="usable_1->1/%d tz %d" % (tot_11, tz), color=colors[cpt_color], linestyle="-")
+                axs[0, j].plot(df_["thresh_interpol"], df_["usable_12"], label="usable_1->2/%d tz %d" % (tot_12, tz), color=colors[cpt_color], linestyle="--")
+                cpt_color += 1
             axs[0, j].set_title("%s %d days window" % (resolution, dbt))
-            axs[0, j].set(xlabel='Threshold interpolation')
-            axs[0, j].set_ylim([df["usable_11"].min(), df["usable_11"].max()+10])
+            axs[0, j].set(xlabel='Threshold linear interpolation')
+            axs[0, j].set_ylim([0, df["usable_11"].max()])
             axs[0, j].legend(loc="upper left")
 
             # df_g_days = df_g_days.sort_values(by=['thresh_interpol'])
             # dbt = int(df_g_days["n_days_before_famacha"].values[0])
             grouped_by_threshi = [g for _, g in df_g_days.groupby(['thresh_interpol'])]
+            cpt_color = 0
             for df_ in grouped_by_threshi:
                 df_ = df_.sort_values(by=['thresh_zero'])
                 ti = int(df_["thresh_interpol"].values[0])
                 tot_11 = df_g_days["usable_11_total"].values[0]
                 tot_12 = df_g_days["usable_12_total"].values[0]
-                axs[1, j].plot(df_["thresh_zero"], df_["usable_11"], label="usable_1->1/%d ti %d" % (tot_11, ti))
-                axs[1, j].plot(df_["thresh_zero"], df_["usable_12"], label="usable_1->2/%d ti %d" % (tot_12, ti))
-            axs[1, j].set(xlabel='Threshold zeros')
-            axs[1, j].set_ylim([df["usable_11"].min(), df["usable_11"].max()+10])
+                # axs[1, j].plot(df_["thresh_zero"], (df_["usable_11"]/tot_11)*100, label="usable_1->1/%d ti %d" % (tot_11, ti), color=colors[cpt_color], linestyle="-")
+                # axs[1, j].plot(df_["thresh_zero"], (df_["usable_12"]/tot_12)*100, label="usable_1->2/%d ti %d" % (tot_12, ti), color=colors[cpt_color], linestyle="--")
+                axs[1, j].plot(df_["thresh_zero"], df_["usable_11"], label="usable_1->1/%d ti %d" % (tot_11, ti), color=colors[cpt_color], linestyle="-")
+                axs[1, j].plot(df_["thresh_zero"], df_["usable_12"], label="usable_1->2/%d ti %d" % (tot_12, ti), color=colors[cpt_color], linestyle="--")
+                cpt_color += 1
+            axs[1, j].set(xlabel='Threshold zeros to nan')
+            axs[1, j].set_ylim([0, df["usable_11"].max()])
             axs[1, j].legend(loc="upper left")
 
         out_filename = "%s/png/%s_allthresh_%s_threshi_%d_thresh_z%d.png" % (output_dir, resolution, farm_id, thresh_interpol, thresh_zero)
