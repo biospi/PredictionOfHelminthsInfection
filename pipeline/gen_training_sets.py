@@ -271,7 +271,7 @@ def get_training_data(csv_df, csv_median_df, curr_data_famacha, i, data_famacha_
         # print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
         return
 
-    # activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
+    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
