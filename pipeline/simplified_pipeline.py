@@ -1,3 +1,4 @@
+from __future__ import division #for python2 regular div
 import matplotlib
 matplotlib.use('Agg')
 import pandas as pd
@@ -21,7 +22,7 @@ import sys
 import pathlib
 from sklearn import datasets
 import os
-
+from sklearn.utils import shuffle
 
 META_DATA_LENGTH = 19
 
@@ -245,8 +246,8 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
-
-    t_s = test_size/100
+    print("test_size=", test_size, test_size/100)
+    t_s = float(test_size/100)
     print("test size in percent=", t_s)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
     print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
@@ -256,9 +257,18 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     # plt.title("Distribution of training data")
     # plt.show()
 
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    try:
+        pathlib.Path(output_dir).mkdir(parents=True)
+    except Exception as e:
+        print(e)
+        
     filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.txt" % (output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
     with open(filename, 'a') as outfile:
+        outfile.write("************************************************\n")
+        outfile.write("downsample on= " + str(downsample_false_class)+"\n")
+        outfile.write("training-> class0="+ str(y_train[y_train == 0].size) + " class1=" + str(y_train[y_train == 1].size)+"\n")
+        outfile.write("test-> class0="+ str(y_test[y_test == 0].size) + " class1=" + str(y_test[y_test == 1].size)+"\n")
+
         print("->SVC")
         outfile.write('->SVC\n')
         pipe = Pipeline([('svc', SVC(probability=True))])
@@ -585,7 +595,7 @@ if __name__ == "__main__":
     print("days=", days)
     print("farm_id=", farm_id)
     print("option=", option)
-
+    data_frame = shuffle(data_frame)
     process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, downsample_false_class=True)
     process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option,  downsample_false_class=False)
 
