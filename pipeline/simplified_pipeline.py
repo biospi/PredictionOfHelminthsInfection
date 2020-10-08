@@ -49,11 +49,11 @@ def find_type_for_mem_opt(df):
 
 def load_df_from_datasets(fname, label_col='label'):
     print("load_df_from_datasets...", fname)
-    df = pd.read_csv(fname, nrows=1, sep=",", header=None)
+    df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
     # print(df)
     type_dict = find_type_for_mem_opt(df)
 
-    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False)
+    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False, error_bad_lines=False)
     data_frame = data_frame.drop_duplicates()
     # print(data_frame)
     sample_count = df.shape[1]
