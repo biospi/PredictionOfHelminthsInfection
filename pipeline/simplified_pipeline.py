@@ -242,7 +242,7 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
         df_false = df_false.head(df_true.shape[0])
 
         data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
-    dataframe = dataframe.dropna()
+    data_frame = data_frame.dropna()
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
