@@ -1,8 +1,10 @@
 from __future__ import division  # for python2 regular div
 import matplotlib
 import glob2
+from sys import platform as _platform
 
-matplotlib.use('Agg')
+if _platform == "linux" or _platform == "linux2":
+    matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,6 +28,7 @@ from sklearn import datasets
 import os
 from sklearn.utils import shuffle
 from multiprocessing import Pool
+import random
 
 META_DATA_LENGTH = 19
 
@@ -169,6 +172,11 @@ def plot_contours(ax, clf, xx, yy, **params):
 def dummy_run(X, y, test_size, filename):
     plt.show()
     print("dummy run!")
+    X = pd.DataFrame(X)
+    for i, row in X.iterrows():
+        for j in row.index.values:
+            X.at[i, j] = random.random()
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y,
                                                         test_size=int(test_size) / 100)
     print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
@@ -180,59 +188,62 @@ def dummy_run(X, y, test_size, filename):
     purge_file(filename)
     with open(filename, 'a') as outfile:
         print("->SVC")
-        print('->SVC\n')
         pipe = Pipeline([('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
 
         print("->LDA")
-        print('->LDA\n')
         pipe = Pipeline([('lda', LDA())])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
 
         print("->StandardScaler->SVC")
-        print("->StandardScaler->SVC\n")
         pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
-        print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
 
         print("->MinMaxScaler->SVC")
-        print("->MinMaxScaler->SVC\n")
         pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
         print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
 
         print("->StandardScaler->LDA(1)->SVC")
-        print("->StandardScaler->LDA(1)->SVC\n")
         pipe = Pipeline(
             [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
 
         print("->LDA(1)->SVC")
-        print("->LDA(1)->SVC\n")
         pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        print(str(classification_report(y_test, y_pred, output_dict=True)))
-        print('\n\n')
+
+    print("*******************************************")
+    print("STEP BY STEP")
+    print("*******************************************")
+
+    clf_lda = LDA(n_components=1)
+    X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
+    X_test_r = clf_lda.transform(X_test.copy())
+
+    X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
+    y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
+
+    print("->LDA(1)->SVC")
+    plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
+                                X_reduced.copy(),
+                                y_reduced.copy(),
+                                X_test_r.copy(),
+                                y_test.copy(),
+                                X_train_r.copy(),
+                                y_train.copy())
 
 
 def process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, y_col='label',
@@ -591,9 +602,9 @@ def plot_2D_decision_boundaries(model, clf_name, dim_reduc_name, dim, nfold, res
 
 if __name__ == "__main__":
     print("args: output_dir dataset_filepath test_size")
-    # print("********************************************************************")
+    print("********************************************************************")
     # iris = datasets.load_iris()
-    # X = iris.data[:, :2]
+    # X = iris.data[:, :100]
     # y = iris.target
     # dummy_run(X, y, 40, "dummy_iris.txt")
     # print("********************************************************************")
