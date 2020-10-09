@@ -1,5 +1,7 @@
-from __future__ import division #for python2 regular div
+from __future__ import division  # for python2 regular div
 import matplotlib
+import glob2
+
 matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
@@ -23,6 +25,7 @@ import pathlib
 from sklearn import datasets
 import os
 from sklearn.utils import shuffle
+from multiprocessing import Pool
 
 META_DATA_LENGTH = 19
 
@@ -177,65 +180,67 @@ def dummy_run(X, y, test_size, filename):
     purge_file(filename)
     with open(filename, 'a') as outfile:
         print("->SVC")
-        outfile.write('->SVC\n')
+        print('->SVC\n')
         pipe = Pipeline([('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
         print("->LDA")
-        outfile.write('->LDA\n')
+        print('->LDA\n')
         pipe = Pipeline([('lda', LDA())])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
         print("->StandardScaler->SVC")
-        outfile.write("->StandardScaler->SVC\n")
+        print("->StandardScaler->SVC\n")
         pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
         print("->MinMaxScaler->SVC")
-        outfile.write("->MinMaxScaler->SVC\n")
+        print("->MinMaxScaler->SVC\n")
         pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
         print("->StandardScaler->LDA(1)->SVC")
-        outfile.write("->StandardScaler->LDA(1)->SVC\n")
+        print("->StandardScaler->LDA(1)->SVC\n")
         pipe = Pipeline(
             [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
         print("->LDA(1)->SVC")
-        outfile.write("->LDA(1)->SVC\n")
+        print("->LDA(1)->SVC\n")
         pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+        print(str(classification_report(y_test, y_pred, output_dict=True)))
+        print('\n\n')
 
 
-def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, y_col='label', downsample_false_class=True):
+def process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, y_col='label',
+                       downsample_false_class=True):
     print("*******************************************************************")
     print("downsample_false_class=", downsample_false_class)
     print("*******************************************************************")
+    report_rows_list = []
     if downsample_false_class:
         df_true = data_frame[data_frame['label'] == True]
         df_false = data_frame[data_frame['label'] == False]
@@ -246,10 +251,14 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
-    print("test_size=", test_size, test_size/100)
-    t_s = float(test_size/100)
+    print("test_size=", test_size, test_size / 100)
+    t_s = float(test_size / 100)
     print("test size in percent=", t_s)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
+    except ValueError as e:
+        print(e)
+        return
     print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
     print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
 
@@ -257,166 +266,188 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
     # plt.title("Distribution of training data")
     # plt.show()
 
-    try:
-        pathlib.Path(output_dir).mkdir(parents=True)
-    except Exception as e:
-        print(e)
-        
-    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.txt" % (output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
-    with open(filename, 'a') as outfile:
-        outfile.write("************************************************\n")
-        outfile.write("downsample on= " + str(downsample_false_class)+"\n")
-        outfile.write("training-> class0="+ str(y_train[y_train == 0].size) + " class1=" + str(y_train[y_train == 1].size)+"\n")
-        outfile.write("test-> class0="+ str(y_test[y_test == 0].size) + " class1=" + str(y_test[y_test == 1].size)+"\n")
+    print("************************************************\n")
+    print("downsample on= " + str(downsample_false_class) + "\n")
+    print("training-> class0=" + str(y_train[y_train == 0].size) + " class1=" + str(y_train[y_train == 1].size) + "\n")
+    print("test-> class0=" + str(y_test[y_test == 0].size) + " class1=" + str(y_test[y_test == 1].size) + "\n")
 
-        print("->SVC")
-        outfile.write('->SVC\n')
-        pipe = Pipeline([('svc', SVC(probability=True))])
-        pipe.fit(X_train.copy(), y_train.copy())
-        y_pred = pipe.predict(X_test.copy())
-        print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+    print('->SVC')
+    pipe = Pipeline([('svc', SVC(probability=True))])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, y_pred))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "SVC"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
-        # print("->LDA")
-        # outfile.write('->LDA')
-        # pipe = Pipeline([('lda', LDA())])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, y_pred))
+    print('->LDA')
+    pipe = Pipeline([('lda', LDA())])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, y_pred))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "LDA"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
-        # print("->PLSRegression(10)")
-        # outfile.write('->SVC')
-        # pipe = Pipeline([('pls', PLSRegression(n_components=10))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, np.round(y_pred)))
-        #
-        # print("->PLSRegression(100)")
-        # pipe = Pipeline([('pls', PLSRegression(n_components=100))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, np.round(y_pred)))
-        #
-        # print("->StandardScaler->PLSRegression(10)")
-        # pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('pls', PLSRegression(n_components=10))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, np.round(y_pred)))
+    print("->StandardScaler->SVC")
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, np.round(y_pred)))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "StandardScaler->SVC"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
-        print("->StandardScaler->SVC")
-        outfile.write("->StandardScaler->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
-        pipe.fit(X_train.copy(), y_train.copy())
-        y_pred = pipe.predict(X_test.copy())
-        print(classification_report(y_test, np.round(y_pred)))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+    print("->MinMaxScaler->SVC")
+    pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, np.round(y_pred)))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "MinMaxScaler->SVC"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
+    print("->StandardScaler->LDA(1)->SVC")
+    pipe = Pipeline(
+        [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, y_pred))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "->StandardScaler->LDA(1)->SVC"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
-        print("->MinMaxScaler->SVC")
-        outfile.write("->MinMaxScaler->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
-        pipe.fit(X_train.copy(), y_train.copy())
-        y_pred = pipe.predict(X_test.copy())
-        print(classification_report(y_test, np.round(y_pred)))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
+    print("->LDA(1)->SVC")
+    pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    pipe.fit(X_train.copy(), y_train.copy())
+    y_pred = pipe.predict(X_test.copy())
+    print(classification_report(y_test, y_pred))
+    clf_r = classification_report(y_test, y_pred, output_dict=True)
+    report = {}
+    report["classifier"] = "->LDA(1)->SVC"
+    report['precision_0'] = clf_r['0']['precision']
+    report['recall_0'] = clf_r['0']['recall']
+    report['f1-score_0'] = clf_r['0']['f1-score']
+    report['support_0'] = clf_r['0']['support']
+    report['precision_1'] = clf_r['1']['precision']
+    report['recall_1'] = clf_r['1']['recall']
+    report['f1-score_1'] = clf_r['1']['f1-score']
+    report['support_1'] = clf_r['1']['support']
+    report["downsample"] = downsample_false_class
+    report["class0_training"] = y_train[y_train == 0].size
+    report["class1_training"] = y_train[y_train == 1].size
+    report["class0_testing"] = y_test[y_test == 0].size
+    report["class1_testing"] = y_test[y_test == 1].size
+    report["option"] = option
+    report["thresh_i"] = thresh_i
+    report["thresh_z"] = thresh_z
+    report["days"] = days
+    report["farm_id"] = farm_id
+    report_rows_list.append(report)
 
-        print("->StandardScaler->LDA(1)->SVC")
-        outfile.write("->StandardScaler->LDA(1)->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
-        pipe.fit(X_train.copy(), y_train.copy())
-        y_pred = pipe.predict(X_test.copy())
-        print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
-
-        print("->LDA(1)->SVC")
-        outfile.write("->LDA(1)->SVC\n")
-        pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
-        pipe.fit(X_train.copy(), y_train.copy())
-        y_pred = pipe.predict(X_test.copy())
-        print(classification_report(y_test, y_pred))
-        outfile.write(str(classification_report(y_test, y_pred, output_dict=True)))
-        outfile.write('\n\n')
-
-        # print("->LDA(1)->LDA")
-        # outfile.write("->LDA(1)->LDA")
-        # pipe = Pipeline([('lda', LDA(n_components=1)), ('lda_clf', LDA())])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, y_pred))
-
-        # print("->PCA(1)->SVC")
-        # pipe = Pipeline([('pca', PCA(n_components=1)), ('svc', SVC(probability=True))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, y_pred))
-        #
-        # print("->PCA(10)->SVC")
-        # pipe = Pipeline([('pca', PCA(n_components=10)), ('svc', SVC(probability=True))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, y_pred))
-        #
-        # print("->PCA(30)->SVC")
-        # pipe = Pipeline([('pca', PCA(n_components=30)), ('svc', SVC(probability=True))])
-        # pipe.fit(X_train.copy(), y_train.copy())
-        # y_pred = pipe.predict(X_test.copy())
-        # print(classification_report(y_test, y_pred))
-
-    # print("*******************************************")
-    # print("STEP BY STEP")
-    # print("*******************************************")
-    #
-    # clf_lda = LDA(n_components=1)
-    # X_train_r = clf_lda.fit_transform(X_train.copy(), y_train.copy())
-    # X_test_r = clf_lda.transform(X_test.copy())
-    #
-    # X_reduced = np.concatenate((X_train_r.copy(), X_test_r.copy()), axis=0)
-    # y_reduced = np.concatenate((y_train.copy(), y_test.copy()), axis=0)
-    #
-    # print("->LDA(1)->SVC")
-    # plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-    #                             X_reduced.copy(),
-    #                             y_reduced.copy(),
-    #                             X_test_r.copy(),
-    #                             y_test.copy(),
-    #                             X_train_r.copy(),
-    #                             y_train.copy())
-    # print("->LDA(1)->LDA")
-    # plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
-    #                             X_reduced.copy(),
-    #                             y_reduced.copy(),
-    #                             X_test_r.copy(),
-    #                             y_test.copy(),
-    #                             X_train_r.copy(),
-    #                             y_train.copy())
-
-    # clf_pls = PLSRegression(n_components=1)
-    # X_train_r = clf_pls.fit_transform(X_train.copy(), y_train.copy())[0]
-    # X_test_r = clf_pls.transform(X_test.copy())
-    #
-    # X_reduced = np.concatenate((X_train_r, X_test_r), axis=0)
-    # y_reduced = np.concatenate((y_train, y_test), axis=0)
-    #
-    # print("->PLS(1)->SVC")
-    # plot_2D_decision_boundaries(SVC(probability=True), "svc", "dim_reduc_name", 1, 1, "",
-    #                             X_reduced.copy(),
-    #                             y_reduced.copy(),
-    #                             X_test_r.copy(),
-    #                             y_test.copy(),
-    #                             X_train_r.copy(),
-    #                             y_train.copy())
-    # print("->PLS(1)->LDA")
-    # plot_2D_decision_boundaries(LDA(), "lda", "dim_reduc_name", 1, 1, "",
-    #                             X_reduced.copy(),
-    #                             y_reduced.copy(),
-    #                             X_test_r.copy(),
-    #                             y_test.copy(),
-    #                             X_train_r.copy(),
-    #                             y_train.copy())
+    df_report = pd.DataFrame(report_rows_list)
+    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.csv" % (
+    output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+    df_report.to_csv(filename, sep=',', index=False)
+    print("filename=", filename)
 
 
 def get_proba(y_probas, y_pred):
@@ -573,31 +604,82 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
-        dataset_filepath = sys.argv[2]
+        dataset_folder = sys.argv[2]
         test_size = int(sys.argv[3])
+        n_process = int(sys.argv[4])
     else:
         exit(-1)
 
     print("output_dir=", output_dir)
-    print("dataset_filepath=", dataset_filepath)
+    print("dataset_filepath=", dataset_folder)
     print("test_size=", test_size)
 
     print("loading dataset...")
-    data_frame_original, data_frame, _ = load_df_from_datasets(dataset_filepath)
-    split = dataset_filepath.split("/")[-1].split('.')[0].split('_')
-    thresh_i = int(split[-3])
-    thresh_z = int(split[-1])
-    days = int(split[4])
-    farm_id = split[1] + "_" + split[2]
-    option = split[0]
-    print("thresh_i=", thresh_i)
-    print("thresh_z=", thresh_z)
-    print("days=", days)
-    print("farm_id=", farm_id)
-    print("option=", option)
-    data_frame = shuffle(data_frame)
-    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option, downsample_false_class=True)
-    process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, days, farm_id, option,  downsample_false_class=False)
+
+    files = glob2.glob(dataset_folder)
+    print("found %d files." % len(files))
+
+    MULTI_THREADING_ENABLED = (n_process > 0)
+    print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
+
+    if MULTI_THREADING_ENABLED:
+        pool = Pool(processes=n_process)
+        for file in files:
+            file = file.replace('\\', '/')
+            data_frame_original, data_frame, _ = load_df_from_datasets(file)
+            split = file.split("/")[-1].split('.')[0].split('_')
+            thresh_i = int(split[-3])
+            thresh_z = int(split[-1])
+            days = int(split[4])
+            farm_id = split[1] + "_" + split[2]
+            option = split[0]
+            print("thresh_i=", thresh_i)
+            print("thresh_z=", thresh_z)
+            print("days=", days)
+            print("farm_id=", farm_id)
+            print("option=", option)
+            data_frame = shuffle(data_frame)
+            pool.apply_async(process_data_frame, (data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, True,))
+            pool.apply_async(process_data_frame,
+                             (data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, False,))
+        pool.close()
+        pool.join()
+        pool.terminate()
+    else:
+        for file in files:
+            file = file.replace('\\', '/')
+            data_frame_original, data_frame, _ = load_df_from_datasets(file)
+            split = file.split("/")[-1].split('.')[0].split('_')
+            thresh_i = int(split[-3])
+            thresh_z = int(split[-1])
+            days = int(split[4])
+            farm_id = split[1] + "_" + split[2]
+            option = split[0]
+            print("thresh_i=", thresh_i)
+            print("thresh_z=", thresh_z)
+            print("days=", days)
+            print("farm_id=", farm_id)
+            print("option=", option)
+            data_frame = shuffle(data_frame)
+            process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option,
+                               downsample_false_class=True)
+            process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option,
+                               downsample_false_class=False)
+
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+
+    files = [output_dir+"/"+file for file in os.listdir(output_dir) if file.endswith(".csv")]
+    print("found %d files." % len(files))
+    print("compiling final file...")
+    df_final = pd.DataFrame()
+    dfs = [pd.read_csv(file, sep=",") for file in files]
+    df_final = pd.concat(dfs)
+    filename = "%s/classification_report.csv" % output_dir
+    df_final.to_csv(filename, sep=',', index=False)
+    print(df_final)
+    print("done")
 
     # exit(-1)
     # dataset_filepath1 = "E:\\Users\\fo18103\\PycharmProjects\\prediction_of_helminths_infection\\training_data_generator_and_ml_classifier\\src\\csv_db\\cedara_70091100056_720\\7_1\\training_sets\\cwt_.data"
@@ -606,5 +688,3 @@ if __name__ == "__main__":
     # _, data_frame1, _ = load_df_from_datasets(dataset_filepath1)
     # _, data_frame2, _ = load_df_from_datasets(dataset_filepath2)
     # process_cross_farm(data_frame1, data_frame2)
-
-

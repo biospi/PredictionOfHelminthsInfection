@@ -174,6 +174,7 @@ if __name__ == '__main__':
             pool.apply_async(process_csv, (output_directory, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,))
         pool.close()
         pool.join()
+        pool.terminate()
     else:
         for csv_file in files:
             farm_id = csv_file.split('/')[-2]
