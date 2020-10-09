@@ -676,7 +676,7 @@ if __name__ == "__main__":
     df_final = pd.DataFrame()
     dfs = [pd.read_csv(file, sep=",") for file in files]
     df_final = pd.concat(dfs)
-    filename = "%s/classification_report.csv" % output_dir
+    filename = "%s/classification_report_test_size_%d.csv" % (output_dir, test_size)
     df_final.to_csv(filename, sep=',', index=False)
     print(df_final)
     print("done")
