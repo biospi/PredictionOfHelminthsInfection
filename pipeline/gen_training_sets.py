@@ -1,19 +1,19 @@
-import gc
+import matplotlib
+from sys import platform as _platform
+if _platform == "linux" or _platform == "linux2":
+    matplotlib.use('Agg')
 import glob
 import json
 import math
 import os.path
 import pathlib
-import shutil
 import statistics
 import sys
 import time
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 from sys import exit
-
 import dateutil.relativedelta
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -113,8 +113,6 @@ def get_prev_famacha_score(serial_number, famacha_test_date, data_famacha, curr_
                     pass
             return previous_score1, previous_score2, previous_score3, previous_score4
 
-    return previous_score1, previous_score2, previous_score3, previous_score4
-
 
 def pad(a, N):
     a += [-1] * (N - len(a))
@@ -198,6 +196,49 @@ def get_ndays_between_dates(date1, date2):
     return delta.days
 
 
+def get_previous_famacha_dates(data_famacha_list, i):
+    dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
+    try:
+        dtf1 = data_famacha_list[i][0]
+    except IndexError as e:
+        # print(e)
+        pass
+    try:
+        dtf2 = data_famacha_list[i + 1][0]
+    except IndexError as e:
+        # print(e)
+        pass
+    try:
+        dtf3 = data_famacha_list[i + 2][0]
+    except IndexError as e:
+        # print(e)
+        pass
+    try:
+        dtf4 = data_famacha_list[i + 3][0]
+    except IndexError as e:
+        # print(e)
+        pass
+    try:
+        dtf5 = data_famacha_list[i + 4][0]
+    except IndexError as e:
+        # print(e)
+        pass
+    return dtf1, dtf2, dtf3, dtf4, dtf5
+
+
+def get_number_of_days_between_succesive_prev_test(dtf1, dtf2, dtf3, dtf4, dtf5):
+    nd1, nd2, nd3, nd4 = 0, 0, 0, 0
+    if len(dtf2) > 0 and len(dtf1) > 0:
+        nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
+    if len(dtf3) > 0 and len(dtf2) > 0:
+        nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
+    if len(dtf4) > 0 and len(dtf3) > 0:
+        nd3 = abs(get_ndays_between_dates(dtf2, dtf4))
+    if len(dtf5) > 0 and len(dtf4) > 0:
+        nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
+    return nd1, nd2, nd3, nd4
+
+
 def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution,
                       days_before_famacha_test):
     # print("generating new training pair....")
@@ -214,66 +255,31 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
     animal_id = int(curr_data_famacha[2])
     # # find the activity data of that animal the n days before the test
     date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test)
-    nd1, nd2, nd3, nd4 = 0, 0, 0, 0
-    dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
-    #
-    # dtf1, dtf2, dtf3, dtf4, dtf5 = "", "", "", "", ""
-    # try:
-    #     dtf1 = data_famacha_list[i][0]
-    # except IndexError as e:
-    #     # print(e)
-    #     pass
-    # try:
-    #     dtf2 = data_famacha_list[i + 1][0]
-    # except IndexError as e:
-    #     # print(e)
-    #     pass
-    # try:
-    #     dtf3 = data_famacha_list[i + 2][0]
-    # except IndexError as e:
-    #     # print(e)
-    #     pass
-    # try:
-    #     dtf4 = data_famacha_list[i + 3][0]
-    # except IndexError as e:
-    #     # print(e)
-    #     pass
-    # try:
-    #     dtf5 = data_famacha_list[i + 4][0]
-    # except IndexError as e:
-    #     # print(e)
-    #     pass
-    #
-    # nd1, nd2, nd3, nd4 = 0, 0, 0, 0
-    # if len(dtf2) > 0 and len(dtf1) > 0:
-    #     nd1 = abs(get_ndays_between_dates(dtf1, dtf2))
-    # if len(dtf3) > 0 and len(dtf2) > 0:
-    #     nd2 = abs(get_ndays_between_dates(dtf2, dtf3))
-    # if len(dtf4) > 0 and len(dtf3) > 0:
-    #     nd3 = abs(get_ndays_between_dates(dtf2, dtf4))
-    # if len(dtf5) > 0 and len(dtf4) > 0:
-    #     nd4 = abs(get_ndays_between_dates(dtf4, dtf5))
+
+    dtf1, dtf2, dtf3, dtf4, dtf5 = get_previous_famacha_dates(data_famacha_list, i)
+
+    nd1, nd2, nd3, nd4 = get_number_of_days_between_succesive_prev_test(dtf1, dtf2, dtf3, dtf4, dtf5)
 
     # print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
     rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     #todo understand which mean or median
-    # rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
-    rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
+    rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
+    # rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
 
     herd_activity_list = rows_herd
     herd_activity_list_raw = herd_activity_list
     activity_list = rows_activity
     activity_list_raw = activity_list
 
-    expected_sample_count = get_expected_sample_count("1min", days_before_famacha_test)
+    expected_activity_point = get_expected_sample_count("1min", days_before_famacha_test)
 
-    if len(rows_activity) < expected_sample_count:
-        l = len(rows_activity)
-        # print("absent activity records. skip.", "found %d" % l, "expected %d" % expected_sample_count)
+    l = len(activity_list)
+    if l < expected_activity_point:
+        print("absent activity counts. skip.", "found %d" % l, "expected %d" % expected_activity_point)
         return
 
-    activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
+    # activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
     # herd_activity_list = anscombe_list(herd_activity_list)
     # activity_list = anscombe_list(activity_list)
 
@@ -314,10 +320,12 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
         famacha_test_date,
         data_famacha_dict,
         famacha_score)
+
     indexes.reverse()
 
-
-    data = {"famacha_score_increase": False, "famacha_score": famacha_score, "weight": weight_list,
+    data = {"famacha_score_increase": False,
+            "famacha_score": famacha_score,
+            "weight": weight_list,
             "previous_famacha_score1": prev_famacha_score1,
             "previous_famacha_score2": prev_famacha_score2,
             "previous_famacha_score3": prev_famacha_score3,
@@ -335,9 +343,14 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
             "nd2": nd2,
             "nd3": nd3,
             "nd4": nd4,
-            "indexes": indexes, "activity": activity_list, "activity_raw": activity_list_raw,
-            "temperature": temperature_list, "humidity": humidity_list, "herd": herd_activity_list,
-            "herd_raw": herd_activity_list_raw, "ignore": True
+            "indexes": indexes,
+            "activity": activity_list,
+            "activity_raw": activity_list_raw,
+            "temperature": temperature_list,
+            "humidity": humidity_list,
+            "herd": herd_activity_list,
+            "herd_raw": herd_activity_list_raw,
+            "ignore": True
             }
     return data
 
@@ -427,23 +440,33 @@ def even_list(n):
     return np.asarray(result, dtype=np.int32)
 
 
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        dir_path += sub_dir+"/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
+
+
 def create_activity_graph(output_dir, animal_id, activity, folder, filename, title=None,
                           sub_folder='training_sets_time_domain_graphs', sub_sub_folder=None):
     # for a in activity:
     #     if np.isnan(a) or a == None:
     #         raise ValueError("There should not be nan in trace at this stage!")
 
-    fig = plt.figure()
-    # plt.bar(range(0, len(activity)), activity)
+    fig = plt.figure(figsize=(19.20, 10.80))
     plt.clf()
-    plt.plot(activity)
+    # plt.plot(activity)
+    plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
+
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
-    try:
-        pathlib.Path(path).mkdir(parents=True)
-    except Exception as e:
-        print(e)
-    fig.savefig('%s/%s_%d_%s.png' % (path, animal_id, len(activity), filename.replace(".", "_")))
+    create_rec_dir(path)
+    filename = '%s/%s_%d_%s.png' % (path, animal_id, len(activity), filename.replace(".", "_"))
+    fig.savefig(filename)
     # print(len(activity), filename.replace(".", "_"))
     fig.clear()
     plt.close(fig)
@@ -513,8 +536,8 @@ def compute_cwt(activity, scale=80):
             cwt.append(tupl)
     # indexes = np.asarray(list(range(len(coefs.real))))
     indexes = []
+    print("cwt lengh=", len(cwt))
     return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
-
 
 
 def create_filename(data):
@@ -576,10 +599,9 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     training_set.append(result["nd3"])
     training_set.append(result["nd4"])
     path = "%s/training_sets" % output_dir
-    try:
-        pathlib.Path(path).mkdir(parents=True)
-    except Exception as e:
-        print(e)
+    if not os.path.exists(path):
+        print("mkdir", path)
+        os.makedirs(path)
     filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.data" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
     # print("set size is %d, %s.....%s" % (
@@ -621,29 +643,27 @@ def create_training_sets(output_dir, data, dir_path, resolution, days_before_fam
 
 
 def create_graph_title(data, domain):
-    hum_1 = ','.join([str(int(x)) for x in data["humidity"][0:1]])
-    hum_2 = ','.join([str(int(x)) for x in data["humidity"][-1:]])
-    temp_1 = ','.join([str(int(x)) for x in data["temperature"][0:1]])
-    temp_2 = ','.join([str(int(x)) for x in data["temperature"][-1:]])
+    hum_1 = ','.join([str(x) for x in data["humidity"][0:1]])
+    hum_2 = ','.join([str(x) for x in data["humidity"][-1:]])
+    temp_1 = ','.join([str(x) for x in data["temperature"][0:1]])
+    temp_2 = ','.join([str(x) for x in data["temperature"][-1:]])
     if domain == "time":
-        act_1 = ','.join([str(int(x)) for x in data["activity"][0:1] if x is not None])
-        act_2 = ','.join([str(int(x)) for x in data["activity"][-1:] if x is not None])
-        idxs_1 = ','.join([str(int(x)) for x in data["indexes"][0:1]])
-        idxs_2 = ','.join([str(int(x)) for x in data["indexes"][-1:]])
-        return "[[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%d,%s]" % (
+        act_1 = ','.join([str(x) for x in data["activity"][0:1]])
+        act_2 = ','.join([str(x) for x in data["activity"][-1:]])
+        idxs_1 = ','.join([str(x) for x in data["indexes"][0:1]])
+        idxs_2 = ','.join([str(x) for x in data["indexes"][-1:]])
+        return "[[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%s,%s]" % (
             act_1, act_2, idxs_1, idxs_2, hum_1, hum_2,
-            temp_1, temp_2, data["famacha_score"],
-            -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
+            temp_1, temp_2, data["famacha_score"], str(data["previous_famacha_score1"]),
             str(data["famacha_score_increase"]))
     if domain == "freq":
-        idxs_1 = ','.join([str(int(x)) for x in data["indexes_cwt"][0:1]])
-        idxs_2 = ','.join([str(int(x)) for x in data["indexes_cwt"][-1:]])
-        cwt_1 = ','.join([str(int(x)) for x in data["cwt"][0:1]])
-        cwt_2 = ','.join([str(int(x)) for x in data["cwt"][-1:]])
-        return "[cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%d,%s]" % (
+        idxs_1 = ','.join([str(x) for x in data["indexes_cwt"][0:1]])
+        idxs_2 = ','.join([str(x) for x in data["indexes_cwt"][-1:]])
+        cwt_1 = ','.join([str(x) for x in data["cwt"][0:1]])
+        cwt_2 = ','.join([str(x) for x in data["cwt"][-1:]])
+        return "[cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%s,%s]" % (
             cwt_1, cwt_2, idxs_1, idxs_2, hum_1, hum_2,
-            temp_1, temp_2, data["famacha_score"],
-            -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"],
+            temp_1, temp_2, data["famacha_score"], str(data["previous_famacha_score1"]),
             str(data["famacha_score_increase"]))
 
 
@@ -675,22 +695,27 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     try:
         time_range = [datetime.fromtimestamp(x) for x in time_range]
     except ValueError as e:
-        pass
-        # print("error while converting time", e)
-        # print(time_range)
-        # print(csv_df)
+        print("error while converting time", e)
+        print(time_range)
+        print(csv_df)
 
     return activity, time_range
 
 
 def resample_traces(resolution, activity, herd):
+    if resolution == '1min':
+        return np.array(activity), np.array(herd)
+
     index = pd.date_range('1/1/2000', periods=len(activity), freq='T')
+
     activity_series = pd.Series(activity, index=index)
     activity_series_r = activity_series.resample(resolution).sum()
     activity_r = activity_series_r.values
+
     herd_series = pd.Series(herd, index=index)
     herd_series_r = herd_series.resample(resolution).sum()
     herd_r = herd_series_r.values
+
     return activity_r, herd_r
 
 
@@ -706,15 +731,15 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
     try:
         animal_id = int(file.split('/')[-1].split('_')[0])
     except Exception as e:
-        print("found median file!", e)
-        return [0, 0, 0, 0, 0, 0] 
+        print("not a valid animal id", e, file)
+        return
 
     print("result_output_dir=", result_output_dir)
-    try:
-        pathlib.Path(result_output_dir).mkdir(parents=True)
-    except Exception as e:
-        print(e)
-    dataset_heatmap_data = {}
+    if not os.path.exists(result_output_dir):
+        print("result_output_dir mkdir=")
+        os.makedirs(result_output_dir)
+
+
     data_famacha_list = [y for x in data_famacha_dict.values() for y in x if y[2] == animal_id]
 
     results = []
@@ -727,77 +752,40 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
                                        days_before_famacha_test)
         except KeyError as e:
             result = None
-            # print(e)
+            print(e)
 
         if result is None:
             continue
 
         activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
-
         is_valid, reason = is_activity_data_valid(result["activity_raw"])
         # print("sample is valid=", is_valid)
-
         result["activity"] = activity_resampled.tolist()
-
         result['is_valid'] = is_valid
         if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
             result['is_valid'] = False
             reason = 'missing_f'
 
         result['reason'] = reason
-
         results.append(result)
 
-        # animal_id = str(curr_data_famacha[2])
-        #
-        # if animal_id not in dataset_heatmap_data.keys():
-        #     dataset_heatmap_data[animal_id] = {"id": animal_id, "activity": [], "date": [], "famacha": [],
-        #                                        "famacha_previous": [], "valid": []}
-
-        # activity = [np.nan if x is None else x for x in result["activity"]]
-        # dataset_heatmap_data[animal_id]["activity"].append(activity)
-        # dataset_heatmap_data[animal_id]["date"].append(result["time_range"])
-        # dataset_heatmap_data[animal_id]["famacha"].append(result["famacha_score"])
-        # dataset_heatmap_data[animal_id]["famacha_previous"].append(result["previous_famacha_score1"])
-        # dataset_heatmap_data[animal_id]["valid"].append(result["is_valid"])
-
-        # if len(results) > 10:
-        #     break
     print("processing file %d done" % idx)
     process_famacha_var(results)
-    # if create_input_visualisation_eanable:
-    #     try:
-    #         for i in range(len(dataset_heatmap_data.keys())):
-    #             print(list(dataset_heatmap_data.values())[i]['famacha'])
-    #         # create_herd_map(farm_id, meta_data, activity_data, animals_id, time_range, fontsize=50)
-    #         f_id = farm_id + '_' + resolution + '_' + str(days_before_famacha_test) + "_nan" + str(thresh_i)
-    #         create_dataset_map(dataset_heatmap_data, dir + "/" + f_id, chunck_size=len(activity))
-    #         create_histogram(dataset_heatmap_data, dir + "/" +"rhistogram_"+f_id)
-    #     except ValueError as e:
-    #         print("error while creating input visualisation", e)
-    #         print(dataset_heatmap_data)
+    exporting_data_info_to_txt(result_output_dir, results, thresh_i, thresh_z2n, animal_id)
 
-    class_input_dict = []
-    # print("create_activity_graph...")
-    # print("could find %d samples." % len(results))
-
-    total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = exporting_data_info_to_txt(result_output_dir, results, thresh_i, thresh_z2n, animal_id)
-
+    print("*******************************************")
     print("computing cwts and set for file %d..." % idx)
     for idx in range(len(results)):
         result = results[idx]
-        if result["ignore"]:
-            continue
-
         if create_activity_graph_enabled:
             sub_sub_folder = str(result["is_valid"]) + "/"
-            pathlib.Path(result_output_dir).mkdir(parents=True)
             filename_graph = create_filename(result)
 
             tag = "11"
             if result["famacha_score_increase"]:
                 tag = "12"
-            create_activity_graph(result_output_dir, tag + "_" + result['reason'] + "_" + str(result["animal_id"]), result["activity"], result_output_dir, filename_graph,
+            create_activity_graph(result_output_dir, tag + "_" + result['reason'] + "_" + str(result["animal_id"]),
+                                  result["activity"], result_output_dir, filename_graph,
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
@@ -809,7 +797,6 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
 
         result["cwt"] = cwt
         result["coef_shape"] = coef.shape
-        # result["cwt_weight"] = cwt_weight
         result["indexes_cwt"] = indexes_cwt
 
         # create_hd_cwt_graph(output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
@@ -818,11 +805,10 @@ def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, 
         create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
         results[idx] = None
         # gc.collect()
-
         # print("create_activity_graph done.")
 
-    print("computing cwts and set for file %d done", idx)
-    return [total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12]
+    print("computing cwts and set for file %d done." % idx)
+    return
 
 
 def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal_id):
@@ -852,7 +838,7 @@ def exporting_data_info_to_txt(output_dir, results, thresh_i, thresh_z2n, animal
             usable_11 += 1
 
     filename = "%s/%s_result_interpol_%d_zeros_%d.txt" % (output_dir, animal_id, thresh_i, thresh_z2n)
-    purge_file(filename)
+    # purge_file(filename)
     report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
              "-> 1 = %d\n1 -> 2 = %d\n" % (total_sample_11+total_sample_12, total_sample_11, total_sample_12, nan_sample_11,
                              nan_sample_12, usable_11, usable_12)
@@ -890,10 +876,10 @@ def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha,
     print(report)
 
 def parse_csv_db_name(path):
-    split = path.split('/')[-3].split('_')
+    split = path.split('/')[-2].split('_')
     farm_id = split[0] + "_" + split[1]
-    threshold_interpol = int(path.split('/')[-2].split('_')[-3])
-    threshold_zeros2nan = int(path.split('/')[-2].split('_')[-1])
+    threshold_interpol = int(path.split('/')[-1].split('_')[1])
+    threshold_zeros2nan = int(path.split('/')[-1].split('_')[3])
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
@@ -919,7 +905,9 @@ if __name__ == '__main__':
     print("resampling_resolution=", resampling_resolution)
 
     files = glob.glob(csv_db_dir_path+"/*csv")
+    files = [file.replace("\\", '/') for file in files]
     print("found %d files."% len(files))
+
     if len(files) == 0:
         print("no files in %s" % csv_db_dir_path)
         exit(-1)
@@ -944,29 +932,31 @@ if __name__ == '__main__':
     csv_median = load_db_from_csv(file_median)
     csv_mean = load_db_from_csv(file_mean)
 
-    results = []
-    try:
-        print("output_dir=", output_dir)
-        pathlib.Path(output_dir).mkdir(parents=True)
-    except Exception as e:
-        print(e)
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+
     result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
         output_dir, farm_id, resampling_resolution, n_days_before_famacha, thresh_i, thresh_z2n)
+    total_sample_11 = []
+    total_sample_12 = []
+    nan_sample_11 = []
+    nan_sample_12 = []
+    usable_11 = []
+    usable_12 = []
+    total = []
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for idx, file in enumerate(files):
-            results.append(pool.apply_async(process_day, (enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,)))
+            if 'median' in file or 'mean' in file:
+                continue
+            pool.apply_async(process_day, (enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean,
+                                           idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
         pool.close()
         pool.join()
-        print("multithreaded loop finished!")
-        total_sample_11 = []
-        total_sample_12 = []
-        nan_sample_11 = []
-        nan_sample_12 = []
-        usable_11 = []
-        usable_12 = []
-        total = []
+        pool.terminate()
+        print("multithreaded loop finished! reading results...")
         files_txt = glob.glob(result_output_dir + "/*.txt")
         for file in files_txt:
             with open(file) as f:
@@ -979,20 +969,17 @@ if __name__ == '__main__':
                 usable_11.append(int(lines[7].split('=')[1].strip()))
                 usable_12.append(int(lines[8].split('=')[1].strip()))
 
-        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
+        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n,
+                                         sum(total), sum(total_sample_11), sum(total_sample_12),
                                          sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
-        pool.terminate()
 
     else:
         for idx, file in enumerate(files):
-            total_sample_11, total_sample_12, nan_sample_11, nan_sample_12, usable_11, usable_12 = process_day(enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean, idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
-        total_sample_11 = []
-        total_sample_12 = []
-        nan_sample_11 = []
-        nan_sample_12 = []
-        usable_11 = []
-        usable_12 = []
-        total = []
+            if 'median' in file or 'mean' in file:
+                continue
+            process_day(enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean, idx, thresh_i,
+                        thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
+                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
         files_txt = glob.glob(result_output_dir + "/*.txt")
         for file in files_txt:
             with open(file) as f:

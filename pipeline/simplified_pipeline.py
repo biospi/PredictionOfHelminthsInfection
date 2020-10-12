@@ -29,6 +29,15 @@ import os
 from sklearn.utils import shuffle
 from multiprocessing import Pool
 import random
+from sklearn.model_selection import cross_validate
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from datetime import datetime
+from sklearn.metrics import make_scorer
+from sklearn.metrics import recall_score, balanced_accuracy_score, roc_auc_score, precision_score, f1_score, roc_curve
+from sklearn.metrics import auc
+from sklearn.metrics import plot_roc_curve
 
 META_DATA_LENGTH = 19
 
@@ -55,15 +64,17 @@ def find_type_for_mem_opt(df):
 
 def load_df_from_datasets(fname, label_col='label'):
     print("load_df_from_datasets...", fname)
-    df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
-    # print(df)
-    type_dict = find_type_for_mem_opt(df)
+    # df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
+    # # print(df)
+    # type_dict = find_type_for_mem_opt(df)
 
-    data_frame = pd.read_csv(fname, sep=",", header=None, dtype=type_dict, low_memory=False, error_bad_lines=False)
+    data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
+    print("shape before removal of duplicates=", data_frame.shape)
     data_frame = data_frame.drop_duplicates()
+    print("shape after removal of duplicates=", data_frame.shape)
     # print(data_frame)
-    sample_count = df.shape[1]
-    hearder = [str(n) for n in range(0, sample_count)]
+    data_point_count = data_frame.shape[1]
+    hearder = [str(n) for n in range(0, data_point_count)]
     hearder[-19] = "label"
     hearder[-18] = "elem_in_row"
     hearder[-17] = "date1"
@@ -91,6 +102,7 @@ def load_df_from_datasets(fname, label_col='label'):
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
+    data_frame = shuffle(data_frame)
     return data_frame_original, data_frame, cols_to_keep
 
 
@@ -246,7 +258,132 @@ def dummy_run(X, y, test_size, filename):
                                 y_train.copy())
 
 
-def process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, y_col='label',
+def load_binary_iris():
+    iris = datasets.load_iris()
+    data_iris = pd.DataFrame(data=np.c_[iris['data'], iris['target']],
+                         columns=iris['feature_names'] + ['target'])
+    data_iris = data_iris.drop_duplicates()
+    data_iris = shuffle(data_iris)
+    data_iris = data_iris[data_iris.target != 2.0] # remove class 2
+    X = data_iris[data_iris.columns[0:data_iris.shape[1] - 3]].values
+    y = data_iris["target"].values.flatten()
+    y = y.astype(int)
+    return X, y
+
+
+def load_binary_random():
+    X, y = load_binary_iris()
+    X = pd.DataFrame(X)
+    for i, row in X.iterrows():
+        for j in row.index.values:
+            X.at[i, j] = random.random()
+    return X, y
+
+
+def mean_confidence_interval(x):
+    # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
+    x.sort()
+    lo_x_boot = np.percentile(x, 2.5)
+    hi_x_boot = np.percentile(x, 97.5)
+    print(lo_x_boot, hi_x_boot)
+    return lo_x_boot, hi_x_boot
+
+
+def get_conf_interval(tprs, mean_fpr):
+    confidence_lower = []
+    confidence_upper = []
+    df_tprs = pd.DataFrame(tprs, dtype=float)
+    for column in df_tprs:
+        scores = df_tprs[column].values.tolist()
+        scores.sort()
+        upper = np.percentile(scores, 95)
+        confidence_upper.append(upper)
+        lower = np.percentile(scores, 0.025)
+        confidence_lower.append(lower)
+
+    confidence_lower = np.asarray(confidence_lower)
+    confidence_upper = np.asarray(confidence_upper)
+    # confidence_upper = np.minimum(mean_tpr + std_tpr, 1)
+    # confidence_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    return confidence_lower, confidence_upper
+
+
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        dir_path += sub_dir+"/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
+
+
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
+            label='Chance', alpha=1)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    # mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    # std_auc = np.std(aucs)
+    lo, hi = mean_confidence_interval(aucs)
+    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    if len(aucs) <= 2:
+        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
+    ax.plot(mean_fpr, mean_tpr, color='tab:blue',
+            label=label,
+            lw=2, alpha=.8)
+
+    # std_tpr = np.std(tprs, axis=0)
+    # tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    # tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+    #
+    # confidence_lower, confidence_upper = get_conf_interval(tprs, mean_fpr)
+
+    # ax.fill_between(mean_fpr, confidence_lower, confidence_upper, color='tab:blue', alpha=.2)
+    #                 #label=r'$\pm$ 1 std. dev.')
+
+    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic iteration")
+    ax.legend(loc="lower right")
+    # fig.show()
+    path = "%s/roc_curve/png/" % (out_dir)
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+
+    path = "%s/roc_curve/svg/" % (out_dir)
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+
+
+def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
+    if isinstance(X, pd.DataFrame):
+        X = X.values
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+    fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    for i, (train, test) in enumerate(cv.split(X, y)):
+        classifier.fit(X[train], y[train])
+        viz = plot_roc_curve(classifier, X[test], y[test],
+                             label=None,
+                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
+    plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
+
+
+def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, y_col='label',
                        downsample_false_class=True):
     print("*******************************************************************")
     print("downsample_false_class=", downsample_false_class)
@@ -256,209 +393,324 @@ def process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id,
         df_true = data_frame[data_frame['label'] == True]
         df_false = data_frame[data_frame['label'] == False]
         df_false = df_false.head(df_true.shape[0])
-
         data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+
     data_frame = data_frame.dropna()
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
-    print("test_size=", test_size, test_size / 100)
-    t_s = float(test_size / 100)
-    print("test size in percent=", t_s)
-    try:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
-    except ValueError as e:
-        print(e)
-        return
-    print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
-    print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
+
+    # X, y = load_binary_iris()
+    # X, y = load_binary_random()
+
+    # test_size = 10
+    # print("test_size=", test_size, test_size / 100)
+    # t_s = float(test_size / 100)
+    # print("test size in percent=", t_s)
+    # try:
+    #     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0, stratify=y, test_size=t_s)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    # print("training", "class0=", y_train[y_train == 0].size, "class1=", y_train[y_train == 1].size)
+    # print("test", "class0=", y_test[y_test == 0].size, "class1=", y_test[y_test == 1].size)
 
     # plt.hist(X_train.values.flatten(), bins='auto', histtype='step', density=True)
     # plt.title("Distribution of training data")
     # plt.show()
 
-    print("************************************************\n")
-    print("downsample on= " + str(downsample_false_class) + "\n")
-    print("training-> class0=" + str(y_train[y_train == 0].size) + " class1=" + str(y_train[y_train == 1].size) + "\n")
-    print("test-> class0=" + str(y_test[y_test == 0].size) + " class1=" + str(y_test[y_test == 1].size) + "\n")
+    print("************************************************")
+    print("downsample on= " + str(downsample_false_class))
+    class0_count = str(y[y == 0].size)
+    class1_count = str(y[y == 1].size)
+    print("X-> class0=" + class0_count + " class1=" + class1_count)
+
+    scoring = {
+        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+        'roc_auc_score': make_scorer(roc_auc_score, average=None),
+        'precision_score0': make_scorer(precision_score, average=None, labels=[0]),
+        'precision_score1': make_scorer(precision_score, average=None, labels=[1]),
+        'recall_score0': make_scorer(recall_score, average=None, labels=[0]),
+        'recall_score1': make_scorer(recall_score,  average=None, labels=[1]),
+        'f1_score0': make_scorer(f1_score, average=None, labels=[0]),
+        'f1_score1': make_scorer(f1_score, average=None, labels=[1])
+    }
+
+    param_str = "option_%s_downsample_%s_threshi_%d_threshz_%d_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_%s_%s" % (option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count, class1_count)
 
     print('->SVC')
-    pipe = Pipeline([('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "SVC"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
+    clf_svc = make_pipeline(SVC(probability=False))
+    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                 random_state=int(datetime.now().microsecond / 10))
+    cv_svc.get_n_splits(X, y)
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["classifier"] = "->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str)
 
-    print('->LDA')
-    pipe = Pipeline([('lda', LDA())])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "LDA"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
 
-    print("->StandardScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, np.round(y_pred)))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "StandardScaler->SVC"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
+    print('->StandardScaler->SVC')
+    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True))
+    cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                 random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["classifier"] = "->StandardScaler->SVC"
+    scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_std_svc, X, y, cv_std_svc, param_str)
 
-    print("->MinMaxScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, np.round(y_pred)))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "MinMaxScaler->SVC"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
-
-    print("->StandardScaler->LDA(1)->SVC")
-    pipe = Pipeline(
-        [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "->StandardScaler->LDA(1)->SVC"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
-
-    print("->LDA(1)->SVC")
-    pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
-    pipe.fit(X_train.copy(), y_train.copy())
-    y_pred = pipe.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-    clf_r = classification_report(y_test, y_pred, output_dict=True)
-    report = {}
-    report["classifier"] = "->LDA(1)->SVC"
-    report['precision_0'] = clf_r['0']['precision']
-    report['recall_0'] = clf_r['0']['recall']
-    report['f1-score_0'] = clf_r['0']['f1-score']
-    report['support_0'] = clf_r['0']['support']
-    report['precision_1'] = clf_r['1']['precision']
-    report['recall_1'] = clf_r['1']['recall']
-    report['f1-score_1'] = clf_r['1']['f1-score']
-    report['support_1'] = clf_r['1']['support']
-    report["downsample"] = downsample_false_class
-    report["class0_training"] = y_train[y_train == 0].size
-    report["class1_training"] = y_train[y_train == 1].size
-    report["class0_testing"] = y_test[y_test == 0].size
-    report["class1_testing"] = y_test[y_test == 1].size
-    report["option"] = option
-    report["thresh_i"] = thresh_i
-    report["thresh_z"] = thresh_z
-    report["days"] = days
-    report["farm_id"] = farm_id
-    report_rows_list.append(report)
+    print('->MinMaxScaler->SVC')
+    clf_minmax_svc = make_pipeline(preprocessing.MinMaxScaler(), SVC(probability=True))
+    cv_minmax_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                 random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_minmax_svc, X.copy(), y.copy(), cv=cv_minmax_svc, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["classifier"] = "->MinMaxScaler->SVC"
+    scores["classifier_details"] = str(clf_minmax_svc).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_minmax_svc, X, y, cv_minmax_svc, param_str)
 
     df_report = pd.DataFrame(report_rows_list)
-    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.csv" % (
-    output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
+    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_%s.csv" % (
+        output_dir, farm_id, days, thresh_i, thresh_z, option)
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
     df_report.to_csv(filename, sep=',', index=False)
     print("filename=", filename)
+
+    #
+    # exit(-1)
+    # pipe = Pipeline([('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "SVC"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # print('->LDA')
+    # pipe = Pipeline([('lda', LDA())])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "LDA"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # print("->StandardScaler->SVC")
+    # pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, np.round(y_pred)))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "StandardScaler->SVC"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # print("->MinMaxScaler->SVC")
+    # pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, np.round(y_pred)))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "MinMaxScaler->SVC"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # print("->StandardScaler->LDA(1)->SVC")
+    # pipe = Pipeline(
+    #     [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "->StandardScaler->LDA(1)->SVC"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # print("->LDA(1)->SVC")
+    # pipe = Pipeline([('reduce_dim', LDA(n_components=1)), ('svc', SVC(probability=True))])
+    # pipe.fit(X_train.copy(), y_train.copy())
+    # y_pred = pipe.predict(X_test.copy())
+    # print(classification_report(y_test, y_pred))
+    # clf_r = classification_report(y_test, y_pred, output_dict=True)
+    # report = {}
+    # report["classifier"] = "->LDA(1)->SVC"
+    # report['precision_0'] = clf_r['0']['precision']
+    # report['recall_0'] = clf_r['0']['recall']
+    # report['f1-score_0'] = clf_r['0']['f1-score']
+    # report['support_0'] = clf_r['0']['support']
+    # report['precision_1'] = clf_r['1']['precision']
+    # report['recall_1'] = clf_r['1']['recall']
+    # report['f1-score_1'] = clf_r['1']['f1-score']
+    # report['support_1'] = clf_r['1']['support']
+    # report["downsample"] = downsample_false_class
+    # report["class0_training"] = y_train[y_train == 0].size
+    # report["class1_training"] = y_train[y_train == 1].size
+    # report["class0_testing"] = y_test[y_test == 0].size
+    # report["class1_testing"] = y_test[y_test == 1].size
+    # report["option"] = option
+    # report["thresh_i"] = thresh_i
+    # report["thresh_z"] = thresh_z
+    # report["days"] = days
+    # report["farm_id"] = farm_id
+    # report_rows_list.append(report)
+    #
+    # df_report = pd.DataFrame(report_rows_list)
+    # filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.csv" % (
+    # output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
+    # if not os.path.exists(output_dir):
+    #     print("mkdir", output_dir)
+    #     os.makedirs(output_dir)
+    # df_report.to_csv(filename, sep=',', index=False)
+    # print("filename=", filename)
 
 
 def get_proba(y_probas, y_pred):
@@ -616,18 +868,22 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
         dataset_folder = sys.argv[2]
-        test_size = int(sys.argv[3])
-        n_process = int(sys.argv[4])
+        n_splits = int(sys.argv[3])
+        n_repeats = int(sys.argv[4])
+        n_process = int(sys.argv[5])
+
     else:
         exit(-1)
 
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
-    print("test_size=", test_size)
-
+    print("n_splits=", n_splits)
+    print("n_repeats=", n_repeats)
+    print("n_process=", n_process)
     print("loading dataset...")
 
     files = glob2.glob(dataset_folder)
+    files = [file.replace("\\", '/') for file in files]
     print("found %d files." % len(files))
 
     MULTI_THREADING_ENABLED = (n_process > 0)
@@ -636,7 +892,6 @@ if __name__ == "__main__":
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for file in files:
-            file = file.replace('\\', '/')
             data_frame_original, data_frame, _ = load_df_from_datasets(file)
             split = file.split("/")[-1].split('.')[0].split('_')
             thresh_i = int(split[-3])
@@ -649,16 +904,15 @@ if __name__ == "__main__":
             print("days=", days)
             print("farm_id=", farm_id)
             print("option=", option)
-            data_frame = shuffle(data_frame)
-            pool.apply_async(process_data_frame, (data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, True,))
             pool.apply_async(process_data_frame,
-                             (data_frame, test_size, thresh_i, thresh_z, days, farm_id, option, False,))
+                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, True,))
+            pool.apply_async(process_data_frame,
+                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, False,))
         pool.close()
         pool.join()
         pool.terminate()
     else:
         for file in files:
-            file = file.replace('\\', '/')
             data_frame_original, data_frame, _ = load_df_from_datasets(file)
             split = file.split("/")[-1].split('.')[0].split('_')
             thresh_i = int(split[-3])
@@ -671,23 +925,22 @@ if __name__ == "__main__":
             print("days=", days)
             print("farm_id=", farm_id)
             print("option=", option)
-            data_frame = shuffle(data_frame)
-            process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option,
-                               downsample_false_class=True)
-            process_data_frame(data_frame, test_size, thresh_i, thresh_z, days, farm_id, option,
+            process_data_frame(output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats,
                                downsample_false_class=False)
+            process_data_frame(output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats,
+                               downsample_false_class=True)
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
 
-    files = [output_dir+"/"+file for file in os.listdir(output_dir) if file.endswith(".csv")]
+    files = [output_dir + "/" + file for file in os.listdir(output_dir) if file.endswith(".csv")]
     print("found %d files." % len(files))
     print("compiling final file...")
     df_final = pd.DataFrame()
     dfs = [pd.read_csv(file, sep=",") for file in files]
     df_final = pd.concat(dfs)
-    filename = "%s/classification_report_test_size_%d.csv" % (output_dir, test_size)
+    filename = "%s/final_classification_report_cv_%d_%d.csv" % (output_dir, n_splits, n_repeats)
     df_final.to_csv(filename, sep=',', index=False)
     print(df_final)
     print("done")
