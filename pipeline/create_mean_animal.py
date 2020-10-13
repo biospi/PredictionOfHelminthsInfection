@@ -126,13 +126,15 @@ if __name__ == '__main__':
     thresh_i = None
     thresh_zero2nan = None
     for idx, file in enumerate(files):
+        file = file.replace("\\", '/')
         print("file=", file)
         if 'median' in file.split('/')[-1]:
             continue
-        farm_id = file.split('/')[-2]
-        animal_id = file.split('/')[-1].replace('.csv', '')
-        thresh_i = int(animal_id.split('_')[2])
-        thresh_zero2nan = int(animal_id.split('_')[4])
+        split = file.split('/')[-1].replace('.csv', '').split("_")
+        animal_id = int(split[0])
+        farm_id = split[6] + "_" + split[7]
+        thresh_i = int(split[2])
+        thresh_zero2nan = int(split[4])
         df = pd.read_csv(file, sep=",")
         df_raw[str(idx)] = df['first_sensor_value']
 

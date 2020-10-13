@@ -253,6 +253,7 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
         return
 
     animal_id = int(curr_data_famacha[2])
+
     # # find the activity data of that animal the n days before the test
     date1, date2, _, _ = get_period(curr_data_famacha, days_before_famacha_test)
 
@@ -262,9 +263,9 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
 
     # print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
-    rows_activity, time_range = execute_df_query(csv_df, animal_id, resolution, date2, date1)
+    rows_activity, time_range, nan_in_window = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     #todo understand which mean or median
-    rows_herd, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
+    rows_herd, _, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
     # rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
 
     herd_activity_list = rows_herd
@@ -350,7 +351,8 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
             "humidity": humidity_list,
             "herd": herd_activity_list,
             "herd_raw": herd_activity_list_raw,
-            "ignore": True
+            "ignore": True,
+            "nan_in_window": nan_in_window
             }
     return data
 
@@ -459,8 +461,8 @@ def create_activity_graph(output_dir, animal_id, activity, folder, filename, tit
 
     fig = plt.figure(figsize=(19.20, 10.80))
     plt.clf()
-    # plt.plot(activity)
-    plt.bar(range(0, len(activity)), activity)
+    plt.plot(activity)
+    # plt.bar(range(0, len(activity)), activity)
     fig.suptitle(title, x=0.5, y=.95, horizontalalignment='center', verticalalignment='top', fontsize=10)
 
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
@@ -648,11 +650,11 @@ def create_graph_title(data, domain):
     temp_1 = ','.join([str(x) for x in data["temperature"][0:1]])
     temp_2 = ','.join([str(x) for x in data["temperature"][-1:]])
     if domain == "time":
-        act_1 = ','.join([str(x) for x in data["activity"][0:1]])
-        act_2 = ','.join([str(x) for x in data["activity"][-1:]])
+        act_1 = ','.join([str(x) for x in data["activity"][0:3]])
+        act_2 = ','.join([str(x) for x in data["activity"][-3:]])
         idxs_1 = ','.join([str(x) for x in data["indexes"][0:1]])
         idxs_2 = ','.join([str(x) for x in data["indexes"][-1:]])
-        return "[[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%s,%s]" % (
+        return "%d [[%s...%s],[%s...%s],[%s...%s],[%s...%s],%d,%s,%s]" % (int(data["nan_in_window"]),
             act_1, act_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"], str(data["previous_famacha_score1"]),
             str(data["famacha_score_increase"]))
@@ -661,7 +663,7 @@ def create_graph_title(data, domain):
         idxs_2 = ','.join([str(x) for x in data["indexes_cwt"][-1:]])
         cwt_1 = ','.join([str(x) for x in data["cwt"][0:1]])
         cwt_2 = ','.join([str(x) for x in data["cwt"][-1:]])
-        return "[cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%s,%s]" % (
+        return "%d [cwt:[%s...%s],idxs:[%s...%s],h:[%s...%s],t:[%s...%s],fs:%d,pfs:%s,%s]" % (data["nan_in_window"],
             cwt_1, cwt_2, idxs_1, idxs_2, hum_1, hum_2,
             temp_1, temp_2, data["famacha_score"], str(data["previous_famacha_score1"]),
             str(data["famacha_score_increase"]))
@@ -685,12 +687,23 @@ def get_famacha_data(famacha_data_file_path):
 
 def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     # print("execute df query...", animal_id, resolution, date2, date1)
+    if csv_df is None:
+        print("could not load csv_df", animal_id)
+        return [], [], []
     df = csv_df.copy()
     df["datetime64"] = pd.to_datetime(df['date_str'])
     start = pd.to_datetime(datetime.fromtimestamp(int(date2)))
     end = pd.to_datetime(datetime.fromtimestamp(int(date1)))
+
     df_ = df[df.datetime64.between(start, end)]
+
+    nan_in_window = df_["first_sensor_value"].isna().sum()
+
+    if nan_in_window < 60*6:
+        df_ = df_.fillna(0)
+
     activity = df_["first_sensor_value"].to_list()
+
     time_range = df_["timestamp"].to_list()
     try:
         time_range = [datetime.fromtimestamp(x) for x in time_range]
@@ -699,7 +712,7 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
         print(time_range)
         print(csv_df)
 
-    return activity, time_range
+    return activity, time_range, nan_in_window
 
 
 def resample_traces(resolution, activity, herd):
@@ -712,15 +725,18 @@ def resample_traces(resolution, activity, herd):
     activity_series_r = activity_series.resample(resolution).sum()
     activity_r = activity_series_r.values
 
-    herd_series = pd.Series(herd, index=index)
-    herd_series_r = herd_series.resample(resolution).sum()
-    herd_r = herd_series_r.values
+    if len(herd) > 0:
+        herd_series = pd.Series(herd, index=index)
+        herd_series_r = herd_series.resample(resolution).sum()
+        herd_r = herd_series_r.values
+    else:
+        herd_r = np.array([])
 
     return activity_r, herd_r
 
 
-def process_day(enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean, idx, thresh_i, thresh_z2n, days_before_famacha_test,
-                resolution, farm_id, csv_folder, file, file_median, data_famacha_dict, create_input_visualisation_eanable=False):
+def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, idx, thresh_i, thresh_z2n, days_before_famacha_test,
+                resolution, farm_id, file, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
     # result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = enable_graph_output
@@ -929,8 +945,17 @@ if __name__ == '__main__':
     print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
 
     farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
-    csv_median = load_db_from_csv(file_median)
-    csv_mean = load_db_from_csv(file_mean)
+
+    try:
+        csv_median = load_db_from_csv(file_median)
+    except ValueError as e:
+        print("missing median file!")
+        csv_median = None
+    try:
+        csv_mean = load_db_from_csv(file_mean)
+    except ValueError as e:
+        print("missing mean file!")
+        csv_mean = None
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
@@ -950,49 +975,32 @@ if __name__ == '__main__':
         for idx, file in enumerate(files):
             if 'median' in file or 'mean' in file:
                 continue
-            pool.apply_async(process_day, (enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean,
-                                           idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data,))
+            pool.apply_async(process_day, (enable_graph_output, result_output_dir, csv_median, csv_mean,
+                                           idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, file, famacha_data,))
         pool.close()
         pool.join()
         pool.terminate()
         print("multithreaded loop finished! reading results...")
-        files_txt = glob.glob(result_output_dir + "/*.txt")
-        for file in files_txt:
-            with open(file) as f:
-                lines = [line.rstrip() for line in f]
-                total.append(int(lines[0].split('=')[1].strip()))
-                total_sample_11.append(int(lines[1].split('=')[1].strip()))
-                total_sample_12.append(int(lines[2].split('=')[1].strip()))
-                nan_sample_11.append(int(lines[4].split('=')[1].strip()))
-                nan_sample_12.append(int(lines[5].split('=')[1].strip()))
-                usable_11.append(int(lines[7].split('=')[1].strip()))
-                usable_12.append(int(lines[8].split('=')[1].strip()))
-
-        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n,
-                                         sum(total), sum(total_sample_11), sum(total_sample_12),
-                                         sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
-
     else:
         for idx, file in enumerate(files):
             if 'median' in file or 'mean' in file:
                 continue
-            process_day(enable_graph_output, output_dir, result_output_dir, csv_median, csv_mean, idx, thresh_i,
-                        thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id,
-                        csv_db_dir_path.replace("/*.csv", ""), file, file_median, famacha_data)
-        files_txt = glob.glob(result_output_dir + "/*.txt")
-        for file in files_txt:
-            with open(file) as f:
-                lines = [line.rstrip() for line in f]
-                total.append(int(lines[0].split('=')[1].strip()))
-                total_sample_11.append(int(lines[1].split('=')[1].strip()))
-                total_sample_12.append(int(lines[2].split('=')[1].strip()))
-                nan_sample_11.append(int(lines[4].split('=')[1].strip()))
-                nan_sample_12.append(int(lines[5].split('=')[1].strip()))
-                usable_11.append(int(lines[7].split('=')[1].strip()))
-                usable_12.append(int(lines[8].split('=')[1].strip()))
+            process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, idx, thresh_i,
+                        thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, file, famacha_data)
 
-        exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
-                                         sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
+    files_txt = glob.glob(result_output_dir + "/*.txt")
+    for file in files_txt:
+        with open(file) as f:
+            lines = [line.rstrip() for line in f]
+            total.append(int(lines[0].split('=')[1].strip()))
+            total_sample_11.append(int(lines[1].split('=')[1].strip()))
+            total_sample_12.append(int(lines[2].split('=')[1].strip()))
+            nan_sample_11.append(int(lines[4].split('=')[1].strip()))
+            nan_sample_12.append(int(lines[5].split('=')[1].strip()))
+            usable_11.append(int(lines[7].split('=')[1].strip()))
+            usable_12.append(int(lines[8].split('=')[1].strip()))
+
+    exporting_data_info_to_txt_final(result_output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n, sum(total), sum(total_sample_11), sum(total_sample_12),
+                                     sum(nan_sample_11), sum(nan_sample_12), sum(usable_11), sum(usable_12))
 
 

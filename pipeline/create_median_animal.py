@@ -126,13 +126,15 @@ if __name__ == '__main__':
     thresh_i = None
     thresh_zero2nan = None
     for idx, file in enumerate(files):
+        file = file.replace("\\", '/')
         print("file=", file)
         if 'median' in file.split('/')[-1]:
             continue
-        farm_id = file.split('/')[-2]
-        animal_id = file.split('/')[-1].replace('.csv', '')
-        thresh_i = int(animal_id.split('_')[2])
-        thresh_zero2nan = int(animal_id.split('_')[4])
+        split = file.split('/')[-1].replace('.csv', '').split("_")
+        animal_id = int(split[0])
+        farm_id = split[6] + "_" + split[7]
+        thresh_i = int(split[2])
+        thresh_zero2nan = int(split[4])
         df = pd.read_csv(file, sep=",")
         df_raw[str(idx)] = df['first_sensor_value']
 
@@ -141,7 +143,6 @@ if __name__ == '__main__':
     compute_median["date_str"] = df["date_str"]
     compute_median = compute_median.rename(columns={0: "first_sensor_value"})
     compute_median = compute_median[["timestamp", "date_str", "first_sensor_value"]]
-
     # for debugging
     # for i, col in enumerate(df_raw.columns):
     #     df_raw[col][200000: 200300].plot(alpha=0.5)
