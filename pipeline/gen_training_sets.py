@@ -17,6 +17,7 @@ import dateutil.relativedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 import pycwt as wavelet
 
 
@@ -474,22 +475,20 @@ def create_activity_graph(output_dir, animal_id, activity, folder, filename, tit
     plt.close(fig)
 
 
-def create_hd_cwt_graph(output_dir, coefs, cwt_lengh, folder, filename, title=None, sub_folder='training_sets_cwt_graphs',
+def create_hd_cwt_graph(output_dir, power_coefs, cwt_lengh, folder, filename, title=None, sub_folder='training_sets_cwt_graphs',
                         sub_sub_folder=None, freqs=None):
     fig, axs = plt.subplots(1)
     # ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
     # ax.imshow(coefs)
     # ax.set_yscale('log')
-    t = [v for v in range(coefs.shape[1])]
-    axs.pcolor(t, freqs, coefs)
-    axs.set_ylabel('Frequency')
-    axs.set_yscale('log')
+    # t = [v for v in range(coefs.shape[0])]
+    # axs.pcolor(t, freqs, coefs)
+    # axs.set_ylabel('Frequency')
+    # axs.set_yscale('log')
+    plt.imshow(power_coefs, extent=[0, power_coefs.shape[1], 0, power_coefs.shape[0]], interpolation='nearest', aspect='auto')
 
     path = "%s/%s/%s" % (output_dir, sub_folder, sub_sub_folder)
-    try:
-        pathlib.Path(path).mkdir(parents=True)
-    except Exception as e:
-        print(e)
+    create_rec_dir(path)
     fig.savefig('%s/%d_%s' % (path, cwt_lengh, filename.replace('.', '')))
     # print(cwt_lengh, filename.replace('.', ''))
     fig.clear()
@@ -512,34 +511,52 @@ def mask_cwt(cwt, coi):
         col[indexes_to_keep] = -1
     return cwt
 
+# import pywt
+# def compute_cwt(activity):
+#     w = pywt.ContinuousWavelet('morl')
+#     scales = even_list(40)
+#     sampling_frequency = 1 / 60
+#     sampling_period = 1 / sampling_frequency
+#     coef, freqs = pywt.cwt(np.asarray(activity), scales, w, sampling_period=sampling_period)
+#     cwt = [element for tupl in coef for element in tupl]
+#     indexes = np.asarray(list(range(coef.shape[1])))
+#     return cwt, coef, freqs, indexes, scales, 1, 'morlet'
+
 
 def compute_cwt(activity, scale=80):
     # print("compute_cwt...")
     # t, activity = dummy_sin()
-    scales = even_list(scale)
+    # scales = even_list(scale)
     num_steps = len(activity)
     x = np.arange(num_steps)
-    y = activity
 
+    #
     delta_t = (x[1] - x[0]) * 1
-    # scales = np.arange(1, int(num_steps/10))
-    freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
-    wavelet_type = 'mexicanhat'
+    # # scales = np.arange(1, int(num_steps/10))
+    # freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
+    wavelet_type = 'morlet'
     # y = [0 if x is np.nan else x for x in y] #todo fix
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
+    y = activity
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
+    coefs_cc = np.conj(coefs)
+    power = np.real(np.multiply(coefs, coefs_cc))
+    power_flatten = power.flatten()
 
     # coefs_masked = mask_cwt(coefs.real, coi)
-    coefs_masked = coefs.real
-    cwt = []
-    for element in coefs_masked:
-        for tupl in element:
-            # if np.isnan(tupl) or tupl < 0:
-            #     continue
-            cwt.append(tupl)
-    # indexes = np.asarray(list(range(len(coefs.real))))
-    indexes = []
-    print("cwt lengh=", len(cwt))
-    return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
+    # coefs_masked = coefs.real
+    # cwt = []
+    # for element in coefs_masked:
+    #     for tupl in element:
+    #         # if np.isnan(tupl) or tupl < 0:
+    #         #     continue
+    #         cwt.append(tupl)
+    # # indexes = np.asarray(list(range(len(coefs.real))))
+    # indexes = []
+    # print("cwt lengh=", len(cwt))
+    return coefs.shape, power_flatten, power, freqs, [], scales, delta_t, wavelet_type, coi
+
+
+
 
 
 def create_filename(data):
@@ -699,8 +716,8 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
 
     nan_in_window = df_["first_sensor_value"].isna().sum()
 
-    if nan_in_window < 60*6:
-        df_ = df_.fillna(0)
+    # if nan_in_window < 60*6:
+    #     df_ = df_.fillna(-1)
 
     activity = df_["first_sensor_value"].to_list()
 
@@ -809,14 +826,14 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
             continue
 
         # print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
-        cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
+        coef_shape, cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
 
         result["cwt"] = cwt
-        result["coef_shape"] = coef.shape
+        result["coef_shape"] = coef_shape
         result["indexes_cwt"] = indexes_cwt
 
-        # create_hd_cwt_graph(output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
-        #                     sub_sub_folder=sub_sub_folder, freqs=freqs)
+        create_hd_cwt_graph(result_output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
+                            sub_sub_folder=sub_sub_folder, freqs=freqs)
 
         create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
         results[idx] = None
