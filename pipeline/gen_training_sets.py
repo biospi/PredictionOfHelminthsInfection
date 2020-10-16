@@ -17,6 +17,7 @@ import dateutil.relativedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import normalize
 
 import pycwt as wavelet
 
@@ -266,13 +267,20 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
 
     rows_activity, time_range, nan_in_window = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     #todo understand which mean or median
-    rows_herd, _, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
+    median, _, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
+
     # rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
 
-    herd_activity_list = rows_herd
-    herd_activity_list_raw = herd_activity_list
+    median_activity_list = median
+    median_activity_list_raw = median_activity_list
     activity_list = rows_activity
     activity_list_raw = activity_list
+
+    if len(activity_list) > 0:
+        h = np.array(median_activity_list)
+        a = np.array(activity_list)
+        if np.array_equal(h[0:5000], a[0:5000]):
+            print(activity_list, median_activity_list)
 
     expected_activity_point = get_expected_sample_count("1min", days_before_famacha_test)
 
@@ -350,8 +358,7 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
             "activity_raw": activity_list_raw,
             "temperature": temperature_list,
             "humidity": humidity_list,
-            "herd": herd_activity_list,
-            "herd_raw": herd_activity_list_raw,
+            "median": median_activity_list,
             "ignore": True,
             "nan_in_window": nan_in_window
             }
@@ -523,24 +530,31 @@ def mask_cwt(cwt, coi):
 #     return cwt, coef, freqs, indexes, scales, 1, 'morlet'
 
 
-def compute_cwt(activity, scale=80):
+def compute_cwt(activity, scale=120):
     # print("compute_cwt...")
     # t, activity = dummy_sin()
-    # scales = even_list(scale)
+    scale = 300
+    scales = even_list(scale)
+
     num_steps = len(activity)
     x = np.arange(num_steps)
 
     #
     delta_t = (x[1] - x[0]) * 1
     # # scales = np.arange(1, int(num_steps/10))
-    # freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
+    freqs = 1 / (wavelet.Morlet().flambda() * scales)
+
     wavelet_type = 'morlet'
     # y = [0 if x is np.nan else x for x in y] #todo fix
     y = activity
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type, freqs=freqs)
     coefs_cc = np.conj(coefs)
     power = np.real(np.multiply(coefs, coefs_cc))
     power_flatten = power.flatten()
+
+    plt.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]], interpolation='nearest',
+               aspect='auto')
+    plt.show()
 
     # coefs_masked = mask_cwt(coefs.real, coi)
     # coefs_masked = coefs.real
@@ -557,8 +571,6 @@ def compute_cwt(activity, scale=80):
 
 
 
-
-
 def create_filename(data):
     filename = "famacha[%.1f]_%d_%s_%s_sd_pvfs%d.png" % (data["famacha_score"], data["animal_id"], data["date_range"][0], data["date_range"][1],
     -1 if data["previous_famacha_score1"] is None else data["previous_famacha_score1"])
@@ -567,6 +579,7 @@ def create_filename(data):
 
 def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=[]):
     training_set = []
+    training_set_median = []
     option = ""
     if "cwt" in options:
         training_set.extend(result["coef_shape"])
@@ -578,9 +591,12 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     if "indexes_cwt" in options:
         training_set.extend(result["indexes_cwt"])
         option = option + "indexes_cwt_"
+
     if "activity" in options:
         training_set.extend(result["activity"])
         option = option + "activity"
+        training_set_median.extend(result["median"])
+        
     if "indexes" in options:
         training_set.extend(result["indexes"])
         option = option + "indexes_"
@@ -617,18 +633,45 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     training_set.append(result["nd2"])
     training_set.append(result["nd3"])
     training_set.append(result["nd4"])
+    
+    
+    training_set_median.append("median"+"_"+str(result["famacha_score_increase"]))
+    training_set_median.append(len(training_set_median))
+    training_set_median.extend(result["date_range"])
+    training_set_median.append(result["animal_id"])
+    training_set_median.append(result["famacha_score"])
+    training_set_median.append(result["previous_famacha_score1"])
+    training_set_median.append(result["previous_famacha_score2"])
+    training_set_median.append(result["previous_famacha_score3"])
+    training_set_median.append(result["previous_famacha_score4"])
+    training_set_median.append(result["dtf1"])
+    training_set_median.append(result["dtf2"])
+    training_set_median.append(result["dtf3"])
+    training_set_median.append(result["dtf4"])
+    training_set_median.append(result["dtf5"])
+    training_set_median.append(result["nd1"])
+    training_set_median.append(result["nd2"])
+    training_set_median.append(result["nd3"])
+    training_set_median.append(result["nd4"])
+    
     path = "%s/training_sets" % output_dir
     if not os.path.exists(path):
         print("mkdir", path)
         os.makedirs(path)
-    filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.data" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
+    filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.csv" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
+
+    training_str_median_flatten = str(training_set_median).strip('[]').replace(' ', '').replace('None', 'NaN')
+
+    if training_str_median_flatten[0:5000] == training_str_flatten[0:5000]:
+        print("")
     # print("set size is %d, %s.....%s" % (
     #     len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
     print("filename=", filename)
     with open(filename, 'a') as outfile:
-        outfile.write(training_str_flatten)
-        outfile.write('\n')
+        outfile.write(training_str_flatten+'\n')
+        outfile.write(training_str_median_flatten + '\n')
+    outfile.close()
 
     print("appended dataset")
 
@@ -652,12 +695,12 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
 
 
 def create_training_sets(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n):
-    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n,options=["activity"])
-    path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id,thresh_i, thresh_z2n, options=["cwt"])
+    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=["activity"])
+    # path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id,thresh_i, thresh_z2n, options=["cwt"])
 
     return [
-        {"path": path1, "options": options1},
-        {"path": path2, "options": options2}
+        {"path": path1, "options": options1}
+        # {"path": path2, "options": options2}
     ]
 
 
@@ -790,7 +833,7 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
         if result is None:
             continue
 
-        activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["herd"])
+        activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["median"])
         is_valid, reason = is_activity_data_valid(result["activity_raw"])
         # print("sample is valid=", is_valid)
         result["activity"] = activity_resampled.tolist()
@@ -810,6 +853,16 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
     print("computing cwts and set for file %d..." % idx)
     for idx in range(len(results)):
         result = results[idx]
+
+        if not result['is_valid']:
+            continue
+
+        # activity_array = np.array(result["activity"])
+        # activity_anscombe = np.array(anscombe_list(activity_array))
+        # activity_norml2 = normalize(activity_array[:, np.newaxis], axis=0).ravel()
+        # 
+        # result["activity"] = activity_norml2.tolist()
+
         if create_activity_graph_enabled:
             sub_sub_folder = str(result["is_valid"]) + "/"
             filename_graph = create_filename(result)
@@ -822,18 +875,15 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
                                   title=create_graph_title(result, "time"),
                                   sub_sub_folder=sub_sub_folder)
 
-        if not result['is_valid']:
-            continue
-
         # print("result valid %d/%dfor %s." % (idx, len(results), str(result["animal_id"])))
-        coef_shape, cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
-
-        result["cwt"] = cwt
-        result["coef_shape"] = coef_shape
-        result["indexes_cwt"] = indexes_cwt
-
-        create_hd_cwt_graph(result_output_dir, coef, len(cwt), result_output_dir, filename_graph, title=create_graph_title(result, "freq"),
-                            sub_sub_folder=sub_sub_folder, freqs=freqs)
+        # coef_shape, cwt, coef, freqs, indexes_cwt, scales, delta_t, wavelet_type, coi = compute_cwt(result["activity"])
+        #
+        # result["cwt"] = cwt
+        # result["coef_shape"] = coef_shape
+        # result["indexes_cwt"] = indexes_cwt
+        #
+        # create_hd_cwt_graph(result_output_dir, coef, len(cwt), result_output_dir, tag+"_"+filename_graph, title=create_graph_title(result, "freq"),
+        #                     sub_sub_folder=sub_sub_folder, freqs=freqs)
 
         create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
         results[idx] = None

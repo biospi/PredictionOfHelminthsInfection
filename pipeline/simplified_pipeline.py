@@ -1,7 +1,7 @@
 from __future__ import division  # for python2 regular div
 
 import shutil
-
+import pywt
 import matplotlib
 import glob2
 from sys import platform as _platform
@@ -47,9 +47,16 @@ from sklearn.preprocessing import Normalizer
 from sklearn.manifold import TSNE
 import time
 from sklearn.model_selection import cross_val_predict
-
+import pycwt as wavelet
+from sklearn.metrics import mean_squared_error, r2_score
 META_DATA_LENGTH = 19
-
+from sklearn.neural_network import MLPClassifier
+import keras
+from keras.layers import Dense, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.models import Sequential
+from keras.callbacks import History
+from keras import backend as K
 
 def find_type_for_mem_opt(df):
     data_col_n = df.iloc[[0]].size
@@ -69,6 +76,18 @@ def find_type_for_mem_opt(df):
     type_dict[str(data_col_n - 11)] = np.int
     type_dict[str(data_col_n - 15)] = np.int
     return type_dict
+
+
+def load_matlab_dataset(fname, label_col='label'):
+    print("load_df_from_datasets...", fname)
+    data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
+    data_point_count = data_frame.shape[1]
+    hearder = [str(n) for n in range(0, data_point_count)]
+    hearder[-1] = "label"
+    data_frame.columns = hearder
+    data_frame_original = data_frame.copy()
+    data_frame = shuffle(data_frame)
+    return data_frame_original, data_frame, data_frame
 
 
 def load_df_from_datasets(fname, label_col='label'):
@@ -112,7 +131,10 @@ def load_df_from_datasets(fname, label_col='label'):
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame = shuffle(data_frame)
-    return data_frame_original, data_frame, cols_to_keep
+
+    data_frame_cwt = create_cwt_df(data_frame.copy())
+
+    return data_frame_original, data_frame, data_frame_cwt
 
 
 def process_cross_farm(data_frame1, data_frame2, y_col='label'):
@@ -373,27 +395,28 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, thre
 
 def make_roc_curve(out_dir, classifier, X, y, cv, param_str, thresh_i, thresh_z):
     print("make_roc_curve")
-    if isinstance(X, pd.DataFrame):
-        X = X.values
-    tprs = []
-    aucs = []
-    mean_fpr = np.linspace(0, 1, 100)
-    plt.clf()
-    fig, ax = plt.subplots(figsize=(19.20, 10.80))
-    for i, (train, test) in enumerate(cv.split(X, y)):
-        classifier.fit(X[train], y[train])
-        viz = plot_roc_curve(classifier, X[test], y[test],
-                             label=None,
-                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
-        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-        interp_tpr[0] = 0.0
-        tprs.append(interp_tpr)
-        aucs.append(viz.roc_auc)
-        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
-    plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig, thresh_i, thresh_z)
-    plt.close(fig)
-    plt.clf()
+
+    # if isinstance(X, pd.DataFrame):
+    #     X = X.values
+    # tprs = []
+    # aucs = []
+    # mean_fpr = np.linspace(0, 1, 100)
+    # plt.clf()
+    # fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    # for i, (train, test) in enumerate(cv.split(X, y)):
+    #     classifier.fit(X[train], y[train])
+    #     viz = plot_roc_curve(classifier, X[test], y[test],
+    #                          label=None,
+    #                          alpha=0.3, lw=1, ax=ax, c="tab:blue")
+    #     interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+    #     interp_tpr[0] = 0.0
+    #     tprs.append(interp_tpr)
+    #     aucs.append(viz.roc_auc)
+    #     # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    # clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
+    # plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig, thresh_i, thresh_z)
+    # plt.close(fig)
+    # plt.clf()
 
 
 def plot_2d_space_TSNE(X, y, filename_2d_scatter):
@@ -434,6 +457,146 @@ def plot_2d_space(X, y, filename_2d_scatter, label='Classes'):
     plt.clf()
 
 
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+
+def CNN():
+
+    scales = range(1, 128)
+    waveletname = 'morl'
+    train_size = 5000
+    test_size = 500
+
+    train_data_cwt = np.ndarray(shape=(train_size, 127, 127, 9))
+
+    for ii in range(0, train_size):
+        if ii % 1000 == 0:
+            print(ii)
+        for jj in range(0, 9):
+            signal = uci_har_signals_train[ii, :, jj]
+            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+            coeff_ = coeff[:, :127]
+            train_data_cwt[ii, :, :, jj] = coeff_
+
+    test_data_cwt = np.ndarray(shape=(test_size, 127, 127, 9))
+    for ii in range(0, test_size):
+        if ii % 100 == 0:
+            print(ii)
+        for jj in range(0, 9):
+            signal = uci_har_signals_test[ii, :, jj]
+            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+            coeff_ = coeff[:, :127]
+            test_data_cwt[ii, :, :, jj] = coeff_
+
+    uci_har_labels_train = list(map(lambda x: int(x) - 1, uci_har_labels_train))
+    uci_har_labels_test = list(map(lambda x: int(x) - 1, uci_har_labels_test))
+
+    x_train = train_data_cwt
+    y_train = list(uci_har_labels_train[:train_size])
+    x_test = test_data_cwt
+    y_test = list(uci_har_labels_test[:test_size])
+
+    scales = range(1, 128)
+    waveletname = 'morl'
+    train_size = 5000
+    test_size = 500
+
+    train_data_cwt = np.ndarray(shape=(train_size, 127, 127, 9))
+
+    for ii in range(0, train_size):
+        if ii % 1000 == 0:
+            print(ii)
+        for jj in range(0, 9):
+            signal = uci_har_signals_train[ii, :, jj]
+            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+            coeff_ = coeff[:, :127]
+            train_data_cwt[ii, :, :, jj] = coeff_
+
+    test_data_cwt = np.ndarray(shape=(test_size, 127, 127, 9))
+    for ii in range(0, test_size):
+        if ii % 100 == 0:
+            print(ii)
+        for jj in range(0, 9):
+            signal = uci_har_signals_test[ii, :, jj]
+            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+            coeff_ = coeff[:, :127]
+            test_data_cwt[ii, :, :, jj] = coeff_
+
+    uci_har_labels_train = list(map(lambda x: int(x) - 1, uci_har_labels_train))
+    uci_har_labels_test = list(map(lambda x: int(x) - 1, uci_har_labels_test))
+
+    x_train = train_data_cwt
+    y_train = list(uci_har_labels_train[:train_size])
+    x_test = test_data_cwt
+    y_test = list(uci_har_labels_test[:test_size])
+
+
+    history = History()
+    img_x = 127
+    img_y = 127
+    img_z = 9
+    input_shape = (img_x, img_y, img_z)
+
+    batch_size = 16
+    num_classes = 2
+    epochs = 10
+
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
+
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(1, 1),
+                     activation='relu',
+                     input_shape=input_shape))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+    model.add(Conv2D(64, (5, 5), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+    model.add(Dense(1000, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+
+    model.compile(loss=keras.losses.categorical_crossentropy,
+                  optimizer=keras.optimizers.Adam(),
+                  metrics=['acc', f1_m, precision_m, recall_m])
+
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=1,
+              validation_data=(x_test, y_test),
+              callbacks=[history])
+
+    y_pred = model.predict(x_test, batch_size=64, verbose=1)
+    y_pred_bool = np.argmax(y_pred, axis=1)
+    print("****************************************")
+    print("CNN                                     ")
+    print(classification_report(y_test, y_pred_bool))
+
+    # # train_score = model.evaluate(x_train, y_train, verbose=0)
+    # loss, accuracy, f1_score, precision, recall = model.evaluate(x_train, y_train, verbose=0)
+    # print('Train loss: {}, Train accuracy: {}'.format(train_score[0], train_score[1]))
+    # test_score = model.evaluate(x_test, y_test, verbose=0)
+    # print('Test loss: {}, Test accuracy: {}'.format(test_score[0], test_score[1]))
+
+
 def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, downsample_false_class, y_col='label'):
     print("*******************************************************************")
     print("downsample_false_class=", downsample_false_class)
@@ -454,39 +617,47 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
 
+
+    # pls = PLSRegression(n_components=10)
+    # pls.fit(X.copy(), y.copy())
+    # y_cv = cross_val_predict(pls, X, y, cv=3)
+    # score = r2_score(y, y_cv)
+    # mse = mean_squared_error(y, y_cv)
+    # print("r2score", score, "mse", mse)
+
     #todo add anscombe option
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
 
-    try:
-        filename_2d_scatter = "%s/%s_2DPCA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
-            output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
-        pca = PCA(n_components=10)
-        X_pca = pca.fit_transform(X.copy())
-        plot_2d_space(X_pca, y, filename_2d_scatter, '(2 PCA components)')
-
-        filename_2d_scatter = "%s/%s_1DLDA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
-            output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
-        lda = LDA(n_components=1)
-        X_lda = lda.fit_transform(X.copy(), y.copy())
-        plot_2d_space(X_lda, y, filename_2d_scatter, '(1 LDA components)')
-
-        filename_2d_scatter = "%s/%s_2DTSNE_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
-            output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
-        pca_50 = PCA(n_components=10)
-        X_pca50 = pca_50.fit_transform(X.copy())
-        plot_2d_space_TSNE(X_pca50, y, filename_2d_scatter)
-
-        filename_2d_scatter = "%s/%s_2DPLS_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
-            output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
-        pls = PLSRegression(n_components=2)
-        X_pls= pls.fit_transform(X.copy(), y.copy())[0]
-        plot_2d_space(X_pls, y, filename_2d_scatter)
-
-    except ValueError as e:
-        print(e)
+    # try:
+    #     # filename_2d_scatter = "%s/%s_2DPCA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+    #     #     output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    #     # pca = PCA(n_components=10)
+    #     # X_pca = pca.fit_transform(X.copy())
+    #     # plot_2d_space(X_pca, y, filename_2d_scatter, '(2 PCA components)')
+    #     #
+    #     # filename_2d_scatter = "%s/%s_1DLDA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+    #     #     output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    #     # lda = LDA(n_components=1)
+    #     # X_lda = lda.fit_transform(X.copy(), y.copy())
+    #     # plot_2d_space(X_lda, y, filename_2d_scatter, '(1 LDA components)')
+    #     #
+    #     # filename_2d_scatter = "%s/%s_2DTSNE_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+    #     #     output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    #     # pca_50 = PCA(n_components=10)
+    #     # X_pca50 = pca_50.fit_transform(X.copy())
+    #     # plot_2d_space_TSNE(X_pca50, y, filename_2d_scatter)
+    #
+    #     filename_2d_scatter = "%s/%s_2DPLS_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+    #         output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    #     pls = PLSRegression(n_components=2)
+    #     X_pls= pls.fit_transform(X.copy(), y.copy())[0]
+    #     plot_2d_space(X_pls, y, filename_2d_scatter)
+    #
+    # except ValueError as e:
+    #     print(e)
 
     # X, y = load_binary_iris()
     # X, y = load_binary_random()
@@ -534,66 +705,66 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     param_str = "option_%s_downsample_%s_threshi_%d_threshz_%d_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count, class1_count, sampling)
 
 
-    print('->PLSRegression')
-    clf_pls = make_pipeline(PLSRegression(n_components=2))
-    cv_pls = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
-    scores = cross_val_predict(clf_pls, X.copy(), y.copy(), n_jobs=-1)
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == 0].size
-    scores["class1"] = y[y == 1].size
-    scores["option"] = option
-    scores["thresh_i"] = thresh_i
-    scores["thresh_z"] = thresh_z
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    scores["n_repeats"] = n_repeats
-    scores["n_splits"] = n_splits
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["sampling"] = sampling
-    scores["classifier"] = "->PLSRegression"
-    scores["classifier_details"] = str(clf_pls).replace('\n', '').replace(" ", '')
-    report_rows_list.append(scores)
-    make_roc_curve(out_dir, clf_pls, X, y, cv_pls, param_str, thresh_i, thresh_z)
-    del scores
-    
-    
-    print('->PLSRegression->SVC')
-    clf_pls_svc = make_pipeline(PLSRegression(n_components=2), SVC(probability=True, class_weight='balanced'))
-    cv_pls_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
-    scores = cross_validate(clf_pls_svc, X.copy(), y.copy(), cv=cv_pls_svc, scoring=scoring, n_jobs=-1)
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == 0].size
-    scores["class1"] = y[y == 1].size
-    scores["option"] = option
-    scores["thresh_i"] = thresh_i
-    scores["thresh_z"] = thresh_z
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    scores["n_repeats"] = n_repeats
-    scores["n_splits"] = n_splits
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["sampling"] = sampling
-    scores["classifier"] = "->PLSRegression->SVC"
-    scores["classifier_details"] = str(clf_pls_svc).replace('\n', '').replace(" ", '')
-    report_rows_list.append(scores)
-    make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
-    del scores
+    # print('->PLSRegression')
+    # clf_pls = make_pipeline(PLSRegression(n_components=2))
+    # cv_pls = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+    #                              random_state=int(datetime.now().microsecond / 10))
+    # scores = cross_val_predict(clf_pls, X.copy(), y.copy(), n_jobs=-1)
+    # scores["downsample"] = downsample_false_class
+    # scores["class0"] = y[y == 0].size
+    # scores["class1"] = y[y == 1].size
+    # scores["option"] = option
+    # scores["thresh_i"] = thresh_i
+    # scores["thresh_z"] = thresh_z
+    # scores["days"] = days
+    # scores["farm_id"] = farm_id
+    # scores["n_repeats"] = n_repeats
+    # scores["n_splits"] = n_splits
+    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    # scores["sampling"] = sampling
+    # scores["classifier"] = "->PLSRegression"
+    # scores["classifier_details"] = str(clf_pls).replace('\n', '').replace(" ", '')
+    # report_rows_list.append(scores)
+    # make_roc_curve(out_dir, clf_pls, X, y, cv_pls, param_str, thresh_i, thresh_z)
+    # del scores
+    #
+    #
+    # print('->PLSRegression->SVC')
+    # clf_pls_svc = make_pipeline(PLSRegression(n_components=2), SVC(probability=True, class_weight='balanced'))
+    # cv_pls_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+    #                              random_state=int(datetime.now().microsecond / 10))
+    # scores = cross_validate(clf_pls_svc, X.copy(), y.copy(), cv=cv_pls_svc, scoring=scoring, n_jobs=-1)
+    # scores["downsample"] = downsample_false_class
+    # scores["class0"] = y[y == 0].size
+    # scores["class1"] = y[y == 1].size
+    # scores["option"] = option
+    # scores["thresh_i"] = thresh_i
+    # scores["thresh_z"] = thresh_z
+    # scores["days"] = days
+    # scores["farm_id"] = farm_id
+    # scores["n_repeats"] = n_repeats
+    # scores["n_splits"] = n_splits
+    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    # scores["sampling"] = sampling
+    # scores["classifier"] = "->PLSRegression->SVC"
+    # scores["classifier_details"] = str(clf_pls_svc).replace('\n', '').replace(" ", '')
+    # report_rows_list.append(scores)
+    # make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
+    # del scores
 
 
     print('->SVC')
@@ -625,36 +796,67 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     report_rows_list.append(scores)
     make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str, thresh_i, thresh_z)
     del scores
+
+
+    print('->MLP')
+    clf_mlp = make_pipeline(MLPClassifier())
+    cv_mlp = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                 random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cv_mlp, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->MLP"
+    scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_mlp, X, y, cv_mlp, param_str, thresh_i, thresh_z)
+    del scores
     
-    # print('->LDA')
-    # clf_lda = make_pipeline(LDA())
-    # cv_lda = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-    #                              random_state=int(datetime.now().microsecond / 10))
-    # scores = cross_validate(clf_lda, X.copy(), y.copy(), cv=cv_lda, scoring=scoring, n_jobs=-1)
-    # scores["downsample"] = downsample_false_class
-    # scores["class0"] = y[y == 0].size
-    # scores["class1"] = y[y == 1].size
-    # scores["option"] = option
-    # scores["thresh_i"] = thresh_i
-    # scores["thresh_z"] = thresh_z
-    # scores["days"] = days
-    # scores["farm_id"] = farm_id
-    # scores["n_repeats"] = n_repeats
-    # scores["n_splits"] = n_splits
-    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    # scores["sampling"] = sampling
-    # scores["classifier"] = "->LDA"
-    # scores["classifier_details"] = str(clf_lda).replace('\n', '').replace(" ", '')
-    # report_rows_list.append(scores)
-    # make_roc_curve(out_dir, clf_lda, X, y, cv_lda, param_str, thresh_i, thresh_z)
-    # del scores
+    print('->LDA')
+    clf_lda = make_pipeline(LDA())
+    cv_lda = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                 random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_lda, X.copy(), y.copy(), cv=cv_lda, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->LDA"
+    scores["classifier_details"] = str(clf_lda).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_lda, X, y, cv_lda, param_str, thresh_i, thresh_z)
+    del scores
     #
     # print('->LDA(1)->SVC')
     # clf_lda1_svc = make_pipeline(LDA(n_components=1), SVC(probability=True, class_weight='balanced'))
@@ -1211,6 +1413,53 @@ def parse_param_from_filename(file):
     return thresh_i, thresh_z, days, farm_id, option, sampling
 
 
+def compute_cwt(activity, target, i, total):
+    print("%d/%d" % (i, total))
+    wavelet_type = 'morlet'
+    y = activity
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
+    coefs_cc = np.conj(coefs)
+    power = np.real(np.multiply(coefs, coefs_cc))
+    power_flatten = power.flatten()
+    plt.title(str(target))
+    plt.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]], interpolation='nearest',
+               aspect='auto')
+    plt.show()
+
+    data = power_flatten.tolist()
+    data.append(target)
+
+    return data
+
+
+def normalized(v):
+    return v / np.sqrt(np.sum(v ** 2))
+
+
+def create_cwt_df(df_timedomain):
+    from sklearn.preprocessing import normalize
+
+    pool_cwt = Pool(processes=6)
+    results_cwt = []
+    for i, row in enumerate(df_timedomain.iterrows()):
+        target = row[1][-1]
+        activity = normalized(row[1][0:-1].values)
+        res = pool_cwt.apply_async(compute_cwt, (activity, target, i, df_timedomain.shape[0],))
+        results_cwt.append(res.get())
+
+    pool_cwt.close()
+    pool_cwt.join()
+    pool_cwt.terminate()
+
+
+    df_cwt = pd.DataFrame(results_cwt)
+    colums = [str(x) for x in range(df_cwt.shape[1])]
+    colums[-1] = "label"
+    df_cwt.columns = colums
+    print(df_cwt)
+    return df_cwt
+
+
 if __name__ == "__main__":
     print("args: output_dir dataset_filepath test_size")
     print("********************************************************************")
@@ -1250,6 +1499,7 @@ if __name__ == "__main__":
 
     files = glob2.glob(dataset_folder)
     files = [file.replace("\\", '/') for file in files]
+    # files = [file.replace("\\", '/') for file in files if 'activity' in file]
     print("found %d files." % len(files))
 
     MULTI_THREADING_ENABLED = (n_process > 0)
@@ -1258,8 +1508,9 @@ if __name__ == "__main__":
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for file in files:
-            data_frame_original, data_frame, _ = load_df_from_datasets(file)
+            data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(file)
             thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
+
             print("thresh_i=", thresh_i)
             print("thresh_z=", thresh_z)
             print("days=", days)
@@ -1269,13 +1520,20 @@ if __name__ == "__main__":
                              (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, True,))
             pool.apply_async(process_data_frame,
                              (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, False,))
+            pool.apply_async(process_data_frame,
+                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats, sampling, True,))
+            pool.apply_async(process_data_frame,
+                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats, sampling, False,))
         pool.close()
         pool.join()
         pool.terminate()
     else:
         for file in files:
-            data_frame_original, data_frame, _ = load_df_from_datasets(file)
+            # data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(file)
             thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
+
+            data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
+
             print("thresh_i=", thresh_i)
             print("thresh_z=", thresh_z)
             print("days=", days)
@@ -1285,6 +1543,10 @@ if __name__ == "__main__":
                                sampling, False)
             process_data_frame(output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats,
                                sampling, True)
+            # process_data_frame(output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats,
+            #                    sampling, False)
+            # process_data_frame(output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats,
+            #                    sampling, True)
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
