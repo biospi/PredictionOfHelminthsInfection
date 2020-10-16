@@ -19,6 +19,7 @@
 # along with seaMass.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+#%%
 import numpy as np
 import pandas as pd
 from enum import Enum, auto
@@ -58,9 +59,27 @@ class Activity:
         return self.T
     def getTrace(self):
         return self.A
-    ID = [] # ID of Animal
-    T = []  # Time of each activity measurement
-    A = []  # Activity trace of animal
+    ID = []  # ID of Animal
+    T = []   # Time of each activity measurement
+    A = []   # Activity trace of animal
+
+class Famacha:
+    class Score:
+        def __init__(self, _date, _famacha, _weight):
+            self.date = _date
+            self.famacha = _famacha
+            self.weight = _weight
+        date = 0
+        famacha = 0
+        weight = 0
+    ID = 0
+    famachaList = []
+    def __init__(self, _id):
+        ID = _id
+    def addScore(self, _date, _famacha, _weight):
+        self.famachaList.append(Score(_date, _famacha, _weight))
+    def getFamachaList(self):
+        return self.famachaList
 
 class Sample:
     ID = 0
@@ -74,7 +93,7 @@ def loadActivityTrace(dirName):
     Load in data from directory containing csv files containing activity trace data return list of Activity
     Trace objects.
     """
-    files = Path(dirName)
+    files = sorted(Path(dirName).glob('*.csv'))
     fileName = [ x.stem[0:x.stem.find('_')] for x in files]
 
     animalTrace = []
@@ -85,11 +104,12 @@ def loadActivityTrace(dirName):
         del files[idx]
         del fileName[idx]
 
-    for i, idx in enumerate(files):
-        dataFrame = pd.read_csv(i)
+    for idx, idxFn in enumerate(files):
+        dataFrame = pd.read_csv(idxFn)
         atrace = np.array(dataFrame.loc[:,'first_sensor_value'])
         atime = np.array(dataFrame.loc[:,'timestamp'])
         animalTrace.append(Activity(fileName[idx], atrace, atime))
+
     return animalTrace
 
 
@@ -98,7 +118,7 @@ def loadActivityTrace(dirName):
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) != 3
+    if len(sys.argv) != 3:
         print("Usage: "
               "createSample <Famacha.json file> <Directory with data> <Output Directory> ")
 
@@ -108,13 +128,7 @@ if __name__ == "__main__":
 
     print("Commanline argument: ", josonFile)
 
-    files = sorted(dataDir.glob("*.csv"))
+    print("Loading Activity traces and Times of all animals")
+    aT = loadActivityTrace(dataDir)
 
-    for i in files:
-        print("list all dir conenst: ", i)
-
-    for
-
-    datetime.utcfromtimestamp(y.timestamp)
-
-    dt.datetime.utcfromtimestamp(y.timestamp)
+    print(aT)
