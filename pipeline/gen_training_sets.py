@@ -268,19 +268,14 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
     rows_activity, time_range, nan_in_window = execute_df_query(csv_df, animal_id, resolution, date2, date1)
     #todo understand which mean or median
     median, _, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
+    mean, _, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
 
     # rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
-
+    mean_activity_list = mean
     median_activity_list = median
-    median_activity_list_raw = median_activity_list
     activity_list = rows_activity
     activity_list_raw = activity_list
 
-    if len(activity_list) > 0:
-        h = np.array(median_activity_list)
-        a = np.array(activity_list)
-        if np.array_equal(h[0:5000], a[0:5000]):
-            print(activity_list, median_activity_list)
 
     expected_activity_point = get_expected_sample_count("1min", days_before_famacha_test)
 
@@ -359,6 +354,7 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
             "temperature": temperature_list,
             "humidity": humidity_list,
             "median": median_activity_list,
+            "mean": mean_activity_list,
             "ignore": True,
             "nan_in_window": nan_in_window
             }
@@ -580,6 +576,7 @@ def create_filename(data):
 def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=[]):
     training_set = []
     training_set_median = []
+    training_set_mean = []
     option = ""
     if "cwt" in options:
         training_set.extend(result["coef_shape"])
@@ -596,6 +593,7 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
         training_set.extend(result["activity"])
         option = option + "activity"
         training_set_median.extend(result["median"])
+        training_set_mean.extend(result["mean"])
         
     if "indexes" in options:
         training_set.extend(result["indexes"])
@@ -653,6 +651,26 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     training_set_median.append(result["nd2"])
     training_set_median.append(result["nd3"])
     training_set_median.append(result["nd4"])
+
+
+    training_set_mean.append("mean"+"_"+str(result["famacha_score_increase"]))
+    training_set_mean.append(len(training_set_mean))
+    training_set_mean.extend(result["date_range"])
+    training_set_mean.append(result["animal_id"])
+    training_set_mean.append(result["famacha_score"])
+    training_set_mean.append(result["previous_famacha_score1"])
+    training_set_mean.append(result["previous_famacha_score2"])
+    training_set_mean.append(result["previous_famacha_score3"])
+    training_set_mean.append(result["previous_famacha_score4"])
+    training_set_mean.append(result["dtf1"])
+    training_set_mean.append(result["dtf2"])
+    training_set_mean.append(result["dtf3"])
+    training_set_mean.append(result["dtf4"])
+    training_set_mean.append(result["dtf5"])
+    training_set_mean.append(result["nd1"])
+    training_set_mean.append(result["nd2"])
+    training_set_mean.append(result["nd3"])
+    training_set_mean.append(result["nd4"])
     
     path = "%s/training_sets" % output_dir
     if not os.path.exists(path):
@@ -663,14 +681,15 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
 
     training_str_median_flatten = str(training_set_median).strip('[]').replace(' ', '').replace('None', 'NaN')
 
-    if training_str_median_flatten[0:5000] == training_str_flatten[0:5000]:
-        print("")
+    training_str_mean_flatten = str(training_set_mean).strip('[]').replace(' ', '').replace('None', 'NaN')
+
     # print("set size is %d, %s.....%s" % (
     #     len(training_set), training_str_flatten[0:50], training_str_flatten[-50:]))
     print("filename=", filename)
     with open(filename, 'a') as outfile:
         outfile.write(training_str_flatten+'\n')
         outfile.write(training_str_median_flatten + '\n')
+        outfile.write(training_str_mean_flatten + '\n')
     outfile.close()
 
     print("appended dataset")
@@ -981,8 +1000,8 @@ if __name__ == '__main__':
     else:
         exit(-1)
 
-    print("output_dir=",output_dir)
-    print("csv_db_path=",csv_db_dir_path)
+    print("output_dir=", output_dir)
+    print("csv_db_path=", csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
     print("n_days_before_famacha=", n_days_before_famacha)
     print("resampling_resolution=", resampling_resolution)
@@ -1018,11 +1037,13 @@ if __name__ == '__main__':
     except ValueError as e:
         print("missing median file!")
         csv_median = None
+        sys.exit(-1)
     try:
         csv_mean = load_db_from_csv(file_mean)
     except ValueError as e:
         print("missing mean file!")
         csv_mean = None
+        sys.exit(-1)
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)

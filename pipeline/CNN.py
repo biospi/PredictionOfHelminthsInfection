@@ -21,7 +21,7 @@ from keras.callbacks import History
 from sklearn.metrics import classification_report
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 # def plot_wavelet(time, signal, scales,
@@ -311,21 +311,21 @@ if __name__ == "__main__":
     img_z = 1
     input_shape = (img_x, img_y, img_z)
 
-    batch_size = 16
+    batch_size = 5
     num_classes = 2
     epochs = 10
 
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
+    x_train = x_train.astype('float16')
+    x_test = x_test.astype('float16')
 
     y_train = keras.utils.to_categorical(y_train, num_classes)
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    model.add(Conv2D(32, kernel_size=(5, 5), strides=(1, 1),
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(100, 100),
                      activation='relu',
                      input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(200, 200)))
     model.add(Conv2D(64, (5, 5), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
@@ -348,7 +348,7 @@ if __name__ == "__main__":
     test_score = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss: {}, Test accuracy: {}'.format(test_score[0], test_score[1]))
 
-    y_pred = model.predict(x_test, batch_size=64, verbose=1)
+    y_pred = model.predict(x_test, batch_size=5, verbose=1)
     y_pred_bool = np.argmax(y_pred, axis=1)
     print("****************************************")
     print("CNN                                     ")

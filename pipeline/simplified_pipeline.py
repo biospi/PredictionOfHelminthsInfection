@@ -1,7 +1,9 @@
 from __future__ import division  # for python2 regular div
 
+import math
 import shutil
 import pywt
+import matplotlib.pyplot as plt
 import matplotlib
 import glob2
 from sys import platform as _platform
@@ -10,7 +12,7 @@ if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn.pipeline import Pipeline
@@ -36,7 +38,7 @@ from sklearn.model_selection import cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import RepeatedStratifiedKFold
-from datetime import datetime
+
 from sklearn.metrics import make_scorer
 from sklearn.metrics import recall_score, balanced_accuracy_score, roc_auc_score, precision_score, f1_score, roc_curve
 from sklearn.metrics import auc
@@ -49,14 +51,14 @@ import time
 from sklearn.model_selection import cross_val_predict
 import pycwt as wavelet
 from sklearn.metrics import mean_squared_error, r2_score
+
 META_DATA_LENGTH = 19
 from sklearn.neural_network import MLPClassifier
-import keras
-from keras.layers import Dense, Flatten
-from keras.layers import Conv2D, MaxPooling2D
-from keras.models import Sequential
-from keras.callbacks import History
-from keras import backend as K
+from datetime import datetime, timedelta
+import matplotlib.dates as mdates
+from PIL import Image
+
+
 
 def find_type_for_mem_opt(df):
     data_col_n = df.iloc[[0]].size
@@ -90,13 +92,214 @@ def load_matlab_dataset(fname, label_col='label'):
     return data_frame_original, data_frame, data_frame
 
 
-def load_df_from_datasets(fname, label_col='label'):
+def median_normalisation(a, m):
+    a = a.astype(float)
+    m = m.astype(float)
+    sa = np.divide(a, m, out=np.zeros_like(a), where=m != 0)
+    s = np.median(sa)
+    mna = a * s
+    return mna
+
+
+def median_normalisation_(activity_mean, activity):
+    scale = np.zeros(len(activity))
+    idx = []
+    for n, a in enumerate(activity):
+        if np.isnan(a) or a == 0:
+            continue
+        r = activity_mean[n] / a
+        scale[n] = r
+        idx.append(n)
+    median = math.fabs(np.median(sorted(set(scale))))
+    for i in idx:
+        activity[i] = activity[i] * median
+    return activity
+
+
+def anscombe(value):
+    return 2 * math.sqrt(abs(value) + (3 / 8))
+
+
+def anscombe_list(activity):
+    return [anscombe(x) if x is not None else None for x in activity]
+
+
+def get_median_norm_(data_frame_no_norm, data_frame_mean):
+    """Apply herd Median normalisation to each row in dataframe.
+
+    Keyword arguments:
+    data_frame_no_norm -- input raw dataframe containing samples (activity data, label/target)
+    data_frame_mean -- mean dataframe containing median samples (mean activity data, label/target)
+    """
+    normalised_samples = []
+    for i in range(data_frame_no_norm.shape[0]):
+        activ = data_frame_no_norm.iloc[i, :-1].values
+        mean = data_frame_mean.iloc[i, :-1].values
+        label = data_frame_no_norm.iloc[i, -1]
+        activ_norm = median_normalisation_(mean, activ)
+        sample = np.append(activ_norm, label)
+        normalised_samples.append(sample)
+    data_frame_median_norm = pd.DataFrame(normalised_samples, columns=data_frame_no_norm.columns, dtype=float)
+    return data_frame_median_norm
+
+
+def get_median_norm(data_frame_no_norm, data_frame_median):
+    """Apply herd Median normalisation to each row in dataframe.
+
+    Keyword arguments:
+    data_frame_no_norm -- input raw dataframe containing samples (activity data, label/target)
+    data_frame_median -- median dataframe containing median samples (median activity data, label/target)
+    """
+    normalised_samples = []
+    for i in range(data_frame_no_norm.shape[0]):
+        activ = data_frame_no_norm.iloc[i, :-1].values
+        median = data_frame_median.iloc[i, :-1].values
+        label = data_frame_no_norm.iloc[i, -1]
+        activ_norm = median_normalisation(activ, median)
+        sample = np.append(activ_norm, label)
+        normalised_samples.append(sample)
+    data_frame_median_norm = pd.DataFrame(normalised_samples, columns=data_frame_no_norm.columns, dtype=float)
+    return data_frame_median_norm
+
+
+def get_anscombe(data_frame):
+    """Apply anscomb transform to each row in dataframe.
+
+    Keyword arguments:
+    data_frame -- input dataframe containing samples (activity data, label/target)
+    """
+    anscombe_samples = []
+    for i in range(data_frame.shape[0]):
+        activ = data_frame.iloc[i, :-1].tolist()
+        label = data_frame.iloc[i, -1]
+        activ_anscomb = anscombe_list(activ)
+        sample = np.append(activ_anscomb, label)
+        anscombe_samples.append(sample)
+    data_frame_anscomb = pd.DataFrame(anscombe_samples, columns=data_frame.columns, dtype=float)
+    return data_frame_anscomb
+
+
+def get_time_ticks(nticks):
+    date_string = "2012-12-12 00:00:00"
+    Today = datetime.fromisoformat(date_string)
+    date_list = [Today + timedelta(minutes=1 * x) for x in range(0, nticks)]
+    # datetext = [x.strftime('%H:%M') for x in date_list]
+    return date_list
+
+
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        dir_path += sub_dir + "/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
+
+
+def plot_groups(graph_outputdir, df, title="title", xlabel='xlabel', ylabel='label', ntraces=2, idx_healthy=None, idx_unhealthy=None,
+                show_max=False, stepid=0):
+    """Plot all rows in dataframe for each class Health or Unhealthy.
+
+    Keyword arguments:
+    df -- input dataframe containing samples (activity data, label/target)
+    """
+    df_healthy = df[df["label"] == 'False'].iloc[:, :-1].values
+    df_unhealthy = df[df["label"] == 'True'].iloc[:, :-1].values
+
+    plt.clf()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.80, 7.20))
+    fig.suptitle(title, fontsize=18)
+
+    ymin = 0
+    if idx_healthy is None or idx_unhealthy is None:
+        ymax = np.max(df.iloc[:, :-1].values)+1
+    else:
+        ymax = max([np.max(df_healthy[idx_healthy]), np.max(df_unhealthy[idx_unhealthy])])+1
+
+    if show_max:
+        ymax = np.max(df_healthy)+1
+
+    ticks = get_time_ticks(df_healthy.shape[1])
+
+    if idx_healthy is None and ntraces is not None:
+        idx_healthy = random.sample(range(1, df_healthy.shape[0]), ntraces)
+    if ntraces is None:
+        idx_healthy = list(range(df_healthy.shape[0]))
+        idx_unhealthy = list(range(df_unhealthy.shape[0]))
+
+    for i in idx_healthy:
+        ax1.plot(ticks, df_healthy[i])
+        ax1.set(xlabel=xlabel, ylabel=ylabel)
+        if ntraces is None:
+            ax1.set_title("Healthy animals %d / displaying %d" % (df_healthy.shape[0], df_healthy.shape[0]))
+        else:
+            ax1.set_title("Healthy animals %d / displaying %d" % (df_healthy.shape[0], ntraces))
+        ax1.set_ylim([ymin, ymax])
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax1.xaxis.set_major_locator(mdates.DayLocator())
+    if idx_unhealthy is None:
+        idx_unhealthy = random.sample(range(1, df_unhealthy.shape[0]), ntraces)
+    for i in idx_unhealthy:
+        ax2.plot(ticks, df_unhealthy[i])
+        ax2.set(xlabel=xlabel, ylabel=ylabel)
+        ax2.set_xticklabels(ticks, fontsize=12)
+        if ntraces is None:
+            ax2.set_title("Unhealthy animals %d / displaying %d" % (df_unhealthy.shape[0], df_unhealthy.shape[0]))
+        else:
+            ax2.set_title("Unhealthy animals %d / displaying %d" % (df_unhealthy.shape[0], ntraces))
+        ax2.set_ylim([ymin, ymax])
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax2.xaxis.set_major_locator(mdates.DayLocator())
+    if show_max:
+        ax1.plot(ticks, np.amax(df_healthy, axis=0), c='black', label='max')
+        ax2.plot(ticks, np.amax(df_unhealthy, axis=0), c='black', label='max')
+        ax1.legend()
+        ax2.legend()
+
+    plt.show()
+    filename = "%d_%s.png" % (stepid, title.replace(" ","_"))
+    filepath = "%s/%s" % (graph_outputdir, filename)
+    print('saving fig...')
+    fig.savefig(filepath)
+    print("saved!")
+    fig.clear()
+    plt.close(fig)
+
+    return idx_healthy, idx_unhealthy
+
+
+def concatenate_images(im_dir, filter=None, title="title"):
+    files = glob2.glob(im_dir)
+    if filter is not None:
+        files = [file.replace("\\", '/') for file in files if "cwt" in file]
+    else:
+        files = [file.replace("\\", '/') for file in files]
+    images = [Image.open(x) for x in files]
+    widths, heights = zip(*(i.size for i in images))
+
+    total_h = sum(heights)
+    max_w = max(widths)
+
+    new_im = Image.new('RGB', (max_w, total_h))
+
+    y_offset = 0
+    for im in images:
+        new_im.paste(im, (0, y_offset))
+        y_offset += im.size[1]
+    concat_impath = "%s/merge_%s.png" % (im_dir.replace("*.png", ""), title)
+    new_im.save(concat_impath)
+
+
+def load_df_from_datasets(output_dir, fname, label_col='label'):
     print("load_df_from_datasets...", fname)
     # df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
     # # print(df)
     # type_dict = find_type_for_mem_opt(df)
 
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
+    data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     # print("shape before removal of duplicates=", data_frame.shape)
     # data_frame = data_frame.drop_duplicates()
     # print("shape after removal of duplicates=", data_frame.shape)
@@ -130,11 +333,59 @@ def load_df_from_datasets(fname, label_col='label'):
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
-    data_frame = shuffle(data_frame)
+    # data_frame = shuffle(data_frame)
 
-    data_frame_cwt = create_cwt_df(data_frame.copy())
+    data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
 
-    return data_frame_original, data_frame, data_frame_cwt
+    data_frame_median = data_frame.loc[data_frame['label'].isin(["'median_True'", "'median_False'"])].reset_index(drop=True)
+    data_frame_median = data_frame_median.replace({"label": {"'median_True'": "True", "'median_False'": "False"}})
+
+    data_frame_mean = data_frame.loc[data_frame['label'].isin(["'mean_True'", "'mean_False'"])].reset_index(drop=True)
+    data_frame_mean = data_frame_mean.replace({"label": {"'mean_True'": "True", "'mean_False'": "False"}})
+
+
+    graph_outputdir = "%s/input_graphs/" % output_dir
+    if os.path.exists(graph_outputdir):
+        print("purge %s ..." % graph_outputdir)
+        try:
+            shutil.rmtree(graph_outputdir)
+        except IOError:
+            print("file not found.")
+    create_rec_dir(graph_outputdir)
+
+    idx_healthy, idx_unhealthy = plot_groups(graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
+                                             ylabel="activity", show_max=True)
+    idx_healthy = [1, 17]
+    idx_unhealthy = [47, 5]
+
+    plot_groups(graph_outputdir, data_frame_median, title="Median for each sample samples", xlabel="Time", ylabel="activity",
+                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=1)
+    plot_groups(graph_outputdir, data_frame_mean, title="Mean for each sample samples", xlabel="Time", ylabel="activity",
+                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=1)
+
+    data_frame_median_norm = get_median_norm_(data_frame_no_norm, data_frame_mean)
+    # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
+
+    plot_groups(graph_outputdir, data_frame_median_norm, title="Median normalised samples", xlabel="Time", ylabel="activity",
+                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, show_max=False, stepid=2)
+
+    data_frame_median_norm_anscombe = get_anscombe(data_frame_median_norm)
+
+    plot_groups(graph_outputdir, data_frame_median_norm_anscombe, title="Median Normalisation and Anscombe for each sample samples",
+                xlabel="Time",
+                ylabel="activity", idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, show_max=False, stepid=3)
+
+    concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
+
+    data_frame_cwt_no_norm, _, _ = create_cwt_df(graph_outputdir, data_frame_no_norm.copy(), title="Average cwt power of raw (no normalisation) samples", stepid=1)
+    data_frame_median_norm_cwt, _, _ = create_cwt_df(graph_outputdir, data_frame_median_norm.copy(), title="Average cwt power of median normalised samples", stepid=2)
+    data_frame_median_norm_cwt_anscombe = create_cwt_df(graph_outputdir, data_frame_median_norm.copy(), title="norm-cwt-ansc_Anscombe average cwt power of median normalised samples", stepid=3, enable_anscomb=True)
+
+    concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
+
+
+    return data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
+           data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe
 
 
 def process_cross_farm(data_frame1, data_frame2, y_col='label'):
@@ -155,7 +406,8 @@ def process_cross_farm(data_frame1, data_frame2, y_col='label'):
     print(classification_report(y2, y_pred))
 
     print("->StandardScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
+    pipe = Pipeline(
+        [('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
@@ -243,13 +495,15 @@ def dummy_run(X, y, test_size, filename):
         print(classification_report(y_test, y_pred))
 
         print("->StandardScaler->SVC")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
+        pipe = Pipeline(
+            [('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
 
         print("->MinMaxScaler->SVC")
-        pipe = Pipeline([('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
+        pipe = Pipeline(
+            [('scaler', preprocessing.MinMaxScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
@@ -257,7 +511,8 @@ def dummy_run(X, y, test_size, filename):
 
         print("->StandardScaler->LDA(1)->SVC")
         pipe = Pipeline(
-            [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True, class_weight='balanced'))])
+            [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)),
+             ('svc', SVC(probability=True, class_weight='balanced'))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
@@ -292,10 +547,10 @@ def dummy_run(X, y, test_size, filename):
 def load_binary_iris():
     iris = datasets.load_iris()
     data_iris = pd.DataFrame(data=np.c_[iris['data'], iris['target']],
-                         columns=iris['feature_names'] + ['target'])
+                             columns=iris['feature_names'] + ['target'])
     data_iris = data_iris.drop_duplicates()
     data_iris = shuffle(data_iris)
-    data_iris = data_iris[data_iris.target != 2.0] # remove class 2
+    data_iris = data_iris[data_iris.target != 2.0]  # remove class 2
     X = data_iris[data_iris.columns[0:data_iris.shape[1] - 3]].values
     y = data_iris["target"].values.flatten()
     y = y.astype(int)
@@ -344,7 +599,7 @@ def create_rec_dir(path):
     dir_path = ""
     sub_dirs = path.split("/")
     for sub_dir in sub_dirs[0:]:
-        dir_path += sub_dir+"/"
+        dir_path += sub_dir + "/"
         # print("sub_folder=", dir_path)
         if not os.path.exists(dir_path):
             print("mkdir", dir_path)
@@ -425,7 +680,7 @@ def plot_2d_space_TSNE(X, y, filename_2d_scatter):
     tsne_results = tsne.fit_transform(X)
     print('t-SNE done! Time elapsed: {} seconds'.format(time.time() - time_start))
     plot_2d_space(tsne_results, y, filename_2d_scatter)
-    
+
 
 def plot_2d_space(X, y, filename_2d_scatter, label='Classes'):
     fig, ax = plt.subplots(figsize=(19.20, 10.80))
@@ -457,147 +712,8 @@ def plot_2d_space(X, y, filename_2d_scatter, label='Classes'):
     plt.clf()
 
 
-def recall_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-    recall = true_positives / (possible_positives + K.epsilon())
-    return recall
-
-def precision_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-    precision = true_positives / (predicted_positives + K.epsilon())
-    return precision
-
-def f1_m(y_true, y_pred):
-    precision = precision_m(y_true, y_pred)
-    recall = recall_m(y_true, y_pred)
-    return 2*((precision*recall)/(precision+recall+K.epsilon()))
-
-
-def CNN():
-
-    scales = range(1, 128)
-    waveletname = 'morl'
-    train_size = 5000
-    test_size = 500
-
-    train_data_cwt = np.ndarray(shape=(train_size, 127, 127, 9))
-
-    for ii in range(0, train_size):
-        if ii % 1000 == 0:
-            print(ii)
-        for jj in range(0, 9):
-            signal = uci_har_signals_train[ii, :, jj]
-            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-            coeff_ = coeff[:, :127]
-            train_data_cwt[ii, :, :, jj] = coeff_
-
-    test_data_cwt = np.ndarray(shape=(test_size, 127, 127, 9))
-    for ii in range(0, test_size):
-        if ii % 100 == 0:
-            print(ii)
-        for jj in range(0, 9):
-            signal = uci_har_signals_test[ii, :, jj]
-            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-            coeff_ = coeff[:, :127]
-            test_data_cwt[ii, :, :, jj] = coeff_
-
-    uci_har_labels_train = list(map(lambda x: int(x) - 1, uci_har_labels_train))
-    uci_har_labels_test = list(map(lambda x: int(x) - 1, uci_har_labels_test))
-
-    x_train = train_data_cwt
-    y_train = list(uci_har_labels_train[:train_size])
-    x_test = test_data_cwt
-    y_test = list(uci_har_labels_test[:test_size])
-
-    scales = range(1, 128)
-    waveletname = 'morl'
-    train_size = 5000
-    test_size = 500
-
-    train_data_cwt = np.ndarray(shape=(train_size, 127, 127, 9))
-
-    for ii in range(0, train_size):
-        if ii % 1000 == 0:
-            print(ii)
-        for jj in range(0, 9):
-            signal = uci_har_signals_train[ii, :, jj]
-            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-            coeff_ = coeff[:, :127]
-            train_data_cwt[ii, :, :, jj] = coeff_
-
-    test_data_cwt = np.ndarray(shape=(test_size, 127, 127, 9))
-    for ii in range(0, test_size):
-        if ii % 100 == 0:
-            print(ii)
-        for jj in range(0, 9):
-            signal = uci_har_signals_test[ii, :, jj]
-            coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-            coeff_ = coeff[:, :127]
-            test_data_cwt[ii, :, :, jj] = coeff_
-
-    uci_har_labels_train = list(map(lambda x: int(x) - 1, uci_har_labels_train))
-    uci_har_labels_test = list(map(lambda x: int(x) - 1, uci_har_labels_test))
-
-    x_train = train_data_cwt
-    y_train = list(uci_har_labels_train[:train_size])
-    x_test = test_data_cwt
-    y_test = list(uci_har_labels_test[:test_size])
-
-
-    history = History()
-    img_x = 127
-    img_y = 127
-    img_z = 9
-    input_shape = (img_x, img_y, img_z)
-
-    batch_size = 16
-    num_classes = 2
-    epochs = 10
-
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-
-    y_train = keras.utils.to_categorical(y_train, num_classes)
-    y_test = keras.utils.to_categorical(y_test, num_classes)
-
-    model = Sequential()
-    model.add(Conv2D(32, kernel_size=(5, 5), strides=(1, 1),
-                     activation='relu',
-                     input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(Conv2D(64, (5, 5), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Flatten())
-    model.add(Dense(1000, activation='relu'))
-    model.add(Dense(num_classes, activation='softmax'))
-
-    model.compile(loss=keras.losses.categorical_crossentropy,
-                  optimizer=keras.optimizers.Adam(),
-                  metrics=['acc', f1_m, precision_m, recall_m])
-
-    model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              verbose=1,
-              validation_data=(x_test, y_test),
-              callbacks=[history])
-
-    y_pred = model.predict(x_test, batch_size=64, verbose=1)
-    y_pred_bool = np.argmax(y_pred, axis=1)
-    print("****************************************")
-    print("CNN                                     ")
-    print(classification_report(y_test, y_pred_bool))
-
-    # # train_score = model.evaluate(x_train, y_train, verbose=0)
-    # loss, accuracy, f1_score, precision, recall = model.evaluate(x_train, y_train, verbose=0)
-    # print('Train loss: {}, Train accuracy: {}'.format(train_score[0], train_score[1]))
-    # test_score = model.evaluate(x_test, y_test, verbose=0)
-    # print('Test loss: {}, Test accuracy: {}'.format(test_score[0], test_score[1]))
-
-
-def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, downsample_false_class, y_col='label'):
+def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling,
+                       downsample_false_class, y_col='label'):
     print("*******************************************************************")
     print("downsample_false_class=", downsample_false_class)
     print("*******************************************************************")
@@ -617,7 +733,6 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     y = y.astype(int)
     X = data_frame[data_frame.columns[2:data_frame.shape[1] - 1]]
 
-
     # pls = PLSRegression(n_components=10)
     # pls.fit(X.copy(), y.copy())
     # y_cv = cross_val_predict(pls, X, y, cv=3)
@@ -625,7 +740,7 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # mse = mean_squared_error(y, y_cv)
     # print("r2score", score, "mse", mse)
 
-    #todo add anscombe option
+    # todo add anscombe option
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
@@ -697,13 +812,14 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
         'precision_score0': make_scorer(precision_score, average=None, labels=[0]),
         'precision_score1': make_scorer(precision_score, average=None, labels=[1]),
         'recall_score0': make_scorer(recall_score, average=None, labels=[0]),
-        'recall_score1': make_scorer(recall_score,  average=None, labels=[1]),
+        'recall_score1': make_scorer(recall_score, average=None, labels=[1]),
         'f1_score0': make_scorer(f1_score, average=None, labels=[0]),
         'f1_score1': make_scorer(f1_score, average=None, labels=[1])
     }
 
-    param_str = "option_%s_downsample_%s_threshi_%d_threshz_%d_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count, class1_count, sampling)
-
+    param_str = "option_%s_downsample_%s_threshi_%d_threshz_%d_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (
+    option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count,
+    class1_count, sampling)
 
     # print('->PLSRegression')
     # clf_pls = make_pipeline(PLSRegression(n_components=2))
@@ -766,11 +882,10 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
     # del scores
 
-
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
+                                     random_state=int(datetime.now().microsecond / 10))
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == 0].size
@@ -797,11 +912,10 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str, thresh_i, thresh_z)
     del scores
 
-
     print('->MLP')
     clf_mlp = make_pipeline(MLPClassifier())
     cv_mlp = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
+                                     random_state=int(datetime.now().microsecond / 10))
     scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cv_mlp, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == 0].size
@@ -827,11 +941,11 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     report_rows_list.append(scores)
     make_roc_curve(out_dir, clf_mlp, X, y, cv_mlp, param_str, thresh_i, thresh_z)
     del scores
-    
+
     print('->LDA')
     clf_lda = make_pipeline(LDA())
     cv_lda = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
+                                     random_state=int(datetime.now().microsecond / 10))
     scores = cross_validate(clf_lda, X.copy(), y.copy(), cv=cv_lda, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == 0].size
@@ -887,7 +1001,7 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report_rows_list.append(scores)
     # make_roc_curve(out_dir, clf_lda1_svc, X, y, cv_lda1_svc, param_str, thresh_i, thresh_z)
     # del scores
-    
+
     # try:
     #     print('->PCA(50)->SVC')
     #     clf_pca50_svc = make_pipeline(PCA(n_components=50), SVC(probability=True, class_weight='balanced'))
@@ -925,7 +1039,7 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     print('->StandardScaler->SVC')
     clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
     cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
+                                         random_state=int(datetime.now().microsecond / 10))
     scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == 0].size
@@ -981,11 +1095,11 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report_rows_list.append(scores)
     # make_roc_curve(out_dir, clf_minmax_svc, X, y, cv_minmax_svc, param_str, thresh_i, thresh_z)
     # del scores
-    
+
     print('->Normalize(l2)->SVC')
     clf_normalize_svc = make_pipeline(preprocessing.Normalizer(), SVC(probability=True, class_weight='balanced'))
     cv_normalize_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                 random_state=int(datetime.now().microsecond / 10))
+                                               random_state=int(datetime.now().microsecond / 10))
     scores = cross_validate(clf_normalize_svc, X.copy(), y.copy(), cv=cv_normalize_svc, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == 0].size
@@ -1042,7 +1156,6 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # make_roc_curve(out_dir, clf_normalize_minmax_svc, X, y, cv_normalize_minmax_svc, param_str, thresh_i, thresh_z)
     # del scores
 
-
     # print('->Normalize(l2)->RandomForestClassifier')
     # clf_normalize_random = make_pipeline(preprocessing.Normalizer(), RandomForestClassifier())
     # cv_normalize_random = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
@@ -1072,7 +1185,6 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report_rows_list.append(scores)
     # make_roc_curve(out_dir, clf_normalize_random, X, y, cv_normalize_random, param_str, thresh_i, thresh_z)
     # del scores
-
 
     df_report = pd.DataFrame(report_rows_list)
     filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
@@ -1413,6 +1525,107 @@ def parse_param_from_filename(file):
     return thresh_i, thresh_z, days, farm_id, option, sampling
 
 
+def mask_cwt(cwt, coi):
+    print("masking cwt...")
+    for i in range(coi.shape[0]):
+        col = cwt[:, i]
+        max_index = int(coi[i])
+        indexes_to_keep = np.array(list(range(max_index, col.shape[0])))
+        total_indexes = np.array(range(col.shape[0]))
+        diff = list(set(indexes_to_keep).symmetric_difference(total_indexes))
+        # print(indexes_to_keep)
+        if len(indexes_to_keep) == 0:
+            continue
+        col[indexes_to_keep] = -1
+    return cwt
+
+
+def plot_cwt_power(power_masked, freqs, title="title"):
+    plt.clf()
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    dt = 1
+    npts = power_masked.shape[1]
+    f_min = min(freqs)
+    f_max = max(freqs)
+    t = np.linspace(0, dt * npts, npts)
+    x, y = np.meshgrid(t, np.logspace(np.log10(f_min), np.log10(f_max), power_masked.shape[0]))
+    ax.pcolormesh(x, y, power_masked)
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Frequency [Hz]")
+    ax.set_yscale('log')
+    ax.set_ylim(f_min, f_max)
+    ax.set_ylim(ax.get_ylim()[::-1])
+    plt.show()
+    fig.clear()
+    plt.close(fig)
+
+
+def plot_cwt_power_sidebyside(df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, title="title", stepid=10):
+    plt.clf()
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10.80, 7.20))
+    fig.suptitle(title, fontsize=18)
+    ticks = get_time_ticks(power_masked_healthy.shape[1])
+
+    df_healthy = df_timedomain[df_timedomain["label"] == 'False'].iloc[:, :-1].values
+    df_unhealthy = df_timedomain[df_timedomain["label"] == 'True'].iloc[:, :-1].values
+    ymin = 0
+    ymax = np.max(df_timedomain.iloc[:, :-1].values)+1
+
+    for i in list(range(df_healthy.shape[0])):
+        ax1.plot(ticks, df_healthy[i])
+        ax1.set(xlabel="Time", ylabel="activity")
+        ax1.set_title("Healthy animals %d / displaying %d" % (df_healthy.shape[0], df_healthy.shape[0]))
+        ax1.set_ylim([ymin, ymax])
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax1.xaxis.set_major_locator(mdates.DayLocator())
+
+    for i in list(range(df_unhealthy.shape[0])):
+        ax2.plot(ticks, df_unhealthy[i])
+        ax2.set(xlabel="Time", ylabel="activity")
+        ax2.set_xticklabels(ticks, fontsize=12)
+        ax2.set_title("Unhealthy animals %d / displaying %d" % (df_unhealthy.shape[0], df_unhealthy.shape[0]))
+        ax2.set_ylim([ymin, ymax])
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax2.xaxis.set_major_locator(mdates.DayLocator())
+
+
+    dt = 1
+    npts = power_masked_healthy.shape[1]
+    f_min = min(freqs)
+    f_max = max(freqs)
+    t = np.linspace(0, dt * npts, npts)
+    x, y = np.meshgrid(t, np.logspace(np.log10(f_min), np.log10(f_max), power_masked_healthy.shape[0]))
+    ax3.set_title("Healthy animals elem wise average of %d cwts" % df_healthy.shape[0])
+    ax3.pcolormesh(ticks, y, power_masked_healthy)
+    ax3.set_xlabel("Time")
+    ax3.set_ylabel("Frequency [Hz]")
+    ax3.set_yscale('log')
+    ax3.set_ylim(f_min, f_max)
+    ax3.set_ylim(ax3.get_ylim()[::-1])
+    ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    ax3.xaxis.set_major_locator(mdates.DayLocator())
+
+    ax4.set_title("Unhealthy animals elem wise average of %d cwts" % df_healthy.shape[0])
+    ax4.pcolormesh(ticks, y, power_masked_unhealthy)
+    ax4.set_xlabel("Time")
+    ax4.set_ylabel("Frequency [Hz]")
+    ax4.set_yscale('log')
+    ax4.set_ylim(f_min, f_max)
+    ax4.set_ylim(ax4.get_ylim()[::-1])
+    ax4.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    ax4.xaxis.set_major_locator(mdates.DayLocator())
+
+    plt.show()
+    filename = "%d_%s.png" % (stepid, title.replace(" ","_"))
+    filepath = "%s/%s" % (graph_outputdir, filename)
+    print('saving fig...')
+    fig.savefig(filepath)
+    print("saved!")
+    fig.clear()
+    plt.close(fig)
+
+
 def compute_cwt(activity, target, i, total):
     print("%d/%d" % (i, total))
     wavelet_type = 'morlet'
@@ -1420,44 +1633,77 @@ def compute_cwt(activity, target, i, total):
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
     coefs_cc = np.conj(coefs)
     power = np.real(np.multiply(coefs, coefs_cc))
-    power_flatten = power.flatten()
-    plt.title(str(target))
-    plt.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]], interpolation='nearest',
-               aspect='auto')
-    plt.show()
+    power_masked = mask_cwt(power.copy(), coi)
 
-    data = power_flatten.tolist()
+    # plot_cwt_power(power_masked, freqs)
+
+    power_flatten = []
+    for c in power_masked.flatten():
+        if c < 0:
+            continue
+        power_flatten.append(c)
+
+    print("power_flatten_len=", len(power_flatten))
+    data = power_flatten
     data.append(target)
-
-    return data
+    return [data, power_masked, target, freqs]
 
 
 def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def create_cwt_df(df_timedomain):
-    from sklearn.preprocessing import normalize
-
+def create_cwt_df(graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False):
     pool_cwt = Pool(processes=6)
     results_cwt = []
+    results_cwt_matrix_healthy = []
+    results_cwt_matrix_unhealthy = []
     for i, row in enumerate(df_timedomain.iterrows()):
         target = row[1][-1]
-        activity = normalized(row[1][0:-1].values)
-        res = pool_cwt.apply_async(compute_cwt, (activity, target, i, df_timedomain.shape[0],))
-        results_cwt.append(res.get())
+        activity = row[1][0:-1].values
+        results_cwt.append(pool_cwt.apply_async(compute_cwt, (activity, target, i, df_timedomain.shape[0],)))
 
     pool_cwt.close()
     pool_cwt.join()
     pool_cwt.terminate()
 
+    power_flatten_sample_list = []
+    freqs = None
+    for res in results_cwt:
+        power_flatten = res.get()[0]
+        power_flatten_sample_list.append(power_flatten)
+        power_matrix = res.get()[1]
+        power_target = res.get()[2]
+        freqs = res.get()[3]
+        if power_target == 'True':
+            results_cwt_matrix_healthy.append(power_matrix)
+        else:
+            results_cwt_matrix_unhealthy.append(power_matrix)
 
-    df_cwt = pd.DataFrame(results_cwt)
+    # plot_cwt_power(results_cwt_matrix_healthy[0], freqs)
+    # plot_cwt_power(results_cwt_matrix_unhealthy[0], freqs)
+    if enable_anscomb:
+        h_m = np.mean(results_cwt_matrix_healthy, axis=0)
+        h_ma = get_anscombe(pd.DataFrame(h_m)).values
+
+        uh_m = np.mean(results_cwt_matrix_unhealthy, axis=0)
+        uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
+        plot_cwt_power_sidebyside(df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid)
+    else:
+        plot_cwt_power_sidebyside(df_timedomain, graph_outputdir, np.mean(results_cwt_matrix_healthy, axis=0),
+                                  np.mean(results_cwt_matrix_unhealthy, axis=0), freqs, title=title, stepid=stepid)
+
+    df_cwt = pd.DataFrame(power_flatten_sample_list, dtype=float)
     colums = [str(x) for x in range(df_cwt.shape[1])]
     colums[-1] = "label"
     df_cwt.columns = colums
+
+    if enable_anscomb:
+        print("computing anscombe...")
+        df_cwt = get_anscombe(df_cwt)
     print(df_cwt)
-    return df_cwt
+
+    return df_cwt, results_cwt_matrix_healthy, results_cwt_matrix_unhealthy
 
 
 if __name__ == "__main__":
@@ -1479,7 +1725,6 @@ if __name__ == "__main__":
         n_splits = int(sys.argv[3])
         n_repeats = int(sys.argv[4])
         n_process = int(sys.argv[5])
-
     else:
         exit(-1)
 
@@ -1508,7 +1753,7 @@ if __name__ == "__main__":
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_process)
         for file in files:
-            data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(file)
+            data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(output_dir, file)
             thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
             print("thresh_i=", thresh_i)
@@ -1517,22 +1762,26 @@ if __name__ == "__main__":
             print("farm_id=", farm_id)
             print("option=", option)
             pool.apply_async(process_data_frame,
-                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, True,))
+                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats,
+                              sampling, True,))
             pool.apply_async(process_data_frame,
-                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling, False,))
+                             (output_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats,
+                              sampling, False,))
             pool.apply_async(process_data_frame,
-                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats, sampling, True,))
+                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats,
+                              sampling, True,))
             pool.apply_async(process_data_frame,
-                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats, sampling, False,))
+                             (output_dir, data_frame_cwt, thresh_i, thresh_z, days, farm_id, 'cwt', n_splits, n_repeats,
+                              sampling, False,))
         pool.close()
         pool.join()
         pool.terminate()
     else:
         for file in files:
-            # data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(file)
+            data_frame_original, data_frame, data_frame_cwt = load_df_from_datasets(output_dir, file)
             thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
-            data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
+            # data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
 
             print("thresh_i=", thresh_i)
             print("thresh_z=", thresh_z)
