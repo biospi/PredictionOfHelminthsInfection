@@ -121,6 +121,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: "
               "createSample <Famacha.json file> <Directory with data> <Output Directory> ")
+        exit(1)
 
     josonFile = Path(sys.argv[1])
     dataDir = Path(sys.argv[2])
