@@ -4,6 +4,8 @@ from pathlib import Path
 import sys
 import random as rd
 import pickle
+import h5py as h5
+import datetime as dt
 
 class AnimalData:
     ID = 0
@@ -30,7 +32,7 @@ class AnimalData:
 
 #if len(sys.argv) != 2:
 #    print("Only will extract weight, CS and Famacha from Excel sheet RAW formated in certain way."
-#          "Warning when processing Excel files make SURE ALL NUMBERS ARE CONVERTED TO NUMS AND NOT STRING !!!!"
+#          "Warning when processing Excel files make SURE ALL NUMBERS IN EXCEL ARE CONVERTED TO NUMS AND NOT STRING!!!"
 #          "Usage: "
 #          "Famacha_delmas.py <Famacha Excel File>")
 #    exit(1)
@@ -40,7 +42,7 @@ class AnimalData:
 # Warning when processing Excel files make SURE ALL NUMBERS ARE CONVERTED TO NUMS AND NOT STRING !!!! Bullshit BUG
 famFile = 'D:\\Data\\Axel_Famacha\\data_pipeline\\0_raw_data\\delmas\\famacha_csv\\Famacha_processed.xlsx'
 
-raw = pd.read_excel(famFile, sheet_name='Raw')
+raw = pd.read_excel(famFile, sheet_name='val')
 
 # Find all index in time row where we do not have a nan.
 timeIdx = raw.iloc[0,:].isnull() == False
@@ -49,6 +51,9 @@ tval  = raw.iloc[0,:]
 
 # Get valid times for famacha and other data that was measured
 time = tval[timeIdx].to_numpy()
+
+#convert to datetime object and return UTC seconds from 1970,1,1
+itime = np.array([int(dt.datetime.strptime(i, '%d/%m/%Y').timestamp()) for i in time])
 
 # Select only animal data:
 dfani = raw.iloc[3:,1:]
@@ -83,9 +88,9 @@ while a_idx < 35:
     # wtmp  = list(zip(time[widx],  w[widx]))
 
     # Make temp timestamp and data measurements numpy array version:
-    ftmp  = np.array([time[fidx],  f[fidx]])
-    cstmp = np.array([time[csidx], cs[csidx]])
-    wtmp  = np.array([time[widx],  w[widx]])
+    ftmp  = np.array([time[fidx],  itime[fidx],  f[fidx]])
+    cstmp = np.array([time[csidx], itime[csidx], cs[csidx]])
+    wtmp  = np.array([time[widx].as,  itime[widx],  w[widx]])
 
 
     # Add all valid data including time stamps to list of all animals
@@ -120,9 +125,40 @@ for i in range(0,10):
     print("Weight  test: ", wtest)
 
 
-print("Saving data to python data format using pickle:")
+# Save data to HDF5 File
 
-with open('famacha_data_python.data', 'wb') as filehandle:
-    # store the data as binary data stream
-    pickle.dump(animals, filehandle)
+# open hdf5 file;
+fh5 = h5.File('Animal_data.h5','w')
+
+for i in animals:
+    gd = fh5.create_group(str(i.ID))
+    # Famacha
+    ft = i.famacha[1,:].astype(int)
+    fd = i.famacha[2,:].astype(int)
+    # Conditioning Score
+    ct = i.csScore[1,:].astype(int)
+    cd = i.csScore[2,:].astype(float)
+    # Weight
+    wt = i.weight[1,:].astype(int)
+    wd = i.weight[2,:].astype(float)
+
+    gd.create_dataset('famachaTime',data=ft,compression="gzip")
+    gd.create_dataset('famacha',data=fd,compression="gzip")
+
+    gd.create_dataset('csTime',data=ct,compression="gzip")
+    gd.create_dataset('cs',data=cd,compression="gzip")
+
+    gd.create_dataset('weightTime',data=wt,compression="gzip")
+    gd.create_dataset('weight',data=wd,compression="gzip")
+
+fh5.close()
+
+
+#print("Saving data to python data format using pickle:")
+#
+#with open('famacha_data_python.data', 'wb') as filehandle:
+#    # store the data as binary data stream
+#    pickle.dump(animals, filehandle)
+
+
 
