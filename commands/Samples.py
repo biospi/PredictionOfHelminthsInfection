@@ -113,6 +113,8 @@ def loadActivityTrace(dirName):
     return animalTrace
 
 
+class
+
 #%%
 
 if __name__ == "__main__":

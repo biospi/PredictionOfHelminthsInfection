@@ -1,48 +1,48 @@
+#
+# Author: Ranjeet Bhamber <ranjeet <a.t> bristol.ac.uk>
+#
+# Copyright (C) 2020  Biospi Laboratory for Medical Bioinformatics, University of Bristol, UK
+#
+# This file is part of PredictionOfHelminthsInfection.
+#
+# PHI is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# PHI is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with seaMass.  If not, see <http://www.gnu.org/licenses/>.
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
 import sys
 import random as rd
-import pickle
 import h5py as h5
 import datetime as dt
-
-class AnimalData:
-    ID = 0
-    famacha = []
-    csScore = []
-    weight = []
-    def __init__(self, _id, _famacha, _cs, _weight):
-        self.ID = _id
-        self.famacha = _famacha
-        self.csScore = _cs
-        self.weight = _weight
-
-    def addData(self, _famacha, _cs, _weight):
-        self.famacha = _famacha
-        self.csScore = _cs
-        self.weight = _weight
-
-    def appendData(self, _famacha, _cs, _weight):
-        self.famacha.append(_famacha)
-        self.csScore.append(_cs)
-        self.weight.append(_weight)
+#import pickle
+from Herd import AnimalData, HerdFile
 
 
-
-#if len(sys.argv) != 2:
-#    print("Only will extract weight, CS and Famacha from Excel sheet RAW formated in certain way."
-#          "Warning when processing Excel files make SURE ALL NUMBERS IN EXCEL ARE CONVERTED TO NUMS AND NOT STRING!!!"
-#          "Usage: "
-#          "Famacha_delmas.py <Famacha Excel File>")
-#    exit(1)
-#famFile = Path(sys.argv[1])
+if len(sys.argv) != 3:
+    print("Only will extract weight, CS and Famacha from Excel sheet RAW formated in certain way."
+          "Warning when processing Excel files make SURE ALL NUMBERS IN EXCEL ARE CONVERTED TO NUMS AND NOT STRING!!!"
+          "Usage: "
+          "Famacha_delmas.py <Famacha Excel File> <FileOut> ")
+    exit(1)
+famFile = Path(sys.argv[1])
+outFile = Path(sys.argv[2])
 
 # Process this Famacha File.
 # Warning when processing Excel files make SURE ALL NUMBERS ARE CONVERTED TO NUMS AND NOT STRING !!!! Bullshit BUG
-famFile = 'D:\\Data\\Axel_Famacha\\data_pipeline\\0_raw_data\\delmas\\famacha_csv\\Famacha_processed.xlsx'
+# famFile = 'D:\\Data\\Axel_Famacha\\data_pipeline\\0_raw_data\\delmas\\famacha_csv\\Famacha_processed.xlsx'
 
-raw = pd.read_excel(famFile, sheet_name='val')
+raw = pd.read_excel(famFile, sheet_name='Raw')
 
 # Find all index in time row where we do not have a nan.
 timeIdx = raw.iloc[0,:].isnull() == False
@@ -90,7 +90,7 @@ while a_idx < 35:
     # Make temp timestamp and data measurements numpy array version:
     ftmp  = np.array([time[fidx],  itime[fidx],  f[fidx]])
     cstmp = np.array([time[csidx], itime[csidx], cs[csidx]])
-    wtmp  = np.array([time[widx].as,  itime[widx],  w[widx]])
+    wtmp  = np.array([time[widx],  itime[widx],  w[widx]])
 
 
     # Add all valid data including time stamps to list of all animals
@@ -124,35 +124,9 @@ for i in range(0,10):
     print("csScore test: ", cstest)
     print("Weight  test: ", wtest)
 
-
-# Save data to HDF5 File
-
-# open hdf5 file;
-fh5 = h5.File('Animal_data.h5','w')
-
-for i in animals:
-    gd = fh5.create_group(str(i.ID))
-    # Famacha
-    ft = i.famacha[1,:].astype(int)
-    fd = i.famacha[2,:].astype(int)
-    # Conditioning Score
-    ct = i.csScore[1,:].astype(int)
-    cd = i.csScore[2,:].astype(float)
-    # Weight
-    wt = i.weight[1,:].astype(int)
-    wd = i.weight[2,:].astype(float)
-
-    gd.create_dataset('famachaTime',data=ft,compression="gzip")
-    gd.create_dataset('famacha',data=fd,compression="gzip")
-
-    gd.create_dataset('csTime',data=ct,compression="gzip")
-    gd.create_dataset('cs',data=cd,compression="gzip")
-
-    gd.create_dataset('weightTime',data=wt,compression="gzip")
-    gd.create_dataset('weight',data=wd,compression="gzip")
-
-fh5.close()
-
+# Save Herd data to HDF5 File
+hfile = HerdFile(outFile)
+hfile.saveHerd(animals)
 
 #print("Saving data to python data format using pickle:")
 #
