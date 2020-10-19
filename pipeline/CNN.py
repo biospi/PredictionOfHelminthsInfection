@@ -322,10 +322,10 @@ if __name__ == "__main__":
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    model.add(Conv2D(32, kernel_size=(5, 5), strides=(100, 100),
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(10, 10),
                      activation='relu',
                      input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(200, 200)))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(20, 20)))
     model.add(Conv2D(64, (5, 5), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
@@ -334,7 +334,7 @@ if __name__ == "__main__":
 
     model.compile(loss=keras.losses.categorical_crossentropy,
                   optimizer=keras.optimizers.Adam(),
-                  metrics=['accuracy'])
+                  metrics=[keras.metrics.AUC()])
 
     model.fit(x_train, y_train,
               batch_size=batch_size,
@@ -344,12 +344,12 @@ if __name__ == "__main__":
               callbacks=[history])
 
     train_score = model.evaluate(x_train, y_train, verbose=0)
-    print('Train loss: {}, Train accuracy: {}'.format(train_score[0], train_score[1]))
+    print('Train loss: {}, Train AUC: {}'.format(train_score[0], train_score[1]))
     test_score = model.evaluate(x_test, y_test, verbose=0)
-    print('Test loss: {}, Test accuracy: {}'.format(test_score[0], test_score[1]))
+    print('Test loss: {}, Test AUC: {}'.format(test_score[0], test_score[1]))
 
-    y_pred = model.predict(x_test, batch_size=5, verbose=1)
-    y_pred_bool = np.argmax(y_pred, axis=1)
-    print("****************************************")
-    print("CNN                                     ")
-    print(classification_report(y_test, y_pred_bool))
+    # y_pred = model.predict(x_test, batch_size=5, verbose=1)
+    # y_pred_bool = np.argmax(y_pred, axis=1)
+    # print("****************************************")
+    # print("CNN                                     ")
+    # print(classification_report(y_test, y_pred_bool))

@@ -869,7 +869,7 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
     exporting_data_info_to_txt(result_output_dir, results, thresh_i, thresh_z2n, animal_id)
 
     print("*******************************************")
-    print("computing cwts and set for file %d..." % idx)
+    print("computing set for file %d..." % idx)
     for idx in range(len(results)):
         result = results[idx]
 
@@ -909,7 +909,7 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
         # gc.collect()
         # print("create_activity_graph done.")
 
-    print("computing cwts and set for file %d done." % idx)
+    print("computing set for file %d done." % idx)
     return
 
 
