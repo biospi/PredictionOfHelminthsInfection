@@ -110,9 +110,10 @@ def median_normalisation_(activity_mean, activity):
         r = activity_mean[n] / a
         scale[n] = r
         idx.append(n)
-    median = math.fabs(np.median(sorted(set(scale))))
-    for i in idx:
-        activity[i] = activity[i] * median
+    median = np.median(scale)
+    if median > 0:
+        for i in idx:
+            activity[i] = activity[i] * median
     return activity
 
 
