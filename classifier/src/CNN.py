@@ -1,9 +1,12 @@
 import os
+import sys
+
 import pywt
 #from wavelets.wave_python.waveletFunctions import *
 import itertools
 import numpy as np
 import pandas as pd
+import sklearn
 from scipy.fftpack import fft
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -21,6 +24,7 @@ from keras.callbacks import History
 from sklearn.metrics import classification_report
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
@@ -55,6 +59,20 @@ from sklearn.model_selection import train_test_split
 #     cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
 #     fig.colorbar(im, cax=cbar_ax, orientation="vertical")
 #     plt.show()
+
+def plot_roc(name, labels, predictions, **kwargs):
+  plt.clf()
+  lab = np.argmax(labels, axis=1)
+  pred = np.argmax(predictions, axis=1)
+  fp, tp, _ = sklearn.metrics.roc_curve(lab, pred)
+  plt.plot(fp, tp, label=name, linewidth=2, **kwargs)
+  plt.xlabel('False positives [%]')
+  plt.ylabel('True positives [%]')
+  plt.grid(True)
+  ax = plt.gca()
+  ax.set_aspect('equal')
+  plt.legend(loc='lower right')
+  plt.show()
 
 
 def get_ave_values(xvalues, yvalues, n = 5):
@@ -185,6 +203,23 @@ def load_matlab_dataset(fname, label_col='label'):
     return data_frame_original, data_frame, data_frame
 
 
+def get_norm_l2(data_frame_no_norm):
+    """Apply l2 normalisation to each row in dataframe.
+
+    Keyword arguments:
+    data_frame_no_norm -- input raw dataframe containing samples (activity data, label/target)
+    data_frame_mean -- mean dataframe containing median samples (mean activity data, label/target)
+    """
+
+    df_X_norm_l2 = pd.DataFrame(preprocessing.normalize(data_frame_no_norm.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
+    df_X_norm_l2["label"] = data_frame_no_norm.iloc[:, -1]
+
+    df_X_norm_l2_std = pd.DataFrame(preprocessing.StandardScaler().fit_transform(df_X_norm_l2.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
+    df_X_norm_l2_std["label"] = data_frame_no_norm.iloc[:, -1]
+
+    return df_X_norm_l2
+
+
 def load_df_from_datasets(fname, label_col='label'):
     print("load_df_from_datasets...", fname)
     # df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
@@ -226,7 +261,7 @@ def load_df_from_datasets(fname, label_col='label'):
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame = shuffle(data_frame)
-
+    data_frame = data_frame.drop_duplicates()
     return data_frame_original, data_frame
 
 
@@ -247,10 +282,23 @@ if __name__ == "__main__":
 
     file = "F:/Data/gen_dataset_debug/delmas_70101200027_1min_famachadays_1_threshold_interpol_30_threshold_zero2nan_480/training_sets/activity_delmas_70101200027_dbft_1_1min_threshi_30_threshz_480.csv"
     data_frame_original, data_frame = load_df_from_datasets(file)
+    downsample_false_class = True
+    if downsample_false_class:
+        df_true = data_frame[data_frame['label'] == True]
+        df_false = data_frame[data_frame['label'] == False]
+        try:
+            df_false = df_false.sample(df_true.shape[0])
+        except ValueError as e:
+            print(e)
+            sys.exit(-1)
+        data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+
+    data_frame = get_norm_l2(data_frame)
+
     y = data_frame['label'].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[1:data_frame.shape[1] - 1]]
-    test_size = 40
+    test_size = 10
     X_train_, X_test_, y_train_, y_test_ = train_test_split(X, y, random_state=0, stratify=y, test_size=int(test_size)/100)
 
 
@@ -286,7 +334,7 @@ if __name__ == "__main__":
         # plt.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]], interpolation='nearest',
         #            aspect='auto')
         # plt.show()
-    test_data_cwt = np.ndarray(shape=(test_size, X_train_.shape[1]-1, X_train_.shape[1], 1))
+    test_data_cwt = np.ndarray(shape=(test_size, X_test_.shape[1]-1, X_test_.shape[1], 1))
     for ii in range(0, test_size):
         print(ii, test_size)
         jj = 0
@@ -322,19 +370,29 @@ if __name__ == "__main__":
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    model.add(Conv2D(32, kernel_size=(5, 5), strides=(10, 10),
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
                      activation='relu',
                      input_shape=input_shape))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(20, 20)))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(10, 10)))
     model.add(Conv2D(64, (5, 5), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
     model.add(Dense(1000, activation='relu'))
     model.add(Dense(num_classes, activation='softmax'))
 
+    METRICS = [
+        keras.metrics.TruePositives(name='tp'),
+        keras.metrics.FalsePositives(name='fp'),
+        keras.metrics.TrueNegatives(name='tn'),
+        keras.metrics.FalseNegatives(name='fn'),
+        keras.metrics.BinaryAccuracy(name='accuracy'),
+        keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'),
+        keras.metrics.AUC(name='auc'),
+    ]
     model.compile(loss=keras.losses.categorical_crossentropy,
                   optimizer=keras.optimizers.Adam(),
-                  metrics=[keras.metrics.AUC()])
+                  metrics=METRICS)
 
     model.fit(x_train, y_train,
               batch_size=batch_size,
@@ -343,13 +401,29 @@ if __name__ == "__main__":
               validation_data=(x_test, y_test),
               callbacks=[history])
 
-    train_score = model.evaluate(x_train, y_train, verbose=0)
-    print('Train loss: {}, Train AUC: {}'.format(train_score[0], train_score[1]))
-    test_score = model.evaluate(x_test, y_test, verbose=0)
-    print('Test loss: {}, Test AUC: {}'.format(test_score[0], test_score[1]))
+    # train_score = model.evaluate(x_train, y_train, verbose=0)
+    # print('Train loss: {}, Train AUC: {}'.format(train_score[0], train_score[1]))
+    # test_score = model.evaluate(x_test, y_test, verbose=0)
 
+    baseline_results = model.evaluate(x_test, y_test,
+                                      batch_size=5, verbose=0)
+    for name, value in zip(model.metrics_names, baseline_results):
+        print(name, ': ', value)
+
+    test_predictions_baseline = model.predict(x_test, batch_size=5)
+    plot_roc("Test Baseline", y_test, test_predictions_baseline, linestyle='--')
+
+
+    # print('Test loss: {}, Test AUC: {}'.format(test_score[0], test_score[1]))
+    # print("")
+    #
     # y_pred = model.predict(x_test, batch_size=5, verbose=1)
     # y_pred_bool = np.argmax(y_pred, axis=1)
     # print("****************************************")
     # print("CNN                                     ")
+    # y_test = np.argmax(y_test, axis=1)
     # print(classification_report(y_test, y_pred_bool))
+
+
+
+
