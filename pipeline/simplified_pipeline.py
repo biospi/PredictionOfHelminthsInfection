@@ -101,7 +101,7 @@ def median_normalisation(a, m):
     return mna
 
 
-def median_normalisation_(activity_mean, activity):
+def median_normalisation_p(activity_mean, activity):
     scale = np.zeros(len(activity))
     idx = []
     for n, a in enumerate(activity):
@@ -110,7 +110,8 @@ def median_normalisation_(activity_mean, activity):
         r = activity_mean[n] / a
         scale[n] = r
         idx.append(n)
-    median = np.median(scale)
+    # median = np.median(scale)
+    median = math.fabs(np.median(sorted(set(scale))))
     if median > 0:
         for i in idx:
             activity[i] = activity[i] * median
@@ -148,7 +149,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def filter_by_entropy(df, thresh=2.5):
+def filter_by_entropy(df, thresh=3):
     filtered_samples = []
     for i in range(df.shape[0]-2):
         row = df.iloc[i, :-1]
@@ -194,7 +195,7 @@ def get_norm_l2(data_frame_no_norm):
     return df_X_norm_l2_std
 
 
-def get_median_norm_(data_frame_no_norm, data_frame_mean):
+def get_median_norm_preprint(data_frame_no_norm, data_frame_mean):
     """Apply herd Median normalisation to each row in dataframe.
 
     Keyword arguments:
@@ -206,7 +207,7 @@ def get_median_norm_(data_frame_no_norm, data_frame_mean):
         activ = data_frame_no_norm.iloc[i, :-1].values
         mean = data_frame_mean.iloc[i, :-1].values
         label = data_frame_no_norm.iloc[i, -1]
-        activ_norm = median_normalisation_(mean, activ)
+        activ_norm = median_normalisation_p(mean, activ)
         sample = np.append(activ_norm, label)
         normalised_samples.append(sample)
     data_frame_median_norm = pd.DataFrame(normalised_samples, columns=data_frame_no_norm.columns, dtype=float)
@@ -324,8 +325,10 @@ def plot_groups(graph_outputdir, df, title="title", xlabel='xlabel', ylabel='lab
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax2.xaxis.set_major_locator(mdates.DayLocator())
     if show_max:
-        ax1.plot(ticks, np.amax(df_healthy, axis=0), c='tab:orange', label='max', linestyle=':')
-        ax2.plot(ticks, np.amax(df_unhealthy, axis=0), c='tab:orange', label='max', linestyle=':')
+        # ax1.plot(ticks, np.amax(df_healthy, axis=0), c='tab:gray', label='max', linestyle='-')
+        # ax2.plot(ticks, np.amax(df_unhealthy, axis=0), c='tab:gray', label='max', linestyle='-')
+        ax1.fill_between(ticks, np.amax(df_healthy, axis=0), color='lightgrey', label='max', zorder=-1)
+        ax2.fill_between(ticks, np.amax(df_unhealthy, axis=0), label='max', color='lightgrey')
         ax1.legend()
         ax2.legend()
     if show_min:
@@ -440,7 +443,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame = shuffle(data_frame)
 
-    # data_frame = filter_by_entropy(data_frame)
+    data_frame = filter_by_entropy(data_frame)
 
     data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
 
@@ -462,9 +465,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
         except IOError:
             print("file not found.")
     create_rec_dir(graph_outputdir)
-
+    ntraces = 2
     idx_healthy, idx_unhealthy = plot_groups(graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
-                                             ylabel="activity")
+                                             ylabel="activity", ntraces=ntraces)
     # idx_healthy = [1, 17]
     # idx_unhealthy = [47, 5]
 
@@ -477,11 +480,11 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame_median_norm = get_norm_l2(data_frame_no_norm)
 
-    data_frame_median_norm = get_median_norm_(data_frame_no_norm, data_frame_mean)
+    data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
     # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
 
     plot_groups(graph_outputdir, data_frame_median_norm, title="Normalised samples", xlabel="Time", ylabel="activity",
-                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2)
+                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
 
     plot_time_pca(data_frame_median_norm, graph_outputdir, title="PCA time domain after normalisation")
 
@@ -489,20 +492,20 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     plot_groups(graph_outputdir, data_frame_median_norm_anscombe, title="Normalisation and Anscombe for each sample samples",
                 xlabel="Time",
-                ylabel="activity", idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=3)
+                ylabel="activity", idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=3, ntraces=ntraces)
 
     concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm, _, _ = create_cwt_df(graph_outputdir, data_frame_no_norm.copy(),
+    data_frame_cwt_no_norm, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
                                                  title="Average cwt power of raw (no normalisation) samples", stepid=1,
-                                                 hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter)
-    data_frame_median_norm_cwt, _, _ = create_cwt_df(graph_outputdir, data_frame_median_norm.copy(),
+                                                 hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces)
+    data_frame_median_norm_cwt, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
                                                      title="Average cwt power of normalised samples",
-                                                     stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter)
-    data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(graph_outputdir, data_frame_median_norm.copy(),
+                                                     stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces)
+    data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
                                                               title="norm-cwt-ansc_Anscombe average cwt power of normalised samples",
                                                               stepid=3, enable_anscomb=True, hi_pass_filter=hi_pass_filter,
-                                                              low_pass=hi_pass_filter)
+                                                              low_pass=hi_pass_filter, ntraces=ntraces)
 
     concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
 
@@ -1886,26 +1889,42 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
     plt.close(fig)
 
 
-def plot_cwt_power_sidebyside(coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+def plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
     total_healthy = df_timedomain[df_timedomain["label"] == False].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["label"] == True].shape[0]
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12.80, 7.20))
     fig.suptitle(title, fontsize=18)
-    ticks = get_time_ticks(power_masked_healthy.shape[1])
 
-    df_healthy = df_timedomain[df_timedomain["label"] == False].iloc[:, :-1].sample(ntraces).values
-    df_unhealthy = df_timedomain[df_timedomain["label"] == True].iloc[:, :-1].sample(ntraces).values
-    ymin = 0
-    ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
+    df_healthy = df_timedomain[df_timedomain["label"] == False].iloc[:, :-1].values
+    df_unhealthy = df_timedomain[df_timedomain["label"] == True].iloc[:, :-1].values
+    # ymin = 0
+    # ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
+    #
+    # idx_healthy = range(df_healthy.shape[0])
+    # idx_unhealthy = range(df_unhealthy.shape[0])
 
-    idx_healthy = range(df_healthy.shape[0])
-    idx_unhealthy = range(df_unhealthy.shape[0])
+    ymin = np.min(df_timedomain.iloc[:, :-1].values)
+    if idx_healthy is None or idx_unhealthy is None:
+        ymax = np.max(df_timedomain.iloc[:, :-1].values)
+    else:
+        ymax = max([np.max(df_healthy[idx_healthy]), np.max(df_unhealthy[idx_unhealthy])])
+
+    # if show_max:
+    #     ymax = np.max(df_healthy)
+
+    ticks = get_time_ticks(df_healthy.shape[1])
+
+    if idx_healthy is None and ntraces is not None:
+        idx_healthy = random.sample(range(1, df_healthy.shape[0]), ntraces)
+    if ntraces is None:
+        idx_healthy = list(range(df_healthy.shape[0]))
+        idx_unhealthy = list(range(df_unhealthy.shape[0]))
 
     for i in idx_healthy:
         ax1.plot(ticks, df_healthy[i])
         ax1.set(xlabel="Time", ylabel="activity")
-        ax1.set_title("Healthy animals %d / displaying %d" % (total_healthy, df_healthy.shape[0]))
+        ax1.set_title("Healthy animals %d / displaying %d" % (total_healthy, len(idx_healthy)))
         ax1.set_ylim([ymin, ymax])
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax1.xaxis.set_major_locator(mdates.DayLocator())
@@ -1915,7 +1934,7 @@ def plot_cwt_power_sidebyside(coi_line_array, df_timedomain, graph_outputdir, po
         ax2.set(xlabel="Time", ylabel="activity")
         ax2.set_yticks(ax2.get_yticks().tolist())
         ax2.set_xticklabels(ticks, fontsize=12)
-        ax2.set_title("Unhealthy animals %d / displaying %d" % (total_unhealthy, df_unhealthy.shape[0]))
+        ax2.set_title("Unhealthy animals %d / displaying %d" % (total_unhealthy, len(idx_unhealthy)))
         ax2.set_ylim([ymin, ymax])
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax2.xaxis.set_major_locator(mdates.DayLocator())
@@ -2057,8 +2076,8 @@ def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def create_cwt_df(graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
-                  low_pass=None, hi_pass_filter=None, pca_n_components=1):
+def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
+                  low_pass=None, hi_pass_filter=None, pca_n_components=1, ntraces=None):
 
     # pool_cwt_group = Pool(processes=6)
     # results_cwt_pca_group = []
@@ -2146,9 +2165,9 @@ def create_cwt_df(graph_outputdir, df_timedomain, title="title", stepid=0, enabl
     if enable_anscomb:
         h_ma = get_anscombe(pd.DataFrame(h_m)).values
         uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
-        plot_cwt_power_sidebyside(coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid)
+        plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
     else:
-        plot_cwt_power_sidebyside(coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid)
+        plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
 
     df_cwt = pd.DataFrame(power_flatten_sample_list, dtype=float)
 
