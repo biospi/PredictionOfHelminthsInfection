@@ -38,7 +38,7 @@ from sklearn.model_selection import cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import RepeatedStratifiedKFold
-
+from numpy import unravel_index
 from sklearn.metrics import make_scorer
 from sklearn.metrics import recall_score, balanced_accuracy_score, roc_auc_score, precision_score, f1_score, roc_curve
 from sklearn.metrics import auc
@@ -1043,35 +1043,35 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
     # del scores
 
-    # print('->SVC')
-    # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-    #                                  random_state=int(datetime.now().microsecond / 10))
-    # scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
-    # scores["downsample"] = downsample_false_class
-    # scores["class0"] = y[y == 0].size
-    # scores["class1"] = y[y == 1].size
-    # scores["option"] = option
-    # scores["thresh_i"] = thresh_i
-    # scores["thresh_z"] = thresh_z
-    # scores["days"] = days
-    # scores["farm_id"] = farm_id
-    # scores["n_repeats"] = n_repeats
-    # scores["n_splits"] = n_splits
-    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    # scores["sampling"] = sampling
-    # scores["classifier"] = "->SVC"
-    # scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    # report_rows_list.append(scores)
-    # make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str, thresh_i, thresh_z)
-    # del scores
+    print('->SVC')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                     random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str, thresh_i, thresh_z)
+    del scores
 
 
 
@@ -2038,6 +2038,23 @@ def compute_fft_group(activity, target, i, total):
     return power
 
 
+def get_n_largest_coefs(matrix, n=50):
+    # matrix[matrix == -1] = np.nan
+    features_list = []
+    for i in range(n):
+        location = unravel_index(matrix.argmax(), matrix.shape)
+        value = matrix[location]
+        features = [location[0], location[1], value]
+        matrix[location] = -1
+        features_list.append(features)
+    f_array = np.array(features_list).flatten().tolist()
+    # plt.clf()
+    # plt.title("get_n_largest_coefs")
+    # plt.imshow(matrix, aspect='auto')
+    # plt.show()
+    return f_array
+
+
 def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
     print("%d/%d" % (i, total))
     wavelet_type = 'morlet'
@@ -2077,7 +2094,8 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     data.append(target)
     #todo try adding extra features sych as max coef and indexes of max coefs
     # return [data_pca, power_masked, target, freqs, df_data_pca]
-    return [data, power_cwt, target, freqs, coi_line_array]
+    max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size/10))
+    return [data, power_cwt, target, freqs, coi_line_array, max_coef_features]
 
 
 def normalized(v):
@@ -2150,11 +2168,13 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     # df_cwt_pca_per_scale_list = []
     for res in results_cwt:
         power_flatten_sample = res.get()[0]
-        power_flatten_sample_list.append(power_flatten_sample)
+        max_coef_loc_features = res.get()[5]
+        power_flatten_sample_list.append(max_coef_loc_features + power_flatten_sample)
         power_matrix = res.get()[1]
         power_target = res.get()[2]
         freqs = res.get()[3]
         coi_line_array = res.get()[4]
+
         # df_cwt_pca_per_scale = res.get()[4]
         # df_cwt_pca_per_scale_list.append(df_cwt_pca_per_scale)
         if power_target:
