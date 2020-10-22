@@ -1,11 +1,24 @@
 import argparse
 import glob
-
+import sys
+import matplotlib.patches as mpatches
 import glob2
 import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import numpy as np
+import os
+
+
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        dir_path += sub_dir + "/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
 
 
 def parse_options(dataset_filepath):
@@ -15,7 +28,7 @@ def parse_options(dataset_filepath):
     sampling = split[5]
     threshi = int(split[7])
     threshz = int(split[9])
-    day_before_famacha_test = split[4]
+    day_before_famacha_test = int(split[4])
     return farm_id, sampling, threshi, threshz, day_before_famacha_test
 
 
@@ -26,7 +39,7 @@ def parse_animal_id(file):
 
 def resample(df, res="D"):
     df.index = pd.to_datetime(df.date_str)
-    df_resampled = df.resample(res).agg(dict(timestamp='first', date_str='first', first_sensor_value='sum'), skipna=False)
+    df_resampled = df.resample(res).agg(dict(timestamp='first', date_str='first', first_sensor_value='sum'), skipna=True)
     return df_resampled
 
 
@@ -88,6 +101,29 @@ def load_dataset(file):
     dataset = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
     dataset = dataset.replace({"label": {'True': True, 'False': False}})
     return dataset
+
+
+def create_annotation_matrix(activity_list_matrix, animal_ids, famacha_data, time_axis, window_size):
+    # annotation = np.random.rand(activity_list_matrix.shape[0], activity_list_matrix.shape[1])
+    annotation = np.ones(activity_list_matrix.shape) * -1
+    missing_ids = []
+    for i in range(annotation.shape[0]):
+        for j in range(annotation.shape[1]):
+            a_id = animal_ids[i]
+            try:
+                for f_data in famacha_data[a_id]:
+                    date_f = f_data[0].to_datetime64()
+                    target = f_data[1]
+                    days = int((date_f - time_axis[j]).astype('timedelta64[D]') / np.timedelta64(1, 'D'))
+                    if days == 0:
+                        annotation[i, j-window_size:j+1] = target
+            except KeyError as e:
+                print("animal id %d in the activity data (csv files) do not exist in the famacha data." % a_id)
+                annotation[i, :] = -2
+                missing_ids.append(a_id)
+                break
+                # print(e)
+    return annotation, missing_ids
 
 
 if __name__ == '__main__':
@@ -166,42 +202,84 @@ if __name__ == '__main__':
     pool.terminate()
 
     activity_list = []
-    time_axis_list = []
+    time_axis = None
     animal_ids = []
     for res in results:
         animal_ids.append(res.get()[0])
         df_resampled = res.get()[1]
-        time_axis_list.append(res.get()[2])
+        time_axis = res.get()[2]
         activity_list.append(res.get()[3])
 
 
     #get FAMACHA data
-    do_ft = []
-    target_list = []
+    famacha_data = {}
     dataset = load_dataset(dataset_file)
     for i in range(dataset.shape[0]):
         row = dataset.iloc[i, :]
         date_of_famacha_test_str = row["dtf1"].strip("'")
         date_of_famacha_test = pd.to_datetime(date_of_famacha_test_str)
         label = row["label"]
-        do_ft.append(date_of_famacha_test)
-        target_list.append(label)
+        animal_id = row["serial"]
+        if animal_id in famacha_data.keys():
+            famacha_data[animal_id].append([date_of_famacha_test, label])
+        else:
+            famacha_data[animal_id] = [[date_of_famacha_test, label]]
 
-    activity_list_array = np.array(activity_list)
-    fig, ax = plt.subplots(figsize=(12.80, 7.20))
-    im = ax.imshow(activity_list_array)
-    ax.set_xticks(np.arange(activity_list_array.shape[1]))
-    ax.set_yticks(np.arange(len(animal_ids)))
+    activity_list_matrix = np.array(activity_list)
+    fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    im = ax.imshow(activity_list_matrix, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, activity_list_matrix.shape[1], 0, activity_list_matrix.shape[0]])
 
-    annotation = np.ones(activity_list_array.shape)
+    time_axis_str = [pd.to_datetime(str(x)).strftime('%d/%m/%Y') for x in time_axis]
+    ax.set_xticklabels(time_axis_str)
+
+    n_x_ticks = ax.get_xticks().shape[0]
+    labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
+    labels_[0] = time_axis_str[0]
+    labels_[-1] = time_axis_str[0]
+    ax.set_xticklabels(labels_)
+
+    annotation, missing_ids = create_annotation_matrix(activity_list_matrix.copy(), animal_ids, famacha_data, time_axis, day_before_famacha_test)
+
+    animal_ids_formatted = ["%s*" % x if x in missing_ids else str(x) for x in animal_ids]
+
+    ax.set_yticklabels(animal_ids_formatted)
+    ax.set_yticks(np.arange(len(animal_ids_formatted)))
+
+    for i in range(len(ax.get_yticklabels())):
+        if "*" in str(animal_ids_formatted[i]):
+            ax.get_yticklabels()[i].set_color("tab:red")
+
     print("adding annotations...")
-    for i in range(len(animal_ids)):
-        for j in range(activity_list_array.shape[1]):
-            text = ax.text(j, i, str(annotation[i, j]),
-                           ha="center", va="center", color="w")
-            break
-    ax.set_title("%s herd and dataset samples location\n%s" % (farm_id, DATASET_INFO_STR))
+    for i in range(activity_list_matrix.shape[0]):
+        for j in range(activity_list_matrix.shape[1]):
+            an = int(annotation[i, j])
+            if an < 0:
+                continue
+            color = "tab:blue"
+            if an == 1:
+                color = "tab:orange"
+            #use ASCII 219 █ for text highlight instead of rectangle
+            offset = 0.40
+            ax.text(j, i+offset, "█", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
+
+    param_str = "sampling=%s threshi=%d threshz=%d day_before_famacha_test=%d" % (sampling, threshi, threshz, day_before_famacha_test)
+    ax.set_title("%s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (farm_id, DATASET_INFO_STR, param_str, len(missing_ids), len(animal_ids)))
     fig.tight_layout()
+
+    patch1 = mpatches.Patch(color='tab:blue', label=DATASET_INFO[7].replace("\n", ""))
+    patch2 = mpatches.Patch(color='tab:orange', label=DATASET_INFO[8].replace("\n", ""))
+    plt.legend(handles=[patch1, patch2])
+
+    ax.yaxis.set(ticks=np.arange(0.5, len(animal_ids)))
+
+    out_folder_path = args.output
+    filename = "dataset_heatmap_%s_%s.png" % (farm_id, param_str)
+    create_rec_dir(out_folder_path)
+    file_path = out_folder_path +"/"+ filename
+    print(file_path)
+    fig.savefig(file_path)
+    fig.savefig(file_path.replace(".png", ".svg"))
+
     plt.show()
 
     print("done.")
