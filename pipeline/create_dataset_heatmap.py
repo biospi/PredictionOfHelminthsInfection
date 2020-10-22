@@ -259,8 +259,9 @@ if __name__ == '__main__':
             if an == 1:
                 color = "tab:orange"
             #use ASCII 219 █ for text highlight instead of rectangle
-            offset = 0.40
-            ax.text(j, i+offset, "█", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
+            offset_y = 0.4
+            offset_x = 0.9
+            ax.text(j-offset_x, i+offset_y, "█", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
 
     param_str = "sampling=%s threshi=%d threshz=%d day_before_famacha_test=%d" % (sampling, threshi, threshz, day_before_famacha_test)
     ax.set_title("%s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (farm_id, DATASET_INFO_STR, param_str, len(missing_ids), len(animal_ids)))
