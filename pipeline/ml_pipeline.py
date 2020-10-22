@@ -58,7 +58,8 @@ from datetime import datetime, timedelta
 import matplotlib.dates as mdates
 from PIL import Image
 
-
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.feature_selection import f_classif
 
 def find_type_for_mem_opt(df):
     data_col_n = df.iloc[[0]].size
@@ -443,7 +444,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame = shuffle(data_frame)
 
-    data_frame = filter_by_entropy(data_frame)
+    # data_frame = filter_by_entropy(data_frame)
 
     data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
 
@@ -861,7 +862,7 @@ def plot_2d_space(X, y, filename_2d_scatter, title='title'):
     folder = "/".join(filename_2d_scatter.split("/")[:-1])
     create_rec_dir(folder)
     fig.savefig(filename_2d_scatter)
-    plt.show()
+    # plt.show()
     plt.close(fig)
     plt.clf()
 
@@ -905,6 +906,12 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
         pca = PCA(n_components=2)
         X_pca = pca.fit_transform(X.copy())
         plot_2d_space(X_pca, y, filename_2d_scatter, '2 PCA components ' + option)
+
+
+        filename_2d_scatter = "%s/ANOVA/%s_2DANOVA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+            output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+        X_anova = SelectKBest(f_classif, k=2).fit_transform(X.copy(), y.copy())
+        plot_2d_space(X_anova, y, filename_2d_scatter, '2 ANOVA components ' + option)
 
         # filename_2d_scatter = "%s/%s_1DLDA_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.png" % (
         #     output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
@@ -2059,15 +2066,16 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     # df_data_pca = pd.DataFrame(PCA(n_components=pca_n_components).fit_transform(power_masked))
     # df_data_pca["label"] = target
 
-    power_flatten = []
+    power_flatten_masked = []
     for c in power_masked.flatten():
         if c == -1:
             continue
-        power_flatten.append(c)
+        power_flatten_masked.append(c)
 
-    print("power_flatten_len=", len(power_flatten))
-    data = power_flatten
+    print("power_flatten_len=", len(power_flatten_masked))
+    data = power_flatten_masked
     data.append(target)
+    #todo try adding extra features sych as max coef and indexes of max coefs
     # return [data_pca, power_masked, target, freqs, df_data_pca]
     return [data, power_cwt, target, freqs, coi_line_array]
 
