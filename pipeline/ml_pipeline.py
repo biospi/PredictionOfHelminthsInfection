@@ -61,6 +61,16 @@ from PIL import Image
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.feature_selection import f_classif
 
+
+class PLSRegressionWrapper(PLSRegression):
+
+    def transform(self, X):
+        return super().transform(X)
+
+    def fit_transform(self, X, Y):
+        return self.fit(X,Y).transform(X)
+
+
 def find_type_for_mem_opt(df):
     data_col_n = df.iloc[[0]].size
     type_dict = {}
@@ -111,8 +121,8 @@ def median_normalisation_p(activity_mean, activity):
         r = activity_mean[n] / a
         scale[n] = r
         idx.append(n)
-    # median = np.median(scale)
-    median = math.fabs(np.median(sorted(set(scale))))
+    median = np.median(scale)
+    # median = math.fabs(np.median(sorted(set(scale))))
     if median > 0:
         for i in idx:
             activity[i] = activity[i] * median
@@ -150,7 +160,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def filter_by_entropy(df, thresh=3):
+def filter_by_entropy(df, thresh=3.5):
     filtered_samples = []
     for i in range(df.shape[0]-2):
         row = df.iloc[i, :-1]
@@ -444,7 +454,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame = shuffle(data_frame)
 
-    # data_frame = filter_by_entropy(data_frame)
+    data_frame = filter_by_entropy(data_frame)
 
     data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
 
@@ -1042,6 +1052,36 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report_rows_list.append(scores)
     # make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
     # del scores
+
+    print('->PLS(2)->SVM')
+    clf_pls2_svm = make_pipeline(PLSRegressionWrapper(n_components=2), SVC(probability=True, class_weight='balanced'))
+    cv_pls2_svm = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                     random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_pls2_svm, X.copy(), y.copy(), cv=cv_pls2_svm, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->PLS(2)->SVM"
+    scores["classifier_details"] = str(clf_pls2_svm).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_pls2_svm, X, y, cv_pls2_svm, param_str, thresh_i, thresh_z)
+    del scores
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
@@ -1815,7 +1855,14 @@ def plot_cwt_power(df_fft, fft_power, coi, activity, power_cwt_masked, power_cwt
 
     axs[2].plot(fft_power, label="individual", c="tab:orange" if target else "tab:blue")
     axs[2].plot(np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
-    axs[2].plot(np.median(df_healthy, axis=0), label="Mean of Healthy group", linestyle=":", c="tab:green")
+    axs[2].plot(np.mean(df_healthy, axis=0), label="Mean of Healthy group", linestyle="--", c="tab:green")
+
+    # axs[2].plot(np.median(df_unhealthy, axis=0), label="Median of UnHealthy group", linestyle=":", c="tab:red")
+    # axs[2].plot(np.median(df_healthy, axis=0), label="Median of Healthy group", linestyle=":", c="tab:green")
+
+    # axs[2].plot(np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
+    # axs[2].plot(np.median(df_healthy, axis=0), label="Mean of Healthy group", linestyle=":", c="tab:green")
+
     axs[2].set_ylabel("Amplitude")
     axs[2].set_xlabel("Frequency")
     axs[2].set_yscale('log')
@@ -2029,13 +2076,13 @@ def plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_tim
 
 def compute_fft_group(activity, target, i, total):
     print("%d/%d" % (i, total))
-    wavelet_type = 'morlet'
-    y = activity
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
-    power = (np.abs(fft)) ** 2
-    power = power.tolist()
-    power.append(target)
-    return power
+    fft = np.fft.fftshift(np.fft.fft(activity))
+    fft_cc = np.conj(fft)
+    power_fft = np.real(np.multiply(fft, fft_cc))
+
+    power_fft = power_fft.tolist()
+    power_fft.append(target)
+    return power_fft
 
 
 def get_n_largest_coefs(matrix, n=50):
@@ -2060,13 +2107,16 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     wavelet_type = 'morlet'
     y = activity
 
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
+    coefs, scales, freqs, coi, _, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet_type)
     # scales = range(len(activity))
     # coefs, freqs = pywt.cwt(y, scales, 'morl', 1)
 
     # coefs_cc = np.conj(coefs)
     # power = np.real(np.multiply(coefs, coefs_cc))
-    power_fft = (np.abs(fft)) ** 2
+    fft = np.fft.fftshift(np.fft.fft(activity))
+    fft_cc = np.conj(fft)
+    power_fft = np.real(np.multiply(fft, fft_cc))
+
     power_cwt = (np.abs(coefs)) ** 2
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
 
@@ -2089,13 +2139,21 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
             continue
         power_flatten_masked.append(c)
 
+    max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size / 5))
+
     print("power_flatten_len=", len(power_flatten_masked))
     data = power_flatten_masked
+    #data = power_flatten_masked + max_coef_features
+    # data = max_coef_features
+    # data = np.random.randint(1000, size=len(power_flatten_masked)).tolist()
+    # data = [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
+    # data = power_flatten_masked + [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
+    # data = power_fft.tolist()
     data.append(target)
-    #todo try adding extra features sych as max coef and indexes of max coefs
+
     # return [data_pca, power_masked, target, freqs, df_data_pca]
-    max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size/10))
-    return [data, power_cwt, target, freqs, coi_line_array, max_coef_features]
+
+    return [data, power_cwt, target, freqs, coi_line_array]
 
 
 def normalized(v):
@@ -2161,15 +2219,14 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     pool_cwt.join()
     pool_cwt.terminate()
 
-    power_flatten_sample_list = []
+    features_flatten_sample_list = []
     freqs = None
     pca_healthy = []
     pca_unhealthy = []
     # df_cwt_pca_per_scale_list = []
     for res in results_cwt:
-        power_flatten_sample = res.get()[0]
-        max_coef_loc_features = res.get()[5]
-        power_flatten_sample_list.append(max_coef_loc_features + power_flatten_sample)
+        features_flatten_sample = res.get()[0]
+        features_flatten_sample_list.append(features_flatten_sample)
         power_matrix = res.get()[1]
         power_target = res.get()[2]
         freqs = res.get()[3]
@@ -2179,10 +2236,10 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
         # df_cwt_pca_per_scale_list.append(df_cwt_pca_per_scale)
         if power_target:
             results_cwt_matrix_healthy.append(power_matrix)
-            pca_healthy.append(power_flatten_sample)
+            pca_healthy.append(features_flatten_sample)
         else:
             results_cwt_matrix_unhealthy.append(power_matrix)
-            pca_unhealthy.append(power_flatten_sample)
+            pca_unhealthy.append(features_flatten_sample)
 
     # plot_2d_space_cwt_scales(df_cwt_pca_per_scale_list, label=title)
 
@@ -2197,7 +2254,7 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     else:
         plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
 
-    df_cwt = pd.DataFrame(power_flatten_sample_list, dtype=float)
+    df_cwt = pd.DataFrame(features_flatten_sample_list, dtype=float)
 
     colums = [str(x) for x in range(df_cwt.shape[1])]
     colums[-1] = "label"
