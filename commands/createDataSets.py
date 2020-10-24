@@ -20,6 +20,60 @@
 #
 
 #%%
-import createSamples
+import sys
 
-import numpy as np
+from commands.Herd import *
+from commands.Samples import *
+from commands.colcodes import bc
+
+
+if len(sys.argv) != 4:
+    print("Usage: "
+          "createSample <Famacha HDF5 file> <Directory with data> <Output Directory>")
+    exit(1)
+
+famFile = Path(sys.argv[1])
+dataDir = Path(sys.argv[2])
+outDir = Path(sys.argv[3])
+
+print("Commanline argument: ", famFile)
+
+
+print("Loading Famacha and Sorce based data from HDF5 file")
+fileHerd = HerdFile(famFile)
+famachaHerd = HerdData()
+
+print("Loading Activity traces and Times of famacha based animals")
+activityData = ActivityFile(dataDir)
+
+# load Famacha based scores from HDF5
+fileHerd.loadHerd(famachaHerd)
+
+# load Filenames of activity data.
+sheepID = activityData.getID()
+
+famachaHerd.setIDofHerd(sheepID)
+
+mis = famachaHerd.getMissingList()
+
+famachaHerd.removeMissing()
+
+# Load only data based on Famacha data.
+samples = SampleSet()
+
+samples.generateSet(famachaHerd, activityData, 1)
+
+#aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
+
+#sTraces = activityData.loadActivityTrace(famachaHerd.herd[0].ID)
+
+
+totalS = len([ele for sub in samples.set for ele in sub])
+validS = len([ele for sub in samples.set for ele in sub if ele.valid == True])
+falseS = len([ele for sub in samples.set for ele in sub if ele.valid == False])
+
+print(f"{bc.MAG}Summary of extracted samples:{bc.ENDC}")
+
+print(f"Number of Samples extracted: {bc.BLUE}{totalS} {bc.ENDC}")
+print(f"Number of Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
+print(f"Number of Samples extracted: {bc.RED}{falseS} {bc.ENDC}")

@@ -22,13 +22,15 @@ import h5py as h5
 import numpy as np
 from pathlib import Path
 
+
 class AnimalData:
     ID = 0
+    Tag = 0
     famacha = []
     csScore = []
     weight = []
-    def __init__(self, _id, _famacha, _cs, _weight):
-        self.ID = _id
+    def __init__(self, _tag, _famacha, _cs, _weight):
+        self.Tag = _tag
         self.famacha = _famacha
         self.csScore = _cs
         self.weight = _weight
@@ -43,6 +45,54 @@ class AnimalData:
         self.csScore.append(_cs)
         self.weight.append(_weight)
 
+    def TagToIDSet(self, tag):
+        if self.Tag in tag[1, :]:
+            # Method 1
+            # match element in numpy array and give out just the matching Correspond virtically aligned ID, and not a 1
+            # element numpy array
+            # x[0, x[1,:] == 110][0]
+            # To get just index
+            # np.nonzero( x[1,:] == 110 )
+            # self.ID = tag[0, tag[1, :] == self.Tag][0]
+            # Method 2
+            # match elemnt in array or matrix and given index is in a Tuple and strip from np array to just element
+            # idx = np.where(x[1,:] == 110)[0][0]
+            # idx = np.where(tag[1,:] == self.Tag)[0][0]
+            idx = np.where(tag[1, :] == self.Tag)[0][0]
+            self.ID = tag[0, idx]
+        else:
+            print("Error cannot find Tag in activity Animal List WTF!!! is going on...")
+            print(f"Cannot find ID for animal Tag: {self.Tag}")
+
+
+class HerdData:
+    herd = []
+    missing = 0
+    def addHerd(self, _herd):
+        self.herd = _herd
+
+    def setIDofHerd(self, tagList):
+        for idxh in self.herd:
+            idxh.TagToIDSet(tagList)
+        self.missing = [(idx, x.Tag) for idx, x in enumerate(self.herd) if x.ID == 0]
+
+    def getMissingList(self):
+        for idx in self.missing:
+            print(f"Missing Tag Number: {idx[1]} \t Index: {idx[0]}")
+        return self.missing
+
+    def removeMissing(self):
+        print("Deleting the following missing (Idx, Tags)", self.missing)
+        offset = 0
+        for idx in self.missing:
+            print(f"Deleting Tag: {idx[1]} from Index: {idx[0]}")
+            del self.herd[idx[0]-offset]
+            offset += 1
+
+
+    def getAnimalIDList(self):
+        return [x.ID for x in self.herd]
+
 
 class HerdFile:
     herdFile = []
@@ -54,7 +104,7 @@ class HerdFile:
         fh5 = h5.File(self.herdFile, 'w')
 
         for idx in herd:
-            gd = fh5.create_group(str(idx.ID))
+            gd = fh5.create_group(str(idx.Tag))
             # Famacha
             ft = idx.famacha[1, :].astype(int)
             fd = idx.famacha[2, :].astype(int)
@@ -76,7 +126,6 @@ class HerdFile:
 
         fh5.close()
 
-
     def loadHerd(self):
         herdData = []
 
@@ -84,7 +133,7 @@ class HerdFile:
         animal = list(ahf.keys())
 
         for i in animal:
-            ID = int(i)
+            Tag = int(i)
             gdata = ahf[i]
 
             t = np.array(gdata['csTime'])
@@ -98,10 +147,32 @@ class HerdFile:
             t = np.array(gdata['weightTime'])
             x = np.array(gdata['weight'])
             weight = np.array([t,x])
-            herdData.append(AnimalData(ID, famacha, cs, weight))
+            herdData.append(AnimalData(Tag, famacha, cs, weight))
         ahf.close()
-
         return herdData
 
+    def loadHerd(self, _herd):
+        herdData = []
 
+        ahf = h5.File(self.herdFile, 'r')
+        animal = list(ahf.keys())
+
+        for i in animal:
+            Tag = int(i)
+            gdata = ahf[i]
+
+            t = np.array(gdata['csTime'])
+            x = np.array(gdata['cs'])
+            cs = np.array([t, x])
+
+            t = np.array(gdata['famachaTime'])
+            x = np.array(gdata['famacha'])
+            famacha = np.array([t, x])
+
+            t = np.array(gdata['weightTime'])
+            x = np.array(gdata['weight'])
+            weight = np.array([t,x])
+            herdData.append(AnimalData(Tag, famacha, cs, weight))
+        ahf.close()
+        _herd.addHerd(herdData)
 
