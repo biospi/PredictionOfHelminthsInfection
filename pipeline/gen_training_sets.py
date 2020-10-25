@@ -978,10 +978,10 @@ def exporting_data_info_to_txt_final(output_dir, farm_id, n_days_before_famacha,
     print(report)
 
 def parse_csv_db_name(path):
-    split = path.split('/')[-2].split('_')
-    farm_id = split[0] + "_" + split[1]
-    threshold_interpol = int(path.split('/')[-1].split('_')[1])
-    threshold_zeros2nan = int(path.split('/')[-1].split('_')[3])
+    split = path.split('/')[-1].split('_')
+    farm_id = split[6] + "_" + split[7]
+    threshold_interpol = int(split[2])
+    threshold_zeros2nan = int(split[4])
     return farm_id, threshold_interpol, threshold_zeros2nan
 
 
@@ -1030,7 +1030,7 @@ if __name__ == '__main__':
     MULTI_THREADING_ENABLED = (n_process > 0)
     print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
 
-    farm_id, thresh_i, thresh_z2n = parse_csv_db_name(csv_db_dir_path)
+    farm_id, thresh_i, thresh_z2n = parse_csv_db_name(files[0])
 
     try:
         csv_median = load_db_from_csv(file_median)

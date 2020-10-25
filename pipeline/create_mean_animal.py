@@ -132,8 +132,7 @@ if __name__ == '__main__':
             continue
         split = file.split('/')[-1].replace('.csv', '').split("_")
         animal_id = int(split[0])
-        # farm_id = split[6] + "_" + split[7]
-        farm_id = "delmas_70101200027"
+        farm_id = split[6] + "_" + split[7]
         thresh_i = int(split[2])
         thresh_zero2nan = int(split[4])
         df = pd.read_csv(file, sep=",")
