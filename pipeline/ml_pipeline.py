@@ -60,6 +60,15 @@ from PIL import Image
 
 from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.feature_selection import f_classif
+from astropy.convolution import convolve, Box1DKernel
+
+
+class SelectKBestWrapper(SelectKBest):
+    def transform(self, X):
+        return super().transform(X)
+
+    def fit_transform(self, X, Y):
+        return self.fit(X,Y).transform(X)
 
 
 class PLSRegressionWrapper(PLSRegression):
@@ -160,7 +169,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def filter_by_entropy(df, thresh=3.5):
+def filter_by_entropy(df, thresh=1.5):
     filtered_samples = []
     for i in range(df.shape[0]-2):
         row = df.iloc[i, :-1]
@@ -454,7 +463,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame = shuffle(data_frame)
 
-    data_frame = filter_by_entropy(data_frame)
+    # data_frame = filter_by_entropy(data_frame)
 
     data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
 
@@ -1052,6 +1061,37 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report_rows_list.append(scores)
     # make_roc_curve(out_dir, clf_pls_svc, X, y, cv_pls_svc, param_str, thresh_i, thresh_z)
     # del scores
+
+    print('->SelectKBest(2)->SVM')
+    clf_skb2_svm = make_pipeline(SelectKBest(f_classif, k=2), SVC(probability=True, class_weight='balanced'))
+    cv_skb2_svm = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                     random_state=int(datetime.now().microsecond / 10))
+    scores = cross_validate(clf_skb2_svm, X.copy(), y.copy(), cv=cv_skb2_svm, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == 0].size
+    scores["class1"] = y[y == 1].size
+    scores["option"] = option
+    scores["thresh_i"] = thresh_i
+    scores["thresh_z"] = thresh_z
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->SelectKBest(2)->SVM'"
+    scores["classifier_details"] = str(clf_skb2_svm).replace('\n', '').replace(" ", '')
+    report_rows_list.append(scores)
+    make_roc_curve(out_dir, clf_skb2_svm, X, y, cv_skb2_svm, param_str, thresh_i, thresh_z)
+    del scores
+
 
     print('->PLS(2)->SVM')
     clf_pls2_svm = make_pipeline(PLSRegressionWrapper(n_components=2), SVC(probability=True, class_weight='balanced'))
@@ -2078,11 +2118,28 @@ def compute_fft_group(activity, target, i, total):
     print("%d/%d" % (i, total))
     fft = np.fft.fftshift(np.fft.fft(activity))
     fft_cc = np.conj(fft)
-    power_fft = np.real(np.multiply(fft, fft_cc))
-
-    power_fft = power_fft.tolist()
+    power_fft = np.real(np.multiply(fft, fft_cc)).tolist()
+    # smooth_data = convolve(power_fft, kernel=Box1DKernel(31))
+    # power_fft = smooth_data.tolist()
     power_fft.append(target)
     return power_fft
+
+
+def get_n_largest_coefs_fft(matrix, n=50):
+    # matrix[matrix == -1] = np.nan
+    features_list = []
+    for i in range(n):
+        location = matrix.argmax()
+        value = matrix[location]
+        features = [location, value]
+        matrix[location] = -1
+        features_list.append(features)
+    f_array = np.array(features_list).flatten().tolist()
+    # plt.clf()
+    # plt.title("get_n_largest_coefs")
+    # plt.imshow(matrix, aspect='auto')
+    # plt.show()
+    return f_array
 
 
 def get_n_largest_coefs(matrix, n=50):
@@ -2111,13 +2168,13 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     # scales = range(len(activity))
     # coefs, freqs = pywt.cwt(y, scales, 'morl', 1)
 
-    # coefs_cc = np.conj(coefs)
-    # power = np.real(np.multiply(coefs, coefs_cc))
     fft = np.fft.fftshift(np.fft.fft(activity))
     fft_cc = np.conj(fft)
     power_fft = np.real(np.multiply(fft, fft_cc))
+    # power_fft = convolve(power_fft, kernel=Box1DKernel(31))
 
-    power_cwt = (np.abs(coefs)) ** 2
+    coefs_cc = np.conj(coefs)
+    power_cwt = np.real(np.multiply(coefs, coefs_cc))
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
 
     if high_pass is not None and high_pass > 0:
@@ -2140,14 +2197,16 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
         power_flatten_masked.append(c)
 
     max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size / 5))
+    max_coef_features_fft = get_n_largest_coefs_fft(power_fft.copy(), n=int(power_masked.size / 2))
 
     print("power_flatten_len=", len(power_flatten_masked))
-    data = power_flatten_masked
+    # data = power_flatten_masked
     #data = power_flatten_masked + max_coef_features
     # data = max_coef_features
     # data = np.random.randint(1000, size=len(power_flatten_masked)).tolist()
     # data = [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
     # data = power_flatten_masked + [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
+    data = power_fft.tolist() + max_coef_features_fft
     # data = power_fft.tolist()
     data.append(target)
 
@@ -2190,8 +2249,7 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     for i, row in enumerate(df_timedomain.iterrows()):
         target = row[1][-1]
         activity = row[1][0:-1].values
-        results_fftgroup.append(pool_fft_group.apply_async(compute_fft_group,
-                                                                (activity, target, i, df_timedomain.shape[0],)))
+        results_fftgroup.append(pool_fft_group.apply_async(compute_fft_group, (activity, target, i, df_timedomain.shape[0],)))
 
     pool_fft_group.close()
     pool_fft_group.join()
