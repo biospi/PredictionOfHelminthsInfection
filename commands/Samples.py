@@ -70,7 +70,7 @@ class FamachaVal:
     def getFamachaV(self, fInt):
         return (fInt, self.f[fInt])
 
-    def getFamachaS(self, fStr, ):
+    def getFamachaS(self, fStr):
         return (list(self.f.keys())[list(self.f.values()).index(fStr)], fStr)
 
     def getDeltaFamacha(self, fA, fB):
