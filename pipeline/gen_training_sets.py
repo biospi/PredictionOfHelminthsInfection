@@ -241,7 +241,7 @@ def get_number_of_days_between_succesive_prev_test(dtf1, dtf2, dtf3, dtf4, dtf5)
     return nd1, nd2, nd3, nd4
 
 
-def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data, resolution,
+def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, data_famacha_list, data_famacha_dict, weather_data,
                       days_before_famacha_test):
     # print("generating new training pair....")
     # todo:sort out time
@@ -265,10 +265,10 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
 
     # print("getting activity data for test on the %s for %d. collecting data %d days before resolution is %s..." % (famacha_test_date, animal_id, days_before_famacha_test, resolution))
 
-    rows_activity, time_range, nan_in_window = execute_df_query(csv_df, animal_id, resolution, date2, date1)
+    rows_activity, time_range, nan_in_window = execute_df_query(csv_df, animal_id, date2, date1)
     #todo understand which mean or median
-    median, _, _ = execute_df_query(csv_median_df, "median animal", resolution, date2, date1)
-    mean, _, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
+    median, _, _ = execute_df_query(csv_median_df, "median animal", date2, date1)
+    mean, _, _ = execute_df_query(csv_mean_df, "mean animal", date2, date1)
 
     # rows_herd, _ = execute_df_query(csv_mean_df, "mean animal", resolution, date2, date1)
     mean_activity_list = mean
@@ -284,10 +284,6 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
         print("absent activity counts. skip.", "found %d" % l, "expected %d" % expected_activity_point)
         return
 
-    # activity_list = normalize_histogram_mean_diff(herd_activity_list, activity_list)
-    # herd_activity_list = anscombe_list(herd_activity_list)
-    # activity_list = anscombe_list(activity_list)
-
     idx = 0
     indexes = []
     timestamp_list = []
@@ -295,30 +291,6 @@ def get_training_data(csv_df, csv_median_df, csv_mean_df, curr_data_famacha, i, 
     weight_list = []
     temperature_list = []
     dates_list_formated = []
-
-    # for j, data_a in enumerate(rows_activity[0: expected_sample_count]):
-    #     # transform date in time for comparaison
-    #     curr_datetime = time_range[j]
-    #     timestamp = time.strptime(curr_datetime.strftime('%d/%m/%Y'), "%d/%m/%Y")
-    #     # temp, humidity = get_temp_humidity(curr_datetime, weather_data)
-    #     temp, humidity = 0, 0
-    #
-    #     weight = None
-    #     try:
-    #         weight = float(curr_data_famacha[3])
-    #     except ValueError as e:
-    #         # print("weight=", weight)
-    #         # print(e)
-    #         pass
-    #
-    #     weight_list.append(weight)
-    #
-    #     indexes.append(idx)
-    #     timestamp_list.append(timestamp)
-    #     temperature_list.append(temp)
-    #     humidity_list.append(humidity)
-    #     dates_list_formated.append(curr_datetime.strftime('%d/%m/%Y %H:%M'))
-    #     idx += 1
 
     prev_famacha_score1, prev_famacha_score2, prev_famacha_score3, prev_famacha_score4 = get_prev_famacha_score(
         animal_id,
@@ -573,7 +545,7 @@ def create_filename(data):
     return filename.replace('/', '-').replace(".", "_")
 
 
-def create_training_set(output_dir, result, dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=[]):
+def create_training_set(output_dir, result, dir, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=[]):
     training_set = []
     training_set_median = []
     training_set_mean = []
@@ -676,7 +648,7 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     if not os.path.exists(path):
         print("mkdir", path)
         os.makedirs(path)
-    filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.csv" % (path, option, farm_id, days_before_famacha_test, resolution, thresh_i, thresh_z2n)
+    filename = "%s/%s_%s_dbft_%d_%s_threshi_%d_threshz_%d.csv" % (path, option, farm_id, days_before_famacha_test, "1min", thresh_i, thresh_z2n)
     training_str_flatten = str(training_set).strip('[]').replace(' ', '').replace('None', 'NaN')
 
     training_str_median_flatten = str(training_set_median).strip('[]').replace(' ', '').replace('None', 'NaN')
@@ -693,28 +665,11 @@ def create_training_set(output_dir, result, dir, resolution, days_before_famacha
     outfile.close()
 
     print("appended dataset")
-
-    # filename_t = "%s/temperature.data" % path
-    # temp_str_flatten = str(result["temperature"]).strip('[]').replace(' ', '').replace('None', 'NaN')
-    # print("set size is %d, %s.....%s" % (
-    #     len(temp_str_flatten), temp_str_flatten[0:50], temp_str_flatten[-50:]))
-    # with open(filename_t, 'a') as outfile_t:
-    #     outfile_t.write(temp_str_flatten)
-    #     outfile_t.write('\n')
-    #
-    # filename_h = "%s/humidity.data" % path
-    # hum_str_flatten = str(result["humidity"]).strip('[]').replace(' ', '').replace('None', 'NaN')
-    # print("set size is %d, %s.....%s" % (
-    #     len(hum_str_flatten), hum_str_flatten[0:50], hum_str_flatten[-50:]))
-    # with open(filename_h, 'a') as outfile_h:
-    #     outfile_h.write(hum_str_flatten)
-    #     outfile_h.write('\n')
-
     return filename, options
 
 
-def create_training_sets(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n):
-    path1, options1 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=["activity"])
+def create_training_sets(output_dir, data, dir_path, days_before_famacha_test, farm_id, thresh_i, thresh_z2n):
+    path1, options1 = create_training_set(output_dir, data, dir_path, days_before_famacha_test, farm_id, thresh_i, thresh_z2n, options=["activity"])
     # path2, options2 = create_training_set(output_dir, data, dir_path, resolution, days_before_famacha_test, farm_id,thresh_i, thresh_z2n, options=["cwt"])
 
     return [
@@ -764,7 +719,7 @@ def get_famacha_data(famacha_data_file_path):
     return data_famacha_dict
 
 
-def execute_df_query(csv_df, animal_id, resolution, date2, date1):
+def execute_df_query(csv_df, animal_id, date2, date1):
     # print("execute df query...", animal_id, resolution, date2, date1)
     if csv_df is None:
         print("could not load csv_df", animal_id)
@@ -794,28 +749,28 @@ def execute_df_query(csv_df, animal_id, resolution, date2, date1):
     return activity, time_range, nan_in_window
 
 
-def resample_traces(resolution, activity, herd):
-    if resolution == '1min':
-        return np.array(activity), np.array(herd)
-
-    index = pd.date_range('1/1/2000', periods=len(activity), freq='T')
-
-    activity_series = pd.Series(activity, index=index)
-    activity_series_r = activity_series.resample(resolution).sum()
-    activity_r = activity_series_r.values
-
-    if len(herd) > 0:
-        herd_series = pd.Series(herd, index=index)
-        herd_series_r = herd_series.resample(resolution).sum()
-        herd_r = herd_series_r.values
-    else:
-        herd_r = np.array([])
-
-    return activity_r, herd_r
+# def resample_traces(activity, herd):
+#     if resolution == '1min':
+#         return np.array(activity), np.array(herd)
+#
+#     index = pd.date_range('1/1/2000', periods=len(activity), freq='T')
+#
+#     activity_series = pd.Series(activity, index=index)
+#     activity_series_r = activity_series.resample(resolution).sum()
+#     activity_r = activity_series_r.values
+#
+#     if len(herd) > 0:
+#         herd_series = pd.Series(herd, index=index)
+#         herd_series_r = herd_series.resample(resolution).sum()
+#         herd_r = herd_series_r.values
+#     else:
+#         herd_r = np.array([])
+#
+#     return activity_r, herd_r
 
 
 def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, idx, thresh_i, thresh_z2n, days_before_famacha_test,
-                resolution, farm_id, file, data_famacha_dict, create_input_visualisation_eanable=False):
+                farm_id, file, data_famacha_dict, create_input_visualisation_eanable=False):
     csv_df = load_db_from_csv(file, idx)
     # result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (output_dir, farm_id, resolution, days_before_famacha_test, thresh_i, thresh_z2n)
     create_cwt_graph_enabled = enable_graph_output
@@ -843,7 +798,7 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
         try:
             data_famacha_copy = data_famacha_list
             result = get_training_data(csv_df, csv_median, csv_mean, curr_data_famacha, i, data_famacha_copy,
-                                       data_famacha_dict, weather_data, resolution,
+                                       data_famacha_dict, weather_data,
                                        days_before_famacha_test)
         except KeyError as e:
             result = None
@@ -852,10 +807,10 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
         if result is None:
             continue
 
-        activity_resampled, herd_resampled = resample_traces(resolution, result["activity"], result["median"])
+        # activity_resampled, herd_resampled = resample_traces(result["activity"], result["median"])
         is_valid, reason = is_activity_data_valid(result["activity_raw"])
         # print("sample is valid=", is_valid)
-        result["activity"] = activity_resampled.tolist()
+        # result["activity"] = activity_resampled.tolist()
         result['is_valid'] = is_valid
         if result["famacha_score"] < 0 or result["previous_famacha_score1"] < 0:
             result['is_valid'] = False
@@ -904,7 +859,7 @@ def process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, id
         # create_hd_cwt_graph(result_output_dir, coef, len(cwt), result_output_dir, tag+"_"+filename_graph, title=create_graph_title(result, "freq"),
         #                     sub_sub_folder=sub_sub_folder, freqs=freqs)
 
-        create_training_sets(result_output_dir, result, result_output_dir, resolution, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
+        create_training_sets(result_output_dir, result, result_output_dir, days_before_famacha_test, farm_id, thresh_i, thresh_z2n)
         results[idx] = None
         # gc.collect()
         # print("create_activity_graph done.")
@@ -992,9 +947,9 @@ if __name__ == '__main__':
         csv_db_dir_path = sys.argv[2]
         famacha_file_path = sys.argv[3]
         n_days_before_famacha = int(sys.argv[4])
-        resampling_resolution = sys.argv[5]
-        enable_graph_output = sys.argv[6].lower() == 'true'
-        n_process = int(sys.argv[7])
+        # resampling_resolution = sys.argv[5]
+        enable_graph_output = sys.argv[5].lower() == 'true'
+        n_process = int(sys.argv[6])
         print("N_PROCESS=", n_process)
         print("enable_graph=", enable_graph_output)
     else:
@@ -1004,7 +959,6 @@ if __name__ == '__main__':
     print("csv_db_path=", csv_db_dir_path)
     print("famacha_file_path=", famacha_file_path)
     print("n_days_before_famacha=", n_days_before_famacha)
-    print("resampling_resolution=", resampling_resolution)
 
     files = glob.glob(csv_db_dir_path+"/*csv")
     files = [file.replace("\\", '/') for file in files]
@@ -1049,8 +1003,8 @@ if __name__ == '__main__':
         print("mkdir", output_dir)
         os.makedirs(output_dir)
 
-    result_output_dir = "%s/%s_%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
-        output_dir, farm_id, resampling_resolution, n_days_before_famacha, thresh_i, thresh_z2n)
+    result_output_dir = "%s/%s_famachadays_%d_threshold_interpol_%d_threshold_zero2nan_%d" % (
+        output_dir, farm_id, n_days_before_famacha, thresh_i, thresh_z2n)
     total_sample_11 = []
     total_sample_12 = []
     nan_sample_11 = []
@@ -1064,7 +1018,7 @@ if __name__ == '__main__':
             if 'median' in file or 'mean' in file:
                 continue
             pool.apply_async(process_day, (enable_graph_output, result_output_dir, csv_median, csv_mean,
-                                           idx, thresh_i, thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, file, famacha_data,))
+                                           idx, thresh_i, thresh_z2n, n_days_before_famacha, farm_id, file, famacha_data,))
         pool.close()
         pool.join()
         pool.terminate()
@@ -1074,7 +1028,7 @@ if __name__ == '__main__':
             if 'median' in file or 'mean' in file:
                 continue
             process_day(enable_graph_output, result_output_dir, csv_median, csv_mean, idx, thresh_i,
-                        thresh_z2n, n_days_before_famacha, resampling_resolution, farm_id, file, famacha_data)
+                        thresh_z2n, n_days_before_famacha, farm_id, file, famacha_data)
 
     files_txt = glob.glob(result_output_dir + "/*.txt")
     for file in files_txt:
