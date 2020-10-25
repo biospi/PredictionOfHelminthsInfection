@@ -24,7 +24,7 @@ import sys
 
 from commands.Herd import *
 from commands.Samples import *
-from commands.colcodes import bc
+from commands.cmdsextra import bc
 
 
 if len(sys.argv) != 4:
@@ -68,9 +68,13 @@ samples.generateSet(famachaHerd, activityData, 1)
 #sTraces = activityData.loadActivityTrace(famachaHerd.herd[0].ID)
 
 
-totalS = len([ele for sub in samples.set for ele in sub])
-validS = len([ele for sub in samples.set for ele in sub if ele.valid == True])
-falseS = len([ele for sub in samples.set for ele in sub if ele.valid == False])
+#totalS = len([ele for sub in samples.set for ele in sub])
+#validS = len([ele for sub in samples.set for ele in sub if ele.valid == True])
+#falseS = len([ele for sub in samples.set for ele in sub if ele.valid == False])
+
+totalS = len(samples.set)
+validS = len([x for x in samples.set if x.valid == True])
+falseS = len([x for x in samples.set if x.valid == False])
 
 print(f"{bc.MAG}Summary of extracted samples:{bc.ENDC}")
 

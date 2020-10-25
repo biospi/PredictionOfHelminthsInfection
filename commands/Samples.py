@@ -28,7 +28,9 @@ from pathlib import Path
 import datetime as dt
 import math
 
-from commands.colcodes import bc
+from commands.cmdsextra import bc, vbprintSet
+
+vbprint = vbprintSet(False)
 
 class TimeConst:
     utc1min: Final = 60
@@ -149,28 +151,47 @@ class Activity:
         return self.A
 
 
+#class Sample:
+#    ID = 0
+#    itime = 0
+#    activity = 0
+#    famacha = 0
+#    deltaFamacha = 0
+#    valid = False
+#
+#    def __init__(self, _ID, _itime, _act, _fam=0, _df=0):
+#        self.ID = _ID
+#        self.itime = np.array(_itime)
+#        self.activity = np.array(_act)
+#        self.famacha = _fam
+#        self.deltaFamacha = _df
+#        # If there are no nans in the activity then set valid to True
+#        self.valid = math.isnan(self.activity.min()) == False
+
 class Sample:
     ID = 0
-    itime = 0
-    activity = 0
     famacha = 0
     deltaFamacha = 0
     valid = False
 
-    def __init__(self, _ID, _itime, _act, _fam=0, _df=0):
+    def __init__(self, _ID=0,  _fam=0, _df=0, _valid = None):
         self.ID = _ID
-        self.itime = np.array(_itime)
-        self.activity = np.array(_act)
         self.famacha = _fam
         self.deltaFamacha = _df
         # If there are no nans in the activity then set valid to True
-        self.valid = math.isnan(self.activity.min()) == False
+        self.valid = _valid
 
 
 class SampleSet:
     set = []
-    raw = []
+    rawA = []
+    rawT = []
+    rawID = []
     N = 0
+    iT = 0
+    iA = 0
+    valid = 0
+    df = 0
 
     def generateSet(self, famData, actFile, deltaFamachaTime):
         N = len(famData.herd)
@@ -186,41 +207,84 @@ class SampleSet:
             dT = act.T[1] - act.T[0]
             TE = act.T[act.T.shape[0]-1]
 
+            self.rawA.append(act.T)
+            self.rawT.append(act.A)
+            self.rawID.append(act.ID)
+
             for j in np.r_[1:aIdx.famacha.shape[1]]:
-                print(f"Procesing Famacha: {bc.MAG} [{j}/{aIdx.famacha.shape[1]}] {bc.ENDC}")
+                vbprint(f"Procesing Famacha: {bc.MAG} [{j}/{aIdx.famacha.shape[1]}] {bc.ENDC}")
                 fTimeIdxEnd = aIdx.famacha[0, j]
                 fTimeIdxStart = self.getStartIndex(fTimeIdxEnd, deltaTime)
-                print(f"UTC : Start Time of Famacha: {fTimeIdxStart} \t End Time of Famacha: {fTimeIdxEnd}")
-                print(f"HR  : Start Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxStart)} \t End Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxEnd)}")
+                vbprint(f"UTC : Start Time of Famacha: {fTimeIdxStart} \t End Time of Famacha: {fTimeIdxEnd}")
+                vbprint(f"HR  : Start Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxStart)} \t End Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxEnd)}")
 
                 fCurrent = ftool.getFamachaV(aIdx.famacha[1, j])
                 fPrev = ftool.getFamachaV(aIdx.famacha[1, j - 1])
                 df = ftool.getDeltaFamacha(fPrev, fCurrent)
-                print(f"Previous Famacha: {fPrev[1]} \t Current Famacha: {fCurrent[1]} \t Delta Famaacha: {df}")
+                vbprint(f"Previous Famacha: {fPrev[1]} \t Current Famacha: {fCurrent[1]} \t Delta Famaacha: {df}")
 
                 if fTimeIdxStart < T0:
-                    print(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
+                    vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
                     continue
                 if fTimeIdxStart > TE or fTimeIdxEnd > TE:
-                    print(f"{bc.YELLOW}Start Time of Famacha {bc.RED}{fdt(fTimeIdxStart)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
-                    print(f"or")
-                    print(f"{bc.YELLOW}End Time of Famacha {bc.RED}{fdt(fTimeIdxEnd)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
+                    vbprint(f"{bc.YELLOW}Start Time of Famacha {bc.RED}{fdt(fTimeIdxStart)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
+                    vbprint(f"or")
+                    vbprint(f"{bc.YELLOW}End Time of Famacha {bc.RED}{fdt(fTimeIdxEnd)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
                     break
 
                 TIdxStart = int((fTimeIdxStart - T0) / dT)
                 TIdxEnd = int((fTimeIdxEnd - T0) / dT)
 
-                T = act.T[TIdxStart:TIdxEnd+1]
-                A = act.A[TIdxStart:TIdxEnd+1]
+                T = np.array(act.T[TIdxStart:TIdxEnd+1])
+                A = np.array(act.A[TIdxStart:TIdxEnd+1])
 
-                aniSet.append(Sample(aIdx.ID, T, A, fCurrent, df) )
+                # Is activity valid
+                val = math.isnan(A.min()) == False
 
-            #self.set.extend(aniSet)
-            self.set.append(aniSet)
+                aniSet.append(Sample(aIdx.ID, fCurrent, df, val))
+
+                if type(self.iA) == int:
+                    self.iA = np.array(A)
+                    self.iT = np.array(T)
+                else:
+                    self.iA = np.vstack((self.iA, np.array(A)))
+                    self.iT = np.vstack((self.iT, np.array(T)))
+
+            self.set.extend(aniSet)
+
+        self.valid = np.array([x.valid for x in self.set])
+        self.df = np.array([x.deltaFamacha[1] for x in self.set])
 
     def getStartIndex(self, famTimeEnd, deltaTime):
         famTimeStart = famTimeEnd - deltaTime
         return famTimeStart
+
+    def getSet(self):
+        return self.set
+
+    def getActivity(self, idx = 0):
+        if idx == 0:
+            return self.iA
+        else:
+            return self.iA[idx]
+
+    def getiTime(self, idx = 0):
+        if idx == 0:
+            return self.iT
+        else:
+            return self.iT[idx]
+
+    def getFamachaCase(self, fcase = 'all'):
+        if fcase == 'all':
+            return self.df
+        else:
+            return np.where(self.df == fcase)
+
+    def getValid(self, state = True):
+        if state:
+            return self.valid
+        else:
+            return self.valid == False
 
 
 # class Famacha:
