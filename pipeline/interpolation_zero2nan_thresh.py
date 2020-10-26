@@ -118,8 +118,9 @@ def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, 
         df = df.fillna(0)
         data_zerofill_thresh = zeros_to_nan(df, zero_to_nan_threh)
 
-    export_rawdata_to_csv(output_directory, data_zerofill_thresh, farm_id, animal_id, interpolation_thesh,
+    path = export_rawdata_to_csv(output_directory, data_zerofill_thresh, farm_id, animal_id, interpolation_thesh,
                           zero_to_nan_threh, imputation_type)
+    return path
 
 
 def create_rec_dir(path):
@@ -142,8 +143,8 @@ def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_inter
     # except:
     #     pass
     print("farm_id=", farm_id)
-    path = "%s/%s/imputation_%d/interpol_%d_zeros_%d/" % (
-        output_directory, farm_id, imputation_type, thresh_interpol, thresh_zero2nan)
+    path = "%s/%s_interpol_%d_zeros_%d_imputation_%d/" % (
+        output_directory, farm_id, thresh_interpol, thresh_zero2nan, imputation_type)
     # # print("path=",path)
     # # try:
     # #     pathlib.Path(path).mkdir(parents=True)
@@ -164,6 +165,7 @@ def export_rawdata_to_csv(output_directory, df, farm_id, animal_id, thresh_inter
     print("create_file=", filename_path)
     df.to_csv(filename_path, sep=',', index=False)
     print("final file=", filename_path)
+    return path
 
 
 def parse_filename(file):
@@ -199,15 +201,67 @@ if __name__ == '__main__':
         for idx, csv_file in enumerate(files):
             csv_file = csv_file.replace("\\", "/")
             farm_id, animal_id = parse_filename(csv_file)
-            pool.apply_async(process_csv, (
+            result = pool.apply_async(process_csv, (
                 output_dir, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,
                 imputation_type,))
         pool.close()
         pool.join()
         pool.terminate()
+        out_dir = result.get()
     else:
         for csv_file in files:
             csv_file = csv_file.replace("\\", "/")
             farm_id, animal_id = parse_filename(csv_file)
-            process_csv(output_dir, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,
+            out_dir = process_csv(output_dir, csv_file, int(zero_to_nan_threh), int(interpolation_thesh), farm_id, animal_id,
                         imputation_type)
+
+
+    df_raw = pd.DataFrame()
+    print("csv_dir=", out_dir)
+    files = glob.glob(out_dir + "/*.csv")
+    if len(files) == 0:
+        print("no files in %s" % out_dir)
+        exit(-1)
+
+    thresh_i = None
+    thresh_zero2nan = None
+    for idx, file in enumerate(files):
+        file = file.replace("\\", '/')
+        print("file=", file)
+        if 'median' in file.split('/')[-1] or 'mean' in file.split('/')[-1]:
+            continue
+        split = file.split('/')[-1].replace('.csv', '').split("_")
+        animal_id = int(split[0])
+        farm_id = split[6] + "_" + split[7]
+        thresh_i = int(split[2])
+        thresh_zero2nan = int(split[4])
+        df = pd.read_csv(file, sep=",")
+        df_raw[str(idx)] = df['first_sensor_value']
+
+    compute_mean = pd.DataFrame(df_raw.mean(axis=1, skipna=True))
+    compute_mean["timestamp"] = df["timestamp"]
+    compute_mean["date_str"] = df["date_str"]
+    compute_mean = compute_mean.rename(columns={0: "first_sensor_value"})
+    compute_mean = compute_mean[["timestamp", "date_str", "first_sensor_value"]]
+
+    compute_median = pd.DataFrame(df_raw.median(axis=1, skipna=True))
+    compute_median["timestamp"] = df["timestamp"]
+    compute_median["date_str"] = df["date_str"]
+    compute_median = compute_median.rename(columns={0: "first_sensor_value"})
+    compute_median = compute_median[["timestamp", "date_str", "first_sensor_value"]]
+
+    print("exporting data...")
+    print("dir_path=", out_dir)
+    filename_path = out_dir + "/mean_interpol_%d_zeros_%d_farmid_%s_imputation_%d.csv" % (thresh_i, thresh_zero2nan,
+                                                                                          farm_id, imputation_type)
+    purge_file(filename_path)
+    compute_mean.to_csv(filename_path, sep=',', index=False)
+    print("output file=", filename_path)
+
+    print("exporting data...")
+    print("dir_path=", out_dir)
+    filename_path = out_dir + "/median_interpol_%d_zeros_%d_farmid_%s_imputation_%d.csv" % (thresh_i, thresh_zero2nan,
+                                                                                            farm_id, imputation_type)
+    purge_file(filename_path)
+    compute_median.to_csv(filename_path, sep=',', index=False)
+    print("output file=", filename_path)

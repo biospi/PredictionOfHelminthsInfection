@@ -128,7 +128,7 @@ if __name__ == '__main__':
     for idx, file in enumerate(files):
         file = file.replace("\\", '/')
         print("file=", file)
-        if 'median' in file.split('/')[-1]:
+        if 'median' in file.split('/')[-1] or 'mean' in file.split('/')[-1]:
             continue
         split = file.split('/')[-1].replace('.csv', '').split("_")
         animal_id = int(split[0])

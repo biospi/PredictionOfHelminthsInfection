@@ -180,9 +180,9 @@ def compute_cwt_hd(activity, scale=80):
     delta_t = (x[1] - x[0]) * 1
     # scales = np.arange(1, int(num_steps/10))
     freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
-    wavelet_type = 'mexicanhat'
+    wavelet_type = 'morlet'
     # y = [0 if x is np.nan else x for x in y] #todo fix
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type)
 
     coefs_masked = mask_cwt(coefs.real, coi)
     # plt.matshow(coefs_masked)
