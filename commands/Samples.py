@@ -27,6 +27,7 @@ from typing import Final
 from pathlib import Path
 import datetime as dt
 import math
+import h5py as h5
 
 from commands.cmdsextra import bc, vbprintSet
 
@@ -168,6 +169,7 @@ class Activity:
 #        # If there are no nans in the activity then set valid to True
 #        self.valid = math.isnan(self.activity.min()) == False
 
+
 class Sample:
     ID = 0
     famacha = 0
@@ -180,6 +182,85 @@ class Sample:
         self.deltaFamacha = _df
         # If there are no nans in the activity then set valid to True
         self.valid = _valid
+
+
+def saveSampleSetHDF5(dataSet, fileName = 'sampleDataset.h5'):
+    fName = Path(fileName)
+
+    famacha = np.array([x.famacha[0] for x in dataSet.set])
+    valid = np.array([1 if x == True else 0 for x in dataSet.valid])
+    sampleID = np.array([x.ID for x in dataSet.set])
+    df = np.array([FamachaVal.getFamachaS(FamachaVal, i)[0] for i in dataSet.df])
+    iA = dataSet.iA
+    iT = dataSet.iT
+
+    t0 = max([x[0] for x in dataSet.rawT])
+    tN = min(([x[len(x)-1] for x in dataSet.rawT]))
+
+    id = np.array(dataSet.rawID)
+    rawA = 0
+    rawT = 0
+    for i in np.r_[0:len(dataSet.rawT)]:
+        idx0 = np.where(dataSet.rawT[i] == t0)[0][0]
+        idxN = np.where(dataSet.rawT[i] == tN)[0][0]
+
+        if type(rawA) == int:
+            rawA = np.array(dataSet.rawA[i][idx0:idxN])
+            rawT = np.array(dataSet.rawT[i][idx0:idxN])
+        else:
+            rawA = np.vstack((rawA, np.array(dataSet.rawA[i][idx0:idxN])))
+
+    fs = h5.File(fName, 'w')
+    print("Writing Data to HDF5 File.")
+    fs.create_dataset('famacha',data=famacha.astype(int), compression='gzip')
+    fs.create_dataset('valid',data=valid.astype(int), compression='gzip')
+    fs.create_dataset('df',data=df.astype(int), compression='gzip')
+    fs.create_dataset('sampleID',data=sampleID.astype(int), compression='gzip')
+    fs.create_dataset('iA',data=iA.astype(float), compression='gzip')
+    fs.create_dataset('iT',data=iT.astype(int) , compression='gzip')
+    fs.create_dataset('rawID',data=id.astype(int), compression='gzip')
+    fs.create_dataset('rawA',data=rawA.astype(float), compression='gzip')
+    fs.create_dataset('rawT',data=rawT.astype(int), compression='gzip')
+
+    fs.close()
+
+def loadSampleSetHDF5(fileName):
+    fName = Path(fileName)
+    dataSet = SampleSet()
+
+    fs = h5.File(fName, 'r')
+
+
+    df = np.array(fs['df'])
+    df = [FamachaVal.getFamachaV(FamachaVal, x) for x in df]
+    famacha = np.array(fs['famacha'])
+    famacha = [FamachaVal.getFamachaV(FamachaVal, x) for x in famacha]
+    sampleID = np.array(fs['sampleID'])
+    valid = np.array(fs['valid'])
+    valid = [True if x == 1 else False for x in valid]
+
+    for i in np.r_[0:len(sampleID)]:
+        dataSet.set.append(Sample(sampleID[i], famacha[i], df[i], valid[i]))
+
+    iA = np.array(fs['iA'])
+    iT = np.array(fs['iT'])
+    rawID = np.array(fs['rawID'])
+    rawA = np.array(fs['rawA'])
+    rawT = np.array(fs['rawT'])
+
+    dataSet.N = len(dataSet.set)
+    dataSet.iA = iA
+    dataSet.iT = iT
+    dataSet.valid = valid
+    dataSet.df = df
+
+    dataSet.rawA = rawA
+    dataSet.rawT = rawT
+    dataSet.rawID = rawID
+
+    fs.close()
+
+    return dataSet
 
 
 class SampleSet:
@@ -207,8 +288,8 @@ class SampleSet:
             dT = act.T[1] - act.T[0]
             TE = act.T[act.T.shape[0]-1]
 
-            self.rawA.append(act.T)
-            self.rawT.append(act.A)
+            self.rawA.append(act.A)
+            self.rawT.append(act.T)
             self.rawID.append(act.ID)
 
             for j in np.r_[1:aIdx.famacha.shape[1]]:
@@ -285,6 +366,9 @@ class SampleSet:
             return self.valid
         else:
             return self.valid == False
+
+
+
 
 
 # class Famacha:

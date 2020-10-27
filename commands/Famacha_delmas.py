@@ -23,7 +23,6 @@ import numpy as np
 from pathlib import Path
 import sys
 import random as rd
-import h5py as h5
 import datetime as dt
 #import pickle
 from Herd import AnimalData, HerdFile

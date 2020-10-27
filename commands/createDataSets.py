@@ -81,3 +81,12 @@ print(f"{bc.MAG}Summary of extracted samples:{bc.ENDC}")
 print(f"Number of Samples extracted: {bc.BLUE}{totalS} {bc.ENDC}")
 print(f"Number of Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
 print(f"Number of Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
+
+
+saveSampleSetHDF5(samples,'testSampleSetNow.h5')
+
+snew = loadSampleSetHDF5('testSampleSetNow.h5')
+
+print(f"Number of Samples extracted: {bc.BLUE}{totalS} {bc.ENDC}")
+print(f"Number of Valid ValSamples extracted: {bc.GREEN}{validS} {bc.ENDC}")
+print(f"Number of InValid Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
