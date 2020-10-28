@@ -8,7 +8,7 @@ def wavelet(n, w0):
 
 
 if __name__ == "__main__":
-    w0 = 6
+    w0 = 100
     N = 100
     y = []
     x = list(np.arange(-10, 10, 0.1))

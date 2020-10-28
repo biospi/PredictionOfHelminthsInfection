@@ -61,7 +61,8 @@ famachaHerd.removeMissing()
 # Load only data based on Famacha data.
 samples = SampleSet()
 
-samples.generateSet(famachaHerd, activityData, 1)
+ndays = 3
+samples.generateSet(famachaHerd, activityData, ndays)
 
 #aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
 
@@ -79,5 +80,67 @@ falseS = len([x for x in samples.set if x.valid == False])
 print(f"{bc.MAG}Summary of extracted samples:{bc.ENDC}")
 
 print(f"Number of Samples extracted: {bc.BLUE}{totalS} {bc.ENDC}")
-print(f"Number of Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
-print(f"Number of Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
+print(f"Number of Valid Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
+print(f"Number of NaN Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
+
+
+total_sample_11 = np.where(samples.df == '1To1')[0].size
+total_sample_12 = np.where(samples.df == '1To2')[0].size
+
+nan_sample_11 = 0
+nan_sample_12 = 0
+for i in np.where(samples.valid == False)[0]:
+    if samples.df[i] == '1To1':
+        nan_sample_11 += 1
+    if samples.df[i] == '1To2':
+        nan_sample_12 += 1
+
+usable_11 = 0
+usable_12 = 0
+for i in np.where(samples.valid == True)[0]:
+    if samples.df[i] == '1To1':
+        usable_11 += 1
+    if samples.df[i] == '1To2':
+        usable_12 += 1
+
+split = dataDir.name.split("_")
+import datetime
+report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
+         "-> 1 = %d\n1 -> 2 = %d\n" % (
+         totalS, total_sample_11, total_sample_12, nan_sample_11,
+         nan_sample_12, usable_11, usable_12)
+
+filename = "F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min_threshi_%d_threshz_%d.txt" % (ndays, int(split[3]), int(split[5]))
+with open(filename, 'a') as outfile:
+    outfile.write(report)
+    outfile.write('\n')
+    outfile.close()
+
+s = []
+meta = [1442, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
+valid_idx = np.where(samples.valid == True)[0]
+for idx in valid_idx:
+    if samples.df[idx] == '1To1':
+        target = "False"
+    if samples.df[idx] == '1To2':
+        target = "True"
+    if samples.df[idx] not in ['1To1', '1To2']:
+        continue
+
+    meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
+    meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
+    meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
+    meta[3] = samples.set[idx].ID
+    sample = samples.iA[idx].tolist() + [target] + meta
+    s.append(sample)
+
+    # sample = samples.iA[idx].tolist() + ["median_"+target] + meta
+    # s.append(sample)
+    #
+    # sample = samples.iA[idx].tolist() + ["mean_"+target] + meta
+    # s.append(sample)
+
+
+df = pd.DataFrame(s)
+df.to_csv("F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min_threshi_%d_threshz_%d.csv" % (ndays, int(split[3]), int(split[5])), sep=',', index=False, header=False)
+

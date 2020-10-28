@@ -2,7 +2,7 @@ from __future__ import division  # for python2 regular div
 
 import math
 import shutil
-import pywt
+# import pywt
 import matplotlib.pyplot as plt
 import matplotlib
 import glob2
@@ -169,7 +169,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def filter_by_entropy(df, thresh=1.5):
+def filter_by_entropy(df, thresh=2.5):
     filtered_samples = []
     for i in range(df.shape[0]-2):
         row = df.iloc[i, :-1]
@@ -405,17 +405,18 @@ def concatenate_images(im_dir, filter=None, title="title"):
 
 
 def downsample_df(data_frame):
-    data_frame = data_frame.replace({"label": {'True': True, 'False': False}})
-    downsample_false_class = True
-    if downsample_false_class:
-        df_true = data_frame[data_frame['label'] == True]
-        df_false = data_frame[data_frame['label'] == False]
-        try:
+    df_true = data_frame[data_frame['label'] == True]
+    df_false = data_frame[data_frame['label'] == False]
+    try:
+        if df_false.shape[0] > df_true.shape[0]:
             df_false = df_false.sample(df_true.shape[0])
-        except ValueError as e:
-            print(e)
-            return
-        data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+        else:
+            print("more 12 to 11.")
+            df_true = df_true.sample(df_false.shape[0])
+    except ValueError as e:
+        print(e)
+        return
+    data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
     return data_frame
 
 
@@ -461,12 +462,16 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
 
+    print(data_frame)
+
     # data_frame = shuffle(data_frame)
 
     # data_frame = filter_by_entropy(data_frame)
 
-    data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
-
+    # data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
+    # data_frame_no_norm = data_frame_no_norm.replace({"label": {'True': True, 'False': False}})
+    data_frame_no_norm = data_frame
+    enable_downsample_df = True
     if enable_downsample_df:
         data_frame_no_norm = downsample_df(data_frame_no_norm)
 
@@ -498,9 +503,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     plot_time_pca(data_frame_no_norm, graph_outputdir, title="PCA time domain before normalisation")
 
-    # data_frame_median_norm = get_norm_l2(data_frame_no_norm)
+    data_frame_median_norm = get_norm_l2(data_frame_no_norm)
 
-    data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
+    #data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
     # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
 
     plot_groups(graph_outputdir, data_frame_median_norm, title="Normalised samples", xlabel="Time", ylabel="activity",
@@ -749,8 +754,10 @@ def create_rec_dir(path):
         # print("sub_folder=", dir_path)
         if not os.path.exists(dir_path):
             print("mkdir", dir_path)
-            os.makedirs(dir_path)
-
+            try:
+                os.makedirs(dir_path)
+            except FileExistsError as e:
+                print(e)
 
 def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, thresh_i, thresh_z):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
@@ -1833,7 +1840,7 @@ def plot_time_pca(df_time_domain, output_dir, title="title", y_col="label"):
     plot_2d_space(X, y, filepath, title=title)
 
 
-def plot_cwt_power(df_fft, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
+def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
     df_healthy = df_fft[df_fft["label"] == False].iloc[:, :-1].values
     df_unhealthy = df_fft[df_fft["label"] == True].iloc[:, :-1].values
 
@@ -1914,9 +1921,9 @@ def plot_cwt_power(df_fft, fft_power, coi, activity, power_cwt_masked, power_cwt
     # axs[1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     # axs[1].xaxis.set_major_locator(mdates.DayLocator())
 
-    axs[2].plot(fft_power, label="individual", c="tab:orange" if target else "tab:blue")
-    axs[2].plot(np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
-    axs[2].plot(np.mean(df_healthy, axis=0), label="Mean of Healthy group", linestyle="--", c="tab:green")
+    axs[2].plot(fftfreqs, fft_power, label="individual", c="tab:orange" if target else "tab:blue")
+    axs[2].plot(fftfreqs, np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
+    axs[2].plot(fftfreqs, np.mean(df_healthy, axis=0), label="Mean of Healthy group", linestyle="--", c="tab:green")
 
     # axs[2].plot(np.median(df_unhealthy, axis=0), label="Median of UnHealthy group", linestyle=":", c="tab:red")
     # axs[2].plot(np.median(df_healthy, axis=0), label="Median of Healthy group", linestyle=":", c="tab:green")
@@ -1924,8 +1931,8 @@ def plot_cwt_power(df_fft, fft_power, coi, activity, power_cwt_masked, power_cwt
     # axs[2].plot(np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
     # axs[2].plot(np.median(df_healthy, axis=0), label="Mean of Healthy group", linestyle=":", c="tab:green")
 
-    axs[2].set_ylabel("Amplitude")
-    axs[2].set_xlabel("Frequency")
+    axs[2].set_ylabel("log Amplitude")
+    axs[2].set_xlabel("Frequency (event / 1minute)")
     axs[2].set_yscale('log')
     axs[2].set_title("FFT " + health_status)
     axs[2].legend()
@@ -2196,7 +2203,7 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     # wavelet_type = 'morlet'
     y = activity
     w = wavelet.Morlet(3)
-    coefs, scales, freqs, coi, _, fftfreqs = wavelet.cwt(y, 1, wavelet=w)
+    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
     # scales = range(len(activity))
     # coefs, freqs = pywt.cwt(y, scales, 'morl', 1)
 
@@ -2204,6 +2211,17 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     fft_cc = np.conj(fft)
     power_fft = np.real(np.multiply(fft, fft_cc))
     # power_fft = convolve(power_fft, kernel=Box1DKernel(31))
+    n = len(activity)
+    timestep = 1
+    fftfreqs = np.fft.fftfreq(n, d=timestep)
+    fftfreqs_ = []
+    for f in fftfreqs:
+        if f < 0:
+            fftfreqs_.append(f)
+    fftfreqs_.append(0.0)
+    for f in fftfreqs:
+        if f > 0:
+            fftfreqs_.append(f)
 
     coefs_cc = np.conj(coefs)
     power_cwt = np.real(np.multiply(coefs, coefs_cc))
@@ -2215,7 +2233,7 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     # data_pca = PCA(n_components=pca_n_components).fit_transform(power_masked).reshape(1, -1).tolist()[0]
     # data_pca.append(target)
 
-    plot_cwt_power(df_fft, power_fft, coi, activity, power_masked,
+    plot_cwt_power(df_fft, fftfreqs_, power_fft, coi, activity, power_masked,
                    power_cwt.copy(), coi_line_array, freqs, graph_outputdir, target,
                    entropy2(power_masked.flatten()[power_masked.flatten()>0]), i, title=title)
 
@@ -2228,19 +2246,20 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
             continue
         power_flatten_masked.append(c)
 
-    # max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size / 2))
+    #max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size / 2))
     # max_coef_features_fft = get_n_largest_coefs_fft(power_fft.copy(), n=int(power_masked.size / 2))
 
     print("power_flatten_len=", len(power_flatten_masked))
     data = power_flatten_masked
     #data = power_flatten_masked + max_coef_features
-    # data = max_coef_features
+    #data = max_coef_features
     # data = np.random.randint(1000, size=len(power_flatten_masked)).tolist()
     # data = [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
     # data = power_flatten_masked + [min(power_flatten_masked), max(power_flatten_masked), np.mean(power_flatten_masked), np.median(power_flatten_masked)]
     # data = power_fft.tolist() + max_coef_features_fft
-    # data = power_fft.tolist()
+    #data = power_fft.tolist()
     # data = power_flatten_masked + power_fft.tolist()
+    #data = power_fft[int(len(power_fft)/2):].tolist()
     data.append(target)
 
     # return [data_pca, power_masked, target, freqs, df_data_pca]
