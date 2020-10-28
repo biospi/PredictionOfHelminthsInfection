@@ -86,7 +86,7 @@ class ActivityFile:
     def __init__(self, _dataDir):
         self.dataDir = Path(_dataDir)
         self.files = sorted(self.dataDir.glob('*.csv'))
-        _ID = [x.stem[0:x.stem.find('_')] for x in self.files]
+        _ID = [x.stem[0:x.stem.find('_')] if '_' in x.stem else x.stem for x in self.files]
         # Get rid of any median file, this will be unnecessary in the future
         if 'median' in _ID:
             idx = _ID.index('median')
