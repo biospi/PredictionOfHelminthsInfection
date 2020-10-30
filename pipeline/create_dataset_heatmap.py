@@ -413,8 +413,8 @@ if __name__ == '__main__':
 
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
-    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (day_before_famacha_test, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
-    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (day_before_famacha_test, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
+    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
+    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
 
     patch1 = mpatches.Patch(color='tab:cyan', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='tab:orange', label="1To2 "+str(DATASET_INFO["1To2"]))

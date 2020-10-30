@@ -266,6 +266,17 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     print("done")
 
 
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        dir_path += sub_dir+"/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
+
+
 if __name__ == '__main__':
 
     print("args: output_filename raw_csv_file_dir")
@@ -277,9 +288,7 @@ if __name__ == '__main__':
 
     out_dir = '/'.join(output_filename.split('/')[:-1])
     print("out_dir=", out_dir)
-    if not os.path.exists(out_dir):
-        print("mkdir", out_dir)
-        os.makedirs(out_dir)
+    create_rec_dir(out_dir)
     print("output_filename=", output_filename)
     print("raw_csv_file_dir=", raw_csv_file_dir)
     generate_raw_files_from_xlsx(raw_csv_file_dir, output_filename)
