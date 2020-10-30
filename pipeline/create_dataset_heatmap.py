@@ -318,10 +318,12 @@ if __name__ == '__main__':
     df_raw.columns = header
     df_raw["famacha"] = np.nan
     df_raw = df_raw.apply(add_famacha, axis=1, args=(famacha_data,))
+    df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
 
     enable_sort = True
     if enable_sort:
         df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
+        df_raw = df_raw.sort_values(['possible'], ascending=True, ignore_index=True)
     #########################################################################
     print("exporting individual traces...")
     out_DIR = args.output + "/" + farm_id
@@ -342,8 +344,10 @@ if __name__ == '__main__':
     if enable_sort:
         df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
 
-
-    fig, axs = plt.subplots(2, figsize=(36.20, 32.00))
+    n = 2
+    h = 18.00 * n
+    w = 36.20
+    fig, axs = plt.subplots(n, figsize=(w, h))
     axs[0].yaxis.set_label_position("right")
     axs[1].yaxis.set_label_position("right")
     axs[0].yaxis.tick_right()
@@ -357,8 +361,8 @@ if __name__ == '__main__':
 
     n_x_ticks = axs[0].get_xticks().shape[0]
     labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
-    labels_[0] = time_axis_str[0]
-    labels_[-1] = time_axis_str[0]
+    # labels_[0] = time_axis_str[0]
+    # labels_[-1] = time_axis_str[0]
     axs[0].set_xticklabels(labels_)
     axs[1].set_xticklabels(labels_)
 
@@ -437,9 +441,9 @@ if __name__ == '__main__':
 
     fig.tight_layout()
 
-    filename = "dataset_heatmap_%s_%s_%s.png" % (farm_id, param_str, enable_sort)
+    filename = "dataset_heatmap_%s.png" % (farm_id)
     create_rec_dir(out_DIR)
-    file_path = out_DIR +"/"+ filename
+    file_path = out_DIR +"/"+ filename.replace("=", "_")
     print(file_path)
     fig.savefig(file_path, bbox_inches='tight')
     fig.savefig(file_path.replace(".png", ".svg"))
