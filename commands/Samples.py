@@ -93,9 +93,12 @@ class ActivityFile:
             del self.files[idx]
             del _ID[idx]
 
+        # x = np.array([int(i) for i in _ID])
+        # mask = int(x[0] / 1000) * 1000
+        # self.ID = np.array([x, x - mask])
         x = np.array([int(i) for i in _ID])
-        mask = int(x[0] / 1000) * 1000
-        self.ID = np.array([x, x - mask])
+        x_sub = np.array([int(str(i)[-3:]) for i in _ID])
+        self.ID = np.array([x, x_sub])
 
     def getFileNames(self):
         return self.files
@@ -224,7 +227,7 @@ class SampleSet:
                 vbprint(f"Previous Famacha: {fPrev[1]} \t Current Famacha: {fCurrent[1]} \t Delta Famaacha: {df}")
 
                 if fTimeIdxStart < T0:
-                    vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
+                    # vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
                     continue
                 if fTimeIdxStart > TE or fTimeIdxEnd > TE:
                     vbprint(f"{bc.YELLOW}Start Time of Famacha {bc.RED}{fdt(fTimeIdxStart)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")

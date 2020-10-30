@@ -92,7 +92,6 @@ while a_idx < 35:
     cstmp = np.array([time[csidx], itime[csidx], cs[csidx]])
     wtmp  = np.array([time[widx],  itime[widx],  w[widx]])
 
-
     # Add all valid data including time stamps to list of all animals
     animals.append(AnimalData(animal_id, ftmp, cstmp, wtmp ))
 

@@ -41,18 +41,22 @@ def parse_animal_id(file):
 
 
 def entropy_(to_resample):
-    e = 0
+    e = np.nan
     if to_resample.dropna().size > 0:
         e = scipy.stats.entropy(to_resample.dropna())
-        if np.isnan(e):
-            e = 0
     return e
+
+def sum_(to_resample):
+    s = np.nan
+    if to_resample.dropna().size > 0:
+        s = np.sum(to_resample)
+    return s
 
 
 def resample(df, res="D"):
     df.index = pd.to_datetime(df.date_str)
-    df_resampled = df.resample(res).agg(dict(timestamp='first', date_str='first', first_sensor_value='sum'), skipna=True)
-    df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_), skipna=False)
+    df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_))
+    df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_))
     return df_resampled, df_resampled_entropy
 
 
@@ -339,7 +343,7 @@ if __name__ == '__main__':
         df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
 
 
-    fig, axs = plt.subplots(2, figsize=(36.20, 22.00))
+    fig, axs = plt.subplots(2, figsize=(36.20, 32.00))
     axs[0].yaxis.set_label_position("right")
     axs[1].yaxis.set_label_position("right")
     axs[0].yaxis.tick_right()
@@ -413,8 +417,9 @@ if __name__ == '__main__':
 
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
-    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
-    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent)))
+    ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
+    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
 
     patch1 = mpatches.Patch(color='tab:cyan', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='tab:orange', label="1To2 "+str(DATASET_INFO["1To2"]))

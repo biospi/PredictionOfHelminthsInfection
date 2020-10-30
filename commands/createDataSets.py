@@ -108,7 +108,13 @@ for target in list(set(samples.df)):
 split = dataDir.name.split("_")
 import datetime
 import json
-filename = "F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min.json" % ndays
+farm = "delmas"
+base_station = 70101200027
+
+# farm = "cedara"
+# base_station = 70091100056
+
+filename = "F:/Data2/gen_dataset_new_%s/activity_%s_%d_dbft_%d_1min.json" % (farm, farm, base_station, ndays)
 json.dump(targets_info, open(filename, 'w'))
 
 s = []
@@ -130,7 +136,7 @@ for idx in range(totalS):
 
 
 df = pd.DataFrame(s)
-df.to_csv("F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min.csv" % ndays, sep=',', index=False, header=False)
+df.to_csv(filename.replace(".json", ".csv"), sep=',', index=False, header=False)
 
 
 
