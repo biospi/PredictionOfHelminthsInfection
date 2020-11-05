@@ -60,6 +60,10 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     store = pd.HDFStore(file_name)
     valid_rows = 0
     for curr_file, path in enumerate(file_paths):
+
+        if '70091100056_2013-9-20_06-00-00_to_2013-9-27_06-00-00.xlsx' not in path:
+            continue
+
         print('progress %s/%d' % (curr_file, len(file_paths)))
         df = []
         transponders = {}
@@ -84,7 +88,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                     #     break
                     try:
                         row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
-                        if empty_list(row_values):
+                        if len(row_values) == 0:
                             continue
                         # print(row_values)
 

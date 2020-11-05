@@ -286,7 +286,7 @@ def process_raw_file(farm_id, data, output_dir, n_job):
     animal_list_grouped_by_serialn = list(groups.values())
 
     MULTI_THREADING_ENABLED = (n_job > 0)
-    MIN_RECORD_NUMBER = 1440
+    MIN_RECORD_NUMBER = 1
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=n_job)
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):

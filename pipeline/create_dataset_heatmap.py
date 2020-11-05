@@ -42,22 +42,40 @@ def parse_animal_id(file):
 
 def entropy_(to_resample):
     e = np.nan
-    if to_resample.dropna().size > 0:
-        e = scipy.stats.entropy(to_resample.dropna())
+    if to_resample.dropna().size != 0:
+        #input_array = to_resample.dropna()
+        input_array = to_resample.fillna(1)
+        e = scipy.stats.entropy(input_array)
+        # print(to_resample.size)
     return e
 
+
 def sum_(to_resample):
+    # s = np.nan
+    # if np.isnan(to_resample.values).any() != to_resample.size:
+    #     s = np.sum(to_resample)
     s = np.nan
     if to_resample.dropna().size > 0:
         s = np.sum(to_resample)
     return s
 
 
-def resample(df, res="D"):
+def median_(to_resample):
+    m = np.nan
+    if to_resample.dropna().size > 0:
+        to_resample = to_resample.fillna(-1)
+        m = np.median(to_resample)
+        if m == -1:
+            m = np.nan
+    return m
+
+
+def resample(df, res="1D"):
     df.index = pd.to_datetime(df.date_str)
     df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_))
     df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_))
-    return df_resampled, df_resampled_entropy
+    df_resampled_median = df.resample(res).agg(dict(first_sensor_value=median_))
+    return df_resampled, df_resampled_entropy, df_resampled_median
 
 
 def entropy2(labels, base=None):
@@ -94,14 +112,16 @@ def process_activity_data(file, start_time, end_time, i, nfiles):
     data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
     df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
 
-    df_resampled_activity, df_resampled_entropy = resample(df_activity)
+    df_resampled_activity, df_resampled_entropy, df_resampled_median = resample(df_activity)
     time = df_resampled_activity.index.values
     activity = df_resampled_activity.first_sensor_value.values
     activity_e = df_resampled_entropy.first_sensor_value.values
+    activity_m = df_resampled_median.first_sensor_value.values
 
     merge_a = activity.tolist() + [entropy, animal_id]
     merge_e = activity_e.tolist() + [entropy, animal_id]
-    return [animal_id, df_resampled_activity, df_resampled_entropy, time, activity, entropy, merge_a, merge_e]
+    merge_m = activity_m.tolist() + [entropy, animal_id]
+    return [animal_id, df_resampled_activity, df_resampled_entropy, time, activity, entropy, merge_a, merge_e, merge_m]
 
 
 def get_start_end_date(file, i, nfiles):
@@ -171,7 +191,7 @@ def create_annotation_matrix(df, time_axis, window_size):
     return annotation, missing_ids
 
 
-def add_famacha(row, fam_data):
+def add_famacha_format_id(row, fam_data):
     id = int(row["id"])
     if id in fam_data.keys():
         timestamps = fam_data[id]
@@ -240,6 +260,11 @@ if __name__ == '__main__':
     DATASET_INFO = json.load(open(info_file))
 
     farm_id, sampling, day_before_famacha_test = parse_options(dataset_file_path)
+
+    print("exporting individual traces...")
+    out_DIR = args.output + "/" + farm_id
+    create_rec_dir(out_DIR)
+
     print("farm_id=", farm_id)
     print("sampling=", sampling)
     print("day_before_famacha_test=", day_before_famacha_test)
@@ -300,6 +325,7 @@ if __name__ == '__main__':
     entropy_list = []
     raw = []
     raw_e = []
+    raw_m = []
     for res in results:
         item = res.get()
         # animal_ids.append(item[0])
@@ -310,61 +336,77 @@ if __name__ == '__main__':
         entropy_list.append(item[5])
         raw.append(item[6])
         raw_e.append(item[7])
+        raw_m.append(item[8])
     df_raw = pd.DataFrame(raw, dtype=object)
     df_raw_e = pd.DataFrame(raw_e, dtype=object)
+    df_raw_m = pd.DataFrame(raw_m, dtype=object)
+
     header = [x for x in range(df_raw.shape[1])]
     header[-1] = "id"
     header[-2] = "entropy"
+
     df_raw.columns = header
     df_raw["famacha"] = np.nan
-    df_raw = df_raw.apply(add_famacha, axis=1, args=(famacha_data,))
+    df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
     df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
+    df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+    # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
 
-    enable_sort = True
-    if enable_sort:
-        df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
-        df_raw = df_raw.sort_values(['possible'], ascending=True, ignore_index=True)
+
+    df_raw_e.columns = header
+    df_raw_e["famacha"] = np.nan
+    df_raw_e = df_raw_e.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw_e["possible"] = ['*' in x for x in df_raw_e["id"].values]
+    df_raw_e = df_raw_e.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+    # df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
+
+    df_raw_m.columns = header
+    df_raw_m["famacha"] = np.nan
+    df_raw_m = df_raw_m.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw_m["possible"] = ['*' in x for x in df_raw_m["id"].values]
+    df_raw_m = df_raw_m.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+
+    df_raw = df_raw[df_raw["possible"] == False]
+    df_raw_e = df_raw_e[df_raw_e["possible"] == False]
+    df_raw_m = df_raw_m[df_raw_m["possible"] == False]
     #########################################################################
-    print("exporting individual traces...")
-    out_DIR = args.output + "/" + farm_id
-    create_rec_dir(out_DIR)
-    pool = Pool(processes=args.n_job)
-    for index, row in df_raw.iterrows():
-        pool.apply_async(export_tranponder_traces, (row, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
-    pool.close()
-    pool.join()
-    pool.terminate()
+
+    # pool = Pool(processes=args.n_job)
+    # for index, row in df_raw.iterrows():
+    #     pool.apply_async(export_tranponder_traces, (row, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
+    # pool.close()
+    # pool.join()
+    # pool.terminate()
     # for index, row in df_raw.iterrows():
     #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
     ##########################################################################
-    df_raw_e.columns = header
-    df_raw_e["famacha"] = np.nan
-    df_raw_e = df_raw_e.apply(add_famacha, axis=1, args=(famacha_data,))
 
-    if enable_sort:
-        df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
-
-    n = 2
-    h = 18.00 * n
+    n = 3
+    h = (df_raw.shape[0] * 30 * n) / 100
     w = 36.20
     fig, axs = plt.subplots(n, figsize=(w, h))
     axs[0].yaxis.set_label_position("right")
-    axs[1].yaxis.set_label_position("right")
     axs[0].yaxis.tick_right()
     axs[1].yaxis.tick_right()
+    axs[1].yaxis.set_label_position("right")
+    axs[2].yaxis.tick_right()
+    axs[2].yaxis.set_label_position("right")
 
-    activity_list_matrix = df_raw.iloc[:, :-3].values
-
-    time_axis_str = [pd.to_datetime(str(x)).strftime('%d/%m/%Y') for x in time_axis]
+    time_axis_str = [pd.to_datetime(str(x)).strftime('%b/%Y') for x in time_axis]
     axs[0].set_xticklabels(time_axis_str)
     axs[1].set_xticklabels(time_axis_str)
+    axs[2].set_xticklabels(time_axis_str)
 
     n_x_ticks = axs[0].get_xticks().shape[0]
     labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
+    # axs[0].tick_params(axis='x', rotation=90)
+    # axs[1].tick_params(axis='x', rotation=90)
+    # axs[2].tick_params(axis='x', rotation=90)
     # labels_[0] = time_axis_str[0]
     # labels_[-1] = time_axis_str[0]
     axs[0].set_xticklabels(labels_)
     axs[1].set_xticklabels(labels_)
+    axs[2].set_xticklabels(labels_)
 
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
@@ -374,18 +416,25 @@ if __name__ == '__main__':
     im_e = axs[1].imshow(df_raw_e.iloc[:, :-3].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, df_raw.iloc[:, :-3].values.shape[1], 0, df_raw.iloc[:, :-3].values.shape[0]])
     plt.colorbar(im_e, ax=axs[1])
 
+    im_m = axs[2].imshow(df_raw_m.iloc[:, :-3].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, df_raw.iloc[:, :-3].values.shape[1], 0, df_raw.iloc[:, :-3].values.shape[0]])
+    plt.colorbar(im_m, ax=axs[2])
+
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
     axs[0].set_yticklabels(animal_ids_formatted_ent)
     axs[0].set_yticks(np.arange(len(animal_ids_formatted_ent)))
     axs[1].set_yticklabels(animal_ids_formatted_ent)
     axs[1].set_yticks(np.arange(len(animal_ids_formatted_ent)))
+    axs[2].set_yticklabels(animal_ids_formatted_ent)
+    axs[2].set_yticks(np.arange(len(animal_ids_formatted_ent)))
 
     for i in range(len(axs[0].get_yticklabels())):
         if "*" in str(animal_ids_formatted_ent[i]):
             axs[0].get_yticklabels()[i].set_color("tab:red")
             axs[1].get_yticklabels()[i].set_color("tab:red")
+            axs[2].get_yticklabels()[i].set_color("tab:red")
 
     print("adding annotations...")
+    activity_list_matrix = df_raw.iloc[:, :-3].values
     for i in range(activity_list_matrix.shape[0]):
         cpt = 0
         for j in range(activity_list_matrix.shape[1]):
@@ -418,12 +467,16 @@ if __name__ == '__main__':
                 rec = Rectangle((j, activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
                                 facecolor=None, lw=lw, alpha=0.8)
                 axs[1].add_patch(rec)
+                rec = Rectangle((j, activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
+                                facecolor=None, lw=lw, alpha=0.8)
+                axs[2].add_patch(rec)
 
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
     axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[2].set_title("Mean data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
 
     patch1 = mpatches.Patch(color='tab:cyan', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='tab:orange', label="1To2 "+str(DATASET_INFO["1To2"]))
@@ -432,12 +485,15 @@ if __name__ == '__main__':
     patch5 = mpatches.Patch(color='tab:olive', label="3To2 "+str(DATASET_INFO["3To2"]))
     axs[0].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
     axs[1].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
+    axs[2].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
 
     axs[0].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+    axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
 
     axs[0].set_facecolor('pink')
     axs[1].set_facecolor('pink')
+    axs[2].set_facecolor('pink')
 
     fig.tight_layout()
 

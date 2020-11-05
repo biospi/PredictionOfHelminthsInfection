@@ -31,26 +31,30 @@ if __name__ == '__main__':
 
 
     row_to_skip = list(range(2))
-    df_CStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='CS tot', header=None)
-    df_CStot = df_CStot[:-13] #remove bottom 3 rows
+    df_CStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
+    df_CStot = df_CStot[:-3] #remove bottom 3 rows
     df_CStot = df_CStot.drop(df_CStot.columns[0], axis=1)
     df_CStot = df_CStot.dropna(how='all', axis=1)
 
-    df_MASStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='MASS tot', header=None)
-    df_MASStot = df_MASStot[:-13] #remove bottom 3 rows
+    df_MASStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
+    df_MASStot = df_MASStot[:-3] #remove bottom 3 rows
     df_MASStot = df_MASStot.drop(df_MASStot.columns[0], axis=1)
     df_MASStot = df_MASStot.dropna(how='all', axis=1)
 
-    df_FCtot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='FC tot', header=None)
-    df_FCtot = df_FCtot[:-13] #remove bottom 3 rows
+    df_FCtot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
+    df_FCtot = df_FCtot[:-3] #remove bottom 3 rows
     df_FCtot = df_FCtot.drop(df_FCtot.columns[0], axis=1)
     df_FCtot = df_FCtot.dropna(how='all', axis=1)
 
-    dfs = np.split(df_FCtot, [df_FCtot.iloc[0].to_list().index('Goat ID') + 1], axis=1)
+    df_FCtot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_FCtot[1].values]
+    df_MASStot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_MASStot[1].values]
+    df_CStot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_CStot[1].values]
+
+    dfs = np.split(df_FCtot, [df_FCtot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)
     df_meta = dfs[0]
     df_fam_data = dfs[1]
-    df_mass_data = np.split(df_MASStot, [df_MASStot.iloc[0].to_list().index('Goat ID') + 1], axis=1)[1]
-    df_cs_data = np.split(df_CStot, [df_CStot.iloc[0].to_list().index('Goat ID') + 1], axis=1)[1]
+    df_mass_data = np.split(df_MASStot, [df_MASStot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)[1]
+    df_cs_data = np.split(df_CStot, [df_CStot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)[1]
 
     # df_meta = df_meta.rename(columns=df_meta.iloc[0]).drop(df_meta.index[0])
     # df_data = df_data.rename(columns=df_data.iloc[0]).drop(df_data.index[0])
@@ -61,10 +65,13 @@ if __name__ == '__main__':
     header_meta = []
 
     idx_swap = 0
-    swap_date = datetime(2013, 2, 14, 0, 0)  # todo Sensor swap date check!!!
+    swap_date = datetime(2012, 10, 16, 0, 0)  # todo Sensor swap date check!!!
+    swap_date2 = datetime(2013, 3, 19, 0, 0)
     results = []
+    n_stop = 0
     for (i, row_meta), (_, row_fam), (_, row_cs), (_, row_mass) in zip(df_meta.iterrows(), df_fam_data.iterrows(),
                                                                        df_cs_data.iterrows(), df_mass_data.iterrows()):
+
         if i == 0: #header contains date
             row_meta_values = [row_meta[col] for col in df_meta.columns]
             f = [row_fam[col] for col in df_fam_data.columns]  # get datapoint for the same timestamp
@@ -96,7 +103,14 @@ if __name__ == '__main__':
             if date >= swap_date:
                 idx_swap = n
                 break
-
+        for n in range(len(date_fam)):
+            date = date_fam[n]
+            if date >= swap_date2:
+                n_stop = n
+                break
+        if i > n_stop:
+            n_stop = 0
+            continue
         animal_id = row_meta_values[0]
         ftmp  = np.array([time_f[0:idx_swap], itime_f[0:idx_swap], f[0:idx_swap]], dtype=object)
         cstmp = np.array([time_cs[0:idx_swap], itime_cs[0:idx_swap], cs[0:idx_swap]], dtype=object)
@@ -104,9 +118,9 @@ if __name__ == '__main__':
         results.append([animal_id, ftmp, cstmp, wtmp])
 
         animal_id_ = row_meta_values[1]
-        ftmp_  = np.array([time_f[idx_swap:], itime_f[idx_swap:], f[idx_swap:]], dtype=object)
-        cstmp_ = np.array([time_cs[idx_swap:], itime_cs[idx_swap:], cs[idx_swap:]], dtype=object)
-        wtmp_  = np.array([time_w[idx_swap:], itime_w[idx_swap:], w[idx_swap:]], dtype=object)
+        ftmp_  = np.array([time_f[n:], itime_f[n:], f[n:]], dtype=object)
+        cstmp_ = np.array([time_cs[n:], itime_cs[n:], cs[n:]], dtype=object)
+        wtmp_  = np.array([time_w[n:], itime_w[n:], w[n:]], dtype=object)
         results.append([animal_id_, ftmp_, cstmp_, wtmp_])
 
     ids = []
@@ -180,7 +194,7 @@ if __name__ == '__main__':
 
     print(data)
     print('finished')
-    print('dumping result to h5 file...')
+    print('dumping result to json file...')
     # Save Herd data to HDF5 File
     hfile = HerdFile(output_filename)
     hfile.saveHerd(animals)

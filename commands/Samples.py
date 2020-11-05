@@ -97,7 +97,7 @@ class ActivityFile:
         # mask = int(x[0] / 1000) * 1000
         # self.ID = np.array([x, x - mask])
         x = np.array([int(i) for i in _ID])
-        x_sub = np.array([int(str(i)[-3:]) for i in _ID])
+        x_sub = np.array([int(str(i)[-4:]) for i in _ID])
         self.ID = np.array([x, x_sub])
 
     def getFileNames(self):
@@ -226,20 +226,31 @@ class SampleSet:
                 df = ftool.getDeltaFamacha(fPrev, fCurrent)
                 vbprint(f"Previous Famacha: {fPrev[1]} \t Current Famacha: {fCurrent[1]} \t Delta Famaacha: {df}")
 
-                if fTimeIdxStart < T0:
-                    # vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
-                    continue
                 if fTimeIdxStart > TE or fTimeIdxEnd > TE:
                     vbprint(f"{bc.YELLOW}Start Time of Famacha {bc.RED}{fdt(fTimeIdxStart)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
                     vbprint(f"or")
                     vbprint(f"{bc.YELLOW}End Time of Famacha {bc.RED}{fdt(fTimeIdxEnd)}{bc.YELLOW} is greater than Time for activity {bc.RED}{fdt(TE)}{bc.ENDC}")
-                    break
+                    # break
 
                 TIdxStart = int((fTimeIdxStart - T0) / dT)
                 TIdxEnd = int((fTimeIdxEnd - T0) / dT)
 
+                # if fTimeIdxStart < T0:
+                #     #vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
+                #     continue
+
                 T = np.array(act.T[TIdxStart:TIdxEnd+1])
                 A = np.array(act.A[TIdxStart:TIdxEnd+1])
+
+                w_size = (deltaFamachaTime * 1440)+1
+                if A.size != w_size:
+                    date_range = pd.date_range(dt.datetime.utcfromtimestamp(fTimeIdxStart), periods=w_size, freq='T').tolist()
+                    epoch_range = [int(x.timestamp()) for x in date_range]
+
+                    T = epoch_range
+                    A = np.zeros(len(epoch_range))
+                    A[:] = np.nan
+                    # continue
 
                 # Is activity valid
                 val = math.isnan(A.min()) == False

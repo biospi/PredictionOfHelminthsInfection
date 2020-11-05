@@ -21,11 +21,12 @@
 
 #%%
 import sys
+import os
 
 from commands.Herd import *
 from commands.Samples import *
 from commands.cmdsextra import bc
-
+from utils.Utils import create_rec_dir
 
 if len(sys.argv) != 4:
     print("Usage: "
@@ -108,13 +109,14 @@ for target in list(set(samples.df)):
 split = dataDir.name.split("_")
 import datetime
 import json
-farm = "delmas"
-base_station = 70101200027
+# farm = "delmas"
+# base_station = 70101200027
 
 # farm = "cedara"
 # base_station = 70091100056
+create_rec_dir(str(outDir))
 
-filename = "F:/Data2/gen_dataset_new_%s/activity_%s_%d_dbft_%d_1min.json" % (farm, farm, base_station, ndays)
+filename = "%s/activity_cedara_70091100056_dbft_%d_1min.json" % (outDir, ndays)
 json.dump(targets_info, open(filename, 'w'))
 
 s = []
