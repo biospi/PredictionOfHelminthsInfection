@@ -253,7 +253,8 @@ class SampleSet:
                     # continue
 
                 # Is activity valid
-                val = math.isnan(A.min()) == False
+                # val = math.isnan(A.min()) == False
+                val = np.isnan(A).tolist().count(True) < (840) * deltaFamachaTime
 
                 aniSet.append(Sample(aIdx.ID, fCurrent, df, val))
 

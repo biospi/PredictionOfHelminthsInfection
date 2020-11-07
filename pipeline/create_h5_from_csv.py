@@ -60,10 +60,6 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     store = pd.HDFStore(file_name)
     valid_rows = 0
     for curr_file, path in enumerate(file_paths):
-
-        if '70091100056_2013-9-20_06-00-00_to_2013-9-27_06-00-00.xlsx' not in path:
-            continue
-
         print('progress %s/%d' % (curr_file, len(file_paths)))
         df = []
         transponders = {}
@@ -78,6 +74,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                 try:
                     farm_id = int(sheet.name.split('_')[0])
                 except ValueError as e:
+                    print("error while parsing sheet name")
                     print(e)
                     print(path)
 
@@ -99,6 +96,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                             try:
                                 farm_id = int(row_values[control_station_col_index])
                             except ValueError as e:
+                                print("error while parsing farm id")
                                 print(e)
                             serial_number_col_index = 3
                             signal_strength_col_index = 4
@@ -183,6 +181,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                                 row_values[time_col_index], book)
                             # print(date_string)
                         except TypeError as e:
+                            print("error while parsing date", row_values)
                             print(e)
                             continue
 
@@ -207,6 +206,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         try:
                             first_sensor_value = int(row_values[first_sensor_value_col_index])
                         except ValueError as e:
+                            print("error while parsing first sensor value")
                             print(e)
                             print(path)
                             continue
@@ -236,6 +236,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
                         valid_rows += 1
                     except ValueError as exception:
+                        print("global error")
                         print_except(exception)
                         print(exception)
                         print(path)

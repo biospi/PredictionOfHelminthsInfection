@@ -62,7 +62,7 @@ famachaHerd.removeMissing()
 # Load only data based on Famacha data.
 samples = SampleSet()
 
-ndays = 3
+ndays = 1
 samples.generateSet(famachaHerd, activityData, ndays)
 
 #aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
@@ -85,23 +85,24 @@ print(f"Number of Valid Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
 print(f"Number of NaN Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
 
 
-targets_info = {"total": {"all": totalS}}
+# targets_info = {"total": {"all": totalS}}
+targets_info = {"total": {"all": totalS, "valid": np.where(samples.valid == True)[0].size, "not_valid": np.where(samples.valid == False)[0].size}}
 for target in list(set(samples.df)):
-    targets_info[target] = {"all": np.where(samples.df == target)[0].size}
+    targets_info[target] = {"all": np.where(samples.df == target)[0].size, "valid": 0, "not_valid": 0}
 
-# targets_info = {"total": {"valid": np.where(samples.valid == True)[0].size, "not_valid": np.where(samples.valid == False)[0].size}}
+# targets_info = {"total": {"valid": np.where(samples.valid == True)[0].size, "not_valid": np.where(samples.valid == False)[0].size, "all": totalS}}
 # for target in list(set(samples.df)):
 #     targets_info[target] = {"total": np.where(samples.df == target)[0].size, "valid": 0, "not_valid": 0}
 
-# for i in np.where(samples.valid == False)[0]:
-#     for k in targets_info.keys():
-#         if samples.df[i] == k:
-#             targets_info[k]["not_valid"] += 1
-#
-# for i in np.where(samples.valid == True)[0]:
-#     for k in targets_info.keys():
-#         if samples.df[i] == k:
-#             targets_info[k]["valid"] += 1
+for i in np.where(samples.valid == False)[0]:
+    for k in targets_info.keys():
+        if samples.df[i] == k:
+            targets_info[k]["not_valid"] += 1
+
+for i in np.where(samples.valid == True)[0]:
+    for k in targets_info.keys():
+        if samples.df[i] == k:
+            targets_info[k]["valid"] += 1
 #
 # for k in targets_info.keys():
 #     targets_info[k]["all"] = targets_info[k]["not_valid"] + targets_info[k]["valid"]
@@ -115,8 +116,8 @@ import json
 # farm = "cedara"
 # base_station = 70091100056
 create_rec_dir(str(outDir))
-
-filename = "%s/activity_cedara_70091100056_dbft_%d_1min.json" % (outDir, ndays)
+farm_id = str(dataDir).split('\\')[-1]
+filename = "%s/activity_%s_dbft_%d_1min.json" % (outDir, farm_id, ndays)
 json.dump(targets_info, open(filename, 'w'))
 
 s = []

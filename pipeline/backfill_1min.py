@@ -50,9 +50,14 @@ def process_raw_h5files(path, output_dir, n_job):
     data = h5_raw.root.table
     list_raw = []
     print("loading data...")
+    cpt = 0
+    cpt_tot = 0
     for idx, x in enumerate(data):  # need idx for data iteration?
+        cpt_tot += 1
         farm_id = x['control_station']
         if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
+            print("out of bound value!!!", x['first_sensor_value'])
+            cpt += 1
             continue
         value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
                  x['first_sensor_value'], datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
@@ -62,6 +67,7 @@ def process_raw_h5files(path, output_dir, n_job):
         # if idx > 100000:  # todo remove
         #     break
     # group records by farm id/control_station
+    print("FOUND %d OUT OF BOUND VALUES / %d" % (cpt, cpt_tot))
     groups = defaultdict(list)
     for i, obj in enumerate(list_raw):
         groups[obj[1]].append(obj)

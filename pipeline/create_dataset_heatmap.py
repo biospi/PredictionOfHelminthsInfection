@@ -13,6 +13,17 @@ import os
 import scipy.stats
 import seaborn as sns
 from matplotlib.patches import Rectangle
+import matplotlib.dates as mdates
+
+
+def breaklineinsert_(str):
+    midPoint = len(str)//2
+    return str[:midPoint] + '\n' + str[midPoint:]
+
+
+def breaklineinsert(str):
+    midPoint = len(str)//2
+    return breaklineinsert_(str[:midPoint]) + '\n' + breaklineinsert_(str[midPoint:])
 
 
 def create_rec_dir(path):
@@ -54,6 +65,7 @@ def sum_(to_resample):
     # s = np.nan
     # if np.isnan(to_resample.values).any() != to_resample.size:
     #     s = np.sum(to_resample)
+    # print(to_resample.shape)
     s = np.nan
     if to_resample.dropna().size > 0:
         s = np.sum(to_resample)
@@ -102,6 +114,8 @@ def process_activity_data(file, start_time, end_time, i, nfiles):
     df_activity = pd.read_csv(file, sep=",")
 
     entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
+    if np.isnan(entropy):
+        entropy = 0
     # entropy = entropy2(df_activity["first_sensor_value"].dropna().values)
 
     #add herd start and end to create missing empty bins of full time range
@@ -164,8 +178,8 @@ def load_dataset(file):
 
 def create_annotation_matrix(df, time_axis, window_size):
     # annotation = np.random.rand(activity_list_matrix.shape[0], activity_list_matrix.shape[1])
-    # annotation = np.ones(df.iloc[:, :-3].shape) * -1
-    annotation = np.empty(df.iloc[:, :-3].shape, dtype="<U10")
+    # annotation = np.ones(df.iloc[:, :-4].shape) * -1
+    annotation = np.empty(df.iloc[:, :-4].shape, dtype="<U10")
     missing_ids = []
     cpt = 0
     for i in range(annotation.shape[0]):
@@ -208,7 +222,7 @@ def export_tranponder_traces(row, out_dir, farm_id, time_axis, i_c, i_t):
     export_dir = out_dir + "/transponder_export"
     create_rec_dir(export_dir)
     plt.clf()
-    activity = row[:-3].values
+    activity = row[:-4].values
     entropy = row["entropy"]
     id = row["id"].split(" ")[0]
     fig, ax = plt.subplots(figsize=(19.20, 10.80))
@@ -293,7 +307,9 @@ if __name__ == '__main__':
             start_time = s
         if end_time is None or e > end_time:
             end_time = e
-
+    start_time = np.datetime64(str(start_time).split('T')[0])
+    end_time = np.datetime64(str(end_time).split('T')[0])
+    end_time = end_time + np.timedelta64(1, 'D')
     ######################################################
     #get FAMACHA data
     famacha_data = {}
@@ -382,8 +398,8 @@ if __name__ == '__main__':
     ##########################################################################
 
     n = 3
-    h = (df_raw.shape[0] * 30 * n) / 100
-    w = 36.20
+    h = (df_raw.shape[0] * 20 * n) / 100
+    w = 36.20 * 1
     fig, axs = plt.subplots(n, figsize=(w, h))
     axs[0].yaxis.set_label_position("right")
     axs[0].yaxis.tick_right()
@@ -392,32 +408,47 @@ if __name__ == '__main__':
     axs[2].yaxis.tick_right()
     axs[2].yaxis.set_label_position("right")
 
-    time_axis_str = [pd.to_datetime(str(x)).strftime('%b/%Y') for x in time_axis]
-    axs[0].set_xticklabels(time_axis_str)
-    axs[1].set_xticklabels(time_axis_str)
-    axs[2].set_xticklabels(time_axis_str)
+    # axs[0].set_xticks(time_axis)
+    # axs[1].set_xticks(time_axis)
+    # axs[2].set_xticks(time_axis)
+    # time_axis_str = [pd.to_datetime(str(x)).strftime('%d/%b/%Y') for x in time_axis]
+    #
+    # axs[0].set_xticklabels(time_axis_str)
+    # axs[1].set_xticklabels(time_axis_str)
+    # axs[2].set_xticklabels(time_axis_str)
 
-    n_x_ticks = axs[0].get_xticks().shape[0]
-    labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
-    # axs[0].tick_params(axis='x', rotation=90)
-    # axs[1].tick_params(axis='x', rotation=90)
-    # axs[2].tick_params(axis='x', rotation=90)
-    # labels_[0] = time_axis_str[0]
-    # labels_[-1] = time_axis_str[0]
-    axs[0].set_xticklabels(labels_)
-    axs[1].set_xticklabels(labels_)
-    axs[2].set_xticklabels(labels_)
+    # n_x_ticks = axs[0].get_xticks().shape[0]
+    # labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
+    # # axs[0].tick_params(axis='x', rotation=90)
+    # # axs[1].tick_params(axis='x', rotation=90)
+    # # axs[2].tick_params(axis='x', rotation=90)
+    # # labels_[0] = time_axis_str[0]
+    # # labels_[-1] = time_axis_str[0]
+    # axs[0].set_xticklabels(labels_)
+    # axs[1].set_xticklabels(labels_)
+    # axs[2].set_xticklabels(labels_)
+
+    date_format = mdates.DateFormatter('%d/%b/%Y')
+    x_lims = mdates.date2num(time_axis)
 
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
-    im_a = axs[0].imshow(df_raw.iloc[:, :-3].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, df_raw.iloc[:, :-3].values.shape[1], 0, df_raw.iloc[:, :-3].values.shape[0]])
+    im_a = axs[0].imshow(np.log(df_raw.iloc[:, :-4].values), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a, ax=axs[0])
 
-    im_e = axs[1].imshow(df_raw_e.iloc[:, :-3].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, df_raw.iloc[:, :-3].values.shape[1], 0, df_raw.iloc[:, :-3].values.shape[0]])
+    im_e = axs[1].imshow(df_raw_e.iloc[:, :-4].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_e, ax=axs[1])
 
-    im_m = axs[2].imshow(df_raw_m.iloc[:, :-3].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[0, df_raw.iloc[:, :-3].values.shape[1], 0, df_raw.iloc[:, :-3].values.shape[0]])
+    im_m = axs[2].imshow(np.log(df_raw_m.iloc[:, :-4].values), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_m, ax=axs[2])
+
+    axs[0].xaxis_date()
+    axs[0].xaxis.set_major_formatter(date_format)
+    axs[1].xaxis_date()
+    axs[1].xaxis.set_major_formatter(date_format)
+    axs[2].xaxis_date()
+    axs[2].xaxis.set_major_formatter(date_format)
+    fig.autofmt_xdate()
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
     axs[0].set_yticklabels(animal_ids_formatted_ent)
@@ -434,7 +465,7 @@ if __name__ == '__main__':
             axs[2].get_yticklabels()[i].set_color("tab:red")
 
     print("adding annotations...")
-    activity_list_matrix = df_raw.iloc[:, :-3].values
+    activity_list_matrix = df_raw.iloc[:, :-4].values
     for i in range(activity_list_matrix.shape[0]):
         cpt = 0
         for j in range(activity_list_matrix.shape[1]):
@@ -462,21 +493,21 @@ if __name__ == '__main__':
             w = day_before_famacha_test
             lw = 2
             if cpt == 1:
-                rec = Rectangle((j, activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=0.8)
+                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=0.8)
                 axs[0].add_patch(rec)
-                rec = Rectangle((j, activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
+                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
                                 facecolor=None, lw=lw, alpha=0.8)
                 axs[1].add_patch(rec)
-                rec = Rectangle((j, activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
+                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
                                 facecolor=None, lw=lw, alpha=0.8)
                 axs[2].add_patch(rec)
 
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[2].set_title("Mean data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, str(DATASET_INFO), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[2].set_title("Median data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
 
     patch1 = mpatches.Patch(color='tab:cyan', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='tab:orange', label="1To2 "+str(DATASET_INFO["1To2"]))
