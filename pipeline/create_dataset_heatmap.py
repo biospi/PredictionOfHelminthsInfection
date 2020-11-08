@@ -53,9 +53,10 @@ def parse_animal_id(file):
 
 def entropy_(to_resample):
     e = np.nan
-    if to_resample.dropna().size != 0:
+    if to_resample.dropna().size > 0:
         #input_array = to_resample.dropna()
-        input_array = to_resample.fillna(1)
+        input_array = to_resample.fillna(2)
+        input_array[input_array == 0] = 1
         e = scipy.stats.entropy(input_array)
         # print(to_resample.size)
     return e
@@ -68,26 +69,26 @@ def sum_(to_resample):
     # print(to_resample.shape)
     s = np.nan
     if to_resample.dropna().size > 0:
-        s = np.sum(to_resample)
+        s = np.sum(to_resample.dropna())
     return s
 
 
 def median_(to_resample):
     m = np.nan
     if to_resample.dropna().size > 0:
-        to_resample = to_resample.fillna(-1)
-        m = np.median(to_resample)
-        if m == -1:
-            m = np.nan
+        # to_resample = to_resample.fillna(-1)
+        m = np.nanmedian(to_resample)
+        # if m == -1:
+        #     m = np.nan
     return m
 
 
-def resample(df, res="1D"):
+def resample(df, animal_id, res="1D"):
     df.index = pd.to_datetime(df.date_str)
     df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_))
     df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_))
     df_resampled_median = df.resample(res).agg(dict(first_sensor_value=median_))
-    return df_resampled, df_resampled_entropy, df_resampled_median
+    return df_resampled, df_resampled_entropy, df_resampled_median, res
 
 
 def entropy2(labels, base=None):
@@ -126,7 +127,7 @@ def process_activity_data(file, start_time, end_time, i, nfiles):
     data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
     df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
 
-    df_resampled_activity, df_resampled_entropy, df_resampled_median = resample(df_activity)
+    df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity, animal_id)
     time = df_resampled_activity.index.values
     activity = df_resampled_activity.first_sensor_value.values
     activity_e = df_resampled_entropy.first_sensor_value.values
@@ -135,7 +136,7 @@ def process_activity_data(file, start_time, end_time, i, nfiles):
     merge_a = activity.tolist() + [entropy, animal_id]
     merge_e = activity_e.tolist() + [entropy, animal_id]
     merge_m = activity_m.tolist() + [entropy, animal_id]
-    return [animal_id, df_resampled_activity, df_resampled_entropy, time, activity, entropy, merge_a, merge_e, merge_m]
+    return [animal_id, df_resampled_activity, df_resampled_entropy, time, activity, entropy, merge_a, merge_e, merge_m, resolution]
 
 
 def get_start_end_date(file, i, nfiles):
@@ -288,6 +289,14 @@ if __name__ == '__main__':
         raise IOError("missing activity files .csv! in %s" % args.activity_dir)
     files = [file.replace("\\", '/') for file in files]#prevent Unix issues
 
+    # files_filtered = []
+    # for f in files:
+    #     if '146' in f:
+    #         files_filtered.append(f)
+    #     if '107' in f:
+    #         files_filtered.append(f)
+    #
+    # files = files_filtered
     #find start date and end date##########################
     pool = Pool(processes=args.n_job)
     results_dates = []
@@ -342,6 +351,7 @@ if __name__ == '__main__':
     raw = []
     raw_e = []
     raw_m = []
+    resolution = ''
     for res in results:
         item = res.get()
         # animal_ids.append(item[0])
@@ -353,6 +363,7 @@ if __name__ == '__main__':
         raw.append(item[6])
         raw_e.append(item[7])
         raw_m.append(item[8])
+        resolution = item[9]
     df_raw = pd.DataFrame(raw, dtype=object)
     df_raw_e = pd.DataFrame(raw_e, dtype=object)
     df_raw_m = pd.DataFrame(raw_m, dtype=object)
@@ -399,7 +410,7 @@ if __name__ == '__main__':
 
     n = 3
     h = (df_raw.shape[0] * 20 * n) / 100
-    w = 36.20 * 1
+    w = 36.20 * 2
     fig, axs = plt.subplots(n, figsize=(w, h))
     axs[0].yaxis.set_label_position("right")
     axs[0].yaxis.tick_right()
@@ -433,21 +444,27 @@ if __name__ == '__main__':
 
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
-    im_a = axs[0].imshow(np.log(df_raw.iloc[:, :-4].values), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    a = df_raw.iloc[:, :-4].values
+    im_a = axs[0].imshow(np.log(a, out=np.zeros_like(a), where=(a!=0)), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a, ax=axs[0])
 
-    im_e = axs[1].imshow(df_raw_e.iloc[:, :-4].values, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    e = df_raw_e.iloc[:, :-4].values
+    im_e = axs[1].imshow(e, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_e, ax=axs[1])
 
-    im_m = axs[2].imshow(np.log(df_raw_m.iloc[:, :-4].values), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    m = df_raw_m.iloc[:, :-4].values
+    im_m = axs[2].imshow(m, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_m, ax=axs[2])
 
     axs[0].xaxis_date()
     axs[0].xaxis.set_major_formatter(date_format)
+    axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
     axs[1].xaxis_date()
     axs[1].xaxis.set_major_formatter(date_format)
+    axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
     axs[2].xaxis_date()
     axs[2].xaxis.set_major_formatter(date_format)
+    axs[2].xaxis.set_major_locator(mdates.DayLocator(interval=7))
     fig.autofmt_xdate()
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
@@ -505,9 +522,9 @@ if __name__ == '__main__':
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-    axs[0].set_title("Activity data sumed per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[1].set_title("Entropy data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[2].set_title("Median data per %d day(s) %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (1, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[0].set_title("(log) Activity data sumed per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("Entropy data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
 
     patch1 = mpatches.Patch(color='tab:cyan', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='tab:orange', label="1To2 "+str(DATASET_INFO["1To2"]))

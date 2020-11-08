@@ -30,31 +30,31 @@ if __name__ == '__main__':
     print("raw_famacha_csv_filename", raw_famacha_csv_filename)
 
 
-    row_to_skip = list(range(2))
-    df_CStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
-    df_CStot = df_CStot[:-3] #remove bottom 3 rows
+    row_to_skip = list(range(93))
+    df_CStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot. (2)', header=None)
+    # df_CStot = df_CStot[:-3] #remove bottom 3 rows
     df_CStot = df_CStot.drop(df_CStot.columns[0], axis=1)
     df_CStot = df_CStot.dropna(how='all', axis=1)
 
-    df_MASStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
-    df_MASStot = df_MASStot[:-3] #remove bottom 3 rows
+    df_MASStot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot. (2)', header=None)
+    # df_MASStot = df_MASStot[:-3] #remove bottom 3 rows
     df_MASStot = df_MASStot.drop(df_MASStot.columns[0], axis=1)
     df_MASStot = df_MASStot.dropna(how='all', axis=1)
 
-    df_FCtot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot.', header=None)
-    df_FCtot = df_FCtot[:-3] #remove bottom 3 rows
+    df_FCtot = pd.read_excel(raw_famacha_csv_filename, skiprows=row_to_skip, sheet_name='Fc tot. (2)', header=None)
+    # df_FCtot = df_FCtot[:-3] #remove bottom 3 rows
     df_FCtot = df_FCtot.drop(df_FCtot.columns[0], axis=1)
     df_FCtot = df_FCtot.dropna(how='all', axis=1)
 
-    df_FCtot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_FCtot[1].values]
-    df_MASStot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_MASStot[1].values]
-    df_CStot[1] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_CStot[1].values]
+    df_FCtot[5] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_FCtot[5].values]
+    df_MASStot[5] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_MASStot[5].values]
+    df_CStot[5] = [int(str(x)[-4:]) if ((type(x) != str) and not np.isnan(x)) else x for x in df_CStot[5].values]
 
-    dfs = np.split(df_FCtot, [df_FCtot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)
+    dfs = np.split(df_FCtot, [df_FCtot.iloc[0].to_list().index('Sender nr') + 1], axis=1)
     df_meta = dfs[0]
     df_fam_data = dfs[1]
-    df_mass_data = np.split(df_MASStot, [df_MASStot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)[1]
-    df_cs_data = np.split(df_CStot, [df_CStot.iloc[0].to_list().index('Sk/Bk ID') + 1], axis=1)[1]
+    df_mass_data = np.split(df_MASStot, [df_MASStot.iloc[0].to_list().index('Sender nr') + 1], axis=1)[1]
+    df_cs_data = np.split(df_CStot, [df_CStot.iloc[0].to_list().index('Sender nr') + 1], axis=1)[1]
 
     # df_meta = df_meta.rename(columns=df_meta.iloc[0]).drop(df_meta.index[0])
     # df_data = df_data.rename(columns=df_data.iloc[0]).drop(df_data.index[0])
@@ -64,11 +64,7 @@ if __name__ == '__main__':
     date_cs = []
     header_meta = []
 
-    idx_swap = 0
-    swap_date = datetime(2012, 10, 16, 0, 0)  # todo Sensor swap date check!!!
-    swap_date2 = datetime(2013, 3, 19, 0, 0)
     results = []
-    n_stop = 0
     for (i, row_meta), (_, row_fam), (_, row_cs), (_, row_mass) in zip(df_meta.iterrows(), df_fam_data.iterrows(),
                                                                        df_cs_data.iterrows(), df_mass_data.iterrows()):
 
@@ -98,30 +94,13 @@ if __name__ == '__main__':
             cs = np.array([row_cs[col] if isinstance(row_cs[col], (int, float)) else np.nan for col in df_cs_data.columns], dtype=float)
             w = np.array([df_mass_data[col] if isinstance(df_mass_data[col], (int, float)) else np.nan for col in df_mass_data.columns], dtype=float)
 
-        for n in range(len(date_fam)):
-            date = date_fam[n]
-            if date >= swap_date:
-                idx_swap = n
-                break
-        for n in range(len(date_fam)):
-            date = date_fam[n]
-            if date >= swap_date2:
-                n_stop = n
-                break
-        if i > n_stop:
-            n_stop = 0
-            continue
         animal_id = row_meta_values[0]
-        ftmp  = np.array([time_f[0:idx_swap], itime_f[0:idx_swap], f[0:idx_swap]], dtype=object)
-        cstmp = np.array([time_cs[0:idx_swap], itime_cs[0:idx_swap], cs[0:idx_swap]], dtype=object)
-        wtmp  = np.array([time_w[0:idx_swap], itime_w[0:idx_swap], w[0:idx_swap]], dtype=object)
-        results.append([animal_id, ftmp, cstmp, wtmp])
+        ftmp  = np.array([time_f, itime_f, f], dtype=object)
+        cstmp = np.array([time_cs, itime_cs, cs], dtype=object)
+        wtmp  = np.array([time_w, itime_w, w], dtype=object)
+        # results.append([animal_id, ftmp, cstmp, wtmp])
+        results.append([animal_id, ftmp, ftmp, ftmp])
 
-        animal_id_ = row_meta_values[1]
-        ftmp_  = np.array([time_f[n:], itime_f[n:], f[n:]], dtype=object)
-        cstmp_ = np.array([time_cs[n:], itime_cs[n:], cs[n:]], dtype=object)
-        wtmp_  = np.array([time_w[n:], itime_w[n:], w[n:]], dtype=object)
-        results.append([animal_id_, ftmp_, cstmp_, wtmp_])
 
     ids = []
     animals = []
@@ -151,45 +130,25 @@ if __name__ == '__main__':
         df_cstmp = df_cstmp.dropna(axis='columns')
         df_wtmp = df_wtmp.dropna(axis='columns')
 
-        if animal_id not in ids:
-            animals_[animal_id] = {"data": [df_ftmp, df_cstmp, df_wtmp]}
-            ids.append(animal_id)
-        else:
-            animals_[animal_id]["swaped"] = [df_ftmp, df_cstmp, df_wtmp]
+        animals_[animal_id] = {"data": [df_ftmp, df_cstmp, df_wtmp]}
+        ids.append(animal_id)
 
     for key in animals_.keys():
-        if "swaped" in animals_[key]:
-            a = animals_[key]["data"][0]
-            b = animals_[key]["swaped"][0]
-            df_ftmp = pd.concat([animals_[key]["data"][0], animals_[key]["swaped"][0]], axis=1)
-            df_cstmp = pd.concat([animals_[key]["data"][1], animals_[key]["swaped"][1]], axis=1)
-            df_wtmp = pd.concat([animals_[key]["data"][2], animals_[key]["swaped"][2]], axis=1)
 
-            df_ftmp.columns = df_ftmp.iloc[1, :]
-            df_ftmp = df_ftmp[sorted(df_ftmp)]
+        df_ftmp = animals_[key]["data"][0]
+        df_cstmp = animals_[key]["data"][1]
+        df_wtmp = animals_[key]["data"][2]
 
-            df_cstmp.columns = df_cstmp.iloc[1, :]
-            df_cstmp = df_cstmp[sorted(df_cstmp)]
+        df_ftmp.columns = df_ftmp.iloc[1, :]
+        df_ftmp = df_ftmp[sorted(df_ftmp)]
 
-            df_wtmp.columns = df_wtmp.iloc[1, :]
-            df_wtmp = df_wtmp[sorted(df_wtmp)]
+        df_cstmp.columns = df_cstmp.iloc[1, :]
+        df_cstmp = df_cstmp[sorted(df_cstmp)]
 
-            animals.append(AnimalData(key, df_ftmp.values, df_cstmp.values, df_wtmp.values))
-        else:
-            df_ftmp = animals_[key]["data"][0]
-            df_cstmp = animals_[key]["data"][1]
-            df_wtmp = animals_[key]["data"][2]
+        df_wtmp.columns = df_wtmp.iloc[1, :]
+        df_wtmp = df_wtmp[sorted(df_wtmp)]
 
-            df_ftmp.columns = df_ftmp.iloc[1, :]
-            df_ftmp = df_ftmp[sorted(df_ftmp)]
-
-            df_cstmp.columns = df_cstmp.iloc[1, :]
-            df_cstmp = df_cstmp[sorted(df_cstmp)]
-
-            df_wtmp.columns = df_wtmp.iloc[1, :]
-            df_wtmp = df_wtmp[sorted(df_wtmp)]
-
-            animals.append(AnimalData(key, df_ftmp.values, df_cstmp.values, df_wtmp.values))
+        animals.append(AnimalData(key, df_ftmp.values, df_cstmp.values, df_wtmp.values))
 
 
     print(data)

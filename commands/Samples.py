@@ -30,7 +30,7 @@ import math
 
 from commands.cmdsextra import bc, vbprintSet
 
-vbprint = vbprintSet(False)
+vbprint = vbprintSet(True)
 
 class TimeConst:
     utc1min: Final = 60
@@ -145,7 +145,7 @@ class Activity:
         self.T = _time
 
     def getTime(self):
-        return np.array([dt.datetime.utcfromtimestamp(x) for x in self.T])
+        return np.array([dt.datetime.fromtimestamp(x) for x in self.T])
 
     def getUTC(self):
         return self.T
@@ -201,7 +201,7 @@ class SampleSet:
         deltaTime = deltaFamachaTime * TimeConst.utc1day
         ftool = FamachaVal()
 
-        fdt = dt.datetime.utcfromtimestamp
+        fdt = dt.datetime.fromtimestamp
         for i, aIdx in enumerate(famData.herd):
             act = actFile.loadActivityTrace(aIdx.ID)
             print(f"Procesing animal with ID:{bc.BLUE} {act.ID} \t [{i+1}/{N}] {bc.ENDC}")
@@ -219,7 +219,7 @@ class SampleSet:
                 fTimeIdxEnd = aIdx.famacha[0, j]
                 fTimeIdxStart = self.getStartIndex(fTimeIdxEnd, deltaTime)
                 vbprint(f"UTC : Start Time of Famacha: {fTimeIdxStart} \t End Time of Famacha: {fTimeIdxEnd}")
-                vbprint(f"HR  : Start Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxStart)} \t End Time of Famacha: {dt.datetime.utcfromtimestamp(fTimeIdxEnd)}")
+                vbprint(f"HR  : Start Time of Famacha: {dt.datetime.fromtimestamp(fTimeIdxStart)} \t End Time of Famacha: {dt.datetime.fromtimestamp(fTimeIdxEnd)}")
 
                 fCurrent = ftool.getFamachaV(aIdx.famacha[1, j])
                 fPrev = ftool.getFamachaV(aIdx.famacha[1, j - 1])
@@ -244,8 +244,8 @@ class SampleSet:
 
                 w_size = (deltaFamachaTime * 1440)+1
                 if A.size != w_size:
-                    date_range = pd.date_range(dt.datetime.utcfromtimestamp(fTimeIdxStart), periods=w_size, freq='T').tolist()
-                    epoch_range = [int(x.timestamp()) for x in date_range]
+                    date_range = np.array(pd.date_range(dt.datetime.fromtimestamp(fTimeIdxStart), periods=w_size, freq='T').tolist())
+                    epoch_range = [int(dt.datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S').timestamp()) for x in date_range]
 
                     T = epoch_range
                     A = np.zeros(len(epoch_range))
@@ -254,7 +254,7 @@ class SampleSet:
 
                 # Is activity valid
                 # val = math.isnan(A.min()) == False
-                val = np.isnan(A).tolist().count(True) < (840) * deltaFamachaTime
+                val = np.isnan(A).tolist().count(True) < (720) * deltaFamachaTime
 
                 aniSet.append(Sample(aIdx.ID, fCurrent, df, val))
 

@@ -121,7 +121,7 @@ filename = "%s/activity_%s_dbft_%d_1min.json" % (outDir, farm_id, ndays)
 json.dump(targets_info, open(filename, 'w'))
 
 s = []
-meta = [1442, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
+meta = [0, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
 valid_idx = np.where(samples.valid == True)[0]
 for idx in range(totalS):
     meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
