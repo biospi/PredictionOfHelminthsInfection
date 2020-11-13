@@ -297,8 +297,8 @@ def plot_groups(graph_outputdir, df, title="title", xlabel='xlabel', ylabel='lab
     Keyword arguments:
     df -- input dataframe containing samples (activity data, label/target)
     """
-    df_healthy = df[df["label"] == False].iloc[:, :-1].values
-    df_unhealthy = df[df["label"] == True].iloc[:, :-1].values
+    df_healthy = df[df["label"] == 0].iloc[:, :-1].values
+    df_unhealthy = df[df["label"] == 1].iloc[:, :-1].values
 
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(34.80, 7.20))
@@ -405,8 +405,8 @@ def concatenate_images(im_dir, filter=None, title="title"):
 
 
 def downsample_df(data_frame):
-    df_true = data_frame[data_frame['label'] == True]
-    df_false = data_frame[data_frame['label'] == False]
+    df_true = data_frame[data_frame['label'] == 1]
+    df_false = data_frame[data_frame['label'] == 0]
     try:
         if df_false.shape[0] > df_true.shape[0]:
             df_false = df_false.sample(df_true.shape[0])
@@ -461,6 +461,17 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     cols_to_keep = hearder[:-META_DATA_LENGTH]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
+    data_frame = data_frame.fillna(-1)
+    data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
+    l_11 = data_frame_labeled["label_1To1"] * 1
+    l_12 = data_frame_labeled["label_1To2"] * 2
+    l_21 = data_frame_labeled["label_2To1"] * 3
+    l_22 = data_frame_labeled["label_2To2"] * 4
+    l_32 = data_frame_labeled["label_3To2"] * 5
+
+    l = l_11 + l_12 + l_21 +l_22 + l_32
+
+    data_frame["label"] = l_11
 
     print(data_frame)
 
@@ -901,8 +912,8 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # data_frame = data_frame.replace({y_col: {'True': True, 'False': False}})
     report_rows_list = []
     # if downsample_false_class:
-    #     df_true = data_frame[data_frame['label'] == True]
-    #     df_false = data_frame[data_frame['label'] == False]
+    #     df_true = data_frame[data_frame['label'] == 1]
+    #     df_false = data_frame[data_frame['label'] == 0]
     #     try:
     #         df_false = df_false.sample(df_true.shape[0])
     #     except ValueError as e:
@@ -1782,9 +1793,10 @@ def plot_2D_decision_boundaries(model, clf_name, dim_reduc_name, dim, nfold, res
 
 def parse_param_from_filename(file):
     split = file.split("/")[-1].split('.')[0].split('_')
-    thresh_i = int(split[-3])
-    thresh_z = int(split[-1])
-    sampling = split[-5]
+    #activity_delmas_70101200027_dbft_1_1min
+    thresh_i = 0#int(split[-3])
+    thresh_z = 0#int(split[-1])
+    sampling = split[5]
     days = int(split[4])
     farm_id = split[1] + "_" + split[2]
     option = split[0]
@@ -1841,8 +1853,8 @@ def plot_time_pca(df_time_domain, output_dir, title="title", y_col="label"):
 
 
 def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
-    df_healthy = df_fft[df_fft["label"] == False].iloc[:, :-1].values
-    df_unhealthy = df_fft[df_fft["label"] == True].iloc[:, :-1].values
+    df_healthy = df_fft[df_fft["label"] == 0].iloc[:, :-1].values
+    df_unhealthy = df_fft[df_fft["label"] == 1].iloc[:, :-1].values
 
     plt.clf()
     fig, axs = plt.subplots(1, 3, figsize=(19.20, 7.20))
@@ -1850,7 +1862,7 @@ def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked,
 
     # df_h = df_unhealthy
     health_status = "Unhealthy"
-    if target == False:
+    if target == 0:
         health_status = "Healthy"
         # df_h = df_healthy
 
@@ -1975,8 +1987,8 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
         ax2.set_title("UnHealthy animals")
         ax2.set_ylim([ymin, ymax])
 
-    df_healthy = df_cwt[df_cwt["label"] == False].iloc[:, :-1].values
-    df_unhealthy = df_cwt[df_cwt["label"] == True].iloc[:, :-1].values
+    df_healthy = df_cwt[df_cwt["label"] == 0].iloc[:, :-1].values
+    df_unhealthy = df_cwt[df_cwt["label"] == 1].iloc[:, :-1].values
     if show_max:
         ax1.plot(np.amax(df_healthy, axis=0), c='black', label='max', alpha=1)
         ax2.plot(np.amax(df_unhealthy, axis=0), c='black', label='max', alpha=1)
@@ -2011,14 +2023,14 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
 
 
 def plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
-    total_healthy = df_timedomain[df_timedomain["label"] == False].shape[0]
-    total_unhealthy = df_timedomain[df_timedomain["label"] == True].shape[0]
+    total_healthy = df_timedomain[df_timedomain["label"] == 0].shape[0]
+    total_unhealthy = df_timedomain[df_timedomain["label"] == 1].shape[0]
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12.80, 7.20))
     fig.suptitle(title, fontsize=18)
 
-    df_healthy = df_timedomain[df_timedomain["label"] == False].iloc[:, :-1].values
-    df_unhealthy = df_timedomain[df_timedomain["label"] == True].iloc[:, :-1].values
+    df_healthy = df_timedomain[df_timedomain["label"] == 0].iloc[:, :-1].values
+    df_unhealthy = df_timedomain[df_timedomain["label"] == 1].iloc[:, :-1].values
     # ymin = 0
     # ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
     #
@@ -2425,7 +2437,7 @@ if __name__ == "__main__":
     #     except IOError:
     #         print("file not found.")
 
-    files = glob2.glob(dataset_folder) #find datset files
+    files = glob2.glob(dataset_folder + "/*.csv") #find datset files
     files = [file.replace("\\", '/') for file in files]
     # files = [file.replace("\\", '/') for file in files if 'activity' in file]
     print("found %d files." % len(files))

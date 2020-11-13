@@ -235,6 +235,12 @@ class SampleSet:
                 TIdxStart = int((fTimeIdxStart - T0) / dT)
                 TIdxEnd = int((fTimeIdxEnd - T0) / dT)
 
+                if TIdxStart < 0:
+                    print("outside of activity range", dt.datetime.fromtimestamp(fTimeIdxStart))
+                    continue
+                DEBUG = np.array([dt.datetime.fromtimestamp(x) for x in np.array(act.T[TIdxStart:TIdxEnd + 1])])
+                DEBUG_TO = dt.datetime.fromtimestamp(T0)
+
                 # if fTimeIdxStart < T0:
                 #     #vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
                 #     continue

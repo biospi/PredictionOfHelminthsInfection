@@ -3,6 +3,8 @@ import glob
 import json
 import math
 import sys
+
+from matplotlib import cm
 import matplotlib.patches as mpatches
 import glob2
 import pandas as pd
@@ -11,9 +13,9 @@ from multiprocessing import Pool
 import numpy as np
 import os
 import scipy.stats
-import seaborn as sns
 from matplotlib.patches import Rectangle
 import matplotlib.dates as mdates
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 
 def breaklineinsert_(str):
@@ -54,19 +56,13 @@ def parse_animal_id(file):
 def entropy_(to_resample):
     e = np.nan
     if to_resample.dropna().size > 0:
-        #input_array = to_resample.dropna()
         input_array = to_resample.fillna(2)
         input_array[input_array == 0] = 1
         e = scipy.stats.entropy(input_array)
-        # print(to_resample.size)
     return e
 
 
 def sum_(to_resample):
-    # s = np.nan
-    # if np.isnan(to_resample.values).any() != to_resample.size:
-    #     s = np.sum(to_resample)
-    # print(to_resample.shape)
     s = np.nan
     if to_resample.dropna().size > 0:
         s = np.sum(to_resample.dropna())
@@ -76,14 +72,11 @@ def sum_(to_resample):
 def median_(to_resample):
     m = np.nan
     if to_resample.dropna().size > 0:
-        # to_resample = to_resample.fillna(-1)
         m = np.nanmedian(to_resample)
-        # if m == -1:
-        #     m = np.nan
     return m
 
 
-def resample(df, animal_id, res="1D"):
+def resample(df, animal_id, res="1T"):
     df.index = pd.to_datetime(df.date_str)
     df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_))
     df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_))
@@ -113,19 +106,22 @@ def process_activity_data(file, start_time, end_time, i, nfiles):
     print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
-
+    start_crop = 411989 + 420
+    w = 1440 * 4
+    df_activity = df_activity.loc[start_crop:start_crop + w, :]
+    # 411989 2015-11-04T02:29
     entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
     if np.isnan(entropy):
         entropy = 0
     # entropy = entropy2(df_activity["first_sensor_value"].dropna().values)
 
     #add herd start and end to create missing empty bins of full time range
-    data = []
-    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(start_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
-    df_activity = pd.concat([pd.DataFrame(data), df_activity], ignore_index=True)
-    data = []
-    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
-    df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
+    # data = []
+    # data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(start_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
+    # df_activity = pd.concat([pd.DataFrame(data), df_activity], ignore_index=True)
+    # data = []
+    # data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
+    # df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
 
     df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity, animal_id)
     time = df_resampled_activity.index.values
@@ -298,27 +294,27 @@ if __name__ == '__main__':
     #
     # files = files_filtered
     #find start date and end date##########################
-    pool = Pool(processes=args.n_job)
-    results_dates = []
-    for i, file in enumerate(files):
-        if 'median' in file or 'mean' in file:
-            continue
-        results_dates.append(pool.apply_async(get_start_end_date, (file, i, len(files))))
-    pool.close()
-    pool.join()
-    pool.terminate()
-    start_time = None
-    end_time = None
-    for res in results_dates:
-        s = res.get()[0]
-        e = res.get()[1]
-        if start_time is None or s < start_time:
-            start_time = s
-        if end_time is None or e > end_time:
-            end_time = e
-    start_time = np.datetime64(str(start_time).split('T')[0])
-    end_time = np.datetime64(str(end_time).split('T')[0])
-    end_time = end_time + np.timedelta64(1, 'D')
+    # pool = Pool(processes=args.n_job)
+    # results_dates = []
+    # for i, file in enumerate(files):
+    #     if 'median' in file or 'mean' in file:
+    #         continue
+    #     results_dates.append(pool.apply_async(get_start_end_date, (file, i, len(files))))
+    # pool.close()
+    # pool.join()
+    # pool.terminate()
+    # start_time = None
+    # end_time = None
+    # for res in results_dates:
+    #     s = res.get()[0]
+    #     e = res.get()[1]
+    #     if start_time is None or s < start_time:
+    #         start_time = s
+    #     if end_time is None or e > end_time:
+    #         end_time = e
+    # start_time = np.datetime64(str(start_time).split('T')[0])
+    # end_time = np.datetime64(str(end_time).split('T')[0])
+    # end_time = end_time + np.timedelta64(1, 'D')
     ######################################################
     #get FAMACHA data
     famacha_data = {}
@@ -339,7 +335,7 @@ if __name__ == '__main__':
     for i, file in enumerate(files):
         if 'median' in file or 'mean' in file:
             continue
-        results.append(pool.apply_async(process_activity_data, (file, start_time, end_time, i, len(files))))
+        results.append(pool.apply_async(process_activity_data, (file, None, None, i, len(files))))
     pool.close()
     pool.join()
     pool.terminate()
@@ -439,32 +435,39 @@ if __name__ == '__main__':
     # axs[1].set_xticklabels(labels_)
     # axs[2].set_xticklabels(labels_)
 
-    date_format = mdates.DateFormatter('%d/%b/%Y')
+    date_format = mdates.DateFormatter('%d/%b/%Y %H:%M')
     x_lims = mdates.date2num(time_axis)
 
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
     a = df_raw.iloc[:, :-4].values
-    im_a = axs[0].imshow(np.log(a, out=np.zeros_like(a), where=(a!=0)), cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+
+    viridis = cm.get_cmap('viridis', 256)
+    newcolors = viridis(np.linspace(0, 1, 256))
+    pink = np.array([248 / 256, 24 / 256, 148 / 256, 1])
+    newcolors[:1, :] = pink
+    newcmp = ListedColormap(newcolors)
+
+    im_a = axs[0].imshow(np.log(a, out=np.zeros_like(a), where=(a!=0)), cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a, ax=axs[0])
 
     e = df_raw_e.iloc[:, :-4].values
-    im_e = axs[1].imshow(e, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    im_e = axs[1].imshow(e, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_e, ax=axs[1])
 
     m = df_raw_m.iloc[:, :-4].values
-    im_m = axs[2].imshow(m, cmap='gray', aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    im_m = axs[2].imshow(m, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_m, ax=axs[2])
 
     axs[0].xaxis_date()
     axs[0].xaxis.set_major_formatter(date_format)
-    axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
     axs[1].xaxis_date()
     axs[1].xaxis.set_major_formatter(date_format)
-    axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
     axs[2].xaxis_date()
     axs[2].xaxis.set_major_formatter(date_format)
-    axs[2].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
     fig.autofmt_xdate()
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
@@ -545,7 +548,7 @@ if __name__ == '__main__':
 
     fig.tight_layout()
 
-    filename = "dataset_heatmap_%s.png" % (farm_id)
+    filename = "dataset_heatmap_%s_%s_crop_color.png" % (farm_id, resolution)
     create_rec_dir(out_DIR)
     file_path = out_DIR +"/"+ filename.replace("=", "_")
     print(file_path)
