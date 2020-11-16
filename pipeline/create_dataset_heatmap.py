@@ -539,10 +539,10 @@ if __name__ == '__main__':
                     color = "orange"
                 if an == "3To2":
                     color = "lawngreen"
-                #use ASCII 219 █ for text highlight instead of rectangle
+                #use ASCII 219 for text highlight instead of rectangle
                 offset_y = 0.6
                 offset_x = 0.9
-                # ax.text(j-offset_x, activity_list_matrix.shape[0] - i - offset_y, "█", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
+                # ax.text(j-offset_x, activity_list_matrix.shape[0] - i - offset_y, "x", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
                 w = day_before_famacha_test
                 lw = 1.4
                 if cpt == 1:
