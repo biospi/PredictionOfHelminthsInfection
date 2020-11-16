@@ -222,6 +222,14 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                             signal_strength, battery_voltage, first_sensor_value)
                         # print(record_log)
 
+                        # if str(serial_number)[-3:] != '125':
+                        #     continue
+                        #
+                        # if "15/02/2015 06:05" not in date_string:
+                        #     continue
+                        #
+                        # print(record_log)
+
                         transponders[serial_number] = ''
 
                         df.append(

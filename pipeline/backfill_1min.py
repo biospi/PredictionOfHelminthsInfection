@@ -55,6 +55,15 @@ def process_raw_h5files(path, output_dir, n_job):
     for idx, x in enumerate(data):  # need idx for data iteration?
         cpt_tot += 1
         farm_id = x['control_station']
+
+        # if str(x['serial_number'])[-3:] != '125':
+        #     continue
+        #
+        # d = datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S")
+        # print(d)
+        # if "2015-02-15T18:05" in d:
+        #     print("debug")
+
         if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
             print("out of bound value!!!", x['first_sensor_value'])
             cpt += 1

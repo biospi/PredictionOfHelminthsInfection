@@ -1,5 +1,11 @@
+import math
 import os
 
+def anscombe(value):
+    try:
+        return math.log(2 * math.sqrt(value + (3 / 8)))
+    except TypeError as e:
+        print(e)
 
 def create_rec_dir(path):
     dir_path = ""
