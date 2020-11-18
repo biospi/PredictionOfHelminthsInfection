@@ -613,7 +613,10 @@ if __name__ == '__main__':
         DATA.append(res.get())
 
     ######################################################
-    pool = Pool(processes=args.n_job)
+    njob = args.n_job
+    if njob > 20:
+        njob = 10
+    pool = Pool(processes=njob)
     for i, k in enumerate(range(len(DATA[0]))):
         pool.apply_async(create_heatmap, (k, i, len(DATA[0])))
     pool.close()
