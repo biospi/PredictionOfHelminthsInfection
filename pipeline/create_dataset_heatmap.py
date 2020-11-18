@@ -3,7 +3,10 @@ import glob
 import json
 import math
 import sys
-
+import matplotlib
+from sys import platform as _platform
+if _platform == "linux" or _platform == "linux2":
+    matplotlib.use('Agg')
 from matplotlib import cm
 import matplotlib.patches as mpatches
 import pandas as pd
@@ -109,7 +112,7 @@ def process_activity_data(file, i, nfiles, w, res):
     df_activity = pd.read_csv(file, sep=",")
 
     #w = 1440 * 3
-    if w is None:
+    if w is None or w < 0:
         w = df_activity.shape[0]
     results = []
     cpt = 0
@@ -259,7 +262,7 @@ if __name__ == '__main__':
                         help='Directory path of heatmap output. (Directory will be created if does not exist)')
     parser.add_argument('activity_dir', help='Parent directory of the activity data.')
     parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
-    parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes.')
+    parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
     parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
     parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
     args = parser.parse_args()
