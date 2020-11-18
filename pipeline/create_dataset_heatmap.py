@@ -256,6 +256,253 @@ def export_tranponder_traces(row, out_dir, farm_id, time_axis, i_c, i_t):
     plt.close(fig)
 
 
+def create_heatmap(k, idx, itot):
+    print("progress create_heatmap %d/%d ..." % (idx, itot))
+    # activity_list = []
+    time_axis = None
+    # animal_ids = []
+    entropy_list = []
+    raw = []
+    raw_e = []
+    raw_m = []
+    resolution = ''
+    wid = 0
+    for item in DATA:
+        # animal_ids.append(item[0])
+        df_resampled_a = item[k][1]
+        df_resampled_e = item[k][2]
+        time_axis = item[k][3]
+        # activity_list.append(item[3])
+        entropy_list.append(item[k][5])
+        raw.append(item[k][6])
+        raw_e.append(item[k][7])
+        raw_m.append(item[k][8])
+        resolution = item[k][9]
+        wid = item[k][10]
+    df_raw = pd.DataFrame(raw, dtype=object)
+    df_raw_e = pd.DataFrame(raw_e, dtype=object)
+    df_raw_m = pd.DataFrame(raw_m, dtype=object)
+
+    header = [x for x in range(df_raw.shape[1])]
+    header[-1] = "id"
+    header[-2] = "entropy"
+
+    df_raw.columns = header
+    df_raw["famacha"] = np.nan
+    df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
+    df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+    df_raw = df_raw.reset_index(drop=True)
+    # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
+
+
+    df_raw_e.columns = header
+    df_raw_e["famacha"] = np.nan
+    df_raw_e = df_raw_e.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw_e["possible"] = ['*' in x for x in df_raw_e["id"].values]
+    df_raw_e = df_raw_e.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+    # df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
+    df_raw_e = df_raw_e.reset_index(drop=True)
+
+    df_raw_m.columns = header
+    df_raw_m["famacha"] = np.nan
+    df_raw_m = df_raw_m.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw_m["possible"] = ['*' in x for x in df_raw_m["id"].values]
+    df_raw_m = df_raw_m.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+    df_raw_m = df_raw_m.reset_index(drop=True)
+
+    df_raw = df_raw[df_raw["possible"] == False]
+    df_raw_e = df_raw_e[df_raw_e["possible"] == False]
+    df_raw_m = df_raw_m[df_raw_m["possible"] == False]
+    #########################################################################
+
+    # pool = Pool(processes=args.n_job)
+    # for index, row in df_raw.iterrows():
+    #     pool.apply_async(export_tranponder_traces, (row, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
+    # pool.close()
+    # pool.join()
+    # pool.terminate()
+    # for index, row in df_raw.iterrows():
+    #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
+    ##########################################################################
+
+    n = 2
+    h = (df_raw.shape[0] * 30 * n) / 100
+    w = 36.20 * 2
+    fig, axs = plt.subplots(n, figsize=(w, h))
+    axs[0].yaxis.set_label_position("right")
+    axs[0].yaxis.tick_right()
+    axs[1].yaxis.tick_right()
+    axs[1].yaxis.set_label_position("right")
+    # axs[2].yaxis.tick_right()
+    # axs[2].yaxis.set_label_position("right")
+
+    # axs[0].set_xticks(time_axis)
+    # axs[1].set_xticks(time_axis)
+    # axs[2].set_xticks(time_axis)
+    # time_axis_str = [pd.to_datetime(str(x)).strftime('%d/%b/%Y') for x in time_axis]
+    #
+    # axs[0].set_xticklabels(time_axis_str)
+    # axs[1].set_xticklabels(time_axis_str)
+    # axs[2].set_xticklabels(time_axis_str)
+
+    # n_x_ticks = axs[0].get_xticks().shape[0]
+    # labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
+    # # axs[0].tick_params(axis='x', rotation=90)
+    # # axs[1].tick_params(axis='x', rotation=90)
+    # # axs[2].tick_params(axis='x', rotation=90)
+    # # labels_[0] = time_axis_str[0]
+    # # labels_[-1] = time_axis_str[0]
+    # axs[0].set_xticklabels(labels_)
+    # axs[1].set_xticklabels(labels_)
+    # axs[2].set_xticklabels(labels_)
+
+    date_format = mdates.DateFormatter('%d/%b/%Y %H:%M')
+    x_lims = mdates.date2num(time_axis)
+
+    annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
+
+    a = df_raw.iloc[:, :-4].values
+
+    viridis = cm.get_cmap('viridis', 256)
+    newcolors = viridis(np.linspace(0, 1, 256))
+    pink = np.array([0 / 256, 0 / 256, 0 / 256, 1])
+    newcolors[:1, :] = pink
+    newcmp = ListedColormap(newcolors)
+
+    im_a_log = axs[0].imshow(np.log10(a, out=np.zeros_like(a), where=(a != 0)), cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    plt.colorbar(im_a_log, ax=axs[0])
+
+    anscombe_m = np.vectorize(anscombe)
+    a_log_anscombe = anscombe_m(np.log(a, out=np.zeros_like(a), where=(a != 0)))
+
+    im_a_log_anscomb = axs[1].imshow(a_log_anscombe, cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    plt.colorbar(im_a_log, ax=axs[1])
+
+    # e = df_raw_e.iloc[:, :-4].values
+    # im_e = axs[1].imshow(e, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_e, ax=axs[1])
+    #
+    # m = df_raw_m.iloc[:, :-4].values
+    # im_m = axs[2].imshow(m, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_m, ax=axs[2])
+
+    if resolution == "1T":
+        axs[0].xaxis_date()
+        axs[0].xaxis.set_major_formatter(date_format)
+        axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        axs[1].xaxis_date()
+        axs[1].xaxis.set_major_formatter(date_format)
+        axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+    elif resolution == "1D":
+        axs[0].xaxis_date()
+        axs[0].xaxis.set_major_formatter(date_format)
+        axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+        axs[1].xaxis_date()
+        axs[1].xaxis.set_major_formatter(date_format)
+        axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    else:
+        axs[0].xaxis_date()
+        axs[0].xaxis.set_major_formatter(date_format)
+        axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+        axs[1].xaxis_date()
+        axs[1].xaxis.set_major_formatter(date_format)
+        axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+
+    # axs[2].xaxis_date()
+    # axs[2].xaxis.set_major_formatter(date_format)
+    # axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+    fig.autofmt_xdate()
+
+    animal_ids_formatted_ent = df_raw["id"].values[::-1]
+    axs[0].set_yticklabels(animal_ids_formatted_ent)
+    axs[0].set_yticks(np.arange(len(animal_ids_formatted_ent)))
+    axs[1].set_yticklabels(animal_ids_formatted_ent)
+    axs[1].set_yticks(np.arange(len(animal_ids_formatted_ent)))
+    # axs[2].set_yticklabels(animal_ids_formatted_ent)
+    # axs[2].set_yticks(np.arange(len(animal_ids_formatted_ent)))
+
+    for i in range(len(axs[0].get_yticklabels())):
+        if "*" in str(animal_ids_formatted_ent[i]):
+            axs[0].get_yticklabels()[i].set_color("tab:red")
+            axs[1].get_yticklabels()[i].set_color("tab:red")
+            axs[2].get_yticklabels()[i].set_color("tab:red")
+
+    print("adding annotations...")
+    activity_list_matrix = df_raw.iloc[:, :-4].values
+    for i in range(activity_list_matrix.shape[0]):
+        cpt = 0
+        for j in range(activity_list_matrix.shape[1]):
+            an = annotation[i, j]
+            if an == "n" or an == "":
+                cpt = 0
+                continue
+            cpt += 1
+            color = "lightgrey"
+
+            if an == "1To1":
+                color = "white"
+            if an == "1To2":
+                color = "red"
+            if an == "2To2":
+                color = "blue"
+            if an == "2To1":
+                color = "orange"
+            if an == "3To2":
+                color = "lawngreen"
+            #use ASCII 219 for text highlight instead of rectangle
+            offset_y = 0.6
+            offset_x = 0.9
+            # ax.text(j-offset_x, activity_list_matrix.shape[0] - i - offset_y, "x", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
+            w = day_before_famacha_test
+            lw = 1.4
+            if cpt == 1:
+                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 0.85, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=1)
+                axs[0].add_patch(rec)
+                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 0.85, fill=False, edgecolor=color,
+                                facecolor=None, lw=lw, alpha=1)
+                axs[1].add_patch(rec)
+                # rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
+                #                 facecolor=None, lw=lw, alpha=0.8)
+                # axs[2].add_patch(rec)
+
+
+    param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
+    ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
+    axs[0].set_title("(log10) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+
+    patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
+    patch2 = mpatches.Patch(color='red', label="1To2 "+str(DATASET_INFO["1To2"]))
+    patch3 = mpatches.Patch(color='blue', label="2To2 "+str(DATASET_INFO["2To2"]))
+    patch4 = mpatches.Patch(color='orange', label="2To1 "+str(DATASET_INFO["2To1"]))
+    patch5 = mpatches.Patch(color='lawngreen', label="3To2 "+str(DATASET_INFO["3To2"]))
+    axs[0].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
+    axs[1].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
+    # axs[2].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
+
+    axs[0].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+    axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+    # axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+
+    axs[0].set_facecolor('pink')
+    axs[1].set_facecolor('pink')
+    # axs[2].set_facecolor('pink')
+
+    fig.tight_layout()
+
+    filename = "%d_dataset_heatmap_%s_%s_crop_color.png" % (wid, farm_id, resolution)
+    create_rec_dir(out_DIR)
+    file_path = out_DIR +"/"+ filename.replace("=", "_")
+    print(file_path)
+    fig.savefig(file_path, bbox_inches='tight')
+    # fig.savefig(file_path.replace(".png", ".svg"))
+
+    # plt.show()
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create heatmap of the heard with sample overlay.')
     parser.add_argument('output',
@@ -365,250 +612,13 @@ if __name__ == '__main__':
     for res in results:
         DATA.append(res.get())
 
-    for k in range(len(DATA[0])):
-        # activity_list = []
-        time_axis = None
-        # animal_ids = []
-        entropy_list = []
-        raw = []
-        raw_e = []
-        raw_m = []
-        resolution = ''
-        wid = 0
-        for item in DATA:
-            # animal_ids.append(item[0])
-            df_resampled_a = item[k][1]
-            df_resampled_e = item[k][2]
-            time_axis = item[k][3]
-            # activity_list.append(item[3])
-            entropy_list.append(item[k][5])
-            raw.append(item[k][6])
-            raw_e.append(item[k][7])
-            raw_m.append(item[k][8])
-            resolution = item[k][9]
-            wid = item[k][10]
-        df_raw = pd.DataFrame(raw, dtype=object)
-        df_raw_e = pd.DataFrame(raw_e, dtype=object)
-        df_raw_m = pd.DataFrame(raw_m, dtype=object)
-
-        header = [x for x in range(df_raw.shape[1])]
-        header[-1] = "id"
-        header[-2] = "entropy"
-
-        df_raw.columns = header
-        df_raw["famacha"] = np.nan
-        df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
-        df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
-        df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
-        df_raw = df_raw.reset_index(drop=True)
-        # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
-
-
-        df_raw_e.columns = header
-        df_raw_e["famacha"] = np.nan
-        df_raw_e = df_raw_e.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
-        df_raw_e["possible"] = ['*' in x for x in df_raw_e["id"].values]
-        df_raw_e = df_raw_e.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
-        # df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
-        df_raw_e = df_raw_e.reset_index(drop=True)
-
-        df_raw_m.columns = header
-        df_raw_m["famacha"] = np.nan
-        df_raw_m = df_raw_m.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
-        df_raw_m["possible"] = ['*' in x for x in df_raw_m["id"].values]
-        df_raw_m = df_raw_m.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
-        df_raw_m = df_raw_m.reset_index(drop=True)
-
-        df_raw = df_raw[df_raw["possible"] == False]
-        df_raw_e = df_raw_e[df_raw_e["possible"] == False]
-        df_raw_m = df_raw_m[df_raw_m["possible"] == False]
-        #########################################################################
-
-        # pool = Pool(processes=args.n_job)
-        # for index, row in df_raw.iterrows():
-        #     pool.apply_async(export_tranponder_traces, (row, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
-        # pool.close()
-        # pool.join()
-        # pool.terminate()
-        # for index, row in df_raw.iterrows():
-        #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
-        ##########################################################################
-
-        n = 2
-        h = (df_raw.shape[0] * 30 * n) / 100
-        w = 36.20 * 2
-        fig, axs = plt.subplots(n, figsize=(w, h))
-        axs[0].yaxis.set_label_position("right")
-        axs[0].yaxis.tick_right()
-        axs[1].yaxis.tick_right()
-        axs[1].yaxis.set_label_position("right")
-        # axs[2].yaxis.tick_right()
-        # axs[2].yaxis.set_label_position("right")
-
-        # axs[0].set_xticks(time_axis)
-        # axs[1].set_xticks(time_axis)
-        # axs[2].set_xticks(time_axis)
-        # time_axis_str = [pd.to_datetime(str(x)).strftime('%d/%b/%Y') for x in time_axis]
-        #
-        # axs[0].set_xticklabels(time_axis_str)
-        # axs[1].set_xticklabels(time_axis_str)
-        # axs[2].set_xticklabels(time_axis_str)
-
-        # n_x_ticks = axs[0].get_xticks().shape[0]
-        # labels_ = np.array(time_axis_str)[list(range(1, len(time_axis_str), int(len(time_axis_str) / n_x_ticks)))]
-        # # axs[0].tick_params(axis='x', rotation=90)
-        # # axs[1].tick_params(axis='x', rotation=90)
-        # # axs[2].tick_params(axis='x', rotation=90)
-        # # labels_[0] = time_axis_str[0]
-        # # labels_[-1] = time_axis_str[0]
-        # axs[0].set_xticklabels(labels_)
-        # axs[1].set_xticklabels(labels_)
-        # axs[2].set_xticklabels(labels_)
-
-        date_format = mdates.DateFormatter('%d/%b/%Y %H:%M')
-        x_lims = mdates.date2num(time_axis)
-
-        annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
-
-        a = df_raw.iloc[:, :-4].values
-
-        viridis = cm.get_cmap('viridis', 256)
-        newcolors = viridis(np.linspace(0, 1, 256))
-        pink = np.array([0 / 256, 0 / 256, 0 / 256, 1])
-        newcolors[:1, :] = pink
-        newcmp = ListedColormap(newcolors)
-
-        im_a_log = axs[0].imshow(np.log10(a, out=np.zeros_like(a), where=(a != 0)), cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-        plt.colorbar(im_a_log, ax=axs[0])
-
-        anscombe = np.vectorize(anscombe)
-        a_log_anscombe = anscombe(np.log(a, out=np.zeros_like(a), where=(a != 0)))
-
-        im_a_log_anscomb = axs[1].imshow(a_log_anscombe, cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-        plt.colorbar(im_a_log, ax=axs[1])
-
-        # e = df_raw_e.iloc[:, :-4].values
-        # im_e = axs[1].imshow(e, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-        # plt.colorbar(im_e, ax=axs[1])
-        #
-        # m = df_raw_m.iloc[:, :-4].values
-        # im_m = axs[2].imshow(m, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-        # plt.colorbar(im_m, ax=axs[2])
-
-        if resolution == "1T":
-            axs[0].xaxis_date()
-            axs[0].xaxis.set_major_formatter(date_format)
-            axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-            axs[1].xaxis_date()
-            axs[1].xaxis.set_major_formatter(date_format)
-            axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-        elif resolution == "1D":
-            axs[0].xaxis_date()
-            axs[0].xaxis.set_major_formatter(date_format)
-            axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
-            axs[1].xaxis_date()
-            axs[1].xaxis.set_major_formatter(date_format)
-            axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
-        else:
-            axs[0].xaxis_date()
-            axs[0].xaxis.set_major_formatter(date_format)
-            axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
-            axs[1].xaxis_date()
-            axs[1].xaxis.set_major_formatter(date_format)
-            axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
-
-        # axs[2].xaxis_date()
-        # axs[2].xaxis.set_major_formatter(date_format)
-        # axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-        fig.autofmt_xdate()
-
-        animal_ids_formatted_ent = df_raw["id"].values[::-1]
-        axs[0].set_yticklabels(animal_ids_formatted_ent)
-        axs[0].set_yticks(np.arange(len(animal_ids_formatted_ent)))
-        axs[1].set_yticklabels(animal_ids_formatted_ent)
-        axs[1].set_yticks(np.arange(len(animal_ids_formatted_ent)))
-        # axs[2].set_yticklabels(animal_ids_formatted_ent)
-        # axs[2].set_yticks(np.arange(len(animal_ids_formatted_ent)))
-
-        for i in range(len(axs[0].get_yticklabels())):
-            if "*" in str(animal_ids_formatted_ent[i]):
-                axs[0].get_yticklabels()[i].set_color("tab:red")
-                axs[1].get_yticklabels()[i].set_color("tab:red")
-                axs[2].get_yticklabels()[i].set_color("tab:red")
-
-        print("adding annotations...")
-        activity_list_matrix = df_raw.iloc[:, :-4].values
-        for i in range(activity_list_matrix.shape[0]):
-            cpt = 0
-            for j in range(activity_list_matrix.shape[1]):
-                an = annotation[i, j]
-                if an == "n" or an == "":
-                    cpt = 0
-                    continue
-                cpt += 1
-                color = "lightgrey"
-
-                if an == "1To1":
-                    color = "white"
-                if an == "1To2":
-                    color = "red"
-                if an == "2To2":
-                    color = "blue"
-                if an == "2To1":
-                    color = "orange"
-                if an == "3To2":
-                    color = "lawngreen"
-                #use ASCII 219 for text highlight instead of rectangle
-                offset_y = 0.6
-                offset_x = 0.9
-                # ax.text(j-offset_x, activity_list_matrix.shape[0] - i - offset_y, "x", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
-                w = day_before_famacha_test
-                lw = 1.4
-                if cpt == 1:
-                    rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 0.85, fill=False, edgecolor=color, facecolor=None, lw=lw, alpha=1)
-                    axs[0].add_patch(rec)
-                    rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 0.85, fill=False, edgecolor=color,
-                                    facecolor=None, lw=lw, alpha=1)
-                    axs[1].add_patch(rec)
-                    # rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 1, fill=False, edgecolor=color,
-                    #                 facecolor=None, lw=lw, alpha=0.8)
-                    # axs[2].add_patch(rec)
-
-
-        param_str = "sampling=%s day_before_famacha_test=%d" % (sampling, day_before_famacha_test)
-        ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-        axs[0].set_title("(log10) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-        axs[1].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-        # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-
-        patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
-        patch2 = mpatches.Patch(color='red', label="1To2 "+str(DATASET_INFO["1To2"]))
-        patch3 = mpatches.Patch(color='blue', label="2To2 "+str(DATASET_INFO["2To2"]))
-        patch4 = mpatches.Patch(color='orange', label="2To1 "+str(DATASET_INFO["2To1"]))
-        patch5 = mpatches.Patch(color='lawngreen', label="3To2 "+str(DATASET_INFO["3To2"]))
-        axs[0].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
-        axs[1].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
-        # axs[2].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
-
-        axs[0].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
-        axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
-        # axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
-
-        axs[0].set_facecolor('pink')
-        axs[1].set_facecolor('pink')
-        # axs[2].set_facecolor('pink')
-
-        fig.tight_layout()
-
-        filename = "%d_dataset_heatmap_%s_%s_crop_color.png" % (wid, farm_id, resolution)
-        create_rec_dir(out_DIR)
-        file_path = out_DIR +"/"+ filename.replace("=", "_")
-        print(file_path)
-        fig.savefig(file_path, bbox_inches='tight')
-        # fig.savefig(file_path.replace(".png", ".svg"))
-
-        # plt.show()
-
+    ######################################################
+    pool = Pool(processes=args.n_job)
+    for i, k in enumerate(range(len(DATA[0]))):
+        pool.apply_async(create_heatmap, (k, i, len(DATA[0])))
+    pool.close()
+    pool.join()
+    pool.terminate()
     print("done.")
 
 
