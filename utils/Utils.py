@@ -3,7 +3,7 @@ import os
 
 def anscombe(value):
     try:
-        return math.log(2 * math.sqrt(value + (3 / 8)))
+        return 2 * math.sqrt(value + (3 / 8))
     except TypeError as e:
         print(e)
 

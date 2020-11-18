@@ -103,12 +103,14 @@ def entropy2(labels, base=None):
     return ent
 
 
-def process_activity_data(file, i, nfiles):
+def process_activity_data(file, i, nfiles, w, res):
     print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
 
-    w = 1440 * 3
+    #w = 1440 * 3
+    if w is None:
+        w = df_activity.shape[0]
     results = []
     cpt = 0
     for i in range(0, df_activity.shape[0], w):
@@ -116,7 +118,7 @@ def process_activity_data(file, i, nfiles):
         df_activity_w = df_activity.loc[i: i+w, :]
         # 411989 2015-11-04T02:29
         #159840
-        entropy = scipy.stats.entropy(df_activity_w["first_sensor_value"].dropna())
+        entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
         if np.isnan(entropy):
             entropy = 0
         # entropy = entropy2(df_activity["first_sensor_value"].dropna().values)
@@ -129,7 +131,7 @@ def process_activity_data(file, i, nfiles):
         # data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
         # df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
 
-        df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity_w, animal_id)
+        df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity_w, animal_id, res=res)
         time = df_resampled_activity.index.values
         activity = df_resampled_activity.first_sensor_value.values
         activity_e = df_resampled_entropy.first_sensor_value.values
@@ -256,7 +258,9 @@ if __name__ == '__main__':
     parser.add_argument('output',
                         help='Directory path of heatmap output. (Directory will be created if does not exist)')
     parser.add_argument('activity_dir', help='Parent directory of the activity data.')
-    parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .tx.')
+    parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
+    parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes.')
+    parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
     parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
     args = parser.parse_args()
 
@@ -264,6 +268,8 @@ if __name__ == '__main__':
     print(args.output)
     print(args.activity_dir)
     print(args.dataset_dir)
+    print(args.w)
+    print(args.res)
     print("njob=", args.n_job)
 
     try:
@@ -347,7 +353,7 @@ if __name__ == '__main__':
     for i, file in enumerate(files):
         if 'median' in file or 'mean' in file:
             continue
-        results.append(pool.apply_async(process_activity_data, (file, i, len(files))))
+        results.append(pool.apply_async(process_activity_data, (file, i, len(files), args.w, args.res)))
     pool.close()
     pool.join()
     pool.terminate()
@@ -390,7 +396,8 @@ if __name__ == '__main__':
         df_raw["famacha"] = np.nan
         df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
         df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
-        df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+        df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+        df_raw = df_raw.reset_index(drop=True)
         # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
 
 
@@ -398,14 +405,16 @@ if __name__ == '__main__':
         df_raw_e["famacha"] = np.nan
         df_raw_e = df_raw_e.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
         df_raw_e["possible"] = ['*' in x for x in df_raw_e["id"].values]
-        df_raw_e = df_raw_e.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+        df_raw_e = df_raw_e.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
         # df_raw_e = df_raw_e.sort_values(['entropy'], ascending=False, ignore_index=True)
+        df_raw_e = df_raw_e.reset_index(drop=True)
 
         df_raw_m.columns = header
         df_raw_m["famacha"] = np.nan
         df_raw_m = df_raw_m.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
         df_raw_m["possible"] = ['*' in x for x in df_raw_m["id"].values]
-        df_raw_m = df_raw_m.sort_values(['possible', 'entropy'], ascending=[True, False], ignore_index=True).groupby('possible').head(df_raw.shape[0])
+        df_raw_m = df_raw_m.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+        df_raw_m = df_raw_m.reset_index(drop=True)
 
         df_raw = df_raw[df_raw["possible"] == False]
         df_raw_e = df_raw_e[df_raw_e["possible"] == False]
@@ -469,8 +478,8 @@ if __name__ == '__main__':
         im_a_log = axs[0].imshow(np.log10(a, out=np.zeros_like(a), where=(a != 0)), cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
         plt.colorbar(im_a_log, ax=axs[0])
 
-        log_anscombe = np.vectorize(anscombe)
-        a_log_anscombe = log_anscombe(np.log(a, out=np.zeros_like(a), where=(a != 0)))
+        anscombe = np.vectorize(anscombe)
+        a_log_anscombe = anscombe(np.log(a, out=np.zeros_like(a), where=(a != 0)))
 
         im_a_log_anscomb = axs[1].imshow(a_log_anscombe, cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
         plt.colorbar(im_a_log, ax=axs[1])
@@ -490,13 +499,20 @@ if __name__ == '__main__':
             axs[1].xaxis_date()
             axs[1].xaxis.set_major_formatter(date_format)
             axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        elif resolution == "1D":
+            axs[0].xaxis_date()
+            axs[0].xaxis.set_major_formatter(date_format)
+            axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
+            axs[1].xaxis_date()
+            axs[1].xaxis.set_major_formatter(date_format)
+            axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
         else:
             axs[0].xaxis_date()
             axs[0].xaxis.set_major_formatter(date_format)
-            axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=1))
+            axs[0].xaxis.set_major_locator(mdates.DayLocator(interval=7))
             axs[1].xaxis_date()
             axs[1].xaxis.set_major_formatter(date_format)
-            axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=1))
+            axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
         # axs[2].xaxis_date()
         # axs[2].xaxis.set_major_formatter(date_format)
@@ -588,7 +604,7 @@ if __name__ == '__main__':
         fig.savefig(file_path, bbox_inches='tight')
         # fig.savefig(file_path.replace(".png", ".svg"))
 
-        plt.show()
+        # plt.show()
 
     print("done.")
 
