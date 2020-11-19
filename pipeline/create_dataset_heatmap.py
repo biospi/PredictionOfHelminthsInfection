@@ -256,7 +256,7 @@ def export_tranponder_traces(row, out_dir, farm_id, time_axis, i_c, i_t):
     plt.close(fig)
 
 
-def create_heatmap(k, idx, itot):
+def create_heatmap(DATA, k, idx, itot):
     print("progress create_heatmap %d/%d ..." % (idx, itot))
     # activity_list = []
     time_axis = None
@@ -294,6 +294,7 @@ def create_heatmap(k, idx, itot):
     df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
     df_raw = df_raw.reset_index(drop=True)
     # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
+    print(df_raw)
 
 
     df_raw_e.columns = header
@@ -616,9 +617,9 @@ if __name__ == '__main__':
     njob = args.n_job
     if njob > 20:
         njob = 10
-    pool = Pool(processes=njob)
+    pool = Pool(processes=1)
     for i, k in enumerate(range(len(DATA[0]))):
-        pool.apply_async(create_heatmap, (k, i, len(DATA[0])))
+        pool.apply_async(create_heatmap, (DATA, k, i, len(DATA[0])))
     pool.close()
     pool.join()
     pool.terminate()
