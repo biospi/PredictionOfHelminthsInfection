@@ -338,8 +338,8 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     header[-1] = "id"
     header[-2] = "entropy"
 
+    print("add_famacha_format_id_todf... %d/%d ..." % (idx, itot))
     df_raw = add_famacha_format_id_todf(df_raw, header, famacha_data)
-
     df_raw_ss = add_famacha_format_id_todf(df_raw_ss, header, famacha_data)
     df_raw_bat = add_famacha_format_id_todf(df_raw_bat, header, famacha_data)
     df_raw_xmin = add_famacha_format_id_todf(df_raw_xmin, header, famacha_data)
@@ -348,6 +348,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     df_raw_ymax = add_famacha_format_id_todf(df_raw_ymax, header, famacha_data)
     df_raw_zmin = add_famacha_format_id_todf(df_raw_zmin, header, famacha_data)
     df_raw_zmax = add_famacha_format_id_todf(df_raw_zmax, header, famacha_data)
+    print("add_famacha_format_id_todf done %d/%d ..." % (idx, itot))
 
     # df_raw.columns = header
     # df_raw["famacha"] = np.nan
