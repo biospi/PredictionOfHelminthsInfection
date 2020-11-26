@@ -65,6 +65,8 @@ samples = SampleSet()
 ndays = 1
 samples.generateSet(famachaHerd, activityData, ndays)
 
+
+
 #aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
 
 #sTraces = activityData.loadActivityTrace(famachaHerd.herd[0].ID)
@@ -83,6 +85,18 @@ print(f"{bc.MAG}Summary of extracted samples:{bc.ENDC}")
 print(f"Number of Samples extracted: {bc.BLUE}{totalS} {bc.ENDC}")
 print(f"Number of Valid Samples extracted: {bc.GREEN}{validS} {bc.ENDC}")
 print(f"Number of NaN Samples extracted: {bc.RED}{falseS} {bc.ENDC}")
+
+# Get all meta data for each sample im our generated data set
+
+metaSet = np.array(samples.getSet())
+actSet = samples.getActivity()
+timeSet = samples.getiTime()
+
+set1To2 = samples.getFamachaCase("1To2")
+idx = samples.getFamachaCase("1To2")
+set1To2M = metaSet[idx]
+set1To2A = actSet[idx]
+set1To2T = timeSet[idx]
 
 
 # targets_info = {"total": {"all": totalS}}
@@ -130,14 +144,6 @@ for idx in range(totalS):
     meta[3] = samples.set[idx].ID
     sample = samples.iA[idx].tolist() + [samples.df[idx]] + meta
     s.append(sample)
-
-    # sample = samples.iA[idx].tolist() + ["median_"+target] + meta
-    # s.append(sample)
-    #
-    # sample = samples.iA[idx].tolist() + ["mean_"+target] + meta
-    # s.append(sample)
-
-
 df = pd.DataFrame(s)
 df.to_csv(filename.replace(".json", ".csv"), sep=',', index=False, header=False)
 

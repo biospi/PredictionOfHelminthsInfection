@@ -71,7 +71,7 @@ def process_raw_h5files(path, output_dir, n_job):
         value = (x['timestamp'], farm_id, x['serial_number'], x['signal_strength'], x['battery_voltage'],
                  x['first_sensor_value'], datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
                  datetime.strptime(datetime.fromtimestamp(x['timestamp']).strftime("%Y-%m-%dT%H:%M:%S"),
-                                   '%Y-%m-%dT%H:%M:%S'))
+                                   '%Y-%m-%dT%H:%M:%S'), x['xmin'], x['xmax'], x['ymin'], x['ymax'], x['zmin'], x['zmax'])
         list_raw.append(value)
         # if idx > 100000:  # todo remove
         #     break
@@ -90,7 +90,7 @@ def process_raw_h5files(path, output_dir, n_job):
 def create_dataframe(list_data):
     df = pd.DataFrame(list_data)
     df.columns = ['timestamp', 'farm_id', 'serial_number', 'signal_strength', 'battery_voltage', 'first_sensor_value',
-                  'date', 'date_str']
+                  'date', 'date_str', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax']
     df = df.drop_duplicates(subset=['timestamp', 'first_sensor_value'])
     df = df.sort_values(by='date')
     df.rename({'date': 'index'}, axis=1, inplace=True)
@@ -134,6 +134,13 @@ def resample_1min(df_raw):
             df_1min.at[df_1min.index[bin], 'battery_voltage'] = row_raw.battery_voltage
             df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
             df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
+            df_1min.at[df_1min.index[bin], 'xmin'] = row_raw.xmin
+            df_1min.at[df_1min.index[bin], 'xmax'] = row_raw.xmax
+            df_1min.at[df_1min.index[bin], 'ymin'] = row_raw.ymin
+            df_1min.at[df_1min.index[bin], 'ymax'] = row_raw.ymax
+            df_1min.at[df_1min.index[bin], 'zmin'] = row_raw.zmin
+            df_1min.at[df_1min.index[bin], 'zmax'] = row_raw.zmax
+
         else:
             # print("Multiple binned time stamps, preforming a shift:")
             repeat = 1
@@ -182,6 +189,12 @@ def resample_1min(df_raw):
                     df_1min.at[df_1min.index[bin], 'battery_voltage'] = row_raw.battery_voltage
                     df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
                     df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
+                    df_1min.at[df_1min.index[bin], 'xmin'] = row_raw.xmin
+                    df_1min.at[df_1min.index[bin], 'xmax'] = row_raw.xmax
+                    df_1min.at[df_1min.index[bin], 'ymin'] = row_raw.ymin
+                    df_1min.at[df_1min.index[bin], 'ymax'] = row_raw.ymax
+                    df_1min.at[df_1min.index[bin], 'zmin'] = row_raw.zmin
+                    df_1min.at[df_1min.index[bin], 'zmax'] = row_raw.zmax
             i = endIdx
         i -= 1
 
@@ -248,10 +261,13 @@ def resample_1min(df_raw):
     return df_1min
 
 
-def build_data_from_raw(farm_id, animal_records_df, output_dir):
+def build_data_from_raw(farm_id, animal_records_df, output_dir, has_xyz=True):
     df_raw_cleaned = resample_1min(animal_records_df)
     animal_id = int(df_raw_cleaned['serial_number'][df_raw_cleaned['serial_number'].notnull()].values[0])
-    df_raw_cleaned_sub = df_raw_cleaned[['timestamp', 'date_str', 'first_sensor_value']]
+    if has_xyz:
+        df_raw_cleaned_sub = df_raw_cleaned[['timestamp', 'date_str', 'first_sensor_value', 'signal_strength', 'battery_voltage', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax']]
+    else:
+        df_raw_cleaned_sub = df_raw_cleaned[['timestamp', 'date_str', 'first_sensor_value', 'signal_strength', 'battery_voltage']]
 
     df_raw_cleaned_sub_fill = df_raw_cleaned_sub.copy()
     df_raw_cleaned_sub_fill['timestamp'] = df_raw_cleaned_sub_fill.index.values.astype(np.int64) // 10 ** 9

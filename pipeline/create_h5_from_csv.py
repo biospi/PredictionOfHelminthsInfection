@@ -10,6 +10,7 @@ import dateutil.relativedelta
 import pandas as pd
 import xlrd
 from ipython_genutils.py3compat import xrange
+import numpy as np
 
 
 def xl_date_to_date(xldate, wb):
@@ -47,6 +48,27 @@ def strip_list(l):
     return [x.strip().lower().replace(" ", "").replace("batteryife", "batterylife") for x in l]
 
 
+def parse_xyz_acc_str(input_str):
+    xmax = np.nan
+    xmin = np.nan
+    ymin = np.nan
+    ymax = np.nan
+    zmin = np.nan
+    zmax = np.nan
+    if len(input_str) == 0:
+        return xmin, xmax, ymin, ymax, zmin, zmax
+    split = input_str.split(':')
+    if len(split) != 6:
+        return xmin, xmax, ymin, ymax, zmin, zmax
+    xmin = int(split[0])
+    xmax = int(split[1])
+    ymin = int(split[2])
+    ymax = int(split[3])
+    zmin = int(split[4])
+    zmax = int(split[5])
+    return xmin, xmax, ymin, ymax, zmin, zmax
+
+
 def generate_raw_files_from_xlsx(directory_path, file_name):
     start_time = time.time()
     print("start readind xls files...")
@@ -60,6 +82,12 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
     store = pd.HDFStore(file_name)
     valid_rows = 0
     for curr_file, path in enumerate(file_paths):
+
+        # if '70101200027_2016-3-11_07-06-48_to_2016-3-17_20-46-59.xlsx' not in path:
+        #     continue
+        # if '70101200027_2016-4-22_06-57-45_to_2016-4-29_06-00-00.xlsx' not in path:
+        #     continue
+
         print('progress %s/%d' % (curr_file, len(file_paths)))
         df = []
         transponders = {}
@@ -102,6 +130,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                             signal_strength_col_index = 4
                             battery_voltage_col_index = 5
                             first_sensor_value_col_index = 6
+                            xyz_axx_index = 10
                             found_col_index = True
                             print("found header. parsing rows...")
                             continue
@@ -125,6 +154,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                                 signal_strength_col_index = 4
                                 battery_voltage_col_index = 5
                                 first_sensor_value_col_index = 6
+                                xyz_axx_index = 10
                                 found_col_index = True
                                 print("found header. parsing rows...")
                                 continue
@@ -204,6 +234,17 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                             battery_voltage = -1
 
                         try:
+                            if len(row_values) >= 21:
+                                xyz_sensor_value = ":".join([str(int(x)) for x in row_values[10:16]])
+                            else:
+                                xyz_sensor_value = str(row_values[10])
+
+                        except (ValueError, IndexError, UnboundLocalError) as e:
+                            print("error while parsing xyz sensor value")
+                            print(path)
+                            xyz_sensor_value = ""
+
+                        try:
                             first_sensor_value = int(row_values[first_sensor_value_col_index])
                         except ValueError as e:
                             print("error while parsing first sensor value")
@@ -215,12 +256,14 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                         #       first_sensor_value_col_index, battery_voltage_col_index, signal_strength_col_index,
                         #       serial_number_col_index, date_col_index, time_col_index)
 
-                        record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d" % (
+                        xmin, xmax, ymin, ymax, zmin, zmax = parse_xyz_acc_str(xyz_sensor_value)
+                        record_log = "date_string=%s time=%s  row=%d epoch=%d control_station=%d serial_number=%d signal_strength=%d battery_voltage=%d first_sensor_value=%d " \
+                                     "xmin=%s xmax=%s ymin=%s ymax=%s zmin=%s zmax=%s" % (
                             date_string,
                             get_elapsed_time_string(start_time, time.time()), valid_rows, epoch, control_station,
                             serial_number,
-                            signal_strength, battery_voltage, first_sensor_value)
-                        # print(record_log)
+                            signal_strength, battery_voltage, first_sensor_value, str(xmin), str(xmax), str(ymin), str(ymax), str(zmin), str(zmax))
+                        print(record_log)
 
                         # if str(serial_number)[-3:] != '125':
                         #     continue
@@ -239,7 +282,13 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                                 'serial_number': serial_number,
                                 'signal_strength': signal_strength,
                                 'battery_voltage': battery_voltage,
-                                'first_sensor_value': first_sensor_value
+                                'first_sensor_value': first_sensor_value,
+                                'xmin': xmin,
+                                'xmax': xmax,
+                                'ymin': ymin,
+                                'ymax': ymax,
+                                'zmin': zmin,
+                                'zmax': zmax
                             }, index=[valid_rows]))
 
                         valid_rows += 1
@@ -263,7 +312,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
                 store.append('/', value=pd.concat(df), format='t', append=True,
                              data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
-                                           'battery_voltage', 'first_sensor_value'])
+                                           'battery_voltage', 'first_sensor_value', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
 
                 # del table_row
                 # table_f.flush()

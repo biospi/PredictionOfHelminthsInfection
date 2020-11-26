@@ -32,7 +32,9 @@ def sum_(to_resample):
 
 def resample(df, res="1T"):
     df.index = pd.to_datetime(df.date_str)
-    df_resampled = df.resample(res).agg(dict(timestamp="first", date_str="first", first_sensor_value=sum_))
+    df_resampled = df.resample(res).agg(dict(timestamp="first", date_str="first", first_sensor_value=sum_,
+                                             signal_strength='first', battery_voltage='first', xmin='first',
+                                             xmax='first', ymin='first', ymax='first', zmin='first', zmax='first'))
     df_resampled["timestamp"] = df_resampled.index.values.astype(np.int64) // 10 ** 9
     df_resampled["date_str"] = df_resampled.index.strftime('%Y-%m-%dT%H:%M')
     return df_resampled
@@ -45,10 +47,14 @@ def process_activity_data(out_DIR, file, start_time, end_time, i, nfiles):
 
     #add herd start and end to create missing empty bins of full time range
     data = []
-    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(start_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
+    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(start_time)).strftime('%Y-%m-%dT%H:%M'),
+                    'first_sensor_value': np.nan, 'signal_strength': np.nan, 'battery_voltage': np.nan, 'xmin': np.nan,
+                    'xmax': np.nan, 'ymin': np.nan, 'ymax': np.nan, 'zmin': np.nan, 'zmax': np.nan})
     df_activity = pd.concat([pd.DataFrame(data), df_activity], ignore_index=True)
     data = []
-    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
+    data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'),
+                    'first_sensor_value': np.nan, 'signal_strength': np.nan, 'battery_voltage': np.nan, 'xmin': np.nan,
+                    'xmax': np.nan, 'ymin': np.nan, 'ymax': np.nan, 'zmin': np.nan, 'zmax': np.nan})
     df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
     df_resampled_activity = resample(df_activity)
     filename = file.split('/')[-1]

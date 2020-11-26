@@ -471,7 +471,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     l = l_11 + l_12 + l_21 +l_22 + l_32
 
-    data_frame["label"] = l_11
+    data_frame["label"] = l
 
     print(data_frame)
 
@@ -482,7 +482,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     # data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
     # data_frame_no_norm = data_frame_no_norm.replace({"label": {'True': True, 'False': False}})
     data_frame_no_norm = data_frame
-    enable_downsample_df = True
+    enable_downsample_df = False
     if enable_downsample_df:
         data_frame_no_norm = downsample_df(data_frame_no_norm)
 
@@ -501,6 +501,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
         except IOError:
             print("file not found.")
     create_rec_dir(graph_outputdir)
+
+    plot_time_pca(data_frame_no_norm, graph_outputdir, title="LDA time domain before normalisation")
+
     ntraces = 2
     idx_healthy, idx_unhealthy = plot_groups(graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
                                              ylabel="activity", ntraces=ntraces)
@@ -512,7 +515,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     # plot_groups(graph_outputdir, data_frame_mean, title="Mean for each sample samples", xlabel="Time", ylabel="activity",
     #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=1)
 
-    plot_time_pca(data_frame_no_norm, graph_outputdir, title="PCA time domain before normalisation")
+    plot_time_pca(data_frame_no_norm, graph_outputdir, title="LDA time domain before normalisation")
 
     data_frame_median_norm = get_norm_l2(data_frame_no_norm)
 
@@ -522,7 +525,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     plot_groups(graph_outputdir, data_frame_median_norm, title="Normalised samples", xlabel="Time", ylabel="activity",
                 idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
 
-    plot_time_pca(data_frame_median_norm, graph_outputdir, title="PCA time domain after normalisation")
+    plot_time_pca(data_frame_median_norm, graph_outputdir, title="LDA time domain after normalisation")
 
     data_frame_median_norm_anscombe = get_anscombe(data_frame_median_norm)
 
@@ -877,18 +880,18 @@ def plot_2d_space(X, y, filename_2d_scatter, title='title'):
     markers = ['o', 's']
     print("plot_2d_space", X[0])
     if len(X[0]) == 1:
-        for l, c, m in zip(np.unique(y), colors, markers):
+        for l in zip(np.unique(y)):
             ax.scatter(
                 X[y == l, 0],
                 np.zeros(X[y == l, 0].size),
-                c=c, label=l, marker=m
+                label=l
             )
     else:
-        for l, c, m in zip(np.unique(y), colors, markers):
+        for l in zip(np.unique(y)):
             ax.scatter(
                 X[y == l, 0],
                 X[y == l, 1],
-                c=c, label=l, marker=m
+                label=l
             )
 
     ax.set_title(title)
@@ -1843,10 +1846,11 @@ def plot_time_pca(df_time_domain, output_dir, title="title", y_col="label"):
     #     plt.plot(yf, c=color, alpha=0.1)
     # plt.show()
 
-    df_time_pca = pd.DataFrame(PCA(n_components=2).fit_transform(df_time_domain.iloc[:, :-1]))
+    df_time_pca = pd.DataFrame(LDA(n_components=2).fit_transform(df_time_domain.iloc[:, :-1], df_time_domain.iloc[:, -1].astype(int)))
     df_time_pca["label"] = df_time_domain["label"]
     X = df_time_pca.iloc[:, :-1].values
     y = df_time_pca.iloc[:, -1].astype(int)
+
     filename = title.replace(" ", "_")
     filepath = "%s/%s.png" % (output_dir, filename)
     plot_2d_space(X, y, filepath, title=title)
