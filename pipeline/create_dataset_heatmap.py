@@ -775,16 +775,15 @@ if __name__ == '__main__':
 
     ######################################################
     print("starting second pool.")
-    njob = args.n_job
-    pool = Pool(processes=njob)
-    print(njob)
+    print(args.n_job)
     print(len(DATA))
+    pool2 = Pool(processes=args.n_job)
     for i, k in enumerate(range(len(DATA[0]))):
         print("feeding pool", i)
-        pool.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
-    pool.close()
-    pool.join()
-    pool.terminate()
+        pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
+    pool2.close()
+    pool2.join()
+    pool2.terminate()
     print("done.")
 
 
