@@ -85,7 +85,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
         # if '70101200027_2016-3-11_07-06-48_to_2016-3-17_20-46-59.xlsx' not in path:
         #     continue
-        # if '70101200027_2016-4-22_06-57-45_to_2016-4-29_06-00-00.xlsx' not in path:
+        # if '70101100029_2012-9-27_00-00-00_to_2012-10-08_06-00-00.xlsx' not in path:
         #     continue
 
         print('progress %s/%d' % (curr_file, len(file_paths)))

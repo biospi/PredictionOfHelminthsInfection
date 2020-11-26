@@ -384,6 +384,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     df_raw_ymax = df_raw_ymax[df_raw_ymax["possible"] == False]
     df_raw_zmin = df_raw_zmin[df_raw_zmin["possible"] == False]
     df_raw_zmax = df_raw_zmax[df_raw_zmax["possible"] == False]
+    print("ready for figure %d/%d ..." % (idx, itot))
     #########################################################################
 
     # pool = Pool(processes=args.n_job)
@@ -772,10 +773,9 @@ if __name__ == '__main__':
         DATA.append(res.get())
 
     ######################################################
+    print("starting second pool.")
     njob = args.n_job
-    if njob > 20:
-        njob = 10
-    pool = Pool(processes=1)
+    pool = Pool(processes=njob)
     for i, k in enumerate(range(len(DATA[0]))):
         pool.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
     pool.close()
