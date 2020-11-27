@@ -116,6 +116,8 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
     #w = 1440 * 3
     if w is None or w < 0:
         w = df_activity.shape[0]
+    if end is None or end < 0:
+        end = df_activity.shape[0]
     results = []
     cpt = 0
 
@@ -686,7 +688,7 @@ if __name__ == '__main__':
     parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
     parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
     parser.add_argument('--start', type=int, default=0, help='start time in minute.')
-    parser.add_argument('--end', type=int, default=1440 * 6, help='end time in minute.')
+    parser.add_argument('--end', type=int, default=-1, help='end time in minute.')
     parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
     args = parser.parse_args()
 
