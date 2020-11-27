@@ -108,7 +108,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def process_activity_data(file, i, nfiles, w, res):
+def process_activity_data(file, i, nfiles, w, res, start, end):
     print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
@@ -121,14 +121,16 @@ def process_activity_data(file, i, nfiles, w, res):
 
     # start = 0
     # end = df_activity.shape[0]
-
-    w = 1440 * 3
-    start = 540002
-    end = start + w*10
+    # if start is not None and end is not None:
+    #     w = 1440 * 3
+    #     start = 540002
+    #     # end = start + w*10
+    #     end = df_activity.shape[0]
 
     for i in range(start, end, w):
         # print(animal_id, i, i+w)
         df_activity_w = df_activity.loc[i: i+w, :]
+        # print(df_activity_w)
         # 411989 2015-11-04T02:29
         #159840
         entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
@@ -164,7 +166,7 @@ def process_activity_data(file, i, nfiles, w, res):
         merge_zmin = df_resampled_activity.zmin.values.tolist() + [entropy, animal_id]
         merge_zmax = df_resampled_activity.zmax.values.tolist() + [entropy, animal_id]
 
-        data = [animal_id, time, entropy, merge_a, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt]
+        data = [animal_id, time, entropy, merge_a, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt, str(i)+"_"+str(i+w)]
         # if cpt > 14:
         #     break
         results.append(data)
@@ -308,6 +310,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     raw_zmax = []
     resolution = ''
     wid = 0
+    range_id = ''
     for item in DATA:
         # animal_ids.append(item[0])
         time_axis = item[k][1]
@@ -327,6 +330,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
         resolution = item[k][14]
         wid = item[k][15]
+        range_id = item[k][16]
 
     df_raw = pd.DataFrame(raw, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
@@ -662,7 +666,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     fig.tight_layout()
 
-    filename = "%d_dataset_heatmap_%s_%s_crop_color.png" % (wid, farm_id, resolution)
+    filename = "%s_dataset_heatmap_%s_%s_crop_color.png" % (range_id, farm_id, resolution)
     create_rec_dir(out_DIR)
     file_path = out_DIR +"/"+ filename.replace("=", "_")
     print("saving figure ", file_path)
@@ -681,6 +685,8 @@ if __name__ == '__main__':
     parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
     parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
     parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
+    parser.add_argument('--start', type=int, default=0, help='start time in minute.')
+    parser.add_argument('--end', type=int, default=1440 * 6, help='end time in minute.')
     parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
     args = parser.parse_args()
 
@@ -690,6 +696,8 @@ if __name__ == '__main__':
     print(args.dataset_dir)
     print(args.w)
     print(args.res)
+    print(args.start)
+    print(args.end)
     print("njob=", args.n_job)
 
     try:
@@ -764,7 +772,7 @@ if __name__ == '__main__':
     for i, file in enumerate(files):
         if 'median' in file or 'mean' in file:
             continue
-        results.append(pool.apply_async(process_activity_data, (file, i, len(files), args.w, args.res)))
+        results.append(pool.apply_async(process_activity_data, (file, i, len(files), args.w, args.res, args.start, args.end)))
     pool.close()
     pool.join()
     pool.terminate()
