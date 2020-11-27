@@ -4,6 +4,7 @@ import json
 import math
 import sys
 import matplotlib
+matplotlib.use('Qt5Agg')
 from sys import platform as _platform
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
@@ -117,7 +118,15 @@ def process_activity_data(file, i, nfiles, w, res):
         w = df_activity.shape[0]
     results = []
     cpt = 0
-    for i in range(0, df_activity.shape[0], w):
+
+    start = 0
+    end = df_activity.shape[0]
+
+    # w = 1440 * 3
+    # start = 411989
+    # end = 411989 + w*6
+
+    for i in range(start, end, w):
         # print(animal_id, i, i+w)
         df_activity_w = df_activity.loc[i: i+w, :]
         # 411989 2015-11-04T02:29
@@ -619,7 +628,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (resolution, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-    axs[0].set_title("(log10) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[0].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     # axs[1].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     axs[1].set_title("signal strenght")
@@ -659,7 +668,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     fig.savefig(file_path, bbox_inches='tight')
     print("saved ", filename)
     # fig.savefig(file_path.replace(".png", ".svg"))
-
+    # plt.interactive(True)
     # plt.show()
 
 
@@ -712,20 +721,6 @@ if __name__ == '__main__':
     if len(files) == 0:
         raise IOError("missing activity files .csv! in %s" % args.activity_dir)
     files = [file.replace("\\", '/') for file in files]#prevent Unix issues
-    # files_ = []
-    # for f in files:
-    #     if "143" in f or "353" in f or "316" in f:
-    #         files_.append(f)
-    # files = files_
-
-    # files_filtered = []
-    # for f in files:
-    #     if '146' in f:
-    #         files_filtered.append(f)
-    #     if '107' in f:
-    #         files_filtered.append(f)
-    #
-    # files = files_filtered
     #find start date and end date##########################
     # pool = Pool(processes=args.n_job)
     # results_dates = []
@@ -786,7 +781,7 @@ if __name__ == '__main__':
     print(len(r_))
     for i, k in enumerate(r_):
         print("feeding pool", i)
-        # print(k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR)
+        print(k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR)
         pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
     pool2.close()
     pool2.join()
