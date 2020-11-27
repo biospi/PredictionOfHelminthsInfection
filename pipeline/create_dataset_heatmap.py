@@ -663,7 +663,6 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # plt.show()
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create heatmap of the heard with sample overlay.')
     parser.add_argument('output',
@@ -713,11 +712,11 @@ if __name__ == '__main__':
     if len(files) == 0:
         raise IOError("missing activity files .csv! in %s" % args.activity_dir)
     files = [file.replace("\\", '/') for file in files]#prevent Unix issues
-    files_ = []
-    for f in files:
-        if "143" in f or "353" in f or "316" in f:
-            files_.append(f)
-    files = files_
+    # files_ = []
+    # for f in files:
+    #     if "143" in f or "353" in f or "316" in f:
+    #         files_.append(f)
+    # files = files_
 
     # files_filtered = []
     # for f in files:
