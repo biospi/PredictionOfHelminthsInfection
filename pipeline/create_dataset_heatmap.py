@@ -785,7 +785,8 @@ if __name__ == '__main__':
     print("starting second pool.")
     print(args.n_job)
     print(len(DATA))
-    pool2 = Pool(processes=10 if args.n_job >= 10 else args.n_job)
+    MAX_THREADC = 8
+    pool2 = Pool(processes=MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job)
     r_ = list(range(len(DATA[0])))
     print(len(r_))
     for i, k in enumerate(r_):
