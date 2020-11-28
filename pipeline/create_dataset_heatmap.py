@@ -787,17 +787,23 @@ if __name__ == '__main__':
     print("starting second pool.")
     print(args.n_job)
     print(len(DATA))
-    MAX_THREADC = 8
-    pool2 = Pool(processes=MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job)
+    MAX_THREADC = 6
+    njob = MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job
+    pool2 = Pool(processes=njob)
+    print("with njob=%d" % njob)
     r_ = list(range(len(DATA[0])))
     print(len(r_))
-    for i, k in enumerate(r_):
-        print("feeding pool", i)
-        # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
-        pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
-    pool2.close()
-    pool2.join()
-    pool2.terminate()
+    try:
+        for i, k in enumerate(r_):
+            print("feeding pool", i)
+            # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
+            pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
+        pool2.close()
+        pool2.join()
+        pool2.terminate()
+    except Exception as e:
+        print("error in second pool.")
+        print(e)
     print("done.")
 
 
