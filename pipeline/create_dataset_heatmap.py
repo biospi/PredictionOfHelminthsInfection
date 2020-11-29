@@ -292,6 +292,18 @@ def add_famacha_format_id_todf(df_raw, header, famacha_data):
     return df_raw
 
 
+def compute_magnitude(a_xmin, a_ymin, a_zmin):
+    magnitude = np.full(a_xmin.shape, np.nan)
+    for i in range(a_xmin.shape[0]):
+        for j in range(a_xmin.shape[1]):
+            x = a_xmin[i, j]
+            y = a_ymin[i, j]
+            z = a_zmin[i, j]
+            m = math.sqrt(x*x + y*y + z*z)
+            magnitude[i, j] = m
+    return magnitude
+
+
 def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR):
     print("create_heatmap")
     print("progress create_heatmap %d/%d ..." % (idx, itot))
@@ -414,7 +426,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
     ##########################################################################
 
-    n = 9
+    n = 5
     h = (df_raw.shape[0] * 30 * n) / 100
     w = 36.20 * 2
     fig, axs = plt.subplots(n, figsize=(w, h))
@@ -474,7 +486,9 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     anscombe_m = np.vectorize(anscombe)
     a_log_anscombe = anscombe_m(np.log(a, out=np.zeros_like(a), where=(a != 0)))
 
-    im_a_log_anscomb = axs[0].imshow(a_log_anscombe, cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    im_a_log_anscomb = axs[0].imshow(a_log_anscombe, cmap=newcmp, aspect='auto',
+                                     interpolation="nearest",
+                                     extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a_log_anscomb, ax=axs[0])
 
     # e = df_raw_e.iloc[:, :-4].values
@@ -495,37 +509,50 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
                              extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_bat, ax=axs[2])
 
-    im_xmin = axs[3].imshow(a_xmin, cmap=newcmp, aspect='auto',
-                             interpolation="nearest",
-                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_xmin, ax=axs[3])
+    # im_xmin = axs[3].imshow(a_xmin, cmap=newcmp, aspect='auto',
+    #                          interpolation="nearest",
+    #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_xmin, ax=axs[3])
+    #
+    # im_xmax = axs[4].imshow(a_xmax, cmap=newcmp, aspect='auto',
+    #                          interpolation="nearest",
+    #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_xmax, ax=axs[4])
+    #
+    # ###
+    # im_ymin = axs[5].imshow(a_ymin, cmap=newcmp, aspect='auto',
+    #                         interpolation="nearest",
+    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_ymin, ax=axs[5])
+    #
+    # im_ymax = axs[6].imshow(a_ymax, cmap=newcmp, aspect='auto',
+    #                         interpolation="nearest",
+    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_ymax, ax=axs[6])
+    #
+    # ###
+    # im_zmin = axs[7].imshow(a_zmin, cmap=newcmp, aspect='auto',
+    #                         interpolation="nearest",
+    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_zmin, ax=axs[7])
+    #
+    # im_zmax = axs[8].imshow(a_zmax, cmap=newcmp, aspect='auto',
+    #                         interpolation="nearest",
+    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # plt.colorbar(im_zmax, ax=axs[8])
 
-    im_xmax = axs[4].imshow(a_xmax, cmap=newcmp, aspect='auto',
-                             interpolation="nearest",
-                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_xmax, ax=axs[4])
-
-    ###
-    im_ymin = axs[5].imshow(a_ymin, cmap=newcmp, aspect='auto',
+    ##magnitude
+    min_magnitude = compute_magnitude(a_xmin, a_ymin, a_zmin)
+    im_min_magnitude = axs[3].imshow(min_magnitude, cmap=newcmp, aspect='auto',
                             interpolation="nearest",
                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_ymin, ax=axs[5])
+    plt.colorbar(im_min_magnitude, ax=axs[3])
 
-    im_ymax = axs[6].imshow(a_ymax, cmap=newcmp, aspect='auto',
+    max_magnitude = compute_magnitude(a_xmax, a_ymax, a_zmax)
+    im_max_magnitude = axs[4].imshow(max_magnitude, cmap=newcmp, aspect='auto',
                             interpolation="nearest",
                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_ymax, ax=axs[6])
-
-    ###
-    im_zmin = axs[7].imshow(a_zmin, cmap=newcmp, aspect='auto',
-                            interpolation="nearest",
-                            extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_zmin, ax=axs[7])
-
-    im_zmax = axs[8].imshow(a_zmax, cmap=newcmp, aspect='auto',
-                            interpolation="nearest",
-                            extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_zmax, ax=axs[8])
+    plt.colorbar(im_max_magnitude, ax=axs[4])
 
     if resolution == "1T":
         for p in range(n):
@@ -640,12 +667,15 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     axs[1].set_title("signal strenght")
     axs[2].set_title("battery voltage")
-    axs[3].set_title("accelerometer x min axis")
-    axs[4].set_title("accelerometer x max axis")
-    axs[5].set_title("accelerometer y min axis")
-    axs[6].set_title("accelerometer y max axis")
-    axs[7].set_title("accelerometer z min axis")
-    axs[8].set_title("accelerometer z max axis")
+    # axs[3].set_title("accelerometer x min axis")
+    # axs[4].set_title("accelerometer x max axis")
+    # axs[5].set_title("accelerometer y min axis")
+    # axs[6].set_title("accelerometer y max axis")
+    # axs[7].set_title("accelerometer z min axis")
+    # axs[8].set_title("accelerometer z max axis")
+    axs[3].set_title("Magnitute min")
+    axs[4].set_title("Magnitude max")
+
 
     patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
     patch2 = mpatches.Patch(color='red', label="1To2 "+str(DATASET_INFO["1To2"]))
@@ -787,7 +817,8 @@ if __name__ == '__main__':
     print("starting second pool.")
     print(args.n_job)
     print(len(DATA))
-    MAX_THREADC = 6
+    # MAX_THREADC = 6
+    MAX_THREADC = args.n_job
     njob = MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job
     pool2 = Pool(processes=njob)
     print("with njob=%d" % njob)
