@@ -171,28 +171,30 @@ def entropy2(labels, base=None):
 
 def filter_by_entropy(df, thresh=2.5):
     filtered_samples = []
-    for i in range(df.shape[0]-2):
-        row = df.iloc[i, :-1]
-        row_mean = df.iloc[i+1, :-1]
-        row_median = df.iloc[i+2, :-1]
+    for i in range(df.shape[0]):
+        row = df.iloc[i, :-2]
+        # row_mean = df.iloc[i+1, :-1]
+        # row_median = df.iloc[i+2, :-1]
         target = df.iloc[i, -1]
-        target_mean = df.iloc[i+1, -1]
-        target_median = df.iloc[i+2, -1]
-        if target == 'True' or target == 'False':
-            h = entropy2(row)
-            # print(h)
-            if h > thresh:
-                sample = row.values.tolist()
-                sample.append(target)
-                filtered_samples.append(sample)
+        label = df.iloc[i, -2]
+        # target_mean = df.iloc[i+1, -1]
+        # target_median = df.iloc[i+2, -1]
+        # if target == 'True' or target == 'False':
+        h = entropy2(row)
+        # print(h)
+        if h > thresh:
+            sample = row.values.tolist()
+            sample.append(label)
+            sample.append(target)
+            filtered_samples.append(sample)
 
-                sample_mean = row_mean.values.tolist()
-                sample_mean.append(target_mean)
-                filtered_samples.append(sample_mean)
-
-                sample_median = row_median.values.tolist()
-                sample_median.append(target_median)
-                filtered_samples.append(sample_median)
+            # sample_mean = row_mean.values.tolist()
+            # sample_mean.append(target_mean)
+            # filtered_samples.append(sample_mean)
+            #
+            # sample_median = row_median.values.tolist()
+            # sample_median.append(target_median)
+            # filtered_samples.append(sample_median)
 
     df_filtered = pd.DataFrame(filtered_samples, columns=df.columns, dtype=float)
     return df_filtered
@@ -420,6 +422,12 @@ def downsample_df(data_frame):
     return data_frame
 
 
+def label_famacha (row):
+   if row['label'] == 1:
+       return ''
+   return 'Other'
+
+
 def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
     # df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
@@ -463,21 +471,19 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame = data_frame[cols_to_keep]
     data_frame = data_frame.fillna(-1)
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
-    l_11 = data_frame_labeled["label_1To1"] * 1
-    l_12 = data_frame_labeled["label_1To2"] * 2
-    l_21 = data_frame_labeled["label_2To1"] * 3
-    l_22 = data_frame_labeled["label_2To2"] * 4
-    l_32 = data_frame_labeled["label_3To2"] * 5
 
-    l = l_11 + l_12 + l_21 +l_22 + l_32
+    flabels = [x for x in data_frame_labeled.columns if 'label' in x]
+    data_frame["target"] = 0
 
-    data_frame["label"] = l
+    for i, flabel in enumerate(flabels):
+        data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i+1)
+        data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
 
     print(data_frame)
 
     # data_frame = shuffle(data_frame)
 
-    # data_frame = filter_by_entropy(data_frame)
+    data_frame = filter_by_entropy(data_frame)
 
     # data_frame_no_norm = data_frame.loc[data_frame['label'].isin(["True", "False"])].reset_index(drop=True)
     # data_frame_no_norm = data_frame_no_norm.replace({"label": {'True': True, 'False': False}})
@@ -486,12 +492,11 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     if enable_downsample_df:
         data_frame_no_norm = downsample_df(data_frame_no_norm)
 
-    data_frame_median = data_frame.loc[data_frame['label'].isin(["'median_True'", "'median_False'"])].reset_index(drop=True)
-    data_frame_median = data_frame_median.replace({"label": {"'median_True'": "True", "'median_False'": "False"}})
-
-    data_frame_mean = data_frame.loc[data_frame['label'].isin(["'mean_True'", "'mean_False'"])].reset_index(drop=True)
-    data_frame_mean = data_frame_mean.replace({"label": {"'mean_True'": "True", "'mean_False'": "False"}})
-
+    # data_frame_median = data_frame.loc[data_frame['label'].isin(["'median_True'", "'median_False'"])].reset_index(drop=True)
+    # data_frame_median = data_frame_median.replace({"label": {"'median_True'": "True", "'median_False'": "False"}})
+    #
+    # data_frame_mean = data_frame.loc[data_frame['label'].isin(["'mean_True'", "'mean_False'"])].reset_index(drop=True)
+    # data_frame_mean = data_frame_mean.replace({"label": {"'mean_True'": "True", "'mean_False'": "False"}})
 
     graph_outputdir = "%s/input_graphs/" % output_dir
     if os.path.exists(graph_outputdir):
@@ -502,7 +507,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
             print("file not found.")
     create_rec_dir(graph_outputdir)
 
-    plot_time_pca(data_frame_no_norm, graph_outputdir, title="LDA time domain before normalisation")
+    plot_time_pca(data_frame_no_norm, graph_outputdir, title="PCA time domain before normalisation")
 
     ntraces = 2
     idx_healthy, idx_unhealthy = plot_groups(graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
@@ -876,8 +881,6 @@ def plot_2d_space_cwt_scales(df_cwt_list, label='2D PCA of CWTS', y_col='label')
 
 def plot_2d_space(X, y, filename_2d_scatter, title='title'):
     fig, ax = plt.subplots(figsize=(12.80, 7.20))
-    colors = ['#1F77B4', '#FF7F0E']
-    markers = ['o', 's']
     print("plot_2d_space", X[0])
     if len(X[0]) == 1:
         for l in zip(np.unique(y)):
@@ -889,9 +892,9 @@ def plot_2d_space(X, y, filename_2d_scatter, title='title'):
     else:
         for l in zip(np.unique(y)):
             ax.scatter(
-                X[y == l, 0],
-                X[y == l, 1],
-                label=l
+                X[y == l[0]][0],
+                X[y == l[0]][1],
+                label=l[0]
             )
 
     ax.set_title(title)
@@ -1846,14 +1849,13 @@ def plot_time_pca(df_time_domain, output_dir, title="title", y_col="label"):
     #     plt.plot(yf, c=color, alpha=0.1)
     # plt.show()
 
-    df_time_pca = pd.DataFrame(LDA(n_components=2).fit_transform(df_time_domain.iloc[:, :-1], df_time_domain.iloc[:, -1].astype(int)))
-    df_time_pca["label"] = df_time_domain["label"]
-    X = df_time_pca.iloc[:, :-1].values
-    y = df_time_pca.iloc[:, -1].astype(int)
+    X = pd.DataFrame(PCA(n_components=2).fit_transform(df_time_domain.iloc[:, :-2]))
+    y = df_time_domain.iloc[:, -1].astype(int)
+    y_label = df_time_domain.iloc[:, -2]
 
     filename = title.replace(" ", "_")
     filepath = "%s/%s.png" % (output_dir, filename)
-    plot_2d_space(X, y, filepath, title=title)
+    plot_2d_space(X, y_label, filepath, title=title)
 
 
 def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
@@ -2411,7 +2413,7 @@ if __name__ == "__main__":
     # X, y = make_blobs(n_samples=50, centers=2, n_features=100, center_box=(0, 10))
     # dummy_run(X, y, 40, "dummy_blob.txt")
     # print("********************************************************************")
-    # exit(0)
+    # exit(0)i
 
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]

@@ -4,7 +4,7 @@ import json
 import math
 import sys
 import matplotlib
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 from sys import platform as _platform
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
@@ -19,7 +19,8 @@ import scipy.stats
 from matplotlib.patches import Rectangle
 import matplotlib.dates as mdates
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-
+from mpl_toolkits.axes_grid1 import host_subplot
+import mpl_toolkits.axisartist as AA
 from utils.Utils import anscombe
 
 
@@ -136,6 +137,19 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         # 411989 2015-11-04T02:29
         #159840
         entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
+
+        e_xmin = scipy.stats.entropy(df_activity["xmin"].dropna().abs())
+        e_xmax = scipy.stats.entropy(df_activity["xmax"].dropna().abs())
+        e_ymin = scipy.stats.entropy(df_activity["ymin"].dropna().abs())
+        e_ymax = scipy.stats.entropy(df_activity["ymax"].dropna().abs())
+        e_zmin = scipy.stats.entropy(df_activity["zmin"].dropna().abs())
+        e_zmax = scipy.stats.entropy(df_activity["zmax"].dropna().abs())
+        entropy_s2 = e_xmin + e_xmax + e_ymin + e_ymax + e_zmin + e_zmax
+
+        if np.isnan(entropy_s2):
+            entropy_s2 = 0
+
+
         if np.isnan(entropy):
             entropy = 0
         # entropy = entropy2(df_activity["first_sensor_value"].dropna().values)
@@ -154,21 +168,21 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         activity_e = df_resampled_entropy.first_sensor_value.values
         activity_m = df_resampled_median.first_sensor_value.values
 
-        merge_a = activity.tolist() + [entropy, animal_id]
-        merge_e = activity_e.tolist() + [entropy, animal_id]
-        merge_m = activity_m.tolist() + [entropy, animal_id]
-        merge_bat = df_resampled_activity.battery_voltage.values.tolist() + [entropy, animal_id]
-        merg_ss = df_resampled_activity.signal_strength.values.tolist() + [entropy, animal_id]
-        merge_xmin = df_resampled_activity.xmin.values.tolist() + [entropy, animal_id]
-        merge_xmax = df_resampled_activity.xmax.values.tolist() + [entropy, animal_id]
+        merge_a = activity.tolist() + [entropy, entropy_s2, animal_id]
+        merge_e = activity_e.tolist() + [entropy, entropy_s2, animal_id]
+        merge_m = activity_m.tolist() + [entropy, entropy_s2, animal_id]
+        merge_bat = df_resampled_activity.battery_voltage.values.tolist() + [entropy, entropy_s2, animal_id]
+        merg_ss = df_resampled_activity.signal_strength.values.tolist() + [entropy, entropy_s2, animal_id]
+        merge_xmin = df_resampled_activity.xmin.values.tolist() + [entropy, entropy_s2, animal_id]
+        merge_xmax = df_resampled_activity.xmax.values.tolist() + [entropy, entropy_s2, animal_id]
 
-        merge_ymin = df_resampled_activity.ymin.values.tolist() + [entropy, animal_id]
-        merge_ymax = df_resampled_activity.ymax.values.tolist() + [entropy, animal_id]
+        merge_ymin = df_resampled_activity.ymin.values.tolist() + [entropy, entropy_s2, animal_id]
+        merge_ymax = df_resampled_activity.ymax.values.tolist() + [entropy, entropy_s2, animal_id]
 
-        merge_zmin = df_resampled_activity.zmin.values.tolist() + [entropy, animal_id]
-        merge_zmax = df_resampled_activity.zmax.values.tolist() + [entropy, animal_id]
+        merge_zmin = df_resampled_activity.zmin.values.tolist() + [entropy, entropy_s2, animal_id]
+        merge_zmax = df_resampled_activity.zmax.values.tolist() + [entropy, entropy_s2, animal_id]
 
-        data = [animal_id, time, entropy, merge_a, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt, str(i)+"_"+str(i+w)]
+        data = [animal_id, time, entropy, entropy_s2, merge_a, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt, str(i)+"_"+str(i+w)]
         # if cpt > 14:
         #     break
         results.append(data)
@@ -244,48 +258,170 @@ def create_annotation_matrix(df, time_axis, window_size):
     return annotation, missing_ids
 
 
-def add_famacha_format_id(row, fam_data):
+def add_famacha_format_id(row, fam_data, s2):
     id = int(row["id"])
     if id in fam_data.keys():
         timestamps = fam_data[id]
         timestamps.sort(key=lambda x: x[0])
         row["famacha"] = timestamps
-        row["id"] = str(row["id"]) + "  %06.2f" % row["entropy"]
+        if s2:
+            row["id"] = str(row["id"]) + "  %06.2f" % row["entropy_s2"]
+        else:
+            row["id"] = str(row["id"]) + "  %06.2f" % row["entropy"]
     else:
-        row["id"] = str(row["id"])[1:] + "*" + "  %06.2f" % row["entropy"]
+        if s2:
+            row["id"] = str(row["id"])[1:] + "*" + "  %06.2f" % row["entropy_s2"]
+        else:
+            row["id"] = str(row["id"])[1:] + "*" + "  %06.2f" % row["entropy"]
     return row
 
 
-def export_tranponder_traces(row, out_dir, farm_id, time_axis, i_c, i_t):
+# def test():
+#     host = host_subplot(111, axes_class=AA.Axes, figsize=(19.20, 10.80))
+#     plt.subplots_adjust(right=0.75)
+#
+#     par1 = host.twinx()
+#     par2 = host.twinx()
+#     par3 = host.twinx()
+#
+#     offset = 60
+#     new_fixed_axis = par2.get_grid_helper().new_fixed_axis
+#     par2.axis["right"] = new_fixed_axis(loc="right", axes=par2,
+#                                         offset=(offset, 0))
+#     par2.axis["right"].toggle(all=True)
+#
+#     new_fixed_axis3 = par3.get_grid_helper().new_fixed_axis
+#     par3.axis["right"] = new_fixed_axis3(loc="right", axes=par3,
+#                                         offset=(offset*2, 0))
+#     par3.axis["right"].toggle(all=True)
+#
+#     host.set_xlabel("Time (days)")
+#     host.set_ylabel("activity (first sensor)")
+#     par1.set_ylabel("signal strenght (dB)")
+#     par2.set_ylabel("battery level (V)")
+#     par3.set_ylabel("acceleration sensor 2 (m.s^-1)")
+#
+#     host.plot(time_axis, activity, label="activity (first sensor)")
+#     par1.plot(time_axis, ss, label="signal strenght (dB)")
+#     par2.plot(time_axis, bat, label="battery level (V)")
+#     par3.plot(time_axis, xmin, label="xmin")
+#     par3.plot(time_axis, xmax, label="xmax")
+#     par3.plot(time_axis, ymin, label="ymin")
+#     par3.plot(time_axis, ymax, label="ymax")
+#     par3.plot(time_axis, zmin, label="zmin")
+#     par3.plot(time_axis, zmax, label="zmax")
+#
+#     host.legend()
+#     plt.draw()
+#     plt.show()
+
+
+def export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowymax, rowzmin, rowzmax, out_dir, farm_id, time_axis, i_c, i_t):
     print("export_tranponder_traces %d/%d..." % (i_c, i_t))
     export_dir = out_dir + "/transponder_export"
     create_rec_dir(export_dir)
     plt.clf()
-    activity = row[:-4].values
+
+    activity = row[:-5].values
+    ss = rowss[:-5].values
+    bat = rowbat[:-5].values
+    xmin = rowxmin[:-5].values
+    xmax = rowxmax[:-5].values
+    ymin = rowymin[:-5].values
+    ymax = rowymax[:-5].values
+    zmin = rowzmin[:-5].values
+    zmax = rowzmax[:-5].values
+
     entropy = row["entropy"]
     id = row["id"].split(" ")[0]
-    fig, ax = plt.subplots(figsize=(19.20, 10.80))
-    ax.bar(time_axis, activity)
-    xlabel = "Time (days)"
-    ylabel = "Activity count"
-    ax.set(xlabel=xlabel, ylabel=ylabel)
-    ax.set_title("%s activity output of transponder %s entropy of entire trace=%.4f" % (farm_id, id, entropy))
-    #plt.show()
+    # fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    # ax.plot(time_axis, activity, label="activity (first sensor)")
+    # ax.plot(time_axis, ss, label="signal strenght (dB)")
+    # ax.plot(time_axis, bat, label="battery level (V)")
+    # ax.plot(time_axis, xmin, label="xmin")
+    # ax.plot(time_axis, xmax, label="xmax")
+    # ax.plot(time_axis, ymin, label="ymin")
+    # ax.plot(time_axis, ymax, label="ymax")
+    # ax.plot(time_axis, zmin, label="zmin")
+    # ax.plot(time_axis, zmax, label="zmax")
+    #
+    # xlabel = "Time (days)"
+    # ylabel = "Activity count"
+    # ax.set(xlabel=xlabel, ylabel=ylabel)
+    # ax.set_title("%s activity output of transponder %s entropy of entire trace=%.4f" % (farm_id, id, entropy))
+    # #plt.show()
+    # filename = "%s_%.4f_%s" % (farm_id, entropy, id)
+    # filename = filename.replace(".", "_").replace("*", "") + ".png"
+    # filepath = "%s/%s" % (export_dir, filename)
+    # print('saving fig...')
+    # fig.savefig(filepath)
+    # print("saved!")
+    # fig.clear()
+    # plt.close(fig)
+    plt.figure(figsize=(19.20, 10.80))
+    host = host_subplot(111, axes_class=AA.Axes)
+    plt.subplots_adjust(right=0.75)
+
+    par1 = host.twinx()
+    par2 = host.twinx()
+    # par3 = host.twinx()
+
+    offset = 60
+    new_fixed_axis = par1.get_grid_helper().new_fixed_axis
+    par1.axis["right"] = new_fixed_axis(loc="right", axes=par1,
+                                        offset=(0, 0))
+    par2.axis["right"].toggle(all=True)
+
+    new_fixed_axis2 = par2.get_grid_helper().new_fixed_axis
+    par2.axis["right"] = new_fixed_axis2(loc="right", axes=par2,
+                                        offset=(offset, 0))
+    par2.axis["right"].toggle(all=True)
+
+    # new_fixed_axis3 = par3.get_grid_helper().new_fixed_axis
+    # par3.axis["right"] = new_fixed_axis3(loc="right", axes=par3,
+    #                                     offset=(offset*2, 0))
+    # par3.axis["right"].toggle(all=True)
+
+    host.set_xlabel("Time (days)")
+    host.set_ylabel("activity (first sensor)")
+    par1.set_ylabel("signal strenght (dB)")
+    par2.set_ylabel("magnitude sensor 2 sqrt(x^2+y^2+z^2)")
+    # par3.set_ylabel("acceleration sensor 2 (m.s^-1)")
+
+    host.plot(time_axis, activity, label="activity (first sensor)")
+    par1.plot(time_axis, ss, label="signal strenght (dB)")
+    # par2.plot(time_axis, bat, label="battery level (V)")
+
+    amin = xmin * xmin + ymin * ymin + zmin * zmin
+    s2min = np.sqrt(amin.tolist())
+    amax = xmax * xmax + ymax * ymax + zmax * zmax
+    s2max = np.sqrt(amax.tolist())
+
+    par2.plot(time_axis, s2min, c='black', label="sensor 2 min magnitude", linestyle='-')
+    par2.plot(time_axis, s2max, c='black', label="sensor 2 max magnitude", linestyle='--')
+
+    host.legend()
+    # plt.draw()
+    # plt.show()
     filename = "%s_%.4f_%s" % (farm_id, entropy, id)
     filename = filename.replace(".", "_").replace("*", "") + ".png"
     filepath = "%s/%s" % (export_dir, filename)
     print('saving fig...')
-    fig.savefig(filepath)
+    plt.savefig(filepath)
     print("saved!")
-    fig.clear()
-    plt.close(fig)
 
-def add_famacha_format_id_todf(df_raw, header, famacha_data):
+
+def add_famacha_format_id_todf(df_raw, header, famacha_data, s2=False):
     df_raw.columns = header
     df_raw["famacha"] = np.nan
-    df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data,))
+    df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data, s2))
     df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
-    df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+    if s2:
+        df_raw = df_raw.sort_values(['possible', 'entropy_s2'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+    else:
+        df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(
+            df_raw.shape[0])
+
     df_raw = df_raw.reset_index(drop=True)
     # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
     # print(df_raw)
@@ -304,13 +440,14 @@ def compute_magnitude(a_xmin, a_ymin, a_zmin):
     return magnitude
 
 
-def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR):
+def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, n_job):
     print("create_heatmap")
     print("progress create_heatmap %d/%d ..." % (idx, itot))
     # activity_list = []
     time_axis = None
     # animal_ids = []
     entropy_list = []
+    entropy_s2_list = []
     raw = []
     raw_e = []
     raw_m = []
@@ -329,22 +466,23 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
         # animal_ids.append(item[0])
         time_axis = item[k][1]
         entropy_list.append(item[k][2])
-        raw.append(item[k][3])
-        raw_e.append(item[k][4])
-        raw_m.append(item[k][5])
+        entropy_s2_list.append(item[k][3])
+        raw.append(item[k][4])
+        raw_e.append(item[k][5])
+        raw_m.append(item[k][6])
 
-        raw_bat.append(item[k][6])
-        raw_ss.append(item[k][7])
-        raw_xmin.append(item[k][8])
-        raw_xmax.append(item[k][9])
-        raw_ymin.append(item[k][10])
-        raw_ymax.append(item[k][11])
-        raw_zmin.append(item[k][12])
-        raw_zmax.append(item[k][13])
+        raw_bat.append(item[k][7])
+        raw_ss.append(item[k][8])
+        raw_xmin.append(item[k][9])
+        raw_xmax.append(item[k][10])
+        raw_ymin.append(item[k][11])
+        raw_ymax.append(item[k][12])
+        raw_zmin.append(item[k][13])
+        raw_zmax.append(item[k][14])
 
-        resolution = item[k][14]
-        wid = item[k][15]
-        range_id = item[k][16]
+        resolution = item[k][15]
+        wid = item[k][16]
+        range_id = item[k][17]
 
     df_raw = pd.DataFrame(raw, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
@@ -364,18 +502,19 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     header = [x for x in range(df_raw.shape[1])]
     header[-1] = "id"
-    header[-2] = "entropy"
+    header[-2] = "entropy_s2"
+    header[-3] = "entropy"
 
     print("add_famacha_format_id_todf... %d/%d ..." % (idx, itot))
     df_raw = add_famacha_format_id_todf(df_raw, header, famacha_data)
     df_raw_ss = add_famacha_format_id_todf(df_raw_ss, header, famacha_data)
     df_raw_bat = add_famacha_format_id_todf(df_raw_bat, header, famacha_data)
-    df_raw_xmin = add_famacha_format_id_todf(df_raw_xmin, header, famacha_data)
-    df_raw_xmax = add_famacha_format_id_todf(df_raw_xmax, header, famacha_data)
-    df_raw_ymin = add_famacha_format_id_todf(df_raw_ymin, header, famacha_data)
-    df_raw_ymax = add_famacha_format_id_todf(df_raw_ymax, header, famacha_data)
-    df_raw_zmin = add_famacha_format_id_todf(df_raw_zmin, header, famacha_data)
-    df_raw_zmax = add_famacha_format_id_todf(df_raw_zmax, header, famacha_data)
+    df_raw_xmin = add_famacha_format_id_todf(df_raw_xmin, header, famacha_data, s2=True)
+    df_raw_xmax = add_famacha_format_id_todf(df_raw_xmax, header, famacha_data, s2=True)
+    df_raw_ymin = add_famacha_format_id_todf(df_raw_ymin, header, famacha_data, s2=True)
+    df_raw_ymax = add_famacha_format_id_todf(df_raw_ymax, header, famacha_data, s2=True)
+    df_raw_zmin = add_famacha_format_id_todf(df_raw_zmin, header, famacha_data, s2=True)
+    df_raw_zmax = add_famacha_format_id_todf(df_raw_zmax, header, famacha_data, s2=True)
     print("add_famacha_format_id_todf done %d/%d ..." % (idx, itot))
 
     # df_raw.columns = header
@@ -415,10 +554,19 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     df_raw_zmax = df_raw_zmax[df_raw_zmax["possible"] == False]
     print("ready for figure %d/%d ..." % (idx, itot))
     #########################################################################
-
-    # pool = Pool(processes=args.n_job)
-    # for index, row in df_raw.iterrows():
-    #     pool.apply_async(export_tranponder_traces, (row, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
+    print("exporting individual traces...")
+    # pool = Pool(processes=n_job)
+    # for (index, row), (indexss, rowss), (indexbat, rowbat),\
+    #     (indexxmin, rowxmin), (indexxmax, rowxmax),\
+    #     (indexymin, rowymin), (indexymax, rowymax),\
+    #     (indexzmin, rowzmin), (indexzmax, rowzmax) in zip(df_raw.iterrows(), df_raw_ss.iterrows(), df_raw_bat.iterrows(),
+    #                                                    df_raw_xmin.iterrows(), df_raw_xmax.iterrows(),
+    #                                                    df_raw_ymin.iterrows(), df_raw_ymax.iterrows(),
+    #                                                    df_raw_zmin.iterrows(), df_raw_zmax.iterrows()):
+    #     export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowymax, rowzmin,
+    #                                                 rowzmax, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
+        # pool.apply_async(export_tranponder_traces, (row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowymax, rowzmin,
+        #                                             rowzmax, out_DIR, farm_id, time_axis, index, df_raw.shape[0], ))
     # pool.close()
     # pool.join()
     # pool.terminate()
@@ -463,16 +611,16 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
-    a = df_raw.iloc[:, :-4].values
-    ss = df_raw_ss.iloc[:, :-4].values
-    bat = df_raw_bat.iloc[:, :-4].values
+    a = df_raw.iloc[:, :-5].values
+    ss = df_raw_ss.iloc[:, :-5].values
+    bat = df_raw_bat.iloc[:, :-5].values
 
-    a_xmin = df_raw_xmin.iloc[:, :-4].values
-    a_xmax = df_raw_xmax.iloc[:, :-4].values
-    a_ymin = df_raw_ymin.iloc[:, :-4].values
-    a_ymax = df_raw_ymax.iloc[:, :-4].values
-    a_zmin = df_raw_zmin.iloc[:, :-4].values
-    a_zmax = df_raw_zmax.iloc[:, :-4].values
+    a_xmin = df_raw_xmin.iloc[:, :-5].values
+    a_xmax = df_raw_xmax.iloc[:, :-5].values
+    a_ymin = df_raw_ymin.iloc[:, :-5].values
+    a_ymax = df_raw_ymax.iloc[:, :-5].values
+    a_zmin = df_raw_zmin.iloc[:, :-5].values
+    a_zmax = df_raw_zmax.iloc[:, :-5].values
 
     viridis = cm.get_cmap('viridis', 256)
     newcolors = viridis(np.linspace(0, 1, 256))
@@ -543,12 +691,14 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     ##magnitude
     min_magnitude = compute_magnitude(a_xmin, a_ymin, a_zmin)
+    mmin_log_anscombe = anscombe_m(np.log(min_magnitude, out=np.zeros_like(min_magnitude), where=(min_magnitude != 0)))
     im_min_magnitude = axs[3].imshow(min_magnitude, cmap=newcmp, aspect='auto',
                             interpolation="nearest",
                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_min_magnitude, ax=axs[3])
 
     max_magnitude = compute_magnitude(a_xmax, a_ymax, a_zmax)
+    mmax_log_anscombe = anscombe_m(np.log(max_magnitude, out=np.zeros_like(max_magnitude), where=(max_magnitude != 0)))
     im_max_magnitude = axs[4].imshow(max_magnitude, cmap=newcmp, aspect='auto',
                             interpolation="nearest",
                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
@@ -598,6 +748,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     fig.autofmt_xdate()
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
+    animal_ids_formatted_ent_s2 = df_raw_xmin["id"].values[::-1]
     # axs[0].set_yticklabels(animal_ids_formatted_ent)
     # axs[0].set_yticks(np.arange(len(animal_ids_formatted_ent)))
     # axs[1].set_yticklabels(animal_ids_formatted_ent)
@@ -605,6 +756,10 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     for p in range(n):
         axs[p].set_yticklabels(animal_ids_formatted_ent)
         axs[p].set_yticks(np.arange(len(animal_ids_formatted_ent)))
+        if p > 2:
+            axs[p].set_yticklabels(animal_ids_formatted_ent_s2)
+            axs[p].set_yticks(np.arange(len(animal_ids_formatted_ent_s2)))
+
     # axs[2].set_yticklabels(animal_ids_formatted_ent)
     # axs[2].set_yticks(np.arange(len(animal_ids_formatted_ent)))
 
@@ -673,8 +828,8 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # axs[6].set_title("accelerometer y max axis")
     # axs[7].set_title("accelerometer z min axis")
     # axs[8].set_title("accelerometer z max axis")
-    axs[3].set_title("Magnitute min")
-    axs[4].set_title("Magnitude max")
+    axs[3].set_title("(log) Magnitute min")
+    axs[4].set_title("(log) Magnitude max")
 
 
     patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
@@ -723,13 +878,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("Argument values:")
-    print(args.output)
-    print(args.activity_dir)
-    print(args.dataset_dir)
-    print(args.w)
-    print(args.res)
-    print(args.start)
-    print(args.end)
+    print("output=", args.output)
+    print("activity_dir=", args.activity_dir)
+    print("dataset_dir=", args.dataset_dir)
+    print("w=", args.w)
+    print("res=", args.res)
+    print("start=", args.start)
+    print("end=", args.end)
     print("njob=", args.n_job)
 
     try:
@@ -750,7 +905,6 @@ if __name__ == '__main__':
 
     farm_id, sampling, day_before_famacha_test = parse_options(dataset_file_path)
 
-    print("exporting individual traces...")
     out_DIR = args.output + "/" + farm_id
     create_rec_dir(out_DIR)
 
@@ -815,20 +969,17 @@ if __name__ == '__main__':
 
     ######################################################
     print("starting second pool.")
-    print(args.n_job)
-    print(len(DATA))
     # MAX_THREADC = 6
     MAX_THREADC = args.n_job
     njob = MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job
     pool2 = Pool(processes=njob)
     print("with njob=%d" % njob)
     r_ = list(range(len(DATA[0])))
-    print(len(r_))
     try:
         for i, k in enumerate(r_):
             print("feeding pool", i)
             # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
-            pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR))
+            pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
         pool2.close()
         pool2.join()
         pool2.terminate()
