@@ -5,6 +5,7 @@ import math
 import sys
 import matplotlib
 #matplotlib.use('Qt5Agg')
+matplotlib.use('Agg')
 from sys import platform as _platform
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
@@ -84,7 +85,7 @@ def median_(to_resample):
 
 def resample(df, animal_id, res=None):
     df.index = pd.to_datetime(df.date_str)
-    df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_, signal_strength=median_, battery_voltage=median_, xmin=sum_, xmax=sum_, ymin=sum_, ymax=sum_, zmin=sum_, zmax=sum_))
+    df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_, first_sensor_value_gain=sum_, signal_strength=median_, battery_voltage=median_, xmin=sum_, xmax=sum_, ymin=sum_, ymax=sum_, zmin=sum_, zmax=sum_))
     # df_resampled = df.resample(res).agg(sum_)
     # df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_, signal_strength=entropy_, battery_voltage=entropy_, xmin=entropy_, xmax=entropy_, ymin=entropy_, ymax=entropy_, zmin=entropy_, zmax=entropy_))
     # df_resampled_median = df.resample(res).agg(dict(first_sensor_value=median_, signal_strength=median_, battery_voltage=median_, xmin=median_, xmax=median_, ymin=median_, ymax=median_, zmin=median_, zmax=median_))
@@ -136,6 +137,8 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         # print(df_activity_w)
         # 411989 2015-11-04T02:29
         #159840
+        if df_activity_w.shape[0] != w+1:
+            continue
         entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
 
         e_xmin = scipy.stats.entropy(df_activity["xmin"].dropna().abs())
@@ -165,10 +168,12 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity_w, animal_id, res=res)
         time = df_resampled_activity.index.values
         activity = df_resampled_activity.first_sensor_value.values
+        activity_i = df_resampled_activity.first_sensor_value_gain.values
         activity_e = df_resampled_entropy.first_sensor_value.values
         activity_m = df_resampled_median.first_sensor_value.values
 
         merge_a = activity.tolist() + [entropy, entropy_s2, animal_id]
+        merge_a_i = activity_i.tolist() + [entropy, entropy_s2, animal_id]
         merge_e = activity_e.tolist() + [entropy, entropy_s2, animal_id]
         merge_m = activity_m.tolist() + [entropy, entropy_s2, animal_id]
         merge_bat = df_resampled_activity.battery_voltage.values.tolist() + [entropy, entropy_s2, animal_id]
@@ -182,7 +187,7 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         merge_zmin = df_resampled_activity.zmin.values.tolist() + [entropy, entropy_s2, animal_id]
         merge_zmax = df_resampled_activity.zmax.values.tolist() + [entropy, entropy_s2, animal_id]
 
-        data = [animal_id, time, entropy, entropy_s2, merge_a, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt, str(i)+"_"+str(i+w)]
+        data = [animal_id, time, entropy, entropy_s2, merge_a, merge_a_i, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, resolution, cpt, str(i)+"_"+str(i+w)]
         # if cpt > 14:
         #     break
         results.append(data)
@@ -230,6 +235,7 @@ def load_dataset(file):
 
 
 def create_annotation_matrix(df, time_axis, window_size):
+    print("create_annotation_matrix...")
     # annotation = np.random.rand(activity_list_matrix.shape[0], activity_list_matrix.shape[1])
     # annotation = np.ones(df.iloc[:, :-4].shape) * -1
     annotation = np.empty(df.iloc[:, :-4].shape, dtype="<U10")
@@ -449,6 +455,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     entropy_list = []
     entropy_s2_list = []
     raw = []
+    raw_i = []
     raw_e = []
     raw_m = []
     raw_bat = []
@@ -468,23 +475,25 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
         entropy_list.append(item[k][2])
         entropy_s2_list.append(item[k][3])
         raw.append(item[k][4])
-        raw_e.append(item[k][5])
-        raw_m.append(item[k][6])
+        raw_i.append(item[k][5])
+        raw_e.append(item[k][6])
+        raw_m.append(item[k][7])
 
-        raw_bat.append(item[k][7])
-        raw_ss.append(item[k][8])
-        raw_xmin.append(item[k][9])
-        raw_xmax.append(item[k][10])
-        raw_ymin.append(item[k][11])
-        raw_ymax.append(item[k][12])
-        raw_zmin.append(item[k][13])
-        raw_zmax.append(item[k][14])
+        raw_bat.append(item[k][8])
+        raw_ss.append(item[k][9])
+        raw_xmin.append(item[k][10])
+        raw_xmax.append(item[k][11])
+        raw_ymin.append(item[k][12])
+        raw_ymax.append(item[k][13])
+        raw_zmin.append(item[k][14])
+        raw_zmax.append(item[k][15])
 
-        resolution = item[k][15]
-        wid = item[k][16]
-        range_id = item[k][17]
+        resolution = item[k][16]
+        wid = item[k][17]
+        range_id = item[k][18]
 
     df_raw = pd.DataFrame(raw, dtype=object)
+    df_raw_i = pd.DataFrame(raw_i, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
     # df_raw_m = pd.DataFrame(raw_m, dtype=object)
 
@@ -507,6 +516,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     print("add_famacha_format_id_todf... %d/%d ..." % (idx, itot))
     df_raw = add_famacha_format_id_todf(df_raw, header, famacha_data)
+    df_raw_i = add_famacha_format_id_todf(df_raw_i, header, famacha_data)
     df_raw_ss = add_famacha_format_id_todf(df_raw_ss, header, famacha_data)
     df_raw_bat = add_famacha_format_id_todf(df_raw_bat, header, famacha_data)
     df_raw_xmin = add_famacha_format_id_todf(df_raw_xmin, header, famacha_data, s2=True)
@@ -542,6 +552,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # df_raw_m = df_raw_m.reset_index(drop=True)
 
     df_raw = df_raw[df_raw["possible"] == False]
+    df_raw_i = df_raw_i[df_raw_i["possible"] == False]
     # df_raw_e = df_raw_e[df_raw_e["possible"] == False]
     # df_raw_m = df_raw_m[df_raw_m["possible"] == False]
     df_raw_ss = df_raw_ss[df_raw_ss["possible"] == False]
@@ -554,7 +565,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     df_raw_zmax = df_raw_zmax[df_raw_zmax["possible"] == False]
     print("ready for figure %d/%d ..." % (idx, itot))
     #########################################################################
-    print("exporting individual traces...")
+    # print("exporting individual traces...")
     # pool = Pool(processes=n_job)
     # for (index, row), (indexss, rowss), (indexbat, rowbat),\
     #     (indexxmin, rowxmin), (indexxmax, rowxmax),\
@@ -574,7 +585,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
     ##########################################################################
 
-    n = 5
+    n = 2
     h = (df_raw.shape[0] * 30 * n) / 100
     w = 36.20 * 2
     fig, axs = plt.subplots(n, figsize=(w, h))
@@ -612,6 +623,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
 
     a = df_raw.iloc[:, :-5].values
+    a_i = df_raw_i.iloc[:, :-5].values
     ss = df_raw_ss.iloc[:, :-5].values
     bat = df_raw_bat.iloc[:, :-5].values
 
@@ -631,13 +643,20 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # im_a_log = axs[0].imshow(np.log10(a, out=np.zeros_like(a), where=(a != 0)), cmap=newcmp, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     # plt.colorbar(im_a_log, ax=axs[0])
 
-    anscombe_m = np.vectorize(anscombe)
-    a_log_anscombe = anscombe_m(np.log(a, out=np.zeros_like(a), where=(a != 0)))
+    # anscombe_m = np.vectorize(anscombe)
+    # a_log_anscombe = anscombe_m(np.log(a, out=np.zeros_like(a), where=(a != 0)))
 
-    im_a_log_anscomb = axs[0].imshow(a_log_anscombe, cmap=newcmp, aspect='auto',
+    im_a_log_anscomb = axs[0].imshow(a, cmap=newcmp, aspect='auto',
                                      interpolation="nearest",
                                      extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a_log_anscomb, ax=axs[0])
+    axs[0].xaxis_date()
+
+    im_a_i = axs[1].imshow(a_i, cmap=newcmp, aspect='auto',
+                                     interpolation="nearest",
+                                     extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    plt.colorbar(im_a_i, ax=axs[1])
+    axs[1].xaxis_date()
 
     # e = df_raw_e.iloc[:, :-4].values
     # im_e = axs[1].imshow(e, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
@@ -647,62 +666,62 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # im_m = axs[2].imshow(m, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     # plt.colorbar(im_m, ax=axs[2])
 
-    im_ss = axs[1].imshow(ss, cmap=newcmp, aspect='auto',
-                             interpolation="nearest",
-                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_ss, ax=axs[1])
-
-    im_bat = axs[2].imshow(bat, cmap=newcmp, aspect='auto',
-                             interpolation="nearest",
-                             extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_bat, ax=axs[2])
-
-    # im_xmin = axs[3].imshow(a_xmin, cmap=newcmp, aspect='auto',
+    # im_ss = axs[1].imshow(ss, cmap=newcmp, aspect='auto',
     #                          interpolation="nearest",
     #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # plt.colorbar(im_xmin, ax=axs[3])
+    # plt.colorbar(im_ss, ax=axs[1])
     #
-    # im_xmax = axs[4].imshow(a_xmax, cmap=newcmp, aspect='auto',
+    # im_bat = axs[2].imshow(bat, cmap=newcmp, aspect='auto',
     #                          interpolation="nearest",
     #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # # plt.colorbar(im_xmax, ax=axs[4])
+    # plt.colorbar(im_bat, ax=axs[2])
     #
-    # ###
-    # im_ymin = axs[5].imshow(a_ymin, cmap=newcmp, aspect='auto',
+    # # im_xmin = axs[3].imshow(a_xmin, cmap=newcmp, aspect='auto',
+    # #                          interpolation="nearest",
+    # #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_xmin, ax=axs[3])
+    # #
+    # # im_xmax = axs[4].imshow(a_xmax, cmap=newcmp, aspect='auto',
+    # #                          interpolation="nearest",
+    # #                          extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # # plt.colorbar(im_xmax, ax=axs[4])
+    # #
+    # # ###
+    # # im_ymin = axs[5].imshow(a_ymin, cmap=newcmp, aspect='auto',
+    # #                         interpolation="nearest",
+    # #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_ymin, ax=axs[5])
+    # #
+    # # im_ymax = axs[6].imshow(a_ymax, cmap=newcmp, aspect='auto',
+    # #                         interpolation="nearest",
+    # #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_ymax, ax=axs[6])
+    # #
+    # # ###
+    # # im_zmin = axs[7].imshow(a_zmin, cmap=newcmp, aspect='auto',
+    # #                         interpolation="nearest",
+    # #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # # plt.colorbar(im_zmin, ax=axs[7])
+    # #
+    # # im_zmax = axs[8].imshow(a_zmax, cmap=newcmp, aspect='auto',
+    # #                         interpolation="nearest",
+    # #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    # # plt.colorbar(im_zmax, ax=axs[8])
+    #
+    # ##magnitude
+    # min_magnitude = compute_magnitude(a_xmin, a_ymin, a_zmin)
+    # mmin_log_anscombe = anscombe_m(np.log(min_magnitude, out=np.zeros_like(min_magnitude), where=(min_magnitude != 0)))
+    # im_min_magnitude = axs[3].imshow(min_magnitude, cmap=newcmp, aspect='auto',
     #                         interpolation="nearest",
     #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # plt.colorbar(im_ymin, ax=axs[5])
+    # plt.colorbar(im_min_magnitude, ax=axs[3])
     #
-    # im_ymax = axs[6].imshow(a_ymax, cmap=newcmp, aspect='auto',
+    # max_magnitude = compute_magnitude(a_xmax, a_ymax, a_zmax)
+    # mmax_log_anscombe = anscombe_m(np.log(max_magnitude, out=np.zeros_like(max_magnitude), where=(max_magnitude != 0)))
+    # im_max_magnitude = axs[4].imshow(max_magnitude, cmap=newcmp, aspect='auto',
     #                         interpolation="nearest",
     #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # plt.colorbar(im_ymax, ax=axs[6])
-    #
-    # ###
-    # im_zmin = axs[7].imshow(a_zmin, cmap=newcmp, aspect='auto',
-    #                         interpolation="nearest",
-    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # # plt.colorbar(im_zmin, ax=axs[7])
-    #
-    # im_zmax = axs[8].imshow(a_zmax, cmap=newcmp, aspect='auto',
-    #                         interpolation="nearest",
-    #                         extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    # plt.colorbar(im_zmax, ax=axs[8])
-
-    ##magnitude
-    min_magnitude = compute_magnitude(a_xmin, a_ymin, a_zmin)
-    mmin_log_anscombe = anscombe_m(np.log(min_magnitude, out=np.zeros_like(min_magnitude), where=(min_magnitude != 0)))
-    im_min_magnitude = axs[3].imshow(min_magnitude, cmap=newcmp, aspect='auto',
-                            interpolation="nearest",
-                            extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_min_magnitude, ax=axs[3])
-
-    max_magnitude = compute_magnitude(a_xmax, a_ymax, a_zmax)
-    mmax_log_anscombe = anscombe_m(np.log(max_magnitude, out=np.zeros_like(max_magnitude), where=(max_magnitude != 0)))
-    im_max_magnitude = axs[4].imshow(max_magnitude, cmap=newcmp, aspect='auto',
-                            interpolation="nearest",
-                            extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_max_magnitude, ax=axs[4])
+    # plt.colorbar(im_max_magnitude, ax=axs[4])
 
     if resolution == "1T":
         for p in range(n):
@@ -718,7 +737,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
         # axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
     elif resolution == "1D":
         for p in range(n):
-            axs[p].xaxis_date()
+            # axs[p].xaxis_date()
             axs[p].xaxis.set_major_formatter(date_format)
             axs[p].xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
@@ -731,7 +750,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
         # axs[1].xaxis.set_major_locator(mdates.DayLocator(interval=7))
     else:
         for p in range(n):
-            axs[p].xaxis_date()
+            # axs[p].xaxis_date()
             axs[p].xaxis.set_major_formatter(date_format)
             axs[p].xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
@@ -817,19 +836,19 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (resolution, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-    axs[0].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    # axs[1].set_title("(log10 + anscombe) Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[0].set_title("Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("Imputed Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[1].set_title("signal strenght")
-    axs[2].set_title("battery voltage")
-    # axs[3].set_title("accelerometer x min axis")
-    # axs[4].set_title("accelerometer x max axis")
-    # axs[5].set_title("accelerometer y min axis")
-    # axs[6].set_title("accelerometer y max axis")
-    # axs[7].set_title("accelerometer z min axis")
-    # axs[8].set_title("accelerometer z max axis")
-    axs[3].set_title("(log) Magnitute min")
-    axs[4].set_title("(log) Magnitude max")
+    # axs[1].set_title("signal strenght")
+    # axs[2].set_title("battery voltage")
+    # # axs[3].set_title("accelerometer x min axis")
+    # # axs[4].set_title("accelerometer x max axis")
+    # # axs[5].set_title("accelerometer y min axis")
+    # # axs[6].set_title("accelerometer y max axis")
+    # # axs[7].set_title("accelerometer z min axis")
+    # # axs[8].set_title("accelerometer z max axis")
+    # axs[3].set_title("(log) Magnitute min")
+    # axs[4].set_title("(log) Magnitude max")
 
 
     patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
@@ -864,29 +883,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # plt.show()
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create heatmap of the heard with sample overlay.')
-    parser.add_argument('output',
-                        help='Directory path of heatmap output. (Directory will be created if does not exist)')
-    parser.add_argument('activity_dir', help='Parent directory of the activity data.')
-    parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
-    parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
-    parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
-    parser.add_argument('--start', type=int, default=0, help='start time in minute.')
-    parser.add_argument('--end', type=int, default=-1, help='end time in minute.')
-    parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
-    args = parser.parse_args()
-
-    print("Argument values:")
-    print("output=", args.output)
-    print("activity_dir=", args.activity_dir)
-    print("dataset_dir=", args.dataset_dir)
-    print("w=", args.w)
-    print("res=", args.res)
-    print("start=", args.start)
-    print("end=", args.end)
-    print("njob=", args.n_job)
-
+def main(args):
     try:
         dataset_file_path = glob.glob(args.dataset_dir + "/*.csv")[0].replace("\\", '/')
     except IndexError as e:
@@ -972,21 +969,46 @@ if __name__ == '__main__':
     # MAX_THREADC = 6
     MAX_THREADC = args.n_job
     njob = MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job
-    pool2 = Pool(processes=njob)
+    # pool2 = Pool(processes=njob)
     print("with njob=%d" % njob)
     r_ = list(range(len(DATA[0])))
-    try:
-        for i, k in enumerate(r_):
-            print("feeding pool", i)
-            # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
-            pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
-        pool2.close()
-        pool2.join()
-        pool2.terminate()
-    except Exception as e:
-        print("error in second pool.")
-        print(e)
+
+    for i, k in enumerate(r_):
+        print("feeding pool", i)
+        # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
+        create_heatmap(DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job)
+    #     pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
+    # pool2.close()
+    # pool2.join()
+    # pool2.terminate()
+
     print("done.")
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Create heatmap of the heard with sample overlay.')
+    parser.add_argument('output',
+                        help='Directory path of heatmap output. (Directory will be created if does not exist)')
+    parser.add_argument('activity_dir', help='Parent directory of the activity data.')
+    parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
+    parser.add_argument('--w', type=int, default=1440 * 3, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
+    parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
+    parser.add_argument('--start', type=int, default=0, help='start time in minute.')
+    parser.add_argument('--end', type=int, default=-1, help='end time in minute.')
+    parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
+    args = parser.parse_args()
+
+    print("Argument values:")
+    print("output=", args.output)
+    print("activity_dir=", args.activity_dir)
+    print("dataset_dir=", args.dataset_dir)
+    print("w=", args.w)
+    print("res=", args.res)
+    print("start=", args.start)
+    print("end=", args.end)
+    print("njob=", args.n_job)
+
+    main(args)
 
 
 
