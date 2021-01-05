@@ -130,19 +130,20 @@ import json
 # farm = "cedara"
 # base_station = 70091100056
 create_rec_dir(str(outDir))
-farm_id = str(dataDir).split('\\')[-1]
+# farm_id = str(dataDir).split('\\')[-1]
+farm_id = "delmas_70101200027"
 filename = "%s/activity_%s_dbft_%d_1min.json" % (outDir, farm_id, ndays)
 json.dump(targets_info, open(filename, 'w'))
 
 s = []
-meta = [0, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
-valid_idx = np.where(samples.valid == True)[0]
+#meta = [0, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
+#valid_idx = np.where(samples.valid == True)[0]
 for idx in range(totalS):
-    meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
-    meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
-    meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
-    meta[3] = samples.set[idx].ID
-    sample = samples.iA[idx].tolist() + [samples.df[idx]] + meta
+    # meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
+    # meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
+    # meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
+    # meta[3] = samples.set[idx].ID
+    sample = samples.iA[idx].tolist() + [samples.df[idx]] + [samples.set[idx].ID, datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')]
     s.append(sample)
 df = pd.DataFrame(s)
 df.to_csv(filename.replace(".json", ".csv"), sep=',', index=False, header=False)

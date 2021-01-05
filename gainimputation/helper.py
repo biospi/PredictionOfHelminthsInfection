@@ -1,4 +1,4 @@
-'''Utility functions for GAIN.
+'''Utility functions for gainimputation.
 
 (1) normalization: MinMax Normalizer
 (2) renormalization: Recover the data from normalzied data
@@ -110,7 +110,7 @@ def rounding (imputed_data, data_x):
   return rounded_data
 
 
-def rmse_loss (ori_data, imputed_data, data_m):
+def rmse_loss(ori_data, imputed_data, data_m):
   '''Compute RMSE loss between ori_data and imputed_data
   
   Args:
@@ -126,8 +126,8 @@ def rmse_loss (ori_data, imputed_data, data_m):
   imputed_data, _ = normalization(imputed_data, norm_parameters)
     
   # Only for missing values
-  nominator = np.sum(((1-data_m) * ori_data - (1-data_m) * imputed_data)**2)
-  denominator = np.sum(1-data_m)
+  nominator = np.nansum(((1-data_m) * ori_data - (1-data_m) * imputed_data)**2)
+  denominator = np.nansum(1-data_m)
   
   rmse = np.sqrt(nominator/float(denominator))
   

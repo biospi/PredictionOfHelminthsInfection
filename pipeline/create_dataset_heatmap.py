@@ -115,6 +115,15 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
 
+    df_activity["xmin"] = 0
+    df_activity["ymin"] = 0
+    df_activity["zmin"] = 0
+    df_activity["xmax"] = 0
+    df_activity["ymax"] = 0
+    df_activity["zmax"] = 0
+    df_activity["signal_strength"] = 0
+    df_activity["battery_voltage"] = 0
+
     #w = 1440 * 3
     if w is None or w < 0:
         w = df_activity.shape[0]
@@ -205,30 +214,33 @@ def get_start_end_date(file, i, nfiles):
 
 
 def load_dataset(file):
-    data_frame = pd.read_csv(file, sep=",")
+    data_frame = pd.read_csv(file, sep=",", header=None)
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    hearder[-19] = "label"
-    hearder[-18] = "elem_in_row"
-    hearder[-17] = "date1"
-    hearder[-16] = "date2"
-    hearder[-15] = "serial"
-    hearder[-14] = "famacha_score"
-    hearder[-13] = "previous_famacha_score"
-    hearder[-12] = "previous_famacha_score2"
-    hearder[-11] = "previous_famacha_score3"
-    hearder[-10] = "previous_famacha_score4"
-
-    hearder[-9] = "dtf1"
-    hearder[-8] = "dtf2"
-    hearder[-7] = "dtf3"
-    hearder[-6] = "dtf4"
-    hearder[-5] = "dtf5"
-
-    hearder[-4] = "nd1"
-    hearder[-3] = "nd2"
-    hearder[-2] = "nd3"
-    hearder[-1] = "nd4"
+    # hearder[-19] = "label"
+    # hearder[-18] = "elem_in_row"
+    # hearder[-17] = "date1"
+    # hearder[-16] = "date2"
+    # hearder[-15] = "serial"
+    # hearder[-14] = "famacha_score"
+    # hearder[-13] = "previous_famacha_score"
+    # hearder[-12] = "previous_famacha_score2"
+    # hearder[-11] = "previous_famacha_score3"
+    # hearder[-10] = "previous_famacha_score4"
+    #
+    # hearder[-9] = "dtf1"
+    # hearder[-8] = "dtf2"
+    # hearder[-7] = "dtf3"
+    # hearder[-6] = "dtf4"
+    # hearder[-5] = "dtf5"
+    #
+    # hearder[-4] = "nd1"
+    # hearder[-3] = "nd2"
+    # hearder[-2] = "nd3"
+    # hearder[-1] = "nd4"
+    hearder[-3] = "label"
+    hearder[-2] = "serial"
+    hearder[-1] = "dtf1"
 
     data_frame.columns = hearder
     return data_frame
@@ -995,7 +1007,7 @@ if __name__ == '__main__':
     parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
     parser.add_argument('--start', type=int, default=0, help='start time in minute.')
     parser.add_argument('--end', type=int, default=-1, help='end time in minute.')
-    parser.add_argument('--n_job', type=int, default=1, help='Number of thread to use.')
+    parser.add_argument('--n_job', type=int, default=6, help='Number of thread to use.')
     args = parser.parse_args()
 
     print("Argument values:")

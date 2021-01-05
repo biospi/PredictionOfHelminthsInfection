@@ -1,6 +1,6 @@
-'''GAIN function.
+'''gainimputation function.
 Date: 2020/02/28
-Reference: J. Yoon, J. Jordon, M. van der Schaar, "GAIN: Missing Data 
+Reference: J. Yoon, J. Jordon, M. van der Schaar, "gainimputation: Missing Data
            Imputation using Generative Adversarial Nets," ICML, 2018.
 Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 Contact: jsyoon0823@gmail.com
@@ -9,22 +9,25 @@ Contact: jsyoon0823@gmail.com
 # Necessary packages
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
-
+import PyQt5
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 tf.disable_v2_behavior()
 import numpy as np
 from tqdm import tqdm
 
-from gain.helper import normalization, renormalization, rounding
-from gain.helper import xavier_init
-from gain.helper import binary_sampler, uniform_sampler, sample_batch_index
+from gainimputation.helper import normalization, renormalization, rounding
+from gainimputation.helper import xavier_init
+from gainimputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 
 
-def gain (data_x, gain_parameters):
+def gain(data_x, gain_parameters, outpath):
   '''Impute missing values in data_x
   
   Args:
     - data_x: original data with missing values
-    - gain_parameters: GAIN network parameters:
+    - gain_parameters: gainimputation network parameters:
       - batch_size: Batch size
       - hint_rate: Hint rate
       - alpha: Hyperparameter
@@ -52,7 +55,7 @@ def gain (data_x, gain_parameters):
   norm_data, norm_parameters = normalization(data_x)
   norm_data_x = np.nan_to_num(norm_data, 0)
   
-  ## GAIN architecture   
+  ## gainimputation architecture
   # Input placeholders
   # Data vector
   X = tf.placeholder(tf.float32, shape = [None, dim])
@@ -86,7 +89,7 @@ def gain (data_x, gain_parameters):
   
   theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
   
-  ## GAIN functions
+  ## gainimputation functions
   # Generator
   def generator(x,m):
     # Concatenate Mask and Data
@@ -107,7 +110,7 @@ def gain (data_x, gain_parameters):
     D_prob = tf.nn.sigmoid(D_logit)
     return D_prob
   
-  ## GAIN structure
+  ## gainimputation structure
   # Generator
   G_sample = generator(X, M)
  
@@ -117,7 +120,7 @@ def gain (data_x, gain_parameters):
   # Discriminator
   D_prob = discriminator(Hat_X, H)
   
-  ## GAIN loss
+  ## gainimputation loss
   D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) \
                                 + (1-M) * tf.log(1. - D_prob + 1e-8)) 
   
@@ -129,7 +132,7 @@ def gain (data_x, gain_parameters):
   D_loss = D_loss_temp
   G_loss = G_loss_temp + alpha * MSE_loss 
   
-  ## GAIN solver
+  ## gainimputation solver
   D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
   G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
   
@@ -138,6 +141,8 @@ def gain (data_x, gain_parameters):
   sess.run(tf.global_variables_initializer())
    
   # Start Iterations
+  D_loss_list = []
+  G_loss_list = []
   for it in tqdm(range(iterations)):    
       
     # Sample batch
@@ -155,10 +160,31 @@ def gain (data_x, gain_parameters):
       
     _, D_loss_curr = sess.run([D_solver, D_loss_temp], 
                               feed_dict = {M: M_mb, X: X_mb, H: H_mb})
+    D_loss_list.append(D_loss_curr)
     _, G_loss_curr, MSE_loss_curr = \
     sess.run([G_solver, G_loss_temp, MSE_loss],
              feed_dict = {X: X_mb, M: M_mb, H: H_mb})
-            
+    G_loss_list.append(G_loss_curr)
+
+  epochs = list(range(iterations))
+  plt.clf()
+  fig = plt.figure()
+  plt.plot(epochs, G_loss_list)
+  plt.title("Generator error function")
+  plt.xlabel('epochs')
+  plt.ylabel('loss')
+  fig.savefig(outpath +'/generator_loss.jpg')
+
+  fig = plt.figure()
+  plt.plot(epochs, D_loss_list)
+  plt.title("Discriminator error function")
+  plt.xlabel('epochs')
+  plt.ylabel('loss')
+  fig.savefig(outpath + '/discriminator_loss.jpg')
+  plt.clf()
+
+
+
   ## Return imputed data      
   Z_mb = uniform_sampler(0, 0.01, no, dim) 
   M_mb = data_m

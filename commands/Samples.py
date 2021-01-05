@@ -117,17 +117,17 @@ class ActivityFile:
             print("Loading Activity from file: ", self.files[idx])
             dataFrame = pd.read_csv(self.files[idx])
 
-            xmin = dataFrame.loc[:, 'xmin']
-            xmax = dataFrame.loc[:, 'xmax']
-            ymin = dataFrame.loc[:, 'ymin']
-            ymax = dataFrame.loc[:, 'ymax']
-            zmin = dataFrame.loc[:, 'zmin']
-            zmax = dataFrame.loc[:, 'zmax']
+            # xmin = dataFrame.loc[:, 'xmin']
+            # xmax = dataFrame.loc[:, 'xmax']
+            # ymin = dataFrame.loc[:, 'ymin']
+            # ymax = dataFrame.loc[:, 'ymax']
+            # zmin = dataFrame.loc[:, 'zmin']
+            # zmax = dataFrame.loc[:, 'zmax']
+            #
+            # magnitude_min = math.sqrt(xmin * xmin + ymin * ymin + zmin * zmin)
+            # magnitude_max = math.sqrt(xmax * xmax + ymax * ymax + zmax * zmax)
 
-            magnitude_min = math.sqrt(xmin * xmin + ymin * ymin + zmin * zmin)
-            magnitude_max = math.sqrt(xmax * xmax + ymax * ymax + zmax * zmax)
-
-            atrace = np.array(dataFrame.loc[:, 'first_sensor_value'])
+            atrace = np.array(dataFrame.loc[:, 'first_sensor_value_gain'])
             atime = np.array(dataFrame.loc[:, 'timestamp'])
             animalTrace.append(Activity(self.ID[0, idx], atrace, atime))
         return animalTrace
@@ -140,19 +140,19 @@ class ActivityFile:
         idx = np.where(self.ID == _ID)[1][0]
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
-        atrace = np.array(dataFrame.loc[:, 'first_sensor_value'])
+        atrace = np.array(dataFrame.loc[:, 'first_sensor_value_gain'])
 
-        xmin = dataFrame.loc[:, 'xmin']
-        xmax = dataFrame.loc[:, 'xmax']
-        ymin = dataFrame.loc[:, 'ymin']
-        ymax = dataFrame.loc[:, 'ymax']
-        zmin = dataFrame.loc[:, 'zmin']
-        zmax = dataFrame.loc[:, 'zmax']
-
-        magnitude_min = np.sqrt(xmin * xmin + ymin * ymin + zmin * zmin)
-        magnitude_max = np.sqrt(xmax * xmax + ymax * ymax + zmax * zmax)
-
-        atrace = np.array(magnitude_max)
+        # xmin = dataFrame.loc[:, 'xmin']
+        # xmax = dataFrame.loc[:, 'xmax']
+        # ymin = dataFrame.loc[:, 'ymin']
+        # ymax = dataFrame.loc[:, 'ymax']
+        # zmin = dataFrame.loc[:, 'zmin']
+        # zmax = dataFrame.loc[:, 'zmax']
+        #
+        # magnitude_min = np.sqrt(xmin * xmin + ymin * ymin + zmin * zmin)
+        # magnitude_max = np.sqrt(xmax * xmax + ymax * ymax + zmax * zmax)
+        #
+        # atrace = np.array(magnitude_max)
 
         atime = np.array(dataFrame.loc[:, 'timestamp'])
         return Activity(self.ID[0, idx], atrace, atime)

@@ -56,15 +56,16 @@ def parse_xyz_acc_str(input_str):
     zmin = np.nan
     zmax = np.nan
     if len(input_str) == 0:
-        return xmin, xmax, ymin, ymax, zmin, zmax
+        return xmin, ymin, zmin, xmax, ymax, zmax
     split = input_str.split(':')
     if len(split) != 6:
-        return xmin, xmax, ymin, ymax, zmin, zmax
+        return xmin, ymin, zmin, xmax, ymax, zmax
     xmin = int(split[0])
-    xmax = int(split[1])
-    ymin = int(split[2])
-    ymax = int(split[3])
-    zmin = int(split[4])
+    ymin = int(split[1])
+    zmin = int(split[2])
+
+    xmax = int(split[3])
+    ymax = int(split[4])
     zmax = int(split[5])
     return xmin, xmax, ymin, ymax, zmin, zmax
 
@@ -113,26 +114,26 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
                     #     break
                     try:
 
-                        row_values = []
+                        # row_values = []
+                        #
+                        # if 'Msinga' in path:
+                        #     if row_values.count("") == 2:
+                        #         first = row_values[0:5]
+                        #         second = row_values[7:12]
+                        #         print(first, second)
+                        #         row_values.append(first)
+                        #         row_values.append(second)
+                        #     if row_values.count("") == 3:
+                        #         first = row_values[0:5]
+                        #         second = row_values[8:13]
+                        #         print(first, second)
+                        #         row_values.append(first)
+                        #         row_values.append(second)
+                        # else:
+                        #     row_values.append(
+                        #         [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)])
 
-                        if 'Msinga' in path:
-                            if row_values.count("") == 2:
-                                first = row_values[0:5]
-                                second = row_values[7:12]
-                                print(first, second)
-                                row_values.append(first)
-                                row_values.append(second)
-                            if row_values.count("") == 3:
-                                first = row_values[0:5]
-                                second = row_values[8:13]
-                                print(first, second)
-                                row_values.append(first)
-                                row_values.append(second)
-                        else:
-                            row_values.append(
-                                [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)])
-
-
+                        row_values = [sheet.cell(row_index, col_index).value for col_index in xrange(0, sheet.ncols)]
                         if len(row_values) == 0:
                             continue
                         # print(row_values)
@@ -338,7 +339,7 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
 
                 store.append('/', value=pd.concat(df), format='t', append=True,
                              data_columns=['timestamp', 'control_station', 'serial_number', 'signal_strength',
-                                           'battery_voltage', 'first_sensor_value', 'xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax'])
+                                           'battery_voltage', 'first_sensor_value', 'xmin', 'ymin', 'zmin', 'xmax', 'ymax', 'zmax'])
 
                 # del table_row
                 # table_f.flush()
