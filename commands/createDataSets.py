@@ -62,7 +62,7 @@ famachaHerd.removeMissing()
 # Load only data based on Famacha data.
 samples = SampleSet()
 
-ndays = 1
+ndays = 6
 samples.generateSet(famachaHerd, activityData, ndays)
 
 

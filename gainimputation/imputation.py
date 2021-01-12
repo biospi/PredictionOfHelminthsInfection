@@ -298,7 +298,7 @@ if __name__ == '__main__':
       default=0.0,
       type=float)
   parser.add_argument('--n_job', type=int, default=2, help='Number of thread to use.')
-  parser.add_argument('--n_top_traces', type=int, default=17, help='select n traces with highest entropy (<= 0 number to select all traces)')
+  parser.add_argument('--n_top_traces', type=int, default=-17, help='select n traces with highest entropy (<= 0 number to select all traces)')
   parser.add_argument('--enable_anscombe', type=bool, default=True)
   parser.add_argument('--export_csv', type=bool, default=True)
   args = parser.parse_args() 

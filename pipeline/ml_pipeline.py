@@ -179,14 +179,20 @@ def filter_by_entropy(df, thresh=4):
         label = df.iloc[i, -2]
         # target_mean = df.iloc[i+1, -1]
         # target_median = df.iloc[i+2, -1]
-        # h = entropy2(row)
-        # print(row.max())
-        if row.max() > anscombe(0)*2:
-        # if h > thresh:
-            sample = row.values.tolist()
-            sample.append(label)
-            sample.append(target)
-            filtered_samples.append(sample)
+        h = entropy2(row.astype(int))
+
+        if h < 0.1:
+            continue
+
+        print(h)
+
+        if row.max() < 2:
+            continue
+
+        sample = row.values.tolist()
+        sample.append(label)
+        sample.append(target)
+        filtered_samples.append(sample)
 
             # sample_mean = row_mean.values.tolist()
             # sample_mean.append(target_mean)
@@ -292,15 +298,16 @@ def create_rec_dir(path):
             os.makedirs(dir_path)
 
 
-def plot_groups(graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target', ntraces=1, idx_healthy=None, idx_unhealthy=None,
+def plot_groups(class_healthy, class_unhealthy, graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target',
+                ntraces=1, idx_healthy=None, idx_unhealthy=None,
                 show_max=True, show_min=False, show_mean=True, show_median=True, stepid=0):
     """Plot all rows in dataframe for each class Health or Unhealthy.
 
     Keyword arguments:
     df -- input dataframe containing samples (activity data, label/target)
     """
-    df_healthy = df[df["target"] == 1].iloc[:, :-1].values
-    df_unhealthy = df[df["target"] == 2].iloc[:, :-1].values
+    df_healthy = df[df["target"] == class_healthy].iloc[:, :-1].values
+    df_unhealthy = df[df["target"] == class_unhealthy].iloc[:, :-1].values
 
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(34.80, 7.20))
@@ -374,9 +381,9 @@ def plot_groups(graph_outputdir, df, title="title", xlabel='xlabel', ylabel='tar
     plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
-    print('saving fig...')
+    # print('saving fig...')
     fig.savefig(filepath)
-    print("saved!")
+    # print("saved!")
     fig.clear()
     plt.close(fig)
 
@@ -424,39 +431,12 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
 
 def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
-    # df = pd.read_csv(fname, nrows=1, sep=",", header=None, error_bad_lines=False)
-    # # print(df)
-    # type_dict = find_type_for_mem_opt(df)
-
+    class_healthy = 1
+    class_unhealthy = 4
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
-    # print("shape before removal of duplicates=", data_frame.shape)
-    # data_frame = data_frame.drop_duplicates()
-    # print("shape after removal of duplicates=", data_frame.shape)
-    # print(data_frame)
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    # hearder[-19] = "label"
-    # hearder[-18] = "elem_in_row"
-    # hearder[-17] = "date1"
-    # hearder[-16] = "date2"
-    # hearder[-15] = "serial"
-    # hearder[-14] = "famacha_score"
-    # hearder[-13] = "previous_famacha_score"
-    # hearder[-12] = "previous_famacha_score2"
-    # hearder[-11] = "previous_famacha_score3"
-    # hearder[-10] = "previous_famacha_score4"
-    #
-    # hearder[-9] = "dtf1"
-    # hearder[-8] = "dtf2"
-    # hearder[-7] = "dtf3"
-    # hearder[-6] = "dtf4"
-    # hearder[-5] = "dtf5"
-    #
-    # hearder[-4] = "nd1"
-    # hearder[-3] = "nd2"
-    # hearder[-2] = "nd3"
-    # hearder[-1] = "nd4"
 
     hearder[-3] = 'label'
     hearder[-2] = 'id'
@@ -486,6 +466,11 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame = filter_by_entropy(data_frame)
     print(data_frame)
 
+    class_count = {}
+    for k in label_series.keys():
+        class_count[label_series[k]+"_"+str(k)] = data_frame[data_frame['target'] == k].shape[0]
+    print(class_count)
+
     data_frame_no_norm = data_frame
 
     # if enable_downsample_df:
@@ -509,7 +494,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     plot_time_pca(data_frame_no_norm, graph_outputdir, label_series, title="PCA time domain before normalisation")
 
     ntraces = 2
-    idx_healthy, idx_unhealthy = plot_groups(graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
+    idx_healthy, idx_unhealthy = plot_groups(class_healthy, class_unhealthy, graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
                                              ylabel="activity", ntraces=ntraces)
     # idx_healthy = [1, 17]
     # idx_unhealthy = [47, 5]
@@ -539,7 +524,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
+    data_frame_cwt_no_norm, _, _ = create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
                                                  title="Average cwt power of raw (no normalisation) samples", stepid=1,
                                                  hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
@@ -556,7 +541,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame_median_norm_cwt = None
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
-    return data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
+    return class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
 
 
@@ -912,13 +897,12 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title='title'):
 
 
 def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling,
-                       downsample_false_class, label_series,  y_col='target'):
+                       downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
     print("*******************************************************************")
     print(label_series)
-    class_healthy = 1
-    class_unhealthy = 4
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
-    data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+    if downsample_false_class:
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
     # data_frame['target'] = data_frame['target'].replace(class_unhealthy, 2)
     # print("downsample_false_class=", downsample_false_class)
     # print("*******************************************************************")
@@ -1017,12 +1001,12 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     scoring = {
         'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
         'roc_auc_score': make_scorer(roc_auc_score, average=None),
-        'precision_score0': make_scorer(precision_score, average=None, labels=[0]),
-        'precision_score1': make_scorer(precision_score, average=None, labels=[1]),
-        'recall_score0': make_scorer(recall_score, average=None, labels=[0]),
-        'recall_score1': make_scorer(recall_score, average=None, labels=[1]),
-        'f1_score0': make_scorer(f1_score, average=None, labels=[0]),
-        'f1_score1': make_scorer(f1_score, average=None, labels=[1])
+        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
     }
 
     param_str = "option_%s_downsample_%s_threshi_%d_threshz_%d_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (
@@ -1472,15 +1456,17 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     #                              random_state=0)
     # make_roc_curve(out_dir, clf_normalize_random, X, y, cv_normalize_random, param_str, thresh_i, thresh_z)
     # del scores
-    #
-    # df_report = pd.DataFrame(report_rows_list)
-    # filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-    #     output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
-    # if not os.path.exists(output_dir):
-    #     print("mkdir", output_dir)
-    #     os.makedirs(output_dir)
-    # df_report.to_csv(filename, sep=',', index=False)
-    # print("filename=", filename)
+
+    df_report = pd.DataFrame(report_rows_list)
+    df_report["class_0_label"] = label_series[class_healthy]
+    df_report["class_1_label"] = label_series[class_unhealthy]
+    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+        output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+    df_report.to_csv(filename, sep=',', index=False)
+    print("filename=", filename)
 
     #
     # exit(-1)
@@ -1651,7 +1637,7 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     # report["days"] = days
     # report["farm_id"] = farm_id
     # report_rows_list.append(report)
-    #
+
     # df_report = pd.DataFrame(report_rows_list)
     # filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_testsize_%d_%s.csv" % (
     # output_dir, farm_id, days, thresh_i, thresh_z, test_size, option)
@@ -1882,9 +1868,9 @@ def plot_time_pca(df_time_domain, output_dir, label_series, title="title", y_col
     plot_2d_space(X, y_label, filepath, label_series, title=title)
 
 
-def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
-    df_healthy = df_fft[df_fft["target"] == 1].iloc[:, :-1].values
-    df_unhealthy = df_fft[df_fft["target"] == 2].iloc[:, :-1].values
+def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
+    df_healthy = df_fft[df_fft["target"] == class_healthy].iloc[:, :-1].values
+    df_unhealthy = df_fft[df_fft["target"] == class_unhealthy].iloc[:, :-1].values
 
     plt.clf()
     fig, axs = plt.subplots(1, 3, figsize=(19.20, 7.20))
@@ -1892,12 +1878,12 @@ def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked,
 
     # df_h = df_unhealthy
     health_status = "Unhealthy"
-    if target == 1:
+    if target == class_healthy:
         health_status = "Healthy"
         # df_h = df_healthy
 
     ticks = get_time_ticks(len(activity))
-    axs[0].plot(ticks, activity, c="tab:orange" if target != 1 else "tab:blue")
+    axs[0].plot(ticks, activity, c="tab:orange" if target != class_healthy else "tab:blue")
     axs[0].set_title("Time domain signal " + health_status)
     axs[0].set(xlabel="Time", ylabel="activity")
     axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
@@ -1963,7 +1949,7 @@ def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked,
     # axs[1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     # axs[1].xaxis.set_major_locator(mdates.DayLocator())
 
-    axs[2].plot(fftfreqs, fft_power, label="individual", c="tab:orange" if target != 1 else "tab:blue")
+    axs[2].plot(fftfreqs, fft_power, label="individual", c="tab:orange" if target != class_healthy else "tab:blue")
     axs[2].plot(fftfreqs, np.mean(df_unhealthy, axis=0), label="Mean of UnHealthy group", linestyle="--", c="tab:red")
     axs[2].plot(fftfreqs, np.mean(df_healthy, axis=0), label="Mean of Healthy group", linestyle="--", c="tab:green")
 
@@ -1983,9 +1969,9 @@ def plot_cwt_power(df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked,
     filename = "%s_%d_cwt.png" % (target, idx)
     filepath = "%s/%s/" % (graph_outputdir, title.replace(" ", "_").replace("(", "").replace(")", ""))
     create_rec_dir(filepath)
-    print('saving fig...')
+    #print('saving fig...')
     fig.savefig(filepath+filename)
-    print("saved!")
+    #print("saved!")
     fig.clear()
     plt.close(fig)
 
@@ -2045,22 +2031,22 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
     plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
-    print('saving fig...')
+    #print('saving fig...')
     fig.savefig(filepath)
-    print("saved!")
+    #print("saved!")
     fig.clear()
     plt.close(fig)
 
 
-def plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
-    total_healthy = df_timedomain[df_timedomain["target"] == 1].shape[0]
-    total_unhealthy = df_timedomain[df_timedomain["target"] == 2].shape[0]
+def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+    total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
+    total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12.80, 7.20))
     fig.suptitle(title, fontsize=18)
 
-    df_healthy = df_timedomain[df_timedomain["target"] == 1].iloc[:, :-1].values
-    df_unhealthy = df_timedomain[df_timedomain["target"] == 2].iloc[:, :-1].values
+    df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-1].values
+    df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-1].values
     # ymin = 0
     # ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
     #
@@ -2171,9 +2157,9 @@ def plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_tim
     plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ","_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
-    print('saving fig...')
+    #print('saving fig...')
     fig.savefig(filepath)
-    print("saved!")
+    #print("saved!")
     fig.clear()
     plt.close(fig)
 
@@ -2240,7 +2226,7 @@ def get_n_largest_coefs(matrix, n=50):
     return f_array
 
 
-def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
+def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
     print("%d/%d" % (i, total))
     # wavelet_type = 'morlet'
     y = activity
@@ -2275,7 +2261,7 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
     # data_pca = PCA(n_components=pca_n_components).fit_transform(power_masked).reshape(1, -1).tolist()[0]
     # data_pca.append(target)
 
-    plot_cwt_power(df_fft, fftfreqs_, power_fft, coi, activity, power_masked,
+    plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs_, power_fft, coi, activity, power_masked,
                    power_cwt.copy(), coi_line_array, freqs, graph_outputdir, target,
                    entropy2(power_masked.flatten()[power_masked.flatten()>0]), i, title=title)
 
@@ -2306,14 +2292,14 @@ def compute_cwt(df_fft, activity, target, i, total,low_pass, high_pass, pca_n_co
 
     # return [data_pca, power_masked, target, freqs, df_data_pca]
 
-    return [data, power_cwt, target, freqs, coi_line_array]
+    return [data, power_masked, target, freqs, coi_line_array]
 
 
 def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
+def create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
                   low_pass=None, hi_pass_filter=None, pca_n_components=1, ntraces=None, n_process=6):
 
     # pool_cwt_group = Pool(processes=6)
@@ -2365,7 +2351,7 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     for i, row in enumerate(df_timedomain.iterrows()):
         target = row[1][-1]
         activity = row[1][0:-1].values
-        results_cwt.append(pool_cwt.apply_async(compute_cwt, (df_fft, activity, target, i, df_timedomain.shape[0], low_pass, hi_pass_filter, pca_n_components, graph_outputdir, title,)))
+        results_cwt.append(pool_cwt.apply_async(compute_cwt, (class_healthy, class_unhealthy, df_fft, activity, target, i, df_timedomain.shape[0], low_pass, hi_pass_filter, pca_n_components, graph_outputdir, title,)))
 
     pool_cwt.close()
     pool_cwt.join()
@@ -2386,7 +2372,7 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
 
         # df_cwt_pca_per_scale = res.get()[4]
         # df_cwt_pca_per_scale_list.append(df_cwt_pca_per_scale)
-        if power_target == 1:
+        if power_target == class_healthy:
             results_cwt_matrix_healthy.append(power_matrix)
             pca_healthy.append(features_flatten_sample)
         else:
@@ -2402,9 +2388,9 @@ def create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, ti
     if enable_anscomb:
         h_ma = get_anscombe(pd.DataFrame(h_m)).values
         uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
-        plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
     else:
-        plot_cwt_power_sidebyside(idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
 
     df_cwt = pd.DataFrame(features_flatten_sample_list, dtype=float)
 
@@ -2458,7 +2444,7 @@ if __name__ == "__main__":
     print("cwt_high_pass_filter=", cwt_high_pass_filter)
     print("cwt_low_pass_filter=", cwt_low_pass_filter)
     print("loading dataset...")
-    enable_downsample_df =True
+    enable_downsample_df =False
 
     # if os.path.exists(output_dir):
     #     print("purge %s..." % output_dir)
@@ -2499,7 +2485,7 @@ if __name__ == "__main__":
     #     pool.terminate()
     # else:
     for file in files:
-        data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
+        class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
         data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
@@ -2517,10 +2503,10 @@ if __name__ == "__main__":
         #                    sampling, enable_downsample_df, label_series)
 
         process_data_frame(output_dir, data_frame_cwt_no_norm, thresh_i, thresh_z, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
         process_data_frame(output_dir, data_frame_timed_no_norm, thresh_i, thresh_z, days, farm_id, "activity_no_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
         # process_data_frame(output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_median_norm", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
