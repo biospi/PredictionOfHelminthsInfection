@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 #from scipy.fft import fft
 from sklearn.model_selection import train_test_split
-from sklearn import preprocessing
+from sklearn import preprocessing, metrics
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
@@ -184,7 +184,7 @@ def filter_by_entropy(df, thresh=4):
         if h < 0.1:
             continue
 
-        print(h)
+        # print(h)
 
         if row.max() < 2:
             continue
@@ -765,11 +765,12 @@ def create_rec_dir(path):
             except FileExistsError as e:
                 print(e)
 
-def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, thresh_i, thresh_z):
+def plot_roc_range(ax, tprs, fprs, aucs, out_dir, classifier_name, fig):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
 
     mean_tpr = np.mean(tprs, axis=0)
+    mean_fpr = np.mean(fprs, axis=0)
     # mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     # std_auc = np.std(aucs)
@@ -794,43 +795,77 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, thre
            title="Receiver operating characteristic iteration")
     ax.legend(loc="lower right")
     # fig.show()
-    path = "%s/roc_curve/interpol_%d_zero_%d/png/" % (out_dir, thresh_i, thresh_z)
+    path = "%s/roc_curve/png/" % out_dir
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
     print(final_path)
     fig.savefig(final_path)
 
-    path = "%s/roc_curve/interpol_%d_zero_%d/svg/" % (out_dir, thresh_i, thresh_z)
+    path = "%s/roc_curve/svg/" % out_dir
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
     print(final_path)
     fig.savefig(final_path)
 
 
-def make_roc_curve(out_dir, classifier, X, y, cv, param_str, thresh_i, thresh_z):
-    print("make_roc_curve")
-
+def cross_val(out_dir, X, y, param_str, classifier, cv):
+    print("cross_val...")
+    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
     if isinstance(X, pd.DataFrame):
         X = X.values
     tprs = []
+    fprs = []
     aucs = []
-    mean_fpr = np.linspace(0, 1, 100)
+    bas = []
+    p_s_0 = []
+    p_s_1 = []
+    r_s_0 = []
+    r_s_1 = []
+    f1_s_0 = []
+    f1_s_1 = []
     plt.clf()
+    scores = {}
+    scores["classifier"] = clf_name
+
     fig, ax = plt.subplots(figsize=(19.20, 10.80))
     for i, (train, test) in enumerate(cv.split(X, y)):
+        print("training/testing fold %d/%d" % (i, cv.n_repeats*cv.get_n_splits()))
         classifier.fit(X[train], y[train])
-        viz = plot_roc_curve(classifier, X[test], y[test],
-                             label=None,
-                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
-        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-        interp_tpr[0] = 0.0
-        tprs.append(interp_tpr)
-        aucs.append(viz.roc_auc)
-        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
-    plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig, thresh_i, thresh_z)
+        y_true = y[test]
+        y_pred = classifier.predict(X[test])
+
+        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred, pos_label=1)
+        ax.plot(fpr, tpr, c="tab:blue", alpha=0.3)
+        tprs.append(tpr)
+        fprs.append(fpr)
+        auc = metrics.auc(fpr, tpr)
+        aucs.append(auc)
+        bas.append(balanced_accuracy_score(y_true, y_pred))
+        p_s = precision_score(y_true, y_pred, average=None)
+        p_s_0.append(p_s[0])
+        p_s_1.append(p_s[1])
+        r_s = recall_score(y_true, y_pred, average=None)
+        r_s_0.append(r_s[0])
+        r_s_1.append(r_s[1])
+        f1_s = f1_score(y_true, y_pred, average=None)
+        f1_s_0.append(f1_s[0])
+        f1_s_1.append(f1_s[1])
+        print(auc)
+
+    plot_roc_range(ax, tprs, fprs, aucs, out_dir, clf_name, fig)
     plt.close(fig)
     plt.clf()
+
+    scores["balanced_accuracy_score_mean"] = np.mean(bas)
+    scores["roc_auc_score_mean"] = np.mean(aucs)
+    scores["precision_score0_mean"] = np.mean(p_s_0)
+    scores["precision_score1_mean"] = np.mean(p_s_1)
+    scores["recall_score0_mean"] = np.mean(r_s_0)
+    scores["recall_score1_mean"] = np.mean(r_s_1)
+    scores["f1_score0_mean"] = np.mean(f1_s_0)
+    scores["f1_score1_mean"] = np.mean(f1_s_1)
+
+    return scores
 
 
 def plot_2d_space_TSNE(X, y, filename_2d_scatter):
@@ -896,7 +931,7 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title='title'):
     plt.clf()
 
 
-def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, option, n_splits, n_repeats, sampling,
+def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
     print("*******************************************************************")
     print(label_series)
@@ -1145,33 +1180,24 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                      random_state=0)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
+    # scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1, return_estimator=True)
+    # print(scores)
+    # exit(0)
+    # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+    #                                  random_state=0)
+    scores = cross_val(out_dir, X, y, param_str, clf_svc, cv_svc)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
     scores["class1"] = y[y == class_unhealthy].size
     scores["option"] = option
-    scores["thresh_i"] = thresh_i
-    scores["thresh_z"] = thresh_z
     scores["days"] = days
     scores["farm_id"] = farm_id
     scores["n_repeats"] = n_repeats
     scores["n_splits"] = n_splits
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
-    scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
     report_rows_list.append(scores)
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                     random_state=0)
-    make_roc_curve(out_dir, clf_svc, X, y, cv_svc, param_str, thresh_i, thresh_z)
     del scores
 
 
@@ -1274,34 +1300,19 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
     cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                          random_state=0)
-    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
+    # scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
+    scores = cross_val(out_dir, X, y, param_str, clf_std_svc, cv_std_svc)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
     scores["class1"] = y[y == class_unhealthy].size
     scores["option"] = option
-    scores["thresh_i"] = thresh_i
-    scores["thresh_z"] = thresh_z
     scores["days"] = days
     scores["farm_id"] = farm_id
     scores["n_repeats"] = n_repeats
     scores["n_splits"] = n_splits
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
-    scores["classifier"] = "->StandardScaler->SVC"
     scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
     report_rows_list.append(scores)
-
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
-    cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                         random_state=0)
-    make_roc_curve(out_dir, clf_std_svc, X, y, cv_std_svc, param_str, thresh_i, thresh_z)
     del scores
 
     # print('->MLP')
@@ -1460,8 +1471,8 @@ def process_data_frame(out_dir, data_frame, thresh_i, thresh_z, days, farm_id, o
     df_report = pd.DataFrame(report_rows_list)
     df_report["class_0_label"] = label_series[class_healthy]
     df_report["class_1_label"] = label_series[class_unhealthy]
-    filename = "%s/%s_classification_report_days_%d_threshi_%d_threshz_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-        output_dir, farm_id, days, thresh_i, thresh_z, option, downsample_false_class, sampling)
+    filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+        output_dir, farm_id, days, option, downsample_false_class, sampling)
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
@@ -2502,10 +2513,10 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "norm_cwt", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
 
-        process_data_frame(output_dir, data_frame_cwt_no_norm, thresh_i, thresh_z, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
+        process_data_frame(output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(output_dir, data_frame_timed_no_norm, thresh_i, thresh_z, days, farm_id, "activity_no_norm", n_splits, n_repeats,
+        process_data_frame(output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
         # process_data_frame(output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_median_norm", n_splits, n_repeats,
