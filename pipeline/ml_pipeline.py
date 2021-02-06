@@ -62,6 +62,9 @@ from sklearn.feature_selection import SelectKBest, chi2
 from sklearn.feature_selection import f_classif
 from astropy.convolution import convolve, Box1DKernel
 
+from plotnine import *
+from plotnine.data import mpg
+
 
 class SelectKBestWrapper(SelectKBest):
     def transform(self, X):
@@ -298,7 +301,7 @@ def create_rec_dir(path):
             os.makedirs(dir_path)
 
 
-def plot_groups(class_healthy, class_unhealthy, graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target',
+def plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target',
                 ntraces=1, idx_healthy=None, idx_unhealthy=None,
                 show_max=True, show_min=False, show_mean=True, show_median=True, stepid=0):
     """Plot all rows in dataframe for each class Health or Unhealthy.
@@ -334,9 +337,9 @@ def plot_groups(class_healthy, class_unhealthy, graph_outputdir, df, title="titl
         ax1.plot(ticks, df_healthy[i])
         ax1.set(xlabel=xlabel, ylabel=ylabel)
         if ntraces is None:
-            ax1.set_title("Healthy animals %d / displaying %d" % (df_healthy.shape[0], df_healthy.shape[0]))
+            ax1.set_title("Healthy(%s) animals %d / displaying %d" % (class_healthy_label, df_healthy.shape[0], df_healthy.shape[0]))
         else:
-            ax1.set_title("Healthy animals %d / displaying %d" % (df_healthy.shape[0], ntraces))
+            ax1.set_title("Healthy(%s) animals %d / displaying %d" % (class_healthy_label, df_healthy.shape[0], ntraces))
         ax1.set_ylim([ymin, ymax])
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax1.xaxis.set_major_locator(mdates.DayLocator())
@@ -347,9 +350,9 @@ def plot_groups(class_healthy, class_unhealthy, graph_outputdir, df, title="titl
         ax2.set(xlabel=xlabel, ylabel=ylabel)
         ax2.set_xticklabels(ticks, fontsize=12)
         if ntraces is None:
-            ax2.set_title("Unhealthy animals %d / displaying %d" % (df_unhealthy.shape[0], df_unhealthy.shape[0]))
+            ax2.set_title("Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], df_unhealthy.shape[0]))
         else:
-            ax2.set_title("Unhealthy animals %d / displaying %d" % (df_unhealthy.shape[0], ntraces))
+            ax2.set_title("Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], ntraces))
         ax2.set_ylim([ymin, ymax])
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax2.xaxis.set_major_locator(mdates.DayLocator())
@@ -459,6 +462,10 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)
+
+    class_healthy_label = label_series[class_healthy]
+    class_unhealthy_label = label_series[class_unhealthy]
+
     data_frame = data_frame.drop('label', 1)
 
     # data_frame = shuffle(data_frame)
@@ -472,6 +479,8 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     print(class_count)
 
     data_frame_no_norm = data_frame
+
+    plot_zeros_distrib(label_series, data_frame_no_norm)
 
     # if enable_downsample_df:
     #     data_frame_no_norm = downsample_df(data_frame_no_norm)
@@ -494,7 +503,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     plot_time_pca(data_frame_no_norm, graph_outputdir, label_series, title="PCA time domain before normalisation")
 
     ntraces = 2
-    idx_healthy, idx_unhealthy = plot_groups(class_healthy, class_unhealthy, graph_outputdir, data_frame_no_norm, title="Raw thresholded samples", xlabel="Time",
+    idx_healthy, idx_unhealthy = plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_no_norm, title="Raw imputed", xlabel="Time",
                                              ylabel="activity", ntraces=ntraces)
     # idx_healthy = [1, 17]
     # idx_unhealthy = [47, 5]
@@ -522,9 +531,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     #             xlabel="Time",
     #             ylabel="activity", idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=3, ntraces=ntraces)
 
-    concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
+    # concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm, _, _ = create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
+    data_frame_cwt_no_norm, _, _ = create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
                                                  title="Average cwt power of raw (no normalisation) samples", stepid=1,
                                                  hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
@@ -535,14 +544,64 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     #                                                           stepid=3, enable_anscomb=True, hi_pass_filter=hi_pass_filter,
     #                                                           low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
 
-    concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
+    # concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
 
     data_frame_median_norm = None
     data_frame_median_norm_cwt = None
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
+
+
+
     return class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
+
+
+def plot_zeros_distrib(label_series, data_frame_no_norm):
+    print("plot_zeros_distrib...")
+    data = {}
+    target_labels = []
+    z_prct = []
+
+    for index, row in data_frame_no_norm.iterrows():
+        a = row[:-1].values
+        label = label_series[row[-1]]
+
+        target_labels.append(label)
+        z_prct.append(np.sum(a == anscombe(0)) / len(a))
+
+        if label not in data.keys():
+            data[label] = a
+        else:
+            data[label] = np.append(data[label], a)
+    distrib = {}
+    for key, value in data.items():
+        zeros_count = np.sum(value == anscombe(0)) / len(value)
+        lcount = np.sum(data_frame_no_norm["target"] == {v: k for k, v in label_series.items()}[key])
+        distrib[str(key)+" (%d)" % lcount] = zeros_count
+
+    plt.bar(range(len(distrib)), list(distrib.values()), align='center')
+    plt.xticks(range(len(distrib)), list(distrib.keys()))
+    plt.title('Percentage of zeros in activity per sample')
+    plt.xlabel('Famacha samples (number of sample in class)')
+    plt.ylabel('Percentage of zero values in samples')
+    plt.show()
+    print(distrib)
+
+    df = pd.DataFrame.from_dict({'Percent of zeros': z_prct, 'Target': target_labels})
+    df.to_csv("z_prct_data")
+    g = (ggplot(df)  # defining what data to use
+     + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defining what variable to use
+     + geom_jitter()  # defining the type of plot to use
+     + stat_summary(geom="crossbar", color="black", width=0.2)
+     + theme(subplots_adjust={'right': 0.82})
+     )
+
+    fig = g.draw()
+    fig.tight_layout()
+    fig.show()
+    print("")
+
 
 
 def process_cross_farm(data_frame1, data_frame2, y_col='target'):
@@ -765,13 +824,12 @@ def create_rec_dir(path):
             except FileExistsError as e:
                 print(e)
 
-def plot_roc_range(ax, tprs, fprs, aucs, out_dir, classifier_name, fig):
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
 
     mean_tpr = np.mean(tprs, axis=0)
-    mean_fpr = np.mean(fprs, axis=0)
-    # mean_tpr[-1] = 1.0
+    mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     # std_auc = np.std(aucs)
     lo, hi = mean_confidence_interval(aucs)
@@ -806,66 +864,34 @@ def plot_roc_range(ax, tprs, fprs, aucs, out_dir, classifier_name, fig):
     final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
     print(final_path)
     fig.savefig(final_path)
+    return mean_auc
 
 
-def cross_val(out_dir, X, y, param_str, classifier, cv):
-    print("cross_val...")
-    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
+def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
+    print("make_roc_curve")
+
     if isinstance(X, pd.DataFrame):
         X = X.values
     tprs = []
-    fprs = []
     aucs = []
-    bas = []
-    p_s_0 = []
-    p_s_1 = []
-    r_s_0 = []
-    r_s_1 = []
-    f1_s_0 = []
-    f1_s_1 = []
+    mean_fpr = np.linspace(0, 1, 100)
     plt.clf()
-    scores = {}
-    scores["classifier"] = clf_name
-
-    fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    fig, ax = plt.subplots()
     for i, (train, test) in enumerate(cv.split(X, y)):
-        print("training/testing fold %d/%d" % (i, cv.n_repeats*cv.get_n_splits()))
         classifier.fit(X[train], y[train])
-        y_true = y[test]
-        y_pred = classifier.predict(X[test])
-
-        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred, pos_label=1)
-        ax.plot(fpr, tpr, c="tab:blue", alpha=0.3)
-        tprs.append(tpr)
-        fprs.append(fpr)
-        auc = metrics.auc(fpr, tpr)
-        aucs.append(auc)
-        bas.append(balanced_accuracy_score(y_true, y_pred))
-        p_s = precision_score(y_true, y_pred, average=None)
-        p_s_0.append(p_s[0])
-        p_s_1.append(p_s[1])
-        r_s = recall_score(y_true, y_pred, average=None)
-        r_s_0.append(r_s[0])
-        r_s_1.append(r_s[1])
-        f1_s = f1_score(y_true, y_pred, average=None)
-        f1_s_0.append(f1_s[0])
-        f1_s_1.append(f1_s[1])
-        print(auc)
-
-    plot_roc_range(ax, tprs, fprs, aucs, out_dir, clf_name, fig)
+        viz = plot_roc_curve(classifier, X[test], y[test],
+                             label=None,
+                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
     plt.close(fig)
     plt.clf()
-
-    scores["balanced_accuracy_score_mean"] = np.mean(bas)
-    scores["roc_auc_score_mean"] = np.mean(aucs)
-    scores["precision_score0_mean"] = np.mean(p_s_0)
-    scores["precision_score1_mean"] = np.mean(p_s_1)
-    scores["recall_score0_mean"] = np.mean(r_s_0)
-    scores["recall_score1_mean"] = np.mean(r_s_1)
-    scores["f1_score0_mean"] = np.mean(f1_s_0)
-    scores["f1_score1_mean"] = np.mean(f1_s_1)
-
-    return scores
+    return mean_auc
 
 
 def plot_2d_space_TSNE(X, y, filename_2d_scatter):
@@ -929,6 +955,19 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title='title'):
     # plt.show()
     plt.close(fig)
     plt.clf()
+
+
+def get_aucs(estimators, X, y):
+    aucs = []
+    for e in estimators:
+        y_pred = e.predict_proba(X)
+        y_true = y
+        for fold in range(y_pred.shape[1]):
+            y_p = y_pred[:, fold]
+            fpr, tpr, _ = metrics.roc_curve(y_true, y_p, pos_label=1)
+            auc = metrics.auc(fpr, tpr)
+            aucs.append(auc)
+    return aucs
 
 
 def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
@@ -1035,7 +1074,7 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
 
     scoring = {
         'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
-        'roc_auc_score': make_scorer(roc_auc_score, average=None),
+        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
         'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
         'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
         'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
@@ -1176,17 +1215,12 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
     # make_roc_curve(out_dir, clf_pls2_svm, X, y, cv_pls2_svm, param_str, thresh_i, thresh_z)
     # del scores
 
-    print('->SVC')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                     random_state=0)
-    # scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1, return_estimator=True)
-    # print(scores)
-    # exit(0)
-    # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-    #                                  random_state=0)
-    scores = cross_val(out_dir, X, y, param_str, clf_svc, cv_svc)
+    print('->StandardScaler->SVC')
+    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                         random_state=0)
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
+
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
     scores["class1"] = y[y == class_unhealthy].size
@@ -1195,8 +1229,54 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
     scores["farm_id"] = farm_id
     scores["n_repeats"] = n_repeats
     scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
+    scores["classifier"] = "->StandardScaler->SVC"
+    scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
+
+    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cv_std_svc, param_str)
+    scores["roc_auc_score_mean"] = aucs
+    report_rows_list.append(scores)
+    del scores
+
+    print('->SVC')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+                                     random_state=0)
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
+
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = option
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["n_repeats"] = n_repeats
+    scores["n_splits"] = n_splits
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cv_svc, param_str)
+    scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
 
@@ -1296,24 +1376,7 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
     #     print(e)
     #
 
-    print('->StandardScaler->SVC')
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
-    cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                         random_state=0)
-    # scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
-    scores = cross_val(out_dir, X, y, param_str, clf_std_svc, cv_std_svc)
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["option"] = option
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    scores["n_repeats"] = n_repeats
-    scores["n_splits"] = n_splits
-    scores["sampling"] = sampling
-    scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
-    report_rows_list.append(scores)
-    del scores
+
 
     # print('->MLP')
     # clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=(100, 10)))
@@ -2049,12 +2112,12 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
     plt.close(fig)
 
 
-def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12.80, 7.20))
-    fig.suptitle(title, fontsize=18)
+    # fig.suptitle(title, fontsize=18)
 
     df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-1].values
     df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-1].values
@@ -2084,7 +2147,7 @@ def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_u
     for i in idx_healthy:
         ax1.plot(ticks, df_healthy[i])
         ax1.set(xlabel="Time", ylabel="activity")
-        ax1.set_title("Healthy animals %d / displaying %d" % (total_healthy, len(idx_healthy)))
+        ax1.set_title("Healthy(%s) animals %d / displaying %d" % (class_healthy_label, total_healthy, len(idx_healthy)))
         ax1.set_ylim([ymin, ymax])
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax1.xaxis.set_major_locator(mdates.DayLocator())
@@ -2094,7 +2157,7 @@ def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_u
         ax2.set(xlabel="Time", ylabel="activity")
         ax2.set_yticks(ax2.get_yticks().tolist())
         ax2.set_xticklabels(ticks, fontsize=12)
-        ax2.set_title("Unhealthy animals %d / displaying %d" % (total_unhealthy, len(idx_unhealthy)))
+        ax2.set_title("Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, total_unhealthy, len(idx_unhealthy)))
         ax2.set_ylim([ymin, ymax])
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax2.xaxis.set_major_locator(mdates.DayLocator())
@@ -2119,7 +2182,7 @@ def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_u
     ax3.imshow(power_masked_healthy)
     ax3.plot(coi_line_array, linestyle="--", linewidth=3, c="white")
     ax3.set_aspect('auto')
-    ax3.set_title("Healthy animals elem wise average of %d cwts" % df_healthy.shape[0])
+    ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
     ax3.set_xlabel("Time")
     ax3.set_ylabel("Frequency")
     # ax3.set_yscale('log')
@@ -2148,7 +2211,7 @@ def plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_u
     ax4.imshow(power_masked_unhealthy)
     ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="white")
     ax4.set_aspect('auto')
-    ax4.set_title("Unhealthy animals elem wise average of %d cwts" % df_healthy.shape[0])
+    ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
     ax4.set_xlabel("Time")
     ax4.set_ylabel("Frequency")
     # ax4.set_yscale('log')
@@ -2263,7 +2326,7 @@ def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, tot
             fftfreqs_.append(f)
 
     coefs_cc = np.conj(coefs)
-    power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
 
     if high_pass is not None and high_pass > 0:
@@ -2310,7 +2373,7 @@ def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
+def create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
                   low_pass=None, hi_pass_filter=None, pca_n_components=1, ntraces=None, n_process=6):
 
     # pool_cwt_group = Pool(processes=6)
@@ -2399,9 +2462,9 @@ def create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, gr
     if enable_anscomb:
         h_ma = get_anscombe(pd.DataFrame(h_m)).values
         uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
-        plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
     else:
-        plot_cwt_power_sidebyside(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
 
     df_cwt = pd.DataFrame(features_flatten_sample_list, dtype=float)
 
@@ -2421,6 +2484,9 @@ def create_cwt_df(class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, gr
     # df_cwt_pca["label"] = df_cwt["label"]
 
     return df_cwt, results_cwt_matrix_healthy, results_cwt_matrix_unhealthy
+
+
+
 
 
 if __name__ == "__main__":

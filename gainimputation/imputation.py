@@ -13,6 +13,7 @@ from multiprocessing import Pool
 import pandas as pd
 
 import numpy as np
+np.random.seed(0) #for reproducability
 
 from gainimputation.gain import gain
 from gainimputation.helper import binary_sampler
@@ -20,13 +21,14 @@ from gainimputation.helper import rmse_loss
 from utils.Utils import create_rec_dir
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Qt5Agg')
 import matplotlib as mpl
-mpl.rcParams['agg.path.chunksize'] = 1000000000
+mpl.rcParams['agg.path.chunksize'] = 100000000000
 import matplotlib.dates as mdates
 import datetime as dt
 import scipy.stats
 from utils.Utils import anscombe
+import plotly.express as px
 
 
 def entropy_(to_resample):
@@ -57,42 +59,99 @@ def process_activity_data(file, i, nfiles, window):
     return animal_id, df_activity
 
 
-def plot_imputed_data(out, imputed_data_x, ori_data_x, ids, timestamps):
+def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori_data_x, ids, timestamps):
     print("plot_imputed_data...")
-    out = out + "/figures/"
+    out = out + "/figures/imp/"
     create_rec_dir(out)
     time_axis = np.array([dt.datetime.fromtimestamp(ts) for ts in timestamps])
-    for i in range(imputed_data_x.shape[1]):
 
-        plt.clf()
-        plt.cla()
-        fig, ax = plt.subplots(figsize=(39.20, 10.80))
-        imputed = imputed_data_x[:, i]
+    for i in range(imputed_data_x_li.shape[1]):
+
+
+        imputed_li = imputed_data_x_li[:, i]
+        imputed_gain = imputed_data_x_gain[:, i]
         original = ori_data_x[:, i]
+        raw = raw_data[:, i]
 
         nan_count = np.count_nonzero(np.isnan(original))
-        if nan_count == original.size or all(x == imputed[0] for x in imputed) \
+        if nan_count == original.size or all(x == imputed_li[0] for x in imputed_li) \
                 or all(x == original[0] for x in original):
             continue
 
         id = ids[i]
         date_format = mdates.DateFormatter('%d/%b/%Y %H:%M')
-        ax.xaxis_date()
-        ax.xaxis.set_major_formatter(date_format)
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=60))
-        ax.tick_params(axis='x', rotation=25)
-        plt.plot(time_axis, imputed, label="after gainimputation imputation", alpha=0.5)
-        plt.plot(time_axis, original, label="original", alpha=0.5)
-        plt.title(id)
-        plt.legend()
+        plt.clf()
+        plt.cla()
+        fig, ax = plt.subplots(3)
+        ax[1].xaxis_date()
+        ax[1].xaxis.set_major_formatter(date_format)
+        ax[1].xaxis.set_major_locator(mdates.DayLocator(interval=60))
+        ax[1].tick_params(axis='x', rotation=25)
+        w = 500
+        # ax[1].bar(time_axis[0:w], imputed_li[0:w], label="after li imputation", alpha=0.5, width=0.1)
+        # ax[1].bar(time_axis[0:w], original[0:w], label="original", alpha=0.5, width=0.1)
+        # ax[1].bar(time_axis[0:w], imputed_gain[0:w], label="after gain imputation", alpha=0.5, width=0.1)
 
-        filename = "%d.png" % id
+        ax[1].plot(list(range(w)), imputed_li[0:w], label="after li imputation", alpha=0.5, marker='o')
+        ax[1].plot(list(range(w)), original[0:w], label="original", alpha=0.5, marker='o')
+        ax[1].plot(list(range(w)), imputed_gain[0:w], label="after gain imputation", alpha=0.5, marker='o')
+
+        ax[1].set_title('Transformed activity before and after imputation')
+        ax[1].legend()
+
+        ax[2].plot(time_axis[0:w], np.abs(original[0:w] - imputed_gain[0:w]), label="original - gain", alpha=0.5, color='blue', linestyle='-')
+        ax[2].plot(time_axis[0:w], np.abs(original[0:w] - imputed_li[0:w]), label="original - linear interp", alpha=0.5, color='red', linestyle='-')
+        ax[2].legend()
+
+        ax[0].plot(time_axis[0:w], raw[0:w], label="raw")
+        # ax[0].set_title('Raw')
+
+        rmse_gain = int(np.nansum(np.abs(original - imputed_gain)))
+        rmse_li = int(np.nansum(np.abs(original - imputed_li)))
+        fig.suptitle('gain %d      li %d' % (rmse_gain, rmse_li), fontsize=14)
+
+        filename = "%d_gain_%d_li_%d.png" % (id, rmse_gain, rmse_li)
         filepath = "%s/%s" % (out, filename)
         # print('saving fig...')
-        plt.savefig(filepath)
+
+        df = pd.DataFrame()
+        df["time"] = time_axis.tolist() + time_axis.tolist() + time_axis.tolist()
+        df["data"] = original.tolist() + imputed_li.tolist() + imputed_gain.tolist()
+        df["imputation"] = ['original' for _ in range(len(original))] + ['linear interpolation' for _ in range(len(original))] + ['gain' for _ in range(len(original))]
+        fig_px = px.bar(df, x="time", y="data", color='imputation', height=1340, barmode="group", title="nominator rmse gain %d  rmse li %d" % (rmse_gain, rmse_li))
+
+        fig_px.add_scatter(x=time_axis.tolist(), y=np.abs(original - imputed_li).tolist(), name="abs(original - imputed_li)", mode='lines+markers', marker=dict(color='coral'), connectgaps=True)
+        fig_px.add_scatter(x=time_axis.tolist(), y=np.abs(original - imputed_gain).tolist(), name="abs(original - imputed_gain)", mode='lines+markers', marker=dict(color='green'), connectgaps=True)
+
+        try:
+            fig.tight_layout()
+            fig.savefig(filepath)
+            fig_px.write_html(filepath.replace(".png", ".html"))
+        except OverflowError as e:
+            print(e)
         plt.close(fig)
         # fig.show()
         # print("saved!")
+
+        plt.clf()
+        plt.cla()
+        fig, ax = plt.subplots(3)
+        b = int(len(raw)/10)
+        ax[0].hist(raw, bins=b, density=False)
+        ax[0].set_title("Histogram of raw data " + str(id))
+        ax[1].hist(original, bins=b, density=False)
+        ax[1].set_title("Histogram of anscombe of raw data " + str(id))
+        ax[2].hist(imputed_li, bins=b, density=False)
+        ax[2].set_title("Histogram of imputed data " + str(id))
+        fig.tight_layout()
+        filename = "hist_%d.png" % id
+        filepath = "%s/%s" % (out, filename)
+        # print('saving fig...')
+        try:
+            plt.savefig(filepath)
+        except OverflowError as e:
+            print(e)
+        plt.close(fig)
 
 
 def export_imputed_data(out, ori_data_x, idata, timestamp, date_str, ids, alpha, hint):
@@ -122,7 +181,7 @@ def export_imputed_data(out, ori_data_x, idata, timestamp, date_str, ids, alpha,
         print(filepath)
 
 
-def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, window=False):
+def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_log_anscombe=False, enable_remove_zeros=False, window=False):
     print("load_farm_data...")
     files = glob.glob(fname+"/*.csv")
     if len(files) == 0:
@@ -138,6 +197,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, window=F
     pool.terminate()
 
     data_first_sensor = pd.DataFrame()
+    data_first_sensor_raw = pd.DataFrame()
     # data_second_sensor_min = pd.DataFrame()
     # data_second_sensor_max = pd.DataFrame()
     timestamp = None
@@ -152,11 +212,24 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, window=F
 
         e = entropy_(activity)
 
+        #activity[activity == 0] = np.nan
+        if enable_remove_zeros:
+            activity = a_data[1]["first_sensor_value"].replace(0, np.nan)
+        activity_o = activity
+
         if enable_anscombe:
             anscombe_m = np.vectorize(anscombe)
-            activity = anscombe_m(np.log(activity, out=np.zeros_like(activity), where=(activity != 0)))
+            # activity = anscombe_m(np.log(activity, out=np.zeros_like(activity), where=(activity != 0)))
+            # activity = np.log(activity, out=np.zeros_like(activity), where=(activity != 0))
+            activity = anscombe_m(activity)
+
+        if enable_log_anscombe:
+            anscombe_m = np.vectorize(anscombe)
+            activity = np.log(anscombe_m(activity))
 
         data_first_sensor[a_data[0]] = [e] + activity.tolist()
+
+        data_first_sensor_raw[a_data[0]] = [e] + activity_o.tolist()
 
         # xmin = a_data[1]["xmin"]
         # ymin = a_data[1]["ymin"]
@@ -172,19 +245,25 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, window=F
 
         timestamp = a_data[1]["timestamp"]
         date_str = a_data[1]["date_str"]
-    data_first_sensor = data_first_sensor.dropna(axis=1, thresh=1000, how="any")
+    # data_first_sensor = data_first_sensor.dropna(axis=1, thresh=1000, how="any")
     data_first_sensor = data_first_sensor.sort_values(data_first_sensor.first_valid_index(), axis=1, ascending=False)
     data_first_sensor = data_first_sensor.iloc[1:]
     if n_top_traces > 0:
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
-
-
     print(data_first_sensor)
+
+    # data_first_sensor_raw = data_first_sensor_raw.dropna(axis=1, thresh=1000, how="any")
+    data_first_sensor_raw = data_first_sensor_raw.sort_values(data_first_sensor_raw.first_valid_index(), axis=1, ascending=False)
+    data_first_sensor_raw = data_first_sensor_raw.iloc[1:]
+    if n_top_traces > 0:
+        data_first_sensor_raw = data_first_sensor_raw.iloc[:, : n_top_traces]
+
     # data_first_sensor = data_first_sensor.fillna(-1)
     #data_m = data_first_sensor.notnull().astype(int).values
     data_x = data_first_sensor.values
+    data_x_raw = data_first_sensor_raw.values
     ids = data_first_sensor.columns
-    return data_x, ids, timestamp, date_str
+    return data_x_raw, data_x, ids, timestamp, date_str
 
 
 def linear_interpolation(input_activity):
@@ -208,12 +287,24 @@ def process(data_x, miss_rate):
         data_m = binary_sampler(1 - miss_rate, no, dim)
         miss_data_x = data_x.copy()
         data_m[np.isnan(miss_data_x)] = 0
-        miss_data_x[data_m == 0] = np.nan
+        miss_data_x[data_m == 1] = np.nan
 
     return data_x, miss_data_x, data_m
 
 
-def main(args, ori_data_x, ids, timestamp, date_str):
+def build_y_matrix(matrix, days):
+    split = np.array_split(matrix, days, axis=0)
+    hstack = np.hstack(split)
+    return hstack
+
+
+def unwrap_y_matrix(matrix, n_transponder):
+    split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
+    vstack = np.vstack(split)
+    return vstack
+
+
+def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   '''Main function for UCI letter and spam datasets.
   
   Args:
@@ -239,31 +330,50 @@ def main(args, ori_data_x, ids, timestamp, date_str):
   
   # Load data and introduce missingness
   # ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
-
-
-
+  ori_data_x = original_data_x.copy()[:-1, :]
+  ori_data_x_o = ori_data_x.copy()
+  raw_data = raw_data[:-1, :]
+  timestamp = timestamp[:-1]
+  date_str = date_str[:-1]
   data_x, miss_data_x, data_m = process(ori_data_x, args.miss_rate)
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         str(args.iterations).replace(".", "_") + "_hint_rate_" + str(args.hint_rate).replace(".", "_") + "_alpha_" +\
         str(args.alpha).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
   # Impute missing data
+  days = int(miss_data_x.shape[0]/1440)
+  miss_data_x_o = miss_data_x.copy()
+  miss_data_x = build_y_matrix(miss_data_x, days)
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
+  imputed_data_x = unwrap_y_matrix(imputed_data_x, args.n_top_traces)
 
   if args.export_csv:
-    export_imputed_data(out, ori_data_x, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
+    export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
-  plot_imputed_data(out, imputed_data_x, ori_data_x, ids, timestamp)
-
-  # Report the RMSE performance
-  rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
+  #Report the RMSE performance
+  rmse = rmse_loss(ori_data_x, imputed_data_x, data_m, miss_data_x)
   print('RMSE Performance: ' + str(np.round(rmse, 4)))
 
-  imputed_data_x_li = linear_interpolation(miss_data_x)
-  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m)
+  imputed_data_x_li = linear_interpolation(miss_data_x_o)
+  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m, miss_data_x)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
-  return imputed_data_x, rmse, rmse_li
+  imputed_data_x[data_m == 0] = np.nan
+  imputed_data_x_li[data_m == 0] = np.nan
+  ori_data_x[data_m == 0] = np.nan
+  if args.export_traces:
+    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
+
+  rmse_per_id = {}
+  rmse_per_id_li = {}
+  for i in range(ori_data_x.shape[1]):
+      rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
+      id = str(ids[i])
+      rmse_per_id[id] = rmse_
+      rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
+      rmse_per_id_li[id] = rmse_li_
+
+  return imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li
 
 
 if __name__ == '__main__':  
@@ -297,14 +407,22 @@ if __name__ == '__main__':
       help='missing data probability',
       default=0.0,
       type=float)
-  parser.add_argument('--n_job', type=int, default=2, help='Number of thread to use.')
-  parser.add_argument('--n_top_traces', type=int, default=-17, help='select n traces with highest entropy (<= 0 number to select all traces)')
-  parser.add_argument('--enable_anscombe', type=bool, default=True)
+  parser.add_argument('--n_job', type=int, default=6, help='Number of thread to use.')
+  parser.add_argument('--n_top_traces', type=int, default=17, help='select n traces with highest entropy (<= 0 number to select all traces)')
+  parser.add_argument('--enable_anscombe', type=bool, default=False)
+  parser.add_argument('--enable_remove_zeros', type=bool, default=False)
+  parser.add_argument('--enable_log_anscombe', type=bool, default=True)
+  parser.add_argument('--window', type=bool, default=False)
   parser.add_argument('--export_csv', type=bool, default=True)
+  parser.add_argument('--export_traces', type=bool, default=True)
+
   args = parser.parse_args() 
   
   # Calls main function
-  ori_data_x, ids, timestamp, date_str = load_farm_data(args.data_dir, args.n_job, args.n_top_traces,
-                                                        enable_anscombe=args.enable_anscombe)
-  imputed_data, rmse, rmse_li = main(args, ori_data_x, ids, timestamp, date_str)
+  data_x_o, ori_data_x, ids, timestamp, date_str = load_farm_data(args.data_dir, args.n_job, args.n_top_traces,
+                                                        enable_anscombe=args.enable_anscombe,
+                                                        enable_remove_zeros=args.enable_remove_zeros,
+                                                        enable_log_anscombe=args.enable_log_anscombe,
+                                                                  window=args.window)
+  imputed_data, rmse, rmse_li, rmse_per_id, rmse_per_id_li = main(args, data_x_o, ori_data_x, ids, timestamp, date_str)
   print(imputed_data)

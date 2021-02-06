@@ -138,6 +138,7 @@ def gain(data_x, gain_parameters, outpath):
   
   ## Iterations
   sess = tf.Session()
+
   sess.run(tf.global_variables_initializer())
    
   # Start Iterations
@@ -169,19 +170,21 @@ def gain(data_x, gain_parameters, outpath):
   epochs = list(range(iterations))
   plt.clf()
   fig = plt.figure()
-  plt.plot(epochs, G_loss_list)
-  plt.title("Generator error function")
+  plt.plot(epochs, G_loss_list, label="generator loss")
+  plt.plot(epochs, D_loss_list, label="discriminator loss")
+  plt.legend()
+  plt.title("GAN error function")
   plt.xlabel('epochs')
   plt.ylabel('loss')
-  fig.savefig(outpath +'/generator_loss.jpg')
+  fig.savefig(outpath +'/gan_loss.jpg')
 
-  fig = plt.figure()
-  plt.plot(epochs, D_loss_list)
-  plt.title("Discriminator error function")
-  plt.xlabel('epochs')
-  plt.ylabel('loss')
-  fig.savefig(outpath + '/discriminator_loss.jpg')
-  plt.clf()
+  # fig = plt.figure()
+  # plt.plot(epochs, D_loss_list)
+  # plt.title("Discriminator error function")
+  # plt.xlabel('epochs')
+  # plt.ylabel('loss')
+  # fig.savefig(outpath + '/discriminator_loss.jpg')
+  # plt.clf()
 
 
 

@@ -146,7 +146,7 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         # print(df_activity_w)
         # 411989 2015-11-04T02:29
         #159840
-        if df_activity_w.shape[0] != w+1:
+        if df_activity_w.shape[0] - w > 1:
             continue
         entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
 
@@ -597,8 +597,8 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     #     export_tranponder_traces(row, out_DIR, farm_id, time_axis, index, df_raw.shape[0])
     ##########################################################################
 
-    n = 2
-    h = (df_raw.shape[0] * 30 * n) / 100
+    n = 3
+    h = (df_raw.shape[0] * 40 * n) / 100
     w = 36.20 * 2
     fig, axs = plt.subplots(n, figsize=(w, h))
     for p in range(n):
@@ -636,6 +636,8 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     a = df_raw.iloc[:, :-5].values
     a_i = df_raw_i.iloc[:, :-5].values
+    a_i_only = a_i.copy()
+    a_i_only[np.isnan(a) == False] = np.nan
     ss = df_raw_ss.iloc[:, :-5].values
     bat = df_raw_bat.iloc[:, :-5].values
 
@@ -669,6 +671,12 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
                                      extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
     plt.colorbar(im_a_i, ax=axs[1])
     axs[1].xaxis_date()
+
+    im_a_i_only = axs[2].imshow(a_i_only, cmap=newcmp, aspect='auto',
+                                     interpolation="nearest",
+                                     extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
+    plt.colorbar(im_a_i_only, ax=axs[2])
+    axs[2].xaxis_date()
 
     # e = df_raw_e.iloc[:, :-4].values
     # im_e = axs[1].imshow(e, aspect='auto', interpolation="nearest", extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
@@ -848,8 +856,12 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     param_str = "sampling=%s day_before_famacha_test=%d" % (resolution, day_before_famacha_test)
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
-    axs[0].set_title("Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
-    axs[1].set_title("Imputed Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[0].set_title("Activity data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[1].set_title("Imputed Activity data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
+    axs[2].set_title(
+        "(imputed only) Imputed Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (
+        resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids),
+        len(animal_ids_formatted_ent), ntrans_with_samples))
     # axs[2].set_title("Median data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples))
     # axs[1].set_title("signal strenght")
     # axs[2].set_title("battery voltage")

@@ -12,6 +12,7 @@
  
 # Necessary packages
 import numpy as np
+np.random.seed(0) #for reproducability
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
 
@@ -29,7 +30,11 @@ def normalization (data, parameters=None):
   '''
 
   # Parameters
-  _, dim = data.shape
+  if len(data.shape) == 1:
+    dim = 1
+  else:
+    _, dim = data.shape
+
   norm_data = data.copy()
   
   if parameters is None:
@@ -37,27 +42,37 @@ def normalization (data, parameters=None):
     # MixMax normalization
     min_val = np.zeros(dim)
     max_val = np.zeros(dim)
-    
-    # For each dimension
-    for i in range(dim):
-      min_val[i] = np.nanmin(norm_data[:,i])
-      norm_data[:,i] = norm_data[:,i] - np.nanmin(norm_data[:,i])
-      max_val[i] = np.nanmax(norm_data[:,i])
-      norm_data[:,i] = norm_data[:,i] / (np.nanmax(norm_data[:,i]) + 1e-6)   
-      
-    # Return norm_parameters for renormalization
+
+    if len(data.shape) == 1:
+      min_val = np.nanmin(norm_data[:])
+      norm_data[:] = norm_data[:] - np.nanmin(norm_data[:])
+      max_val = np.nanmax(norm_data[:])
+      norm_data[:] = norm_data[:] / (np.nanmax(norm_data[:]) + 1e-6)
+    else:
+      # For each dimension
+      for i in range(dim):
+        min_val[i] = np.nanmin(norm_data[:, i])
+        norm_data[:, i] = norm_data[:, i] - np.nanmin(norm_data[:, i])
+        max_val[i] = np.nanmax(norm_data[:, i])
+        norm_data[:, i] = norm_data[:, i] / (np.nanmax(norm_data[:, i]) + 1e-6)
+
+        # Return norm_parameters for renormalization
     norm_parameters = {'min_val': min_val,
                        'max_val': max_val}
 
   else:
     min_val = parameters['min_val']
     max_val = parameters['max_val']
-    
-    # For each dimension
-    for i in range(dim):
-      norm_data[:,i] = norm_data[:,i] - min_val[i]
-      norm_data[:,i] = norm_data[:,i] / (max_val[i] + 1e-6)  
-      
+
+    if len(data.shape) == 1:
+      norm_data[:] = norm_data[:] - min_val
+      norm_data[:] = norm_data[:] / (max_val + 1e-6)
+    else:
+      # For each dimension
+      for i in range(dim):
+        norm_data[:,i] = norm_data[:,i] - min_val[i]
+        norm_data[:,i] = norm_data[:,i] / (max_val[i] + 1e-6)
+
     norm_parameters = parameters    
       
   return norm_data, norm_parameters
@@ -110,7 +125,7 @@ def rounding (imputed_data, data_x):
   return rounded_data
 
 
-def rmse_loss(ori_data, imputed_data, data_m):
+def rmse_loss(ori_data, imputed_data, data_m, miss_data_x):
   '''Compute RMSE loss between ori_data and imputed_data
   
   Args:
@@ -121,14 +136,20 @@ def rmse_loss(ori_data, imputed_data, data_m):
   Returns:
     - rmse: Root Mean Squared Error
   '''
-  
+
+  ori_data[np.isnan(ori_data)] = 0 #ignore real nan
   ori_data, norm_parameters = normalization(ori_data)
   imputed_data, _ = normalization(imputed_data, norm_parameters)
     
   # Only for missing values
-  nominator = np.nansum(((1-data_m) * ori_data - (1-data_m) * imputed_data)**2)
-  denominator = np.nansum(1-data_m)
-  
+  A = (data_m) * ori_data
+  B = (data_m) * imputed_data
+  C = (A - B)
+  nominator = np.nansum(C**2)
+  denominator = np.nansum(data_m)
+
+  print("nominator=", nominator)
+  print("denominator=", denominator)
   rmse = np.sqrt(nominator/float(denominator))
   
   return rmse
@@ -145,7 +166,7 @@ def xavier_init(size):
   '''
   in_dim = size[0]
   xavier_stddev = 1. / tf.sqrt(in_dim / 2.)
-  return tf.random_normal(shape = size, stddev = xavier_stddev)
+  return tf.random_normal(shape = size, stddev = xavier_stddev, seed=0)
       
 
 def binary_sampler(p, rows, cols):
@@ -159,6 +180,7 @@ def binary_sampler(p, rows, cols):
   Returns:
     - binary_random_matrix: generated binary random matrix.
   '''
+
   unif_random_matrix = np.random.uniform(0., 1., size = [rows, cols])
   binary_random_matrix = 1*(unif_random_matrix < p)
   return binary_random_matrix
@@ -176,7 +198,7 @@ def uniform_sampler(low, high, rows, cols):
   Returns:
     - uniform_random_matrix: generated uniform random matrix.
   '''
-  return np.random.uniform(low, high, size = [rows, cols])       
+  return np.random.uniform(low, high, size = [rows, cols])
 
 
 def sample_batch_index(total, batch_size):
