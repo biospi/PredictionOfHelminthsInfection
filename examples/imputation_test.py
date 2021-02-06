@@ -1,11 +1,8 @@
 import argparse
-import gainimputation.imputation as imputation
+import imputation as imputation
 import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(0) #for reproducability
-from sys import exit
-import matplotlib.colors as colors
-
 
 if __name__ == "__main__":
 
@@ -23,7 +20,7 @@ if __name__ == "__main__":
 
         OUT = 'F:/Data2/imp_fukk_final/imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
-                                                                                   enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
+                                                                                        enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
         iteration_range = np.array(list(range(10, 1000, 10)))
 
