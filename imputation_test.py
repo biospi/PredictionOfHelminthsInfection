@@ -62,6 +62,7 @@ if __name__ == "__main__":
                                     help='select n traces with highest entropy (<= 0 number to select all traces)')
                 parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
                 parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
+                parser.add_argument('--export_traces', type=bool, default=True)
 
                 args = parser.parse_args()
                 imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li  = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
