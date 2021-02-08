@@ -12,6 +12,7 @@ if __name__ == "__main__":
     LOG_ANSCOMBE = True
     REMOVE_ZEROS = True
     EXPORT_CSV = True
+    EXPORT_TRACES = False
     WINDOW_ON = False
     DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
@@ -62,7 +63,7 @@ if __name__ == "__main__":
                                     help='select n traces with highest entropy (<= 0 number to select all traces)')
                 parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
                 parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
-                parser.add_argument('--export_traces', type=bool, default=True)
+                parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
 
                 args = parser.parse_args()
                 imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li  = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
@@ -140,7 +141,7 @@ if __name__ == "__main__":
                                 help='select n traces with highest entropy (<= 0 number to select all traces)')
             parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
             parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
-            parser.add_argument('--export_traces', type=bool, default=True)
+            parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
 
             args = parser.parse_args()
             imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
