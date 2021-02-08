@@ -175,14 +175,15 @@ def gain(data_x, gain_parameters, outpath):
   plt.title("GAN error function")
   plt.xlabel('epochs')
   plt.ylabel('loss')
-  fig.savefig(outpath +'/gan_loss.jpg')
+  print(outpath)
+  fig.savefig(outpath +'/gan_loss.png')
 
   # fig = plt.figure()
   # plt.plot(epochs, D_loss_list)
   # plt.title("Discriminator error function")
   # plt.xlabel('epochs')
   # plt.ylabel('loss')
-  # fig.savefig(outpath + '/discriminator_loss.jpg')
+  # fig.savefig(outpath + '/discriminator_loss.png')
   # plt.clf()
 
 
