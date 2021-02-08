@@ -21,7 +21,7 @@ from gainimputation.helper import rmse_loss
 from utils.Utils import create_rec_dir
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 import matplotlib as mpl
 mpl.rcParams['agg.path.chunksize'] = 100000000000
 import matplotlib.dates as mdates
