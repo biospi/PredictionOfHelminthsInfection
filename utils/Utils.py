@@ -1,6 +1,10 @@
 import math
 import os
 
+"""
+Utility class for static methods
+"""
+
 def anscombe(value):
     try:
         return 2 * math.sqrt(value + (3 / 8))
