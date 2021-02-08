@@ -9,7 +9,6 @@ Contact: jsyoon0823@gmail.com
 # Necessary packages
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
-import PyQt5
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
