@@ -13,7 +13,7 @@ if __name__ == "__main__":
     REMOVE_ZEROS = True
     EXPORT_CSV = True
     EXPORT_TRACES = False
-    WINDOW_ON = False
+    WINDOW_ON = True
     DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
     config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
-        iteration_range = np.array(list(range(10, 1000, 10)))
+        iteration_range = np.array(list(range(10, 500, 10)))
 
         missing_range = [0.01, 0.05, 0.1]
         for miss_rate in missing_range:
