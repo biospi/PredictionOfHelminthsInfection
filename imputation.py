@@ -345,6 +345,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   days = int(miss_data_x.shape[0]/1440)
   miss_data_x_o = miss_data_x.copy()
   miss_data_x = build_y_matrix(miss_data_x, days)
+  print(miss_data_x)
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
   imputed_data_x = unwrap_y_matrix(imputed_data_x, args.n_top_traces)
 

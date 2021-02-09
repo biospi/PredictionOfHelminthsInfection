@@ -136,12 +136,7 @@ def gain(data_x, gain_parameters, outpath):
   G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
   
   ## Iterations
-  # sess = tf.Session()
-
-  config = tf.ConfigProto()
-  config.gpu_options.allow_growth = True
-  sess = tf.Session(config=config)
-
+  sess = tf.Session()
   sess.run(tf.global_variables_initializer())
    
   # Start Iterations
@@ -190,8 +185,6 @@ def gain(data_x, gain_parameters, outpath):
   # fig.savefig(outpath + '/discriminator_loss.png')
   # plt.clf()
 
-
-
   ## Return imputed data      
   Z_mb = uniform_sampler(0, 0.01, no, dim) 
   M_mb = data_m
@@ -199,6 +192,7 @@ def gain(data_x, gain_parameters, outpath):
   X_mb = M_mb * X_mb + (1-M_mb) * Z_mb 
       
   imputed_data = sess.run([G_sample], feed_dict = {X: X_mb, M: M_mb})[0]
+  print(imputed_data)
   
   imputed_data = data_m * norm_data_x + (1-data_m) * imputed_data
   
@@ -206,6 +200,7 @@ def gain(data_x, gain_parameters, outpath):
   imputed_data = renormalization(imputed_data, norm_parameters)  
   
   # Rounding
-  imputed_data = rounding(imputed_data, data_x)  
+  imputed_data = rounding(imputed_data, data_x)
+
           
   return imputed_data
