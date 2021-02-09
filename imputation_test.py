@@ -13,7 +13,7 @@ if __name__ == "__main__":
     REMOVE_ZEROS = True
     EXPORT_CSV = True
     EXPORT_TRACES = False
-    WINDOW_ON = True
+    WINDOW_ON = False
     DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
     config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
@@ -23,9 +23,9 @@ if __name__ == "__main__":
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
-        iteration_range = np.array(list(range(10, 500, 10)))
+        iteration_range = np.array(list(range(10, 600, 10)))
 
-        missing_range = [0.01, 0.05, 0.1]
+        missing_range = [0.1, 0.01, 0.05]
         for miss_rate in missing_range:
             rmse_list = []
             rmse_list_li = []
@@ -66,7 +66,7 @@ if __name__ == "__main__":
                 parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
 
                 args = parser.parse_args()
-                imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li  = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
+                imputed_data_x, rmse, rmse_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
                 print(imputed_data_x, rmse, rmse_li)
                 rmse_list.append(rmse)
                 rmse_list_li.append(rmse_li)
@@ -102,8 +102,8 @@ if __name__ == "__main__":
 
         rmse_list = []
         rmse_list_li = []
-        rmse_list_pt = []
-        rmse_list_li_pt = []
+        # rmse_list_pt = []
+        # rmse_list_li_pt = []
         missing_range = np.arange(0.1, 0.9, 0.1)
         # missing_range = [0.5]
         n_iteration = 1000
@@ -144,12 +144,12 @@ if __name__ == "__main__":
             parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
 
             args = parser.parse_args()
-            imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
+            imputed_data_x, rmse, rmse_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
             print(imputed_data_x, rmse, rmse_li)
             rmse_list.append(rmse)
             rmse_list_li.append(rmse_li)
-            rmse_list_pt.append(rmse_per_id)
-            rmse_list_li_pt.append(rmse_per_id_li)
+            # rmse_list_pt.append(rmse_per_id)
+            # rmse_list_li_pt.append(rmse_per_id_li)
 
         plt.clf()
         plt.cla()
@@ -166,29 +166,29 @@ if __name__ == "__main__":
         plt.savefig(filename)
 
 
-        plt.clf()
-        plt.cla()
-        fig, ax = plt.subplots(figsize=(19.20, 10.80))
-        ax.set_ylabel('RMSE')
-        ax.set_xlabel('missing (%)')
-
-        for c, key in enumerate(rmse_list_pt[0].keys()):
-            data = []
-            data_li = []
-            for i in range(len(rmse_list_pt)):
-                v = rmse_list_pt[i][key]
-                data.append(v)
-                v_li = rmse_list_li_pt[i][key]
-                data_li.append(v_li)
-            color = np.random.rand(3,)
-            plt.plot(missing_range, data, label="RMSE GAIN %s" % key, alpha=1, linestyle='-', color=color)
-            plt.plot(missing_range, data_li, label="RMSE Linear interpolation %s" % key, alpha=1, linestyle='-.', color=color)
-
-        plt.title("RMSE missingness performance per transponder\niteration=%d Log Anscombe=%s\n best n traces=%d" % (n_iteration, ANSCOMBE, NTOP))
-        plt.legend()
-        filename = args.output_dir + "/" + "RMSE_missing_pt_%d_%s.png" % (n_iteration, ANSCOMBE)
-        print(filename)
-        plt.savefig(filename)
+        # plt.clf()
+        # plt.cla()
+        # fig, ax = plt.subplots(figsize=(19.20, 10.80))
+        # ax.set_ylabel('RMSE')
+        # ax.set_xlabel('missing (%)')
+        #
+        # for c, key in enumerate(rmse_list_pt[0].keys()):
+        #     data = []
+        #     data_li = []
+        #     for i in range(len(rmse_list_pt)):
+        #         v = rmse_list_pt[i][key]
+        #         data.append(v)
+        #         v_li = rmse_list_li_pt[i][key]
+        #         data_li.append(v_li)
+        #     color = np.random.rand(3,)
+        #     plt.plot(missing_range, data, label="RMSE GAIN %s" % key, alpha=1, linestyle='-', color=color)
+        #     plt.plot(missing_range, data_li, label="RMSE Linear interpolation %s" % key, alpha=1, linestyle='-.', color=color)
+        #
+        # plt.title("RMSE missingness performance per transponder\niteration=%d Log Anscombe=%s\n best n traces=%d" % (n_iteration, ANSCOMBE, NTOP))
+        # plt.legend()
+        # filename = args.output_dir + "/" + "RMSE_missing_pt_%d_%s.png" % (n_iteration, ANSCOMBE)
+        # print(filename)
+        # plt.savefig(filename)
 
 
 

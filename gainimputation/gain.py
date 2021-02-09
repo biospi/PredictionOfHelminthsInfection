@@ -136,7 +136,11 @@ def gain(data_x, gain_parameters, outpath):
   G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
   
   ## Iterations
-  sess = tf.Session()
+  # sess = tf.Session()
+
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  sess = tf.Session(config=config)
 
   sess.run(tf.global_variables_initializer())
    

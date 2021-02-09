@@ -29,6 +29,7 @@ import datetime as dt
 import scipy.stats
 from utils.Utils import anscombe
 import plotly.express as px
+import json
 
 
 def entropy_(to_resample):
@@ -185,7 +186,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     print("load_farm_data...")
     files = glob.glob(fname+"/*.csv")
     if len(files) == 0:
-        raise IOError("missing activity files .csv! in %s" % args.activity_dir)
+        raise IOError("missing activity files .csv!")
     files = [file.replace("\\", '/') for file in files]#prevent Unix issues
     print(files)
     pool = Pool(processes=n_job)
@@ -358,22 +359,26 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m, miss_data_x)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
+  rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
+  with open(out + '/rmse.json', 'w') as f:
+      json.dump(rmse_info, f)
+
   imputed_data_x[data_m == 0] = np.nan
   imputed_data_x_li[data_m == 0] = np.nan
   ori_data_x[data_m == 0] = np.nan
   if args.export_traces:
     plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
 
-  rmse_per_id = {}
-  rmse_per_id_li = {}
-  for i in range(ori_data_x.shape[1]):
-      rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
-      id = str(ids[i])
-      rmse_per_id[id] = rmse_
-      rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
-      rmse_per_id_li[id] = rmse_li_
+  # rmse_per_id = {}
+  # rmse_per_id_li = {}
+  # for i in range(ori_data_x.shape[1]):
+  #     rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
+  #     id = str(ids[i])
+  #     rmse_per_id[id] = rmse_
+  #     rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
+  #     rmse_per_id_li[id] = rmse_li_
 
-  return imputed_data_x, rmse, rmse_li, rmse_per_id, rmse_per_id_li
+  return imputed_data_x, rmse, rmse_li
 
 
 if __name__ == '__main__':  
