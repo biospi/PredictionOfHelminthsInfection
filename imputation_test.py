@@ -14,7 +14,7 @@ if __name__ == "__main__":
     EXPORT_CSV = False
     EXPORT_TRACES = False
     WINDOW_ON = False
-    RESHAPE = True
+    RESHAPE = sys.argv[2].lower() in ['true', '1', 't', 'y', 'yes']
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
