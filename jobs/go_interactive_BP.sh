@@ -1,1 +1,1 @@
-qsub -I -l select=1:ncpus=1:ngpus=1:gputype=RTX2080Ti:ssd=true:mem=24gb -l walltime=08:00:00
+qsub -I -l select=1:ncpus=6:ngpus=1:gputype=RTX2080Ti:ssd=true:mem=24gb -l walltime=08:00:00
