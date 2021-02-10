@@ -14,12 +14,16 @@ if __name__ == "__main__":
     EXPORT_CSV = False
     EXPORT_TRACES = False
     WINDOW_ON = False
+    RESHAPE = True
     DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
+    # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
     config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
     for WINDOW_ON, REMOVE_ZEROS, ANSCOMBE, LOG_ANSCOMBE in config:
 
         OUT = 'imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
+        # OUT = 'F:/Data2/imp_reshaped_full/imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
+
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
@@ -64,6 +68,7 @@ if __name__ == "__main__":
                 parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
                 parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
                 parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
+                parser.add_argument('--reshape', type=bool, default=RESHAPE)
 
                 args = parser.parse_args()
                 imputed_data_x, rmse, rmse_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
@@ -142,6 +147,7 @@ if __name__ == "__main__":
             parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
             parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
             parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
+            parser.add_argument('--reshape', type=bool, default=RESHAPE)
 
             args = parser.parse_args()
             imputed_data_x, rmse, rmse_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)

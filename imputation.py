@@ -344,10 +344,13 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   # Impute missing data
   days = int(miss_data_x.shape[0]/1440)
   miss_data_x_o = miss_data_x.copy()
-  # miss_data_x = reshape_matrix(miss_data_x, days)
+
+  if args.reshape:
+    miss_data_x = reshape_matrix(miss_data_x, days)
   print(miss_data_x)
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
-  # imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
+  if args.reshape:
+    imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
 
   if args.export_csv:
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
@@ -421,6 +424,7 @@ if __name__ == '__main__':
   parser.add_argument('--window', type=bool, default=False)
   parser.add_argument('--export_csv', type=bool, default=True)
   parser.add_argument('--export_traces', type=bool, default=True)
+  parser.add_argument('--reshape', type=bool, default=True)
 
   args = parser.parse_args() 
   
