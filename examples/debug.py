@@ -87,8 +87,26 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     return mean_auc, aucs2
 
 from plotnine import *
+import glob
+from pathlib import Path
+import json
 
 if __name__ == "__main__":
+
+    DIR = "F:\Data2\imp_debug\imputation_test_window_False_anscombe_False_top17_remove_zeros_False_loganscombe_True_debug"
+
+    rmse_list = []
+    for path in Path(DIR).rglob('*.json'):
+        print(path)
+        with open(path) as json_file:
+            data = json.load(json_file)
+            print(data["rmse"])
+            rmse_list.append(data["rmse"])
+
+    plt.plot(rmse_list)
+    plt.show()
+    exit()
+
 
     df = pd.read_csv("z_prct_data.csv")
     g = (ggplot(df)  # defining what data to use

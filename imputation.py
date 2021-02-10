@@ -293,13 +293,13 @@ def process(data_x, miss_rate):
     return data_x, miss_data_x, data_m
 
 
-def build_y_matrix(matrix, days):
+def reshape_matrix(matrix, days):
     split = np.array_split(matrix, days, axis=0)
     hstack = np.hstack(split)
     return hstack
 
 
-def unwrap_y_matrix(matrix, n_transponder):
+def restore_matrix(matrix, n_transponder):
     split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
     vstack = np.vstack(split)
     return vstack
@@ -344,10 +344,10 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   # Impute missing data
   days = int(miss_data_x.shape[0]/1440)
   miss_data_x_o = miss_data_x.copy()
-  miss_data_x = build_y_matrix(miss_data_x, days)
+  # miss_data_x = reshape_matrix(miss_data_x, days)
   print(miss_data_x)
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
-  imputed_data_x = unwrap_y_matrix(imputed_data_x, args.n_top_traces)
+  # imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
 
   if args.export_csv:
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
