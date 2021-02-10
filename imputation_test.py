@@ -3,9 +3,9 @@ import imputation as imputation
 import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(0) #for reproducability
+import sys
 
 if __name__ == "__main__":
-
     NTOP = 17
     NJOB = 6
     ANSCOMBE = False
@@ -15,8 +15,11 @@ if __name__ == "__main__":
     EXPORT_TRACES = False
     WINDOW_ON = False
     RESHAPE = True
-    DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
+
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
+    # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
+    DATA_DIR = sys.argv[1]
+
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
     config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
     for WINDOW_ON, REMOVE_ZEROS, ANSCOMBE, LOG_ANSCOMBE in config:

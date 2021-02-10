@@ -294,8 +294,10 @@ def process(data_x, miss_rate):
 
 
 def reshape_matrix(matrix, days):
+    print(matrix.shape)
     split = np.array_split(matrix, days, axis=0)
     hstack = np.hstack(split)
+    print(hstack.shape)
     return hstack
 
 
