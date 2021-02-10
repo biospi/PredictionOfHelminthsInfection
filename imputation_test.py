@@ -6,6 +6,12 @@ np.random.seed(0) #for reproducability
 import sys
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--output_dir', type=str)
+    parser.add_argument('--reshape', type=bool)
+    args = parser.parse_args()
+    print(args)
 
     NTOP = 17
     NJOB = 6
@@ -15,17 +21,18 @@ if __name__ == "__main__":
     EXPORT_CSV = False
     EXPORT_TRACES = False
     WINDOW_ON = False
-    RESHAPE = False
+    RESHAPE = args.reshape
+    OUT = args.output_dir
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
-    DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
-    # DATA_DIR = sys.argv[1]
+    # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
+    DATA_DIR = args.data_dir
 
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
     config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
     for WINDOW_ON, REMOVE_ZEROS, ANSCOMBE, LOG_ANSCOMBE in config:
 
-        OUT = 'imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_reshape_%s' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE, str(RESHAPE))
+        OUT += '\imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_reshape_%s' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE, str(RESHAPE))
         # OUT = 'F:/Data2/imp_reshaped_full/imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
 
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
