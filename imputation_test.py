@@ -9,7 +9,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--output_dir', type=str)
-    parser.add_argument('--reshape', type=bool)
+    parser.add_argument('--reshape', type=str)
+    parser.add_argument('--w', type=str)
+    parser.add_argument('--i', type=int)
     args = parser.parse_args()
     print(args)
 
@@ -20,9 +22,10 @@ if __name__ == "__main__":
     REMOVE_ZEROS = True
     EXPORT_CSV = False
     EXPORT_TRACES = False
-    WINDOW_ON = False
-    RESHAPE = args.reshape
+    WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
+    RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
+    I_RANGE = args.i
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
@@ -38,9 +41,9 @@ if __name__ == "__main__":
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
-        iteration_range = np.array(list(range(10, 1000, 10)))
+        iteration_range = np.array(list(range(10, I_RANGE, 10)))
 
-        missing_range = [0.1, 0.01, 0.05]
+        missing_range = [0.1, 0.05, 0.2]
         for miss_rate in missing_range:
             rmse_list = []
             rmse_list_li = []
@@ -80,6 +83,7 @@ if __name__ == "__main__":
                 parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
                 parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
                 parser.add_argument('--reshape', type=bool, default=RESHAPE)
+                parser.add_argument('--w', type=str, default=WINDOW_ON)
 
                 args = parser.parse_args()
                 print(args)
@@ -93,6 +97,7 @@ if __name__ == "__main__":
             ax.set_ylabel('RMSE')
             ax.set_xlabel('iteration')
             plt.plot(iteration_range, rmse_list, label="RMSE GAIN", alpha=1, marker='*')
+            plt.plot(iteration_range, rmse_list_li, label="RMSE LI", alpha=1, marker='*')
 
             plt.title("RMSE iteration performance\nmissing rate=%d(%%) Log Anscombe=%s\n best n traces=%d" % (miss_rate*100, LOG_ANSCOMBE, NTOP))
             plt.legend()

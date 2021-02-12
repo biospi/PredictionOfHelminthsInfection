@@ -93,7 +93,7 @@ import json
 
 if __name__ == "__main__":
 
-    DIR = "F:\Data2\imp_debug\imputation_test_window_False_anscombe_False_top17_remove_zeros_False_loganscombe_True_debug"
+    DIR = "F:/Data2/imp_out4"
 
     rmse_list = []
     for path in Path(DIR).rglob('*.json'):
@@ -103,8 +103,18 @@ if __name__ == "__main__":
             print(data["rmse"])
             rmse_list.append(data["rmse"])
 
-    plt.plot(rmse_list)
+    plt.clf()
+    plt.cla()
+    fig, ax = plt.subplots()
+    ax.set_ylabel('RMSE')
+    ax.set_xlabel('iteration')
+    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE LI", alpha=1, marker='*')
+
+    plt.title("RMSE iteration performance")
+    plt.legend()
     plt.show()
+
+
     exit()
 
 

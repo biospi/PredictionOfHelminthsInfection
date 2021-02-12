@@ -125,7 +125,7 @@ def rounding (imputed_data, data_x):
   return rounded_data
 
 
-def rmse_loss(ori_data, imputed_data, data_m, miss_data_x):
+def rmse_loss(ori_data, imputed_data, data_m):
   '''Compute RMSE loss between ori_data and imputed_data
   
   Args:

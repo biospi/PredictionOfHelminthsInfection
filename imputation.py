@@ -53,6 +53,7 @@ def process_activity_data(file, i, nfiles, window):
         start = 413129
         end = start + w
         df_activity = df_activity.loc[start: end, :]
+
     # print(df_activity_w)
     # 411989 2015-11-04T02:29
     #159840
@@ -358,11 +359,11 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
-  rmse = rmse_loss(ori_data_x, imputed_data_x, data_m, miss_data_x)
+  rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
   print('RMSE Performance: ' + str(np.round(rmse, 4)))
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
-  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m, miss_data_x)
+  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
   rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
@@ -427,6 +428,7 @@ if __name__ == '__main__':
   parser.add_argument('--export_csv', type=bool, default=True)
   parser.add_argument('--export_traces', type=bool, default=True)
   parser.add_argument('--reshape', type=bool, default=True)
+  parser.add_argument('--w', type=bool, default=False)
 
   args = parser.parse_args() 
   
