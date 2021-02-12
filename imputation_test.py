@@ -11,7 +11,6 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str)
     parser.add_argument('--reshape', type=str)
     parser.add_argument('--w', type=str)
-    parser.add_argument('--i', type=int)
     args = parser.parse_args()
     print(args)
 
@@ -25,7 +24,7 @@ if __name__ == "__main__":
     WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
     RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
-    I_RANGE = args.i
+    I_RANGE = 610
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
