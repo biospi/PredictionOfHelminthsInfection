@@ -288,8 +288,13 @@ def process(data_x, miss_rate):
         # Introduce missing data
         data_m = binary_sampler(1 - miss_rate, no, dim)
         miss_data_x = data_x.copy()
+        miss_data_x[np.isnan(miss_data_x)] = -99
+        miss_data_x[data_m == 0] = np.nan
+        miss_data_x[np.isnan(data_x)] = -99
+        data_m = np.ones((no, dim), dtype=int)
         data_m[np.isnan(miss_data_x)] = 0
-        miss_data_x[data_m == 1] = np.nan
+        data_m[miss_data_x == -99] = 1
+        miss_data_x[miss_data_x == -99] = np.nan
 
     return data_x, miss_data_x, data_m
 

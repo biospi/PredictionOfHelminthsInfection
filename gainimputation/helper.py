@@ -15,7 +15,6 @@ import numpy as np
 np.random.seed(0) #for reproducability
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
-import warnings
 
 tf.disable_v2_behavior()
 
@@ -139,23 +138,34 @@ def rmse_loss(ori_data, imputed_data, data_m):
   '''
 
   ori_data[np.isnan(ori_data)] = 0 #ignore real nan
+  #
+  # ori_data, norm_parameters = normalization(ori_data)
+  # imputed_data, _ = normalization(imputed_data, norm_parameters)
+  #
+  # # Only for missing values
+  # A = (data_m) * ori_data
+  # B = (data_m) * imputed_data
+  # C = (A - B)
+  # nominator = np.sum(C**2)
+  # denominator = np.sum(data_m)
+  #
+  # print("nominator=", nominator)
+  # print("denominator=", denominator)
+  # rmse = np.sqrt(nominator/float(denominator))
 
   ori_data, norm_parameters = normalization(ori_data)
   imputed_data, _ = normalization(imputed_data, norm_parameters)
-    
-  # Only for missing values
-  A = (data_m) * ori_data
-  B = (data_m) * imputed_data
-  C = (A - B)
-  nominator = np.sum(C**2)
-  denominator = np.sum(data_m)
 
-  print("nominator=", nominator)
-  print("denominator=", denominator)
-  rmse = np.sqrt(nominator/float(denominator))
+  # Only for missing values
+  A = (1 - data_m) * ori_data
+  B = (1 - data_m) * imputed_data
+  nominator = np.sum((A - B) ** 2)
+  denominator = np.sum(1 - data_m)
+
+  rmse = np.sqrt(nominator / float(denominator))
 
   if np.isnan(rmse):
-    warnings.warn("Error while calculating RMSE is NaN")
+    raise ValueError("Error while calculating RMSE is NaN")
 
   return rmse
 
