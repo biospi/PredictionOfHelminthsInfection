@@ -352,6 +352,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
     miss_data_x = reshape_matrix(miss_data_x, days)
   print(miss_data_x)
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
+  imputed_data_x[np.isnan(imputed_data_x)] = 0
   if args.reshape:
     imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
 
@@ -359,11 +360,11 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
-  rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
+  rmse = rmse_loss(ori_data_x, imputed_data_x.copy(), data_m)
   print('RMSE Performance: ' + str(np.round(rmse, 4)))
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
-  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li, data_m)
+  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li.copy(), data_m)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
   rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
