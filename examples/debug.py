@@ -90,13 +90,32 @@ from plotnine import *
 import glob
 from pathlib import Path
 import json
+import re
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
 
 if __name__ == "__main__":
 
-    DIR = "F:/Data2/imp_out4"
+    DIR = "F:/Data2/test"
 
     rmse_list = []
+    files = []
     for path in Path(DIR).rglob('*.json'):
+        files.append(str(path))
+
+    files.sort(key=natural_keys)
+
+    for path in files:
         print(path)
         with open(path) as json_file:
             data = json.load(json_file)

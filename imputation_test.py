@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         iteration_range = np.array(list(range(10, I_RANGE, 10)))
 
-        missing_range = [0.1, 0.05, 0.2]
+        missing_range = [0.1]
         for miss_rate in missing_range:
             rmse_list = []
             rmse_list_li = []

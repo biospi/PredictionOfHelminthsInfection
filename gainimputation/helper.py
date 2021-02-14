@@ -57,6 +57,8 @@ def normalization (data, parameters=None):
         norm_data[:, i] = norm_data[:, i] / (np.nanmax(norm_data[:, i]) + 1e-6)
 
         # Return norm_parameters for renormalization
+    # min_val[np.isnan(min_val)] = 0 #todo  check
+    # max_val[np.isnan(max_val)] = 0 #todo  check
     norm_parameters = {'min_val': min_val,
                        'max_val': max_val}
 
@@ -137,8 +139,7 @@ def rmse_loss(ori_data, imputed_data, data_m):
     - rmse: Root Mean Squared Error
   '''
 
-  ori_data[np.isnan(ori_data)] = 0 #ignore real nan
-  #
+  # ori_data[np.isnan(ori_data)] = 0 #ignore real nan
   # ori_data, norm_parameters = normalization(ori_data)
   # imputed_data, _ = normalization(imputed_data, norm_parameters)
   #

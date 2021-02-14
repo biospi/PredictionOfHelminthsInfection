@@ -254,6 +254,8 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
     print(data_first_sensor)
 
+    data_first_sensor = data_first_sensor.fillna(-1)
+
     # data_first_sensor_raw = data_first_sensor_raw.dropna(axis=1, thresh=1000, how="any")
     data_first_sensor_raw = data_first_sensor_raw.sort_values(data_first_sensor_raw.first_valid_index(), axis=1, ascending=False)
     data_first_sensor_raw = data_first_sensor_raw.iloc[1:]
@@ -288,13 +290,7 @@ def process(data_x, miss_rate):
         # Introduce missing data
         data_m = binary_sampler(1 - miss_rate, no, dim)
         miss_data_x = data_x.copy()
-        miss_data_x[np.isnan(miss_data_x)] = -99
         miss_data_x[data_m == 0] = np.nan
-        miss_data_x[np.isnan(data_x)] = -99
-        data_m = np.ones((no, dim), dtype=int)
-        data_m[np.isnan(miss_data_x)] = 0
-        data_m[miss_data_x == -99] = 1
-        miss_data_x[miss_data_x == -99] = np.nan
 
     return data_x, miss_data_x, data_m
 
@@ -344,9 +340,10 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   raw_data = raw_data[:-1, :]
   timestamp = timestamp[:-1]
   date_str = date_str[:-1]
-  data_x, miss_data_x, data_m = process(ori_data_x, args.miss_rate)
+
+  data_x, miss_data_x, data_m_x = process(ori_data_x, args.miss_rate)
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
-        str(args.iterations).replace(".", "_") + "_hint_rate_" + str(args.hint_rate).replace(".", "_") + "_alpha_" +\
+        '%04d' % int(args.iterations) + "_hint_rate_" + str(args.hint_rate).replace(".", "_") + "_alpha_" +\
         str(args.alpha).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
   # Impute missing data
@@ -355,9 +352,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
 
   if args.reshape:
     miss_data_x = reshape_matrix(miss_data_x, days)
-  print(miss_data_x)
+
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
-  imputed_data_x[np.isnan(imputed_data_x)] = 0
+
   if args.reshape:
     imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
 
@@ -365,20 +362,20 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
-  rmse = rmse_loss(ori_data_x, imputed_data_x.copy(), data_m)
+  rmse = rmse_loss(ori_data_x.copy(), imputed_data_x.copy(), data_m_x)
   print('RMSE Performance: ' + str(np.round(rmse, 4)))
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
-  rmse_li = rmse_loss(ori_data_x, imputed_data_x_li.copy(), data_m)
+  rmse_li = rmse_loss(ori_data_x.copy(), imputed_data_x_li.copy(), data_m_x)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
   rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
   with open(out + '/rmse.json', 'w') as f:
       json.dump(rmse_info, f)
 
-  imputed_data_x[data_m == 0] = np.nan
-  imputed_data_x_li[data_m == 0] = np.nan
-  ori_data_x[data_m == 0] = np.nan
+  imputed_data_x[data_m_x == 0] = np.nan
+  imputed_data_x_li[data_m_x == 0] = np.nan
+  ori_data_x[data_m_x == 0] = np.nan
   if args.export_traces:
     plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
 

@@ -20,6 +20,8 @@ from gainimputation.helper import normalization, renormalization, rounding
 from gainimputation.helper import xavier_init
 from gainimputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 
+import warnings
+
 
 def gain(data_x, gain_parameters, outpath):
   '''Impute missing values in data_x
@@ -192,8 +194,7 @@ def gain(data_x, gain_parameters, outpath):
   X_mb = M_mb * X_mb + (1-M_mb) * Z_mb 
       
   imputed_data = sess.run([G_sample], feed_dict = {X: X_mb, M: M_mb})[0]
-  print(imputed_data)
-  
+
   imputed_data = data_m * norm_data_x + (1-data_m) * imputed_data
   
   # Renormalization
@@ -202,5 +203,7 @@ def gain(data_x, gain_parameters, outpath):
   # Rounding
   imputed_data = rounding(imputed_data, data_x)
 
+  if np.isnan(imputed_data).any():
+    warnings.warn("Warning NaN in normalised imputed results.")
           
   return imputed_data
