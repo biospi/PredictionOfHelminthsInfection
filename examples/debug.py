@@ -106,7 +106,7 @@ def natural_keys(text):
 
 if __name__ == "__main__":
 
-    DIR = "F:/Data2/test"
+    DIR = "F:/Data2/imp_out10"
 
     rmse_list = []
     files = []

@@ -298,13 +298,28 @@ def process(data_x, miss_rate):
 def reshape_matrix(matrix, days):
     print(matrix.shape)
     split = np.array_split(matrix, days, axis=0)
+    #filter empty days
+    filtered = []
+    idx = []
+    for i, s in enumerate(split):
+        if (s > 0).any(): #day does contain data
+            filtered.append(s)
+            idx.append(i)  # store location of day
+            continue
+
     hstack = np.hstack(split)
+    hstack_filtered = np.hstack(filtered)
     print(hstack.shape)
-    return hstack
+    print(hstack_filtered.shape)
+    return hstack_filtered, idx
 
 
-def restore_matrix(matrix, n_transponder):
-    split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
+def restore_matrix(matrix, imputed, n_transponder, idx_, days):
+    split = np.array_split(matrix, days, axis=0)
+    split_imp = np.array_split(imputed, imputed.shape[1] / n_transponder, axis=1)
+    for i, d in enumerate(idx_):
+        split[d] = split_imp[i]
+
     vstack = np.vstack(split)
     return vstack
 
@@ -351,12 +366,12 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   miss_data_x_o = miss_data_x.copy()
 
   if args.reshape:
-    miss_data_x = reshape_matrix(miss_data_x, days)
+    miss_data_x, idx_ = reshape_matrix(miss_data_x, days)
 
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
 
   if args.reshape:
-    imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
+    imputed_data_x = restore_matrix(data_x.copy(), imputed_data_x, args.n_top_traces, idx_, days)
 
   if args.export_csv:
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
