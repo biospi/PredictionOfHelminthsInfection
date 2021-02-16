@@ -39,9 +39,7 @@ if __name__ == "__main__":
 
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
-
         iteration_range = np.array(list(range(10, I_RANGE, 10)))
-
         missing_range = [0.1]
         for miss_rate in missing_range:
             rmse_list = []

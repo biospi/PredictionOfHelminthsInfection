@@ -254,7 +254,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
     print(data_first_sensor)
 
-    data_first_sensor = data_first_sensor.fillna(-1)
+    # data_first_sensor = data_first_sensor.fillna(-1)
 
     # data_first_sensor_raw = data_first_sensor_raw.dropna(axis=1, thresh=1000, how="any")
     data_first_sensor_raw = data_first_sensor_raw.sort_values(data_first_sensor_raw.first_valid_index(), axis=1, ascending=False)
@@ -290,9 +290,12 @@ def process(data_x, miss_rate):
         # Introduce missing data
         data_m = binary_sampler(1 - miss_rate, no, dim)
         miss_data_x = data_x.copy()
-        miss_data_x[data_m == 0] = np.nan
+        miss_data_x[(data_m == 0) & ~np.isnan(data_x)] = np.nan
 
-    return data_x, miss_data_x, data_m
+        data_m2 = np.ones((no, dim), dtype=int)
+        data_m2[(data_m == 0) & ~np.isnan(data_x)] = 0
+
+    return data_x, miss_data_x, data_m2
 
 
 def reshape_matrix(matrix, days):
