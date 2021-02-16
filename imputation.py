@@ -298,19 +298,46 @@ def process(data_x, miss_rate):
     return data_x, miss_data_x, data_m2
 
 
+# def reshape_matrix(matrix, days):
+#     print(matrix.shape)
+#     split = np.array_split(matrix, days, axis=0)
+#     hstack = np.hstack(split)
+#     print(hstack.shape)
+#     return hstack
+#
+#
+# def restore_matrix(matrix, n_transponder):
+#     split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
+#     vstack = np.vstack(split)
+#     return vstack
+
 def reshape_matrix(matrix, days):
     print(matrix.shape)
     split = np.array_split(matrix, days, axis=0)
+    #filter empty days
+    filtered = []
+    idx = []
+    for i, s in enumerate(split):
+        if (s > 0).any(): #day does contain data
+            filtered.append(s)
+            idx.append(i)  # store location of day
+            continue
+
     hstack = np.hstack(split)
+    hstack_filtered = np.hstack(filtered)
     print(hstack.shape)
-    return hstack
+    print(hstack_filtered.shape)
+    return hstack_filtered, idx
 
 
-def restore_matrix(matrix, n_transponder):
-    split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
+def restore_matrix(matrix, imputed, n_transponder, idx_, days):
+    split = np.array_split(matrix, days, axis=0)
+    split_imp = np.array_split(imputed, imputed.shape[1] / n_transponder, axis=1)
+    for i, d in enumerate(idx_):
+        split[d] = split_imp[i]
+
     vstack = np.vstack(split)
     return vstack
-
 
 def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   '''Main function for UCI letter and spam datasets.
@@ -335,7 +362,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
                      'hint_rate': args.hint_rate,
                      'alpha': args.alpha,
                      'iterations': args.iterations}
-  
+  RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
   # Load data and introduce missingness
   # ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
   ori_data_x = original_data_x.copy()[:-1, :]
@@ -350,16 +377,16 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
         str(args.alpha).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
   # Impute missing data
-  days = int(miss_data_x.shape[0]/1440)
+  days = int(miss_data_x.shape[0]/1440)/2
   miss_data_x_o = miss_data_x.copy()
 
-  if args.reshape:
-    miss_data_x = reshape_matrix(miss_data_x, days)
+  if RESHAPE:
+    miss_data_x, idx_ = reshape_matrix(miss_data_x, days)
 
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
 
-  if args.reshape:
-    imputed_data_x = restore_matrix(imputed_data_x, args.n_top_traces)
+  if RESHAPE:
+    imputed_data_x = restore_matrix(data_x.copy(), imputed_data_x, args.n_top_traces, idx_, days)
 
   if args.export_csv:
     export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)

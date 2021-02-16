@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
                 parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
                 parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
-                parser.add_argument('--reshape', type=bool, default=RESHAPE)
+                parser.add_argument('--reshape', type=str, default=RESHAPE)
                 parser.add_argument('--w', type=str, default=WINDOW_ON)
 
                 args = parser.parse_args()

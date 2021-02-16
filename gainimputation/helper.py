@@ -159,11 +159,9 @@ def rmse_loss(ori_data, imputed_data, data_m):
 
   # Only for missing values
   A = (1 - data_m) * ori_data
-  A[np.isnan(A)] = 0
   B = (1 - data_m) * imputed_data
-  B[np.isnan(B)] = 0
-  nominator = np.sum((A - B) ** 2)
-  denominator = np.sum(1 - data_m)
+  nominator = np.nansum((A - B) ** 2)
+  denominator = np.nansum(1 - data_m)
 
   rmse = np.sqrt(nominator / float(denominator))
 

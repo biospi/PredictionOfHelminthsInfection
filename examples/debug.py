@@ -106,7 +106,7 @@ def natural_keys(text):
 
 if __name__ == "__main__":
 
-    DIR = "F:/Data2/test2"
+    DIR = "F:/Data2/imp_out_w5"
 
     rmse_list = []
     files = []
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     ax.set_ylabel('RMSE')
     ax.set_xlabel('iteration')
-    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE LI", alpha=1, marker='*')
+    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1, marker='*')
 
     plt.title("RMSE iteration performance")
     plt.legend()
