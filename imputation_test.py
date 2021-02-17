@@ -18,7 +18,7 @@ if __name__ == "__main__":
     NJOB = 6
     ANSCOMBE = False
     LOG_ANSCOMBE = True
-    REMOVE_ZEROS = True
+    REMOVE_ZEROS = False
     EXPORT_CSV = False
     EXPORT_TRACES = False
     ENABLE_FINAL_IMP = False
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 parser.add_argument(
                     '--batch_size',
                     help='the number of samples in mini-batch',
-                    default=16,
+                    default=3,
                     type=int)
                 parser.add_argument(
                     '--hint_rate',
@@ -141,7 +141,7 @@ if __name__ == "__main__":
             parser.add_argument(
                 '--batch_size',
                 help='the number of samples in mini-batch',
-                default=16,
+                default=3,
                 type=int)
             parser.add_argument(
                 '--hint_rate',

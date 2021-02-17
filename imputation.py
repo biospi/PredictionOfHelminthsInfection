@@ -268,7 +268,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     data_x = data_first_sensor.values
     data_x_raw = data_first_sensor_raw.values
     ids = data_first_sensor.columns
-    return data_x_raw.T, data_x.T, ids, timestamp, date_str
+    return data_x_raw, data_x, ids, timestamp, date_str
 
 
 def linear_interpolation(input_activity):
@@ -300,46 +300,32 @@ def process(data_x, miss_rate):
     return data_x, miss_data_x, data_m
 
 
-# def reshape_matrix(matrix, days):
-#     print(matrix.shape)
-#     split = np.array_split(matrix, days, axis=0)
-#     hstack = np.hstack(split)
-#     print(hstack.shape)
-#     return hstack
-#
-#
-# def restore_matrix(matrix, n_transponder):
-#     split = np.array_split(matrix, matrix.shape[1]/n_transponder, axis=1)
-#     vstack = np.vstack(split)
-#     return vstack
 
 def reshape_matrix(matrix, days):
     print(matrix.shape)
-    split = np.array_split(matrix, days, axis=0)
-    #filter empty days
-    filtered = []
-    idx = []
-    for i, s in enumerate(split):
-        if (s > 0).any(): #day does contain data
-            filtered.append(s)
-            idx.append(i)  # store location of day
-            continue
-
-    hstack = np.hstack(split)
-    hstack_filtered = np.hstack(filtered)
-    print(hstack.shape)
-    print(hstack_filtered.shape)
-    return hstack_filtered, idx
+    transp_block = []
+    for i in range(matrix.shape[1]):
+        transp = matrix[:, i]
+        s = np.array_split(transp, days, axis=0)
+        s = [x.flatten() for x in s]
+        vstack_transp = np.vstack(s)
+        transp_block.append(vstack_transp)
+    hstack = np.hstack(transp_block)
+    return hstack
 
 
-def restore_matrix(matrix, imputed, n_transponder, idx_, days):
-    split = np.array_split(matrix, days, axis=0)
-    split_imp = np.array_split(imputed, imputed.shape[1] / n_transponder, axis=1)
-    for i, d in enumerate(idx_):
-        split[d] = split_imp[i]
-
-    vstack = np.vstack(split)
-    return vstack
+def restore_matrix(imputed, n_transpond):
+    split = np.array_split(imputed, n_transpond, axis=1)
+    matrix = []
+    for s in split:
+        days = []
+        for i in range(s.shape[0]):
+            d = s[i, :].reshape(-1, 1)
+            days.append(d)
+        vstack = np.vstack(days)
+        matrix.append(vstack)
+    hstack = np.hstack(matrix)
+    return hstack
 
 def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   '''Main function for UCI letter and spam datasets.
@@ -379,21 +365,23 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
         str(args.alpha).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
   # Impute missing data
-  days = int(miss_data_x.shape[0]/1440)/2
+  days = int(miss_data_x.shape[0]/1440)
   miss_data_x_o = miss_data_x.copy()
 
   if RESHAPE:
-    miss_data_x, idx_ = reshape_matrix(miss_data_x, days)
+    miss_data_x = reshape_matrix(miss_data_x, days)
 
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
 
   if RESHAPE:
-    imputed_data_x = restore_matrix(data_x.copy(), imputed_data_x, args.n_top_traces, idx_, days)
+    imputed_data_x = restore_matrix(imputed_data_x, data_x.shape[1])
+    if np.nansum(imputed_data_x - miss_data_x_o) != 0:
+        raise ValueError("Reshaping failed!")
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
 
   if args.export_csv:
-    export_imputed_data(out, data_m_x.T, ori_data_x_o.T, imputed_data_x_li.T, timestamp, date_str, ids, args.alpha, args.hint_rate)
+    export_imputed_data(out, data_m_x, ori_data_x_o, imputed_data_x_li, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
   rmse = rmse_loss(ori_data_x.copy(), imputed_data_x.copy(), data_m_x)
