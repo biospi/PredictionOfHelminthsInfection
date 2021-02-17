@@ -62,7 +62,7 @@ famachaHerd.removeMissing()
 # Load only data based on Famacha data.
 samples = SampleSet()
 
-ndays = 6
+ndays = 1
 samples.generateSet(famachaHerd, activityData, ndays)
 
 
@@ -143,7 +143,7 @@ for idx in range(totalS):
     # meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
     # meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
     # meta[3] = samples.set[idx].ID
-    sample = samples.iA[idx].tolist() + [samples.df[idx]] + [samples.set[idx].ID, datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')]
+    sample = samples.iA[idx].tolist() + [samples.df[idx]] + [samples.set[idx].ID, samples.set[idx].missRate, datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')]
     s.append(sample)
 df = pd.DataFrame(s)
 df.to_csv(filename.replace(".json", ".csv"), sep=',', index=False, header=False)

@@ -156,7 +156,7 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
         plt.close(fig)
 
 
-def export_imputed_data(out, ori_data_x, idata, timestamp, date_str, ids, alpha, hint):
+def export_imputed_data(out, data_m_x, ori_data_x, idata, timestamp, date_str, ids, alpha, hint):
     print("exporting imputed data...")
     print(ids)
     for i in range(idata.shape[1]):
@@ -166,6 +166,7 @@ def export_imputed_data(out, ori_data_x, idata, timestamp, date_str, ids, alpha,
         df["date_str"] = date_str.values
         df["first_sensor_value"] = ori_data_x[:, i]
         df["first_sensor_value_gain"] = idata[:, i]
+        df["missingness"] = data_m_x[:, i]
         # df["signal_strength"] = 0
         # df["battery_voltage"] = 0
         #
@@ -294,8 +295,9 @@ def process(data_x, miss_rate):
 
         data_m2 = np.ones((no, dim), dtype=int)
         data_m2[(data_m == 0) & ~np.isnan(data_x)] = 0
+        data_m = data_m2.copy()
 
-    return data_x, miss_data_x, data_m2
+    return data_x, miss_data_x, data_m
 
 
 # def reshape_matrix(matrix, days):
@@ -388,14 +390,16 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   if RESHAPE:
     imputed_data_x = restore_matrix(data_x.copy(), imputed_data_x, args.n_top_traces, idx_, days)
 
+  imputed_data_x_li = linear_interpolation(miss_data_x_o)
+
   if args.export_csv:
-    export_imputed_data(out, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
+    export_imputed_data(out, data_m_x, ori_data_x_o, imputed_data_x_li, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
   rmse = rmse_loss(ori_data_x.copy(), imputed_data_x.copy(), data_m_x)
   print('RMSE Performance: ' + str(np.round(rmse, 4)))
 
-  imputed_data_x_li = linear_interpolation(miss_data_x_o)
+
   rmse_li = rmse_loss(ori_data_x.copy(), imputed_data_x_li.copy(), data_m_x)
   print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 

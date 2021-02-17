@@ -141,6 +141,7 @@ class ActivityFile:
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
         atrace = np.array(dataFrame.loc[:, 'first_sensor_value_gain'])
+        missingness = np.array(dataFrame.loc[:, 'missingness'])
 
         # xmin = dataFrame.loc[:, 'xmin']
         # xmax = dataFrame.loc[:, 'xmax']
@@ -155,7 +156,7 @@ class ActivityFile:
         # atrace = np.array(magnitude_max)
 
         atime = np.array(dataFrame.loc[:, 'timestamp'])
-        return Activity(self.ID[0, idx], atrace, atime)
+        return Activity(self.ID[0, idx], atrace, atime), Activity(self.ID[0, idx], missingness, atime)
 
 
 class Activity:
@@ -199,14 +200,16 @@ class Sample:
     ID = 0
     famacha = 0
     deltaFamacha = 0
+    missRate = 0.0
     valid = False
 
-    def __init__(self, _ID=0,  _fam=0, _df=0, _valid = None):
+    def __init__(self, _ID=0,  _fam=0, _df=0, _valid = None, _missRate = 0.0):
         self.ID = _ID
         self.famacha = _fam
         self.deltaFamacha = _df
         # If there are no nans in the activity then set valid to True
         self.valid = _valid
+        self.missRate = _missRate
 
 
 class SampleSet:
@@ -227,7 +230,7 @@ class SampleSet:
 
         fdt = dt.datetime.fromtimestamp
         for i, aIdx in enumerate(famData.herd):
-            act = actFile.loadActivityTrace(aIdx.ID)
+            act, miss = actFile.loadActivityTrace(aIdx.ID)
             print(f"Procesing animal with ID:{bc.BLUE} {act.ID} \t [{i+1}/{N}] {bc.ENDC}")
             aniSet = []
             T0 = act.T[0]
@@ -262,8 +265,6 @@ class SampleSet:
                 if TIdxStart < 0:
                     print("outside of activity range", dt.datetime.fromtimestamp(fTimeIdxStart))
                     continue
-                DEBUG = np.array([dt.datetime.fromtimestamp(x) for x in np.array(act.T[TIdxStart:TIdxEnd + 1])])
-                DEBUG_TO = dt.datetime.fromtimestamp(T0)
 
                 # if fTimeIdxStart < T0:
                 #     #vbprint(f"{bc.YELLOW}Start Time of Famacha {fdt(TIdxStart)} is less than Time for activity {fdt(T0)}{bc.ENDC}")
@@ -271,6 +272,7 @@ class SampleSet:
 
                 T = np.array(act.T[TIdxStart:TIdxEnd+1])
                 A = np.array(act.A[TIdxStart:TIdxEnd+1])
+                M = np.array(miss.A[TIdxStart:TIdxEnd+1])
 
                 w_size = (deltaFamachaTime * 1440)+1
                 if A.size != w_size:
@@ -284,9 +286,12 @@ class SampleSet:
 
                 # Is activity valid
                 # val = math.isnan(A.min()) == False
-                val = np.isnan(A).tolist().count(True) < (720) * deltaFamachaTime
+                # val = np.isnan(A).tolist().count(True) < (720) * deltaFamachaTime
+                missR = 1 - np.sum(M) / M.size  # missing marked as 0
 
-                aniSet.append(Sample(aIdx.ID, fCurrent, df, val))
+                val = missR < 0.6
+
+                aniSet.append(Sample(aIdx.ID, fCurrent, df, val, missR))
 
                 if type(self.iA) == int:
                     self.iA = np.array(A)

@@ -21,6 +21,9 @@ if __name__ == "__main__":
     REMOVE_ZEROS = True
     EXPORT_CSV = False
     EXPORT_TRACES = False
+    ENABLE_FINAL_IMP = True
+    if ENABLE_FINAL_IMP:
+        EXPORT_CSV = True
     WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
     RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
@@ -41,6 +44,11 @@ if __name__ == "__main__":
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
         iteration_range = np.array(list(range(10, I_RANGE, 10)))
         missing_range = [0.1]
+        if ENABLE_FINAL_IMP:
+            missing_range = [0]
+            iteration_range = [280]
+            # iteration_range = [600]
+
         for miss_rate in missing_range:
             rmse_list = []
             rmse_list_li = []
