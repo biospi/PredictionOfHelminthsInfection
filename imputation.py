@@ -268,7 +268,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     data_x = data_first_sensor.values
     data_x_raw = data_first_sensor_raw.values
     ids = data_first_sensor.columns
-    return data_x_raw, data_x, ids, timestamp, date_str
+    return data_x_raw.T, data_x.T, ids, timestamp, date_str
 
 
 def linear_interpolation(input_activity):
@@ -393,7 +393,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
 
   if args.export_csv:
-    export_imputed_data(out, data_m_x, ori_data_x_o, imputed_data_x_li, timestamp, date_str, ids, args.alpha, args.hint_rate)
+    export_imputed_data(out, data_m_x.T, ori_data_x_o.T, imputed_data_x_li.T, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   #Report the RMSE performance
   rmse = rmse_loss(ori_data_x.copy(), imputed_data_x.copy(), data_m_x)
@@ -407,11 +407,11 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   with open(out + '/rmse.json', 'w') as f:
       json.dump(rmse_info, f)
 
-  imputed_data_x[data_m_x == 0] = np.nan
-  imputed_data_x_li[data_m_x == 0] = np.nan
-  ori_data_x[data_m_x == 0] = np.nan
-  if args.export_traces:
-    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
+  # imputed_data_x[data_m_x == 0] = np.nan
+  # imputed_data_x_li[data_m_x == 0] = np.nan
+  # ori_data_x[data_m_x == 0] = np.nan
+  # if args.export_traces:
+  #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
 
   # rmse_per_id = {}
   # rmse_per_id_li = {}

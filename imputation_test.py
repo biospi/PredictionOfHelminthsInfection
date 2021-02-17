@@ -21,7 +21,7 @@ if __name__ == "__main__":
     REMOVE_ZEROS = True
     EXPORT_CSV = False
     EXPORT_TRACES = False
-    ENABLE_FINAL_IMP = True
+    ENABLE_FINAL_IMP = False
     if ENABLE_FINAL_IMP:
         EXPORT_CSV = True
     WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 parser.add_argument(
                     '--batch_size',
                     help='the number of samples in mini-batch',
-                    default=128,
+                    default=16,
                     type=int)
                 parser.add_argument(
                     '--hint_rate',
@@ -141,7 +141,7 @@ if __name__ == "__main__":
             parser.add_argument(
                 '--batch_size',
                 help='the number of samples in mini-batch',
-                default=128,
+                default=16,
                 type=int)
             parser.add_argument(
                 '--hint_rate',

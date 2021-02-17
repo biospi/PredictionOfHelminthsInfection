@@ -64,6 +64,7 @@ from astropy.convolution import convolve, Box1DKernel
 
 from plotnine import *
 from plotnine.data import mpg
+from numpy import inf
 
 
 class SelectKBestWrapper(SelectKBest):
@@ -435,19 +436,24 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
 def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
     class_healthy = 1
-    class_unhealthy = 4
+    class_unhealthy = 2
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
 
-    hearder[-3] = 'label'
-    hearder[-2] = 'id'
+    hearder[-4] = 'label'
+    hearder[-3] = 'id'
+    hearder[-2] = 'missing_rate'
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
+
+    #todo filter with missingness rate
+    data_frame = data_frame[data_frame["missing_rate"] < 0.7]
+
     data_frame_original = data_frame.copy()
-    cols_to_keep = hearder[:-3]
+    cols_to_keep = hearder[:-4]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     # data_frame = data_frame.fillna(-1)
@@ -470,7 +476,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # data_frame = shuffle(data_frame)
     data_frame = data_frame.dropna()
-    data_frame = filter_by_entropy(data_frame)
+    # data_frame = filter_by_entropy(data_frame)
+
+
     print(data_frame)
 
     class_count = {}
@@ -2327,6 +2335,9 @@ def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, tot
 
     coefs_cc = np.conj(coefs)
     power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
+
+    power_cwt[power_cwt == -inf] = 0 #todo check why inf output
+
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
 
     if high_pass is not None and high_pass > 0:
