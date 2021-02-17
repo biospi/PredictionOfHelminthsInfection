@@ -26,18 +26,23 @@ from commands.Herd import *
 from commands.Samples import *
 from commands.cmdsextra import bc
 
-
-if len(sys.argv) != 4:
+#%%
+if sys.argv == ['']:
+    famFile = '..\Data\\delmas_animal_data.h5'
+    dataDir = 'H:\\Data\\Axel_Famacha\\data_pipeline\\p3_csv_threshold\\interpol_5_zeros_480'
+    dataOut = "C:\\Users\\ranjeet\\Repository\\PycharmProjects\\bunker\\dataOut"
+elif len(sys.argv) != 4:
     print("Usage: "
           "createSample <Famacha HDF5 file> <Directory with data> <Output Directory>")
     exit(1)
+else:
+    famFile = Path(sys.argv[1])
+    dataDir = Path(sys.argv[2])
+    outDir = Path(sys.argv[3])
 
-famFile = Path(sys.argv[1])
-dataDir = Path(sys.argv[2])
-outDir = Path(sys.argv[3])
+#%% Load in data
 
 print("Commanline argument: ", famFile)
-
 
 print("Loading Famacha and Sorce based data from HDF5 file")
 fileHerd = HerdFile(famFile)
@@ -54,6 +59,7 @@ sheepID = activityData.getID()
 
 famachaHerd.setIDofHerd(sheepID)
 
+#%%
 mis = famachaHerd.getMissingList()
 
 famachaHerd.removeMissing()
