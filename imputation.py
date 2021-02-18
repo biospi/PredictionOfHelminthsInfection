@@ -410,7 +410,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   if RESHAPE:
     imputed_data_x = restore_matrix(imputed_data_x, data_x.shape[1])
   else:
-    imputed_data_x = reshape_matrix_ranjeet(imputed_data_x, data_x.shape[1])
+    imputed_data_x = restore_matrix_ranjeet(imputed_data_x, data_x.shape[1])
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
 
