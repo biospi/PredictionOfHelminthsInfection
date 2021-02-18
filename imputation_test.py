@@ -27,7 +27,7 @@ if __name__ == "__main__":
     WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
     RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
-    I_RANGE = 610
+    I_RANGE = 210
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
-        iteration_range = np.array(list(range(10, I_RANGE, 10)))
+        iteration_range = np.array(list(range(1, I_RANGE, 1)))
         missing_range = [0.1]
         if ENABLE_FINAL_IMP:
             missing_range = [0]
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 parser.add_argument(
                     '--batch_size',
                     help='the number of samples in mini-batch',
-                    default=3,
+                    default=128,
                     type=int)
                 parser.add_argument(
                     '--hint_rate',
@@ -141,7 +141,7 @@ if __name__ == "__main__":
             parser.add_argument(
                 '--batch_size',
                 help='the number of samples in mini-batch',
-                default=3,
+                default=128,
                 type=int)
             parser.add_argument(
                 '--hint_rate',

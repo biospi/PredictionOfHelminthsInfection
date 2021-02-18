@@ -168,6 +168,9 @@ def rmse_loss(ori_data, imputed_data, data_m):
   if np.isnan(rmse):
     raise ValueError("Error while calculating RMSE is NaN")
 
+  if rmse == 0:
+    print("RMSE is 0 !!!!")
+
   return rmse
 
 
