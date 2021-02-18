@@ -326,7 +326,7 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix(matrix, days):
+def reshape_matrix_andy(matrix, days, add_t_col=False):
     print(matrix.shape)
     transp_block = []
     for i in range(matrix.shape[1]):
@@ -334,12 +334,22 @@ def reshape_matrix(matrix, days):
         s = np.array_split(transp, days, axis=0)
         s = [x.flatten() for x in s]
         vstack_transp = np.vstack(s)
+
+        if add_t_col:
+            df = pd.DataFrame(vstack_transp)
+            for n in range(matrix.shape[1]):
+                v = 1 if n == i else 0
+                df["t_%d" % n] = v
+            vstack_transp = df.values
+
         transp_block.append(vstack_transp)
     vstack = np.vstack(transp_block)
     return vstack
 
 
-def restore_matrix(imputed, n_transpond):
+def restore_matrix_andy(imputed, n_transpond, add_t_col=False):
+    if add_t_col:
+        imputed = imputed[:, :-n_transpond]
     split = np.array_split(imputed, n_transpond, axis=0)
     matrix = []
     for s in split:
@@ -350,6 +360,7 @@ def restore_matrix(imputed, n_transpond):
         vstack = np.vstack(days)
         matrix.append(vstack)
     hstack = np.hstack(matrix)
+
     return hstack
 
 
@@ -377,6 +388,8 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
                      'alpha': args.alpha,
                      'iterations': args.iterations}
   RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
+  ADD_TRANSP_COL = args.add_t_col.lower() in ["yes", 'y', 't', 'true']
+
   # Load data and introduce missingness
   # ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
   ori_data_x = original_data_x.copy()[:-1, :]
@@ -395,7 +408,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   miss_data_x_o = miss_data_x.copy()
 
   if RESHAPE:
-    miss_data_x = reshape_matrix(miss_data_x, days)
+    miss_data_x = reshape_matrix_andy(miss_data_x, days, add_t_col=ADD_TRANSP_COL)
   else:
     miss_data_x = reshape_matrix_ranjeet(miss_data_x, days)
 
@@ -408,7 +421,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
       raise ValueError("Error while imputing data, all value NaN!")
 
   if RESHAPE:
-    imputed_data_x = restore_matrix(imputed_data_x, data_x.shape[1])
+    imputed_data_x = restore_matrix_andy(imputed_data_x, data_x.shape[1], ADD_TRANSP_COL)
   else:
     imputed_data_x = restore_matrix_ranjeet(imputed_data_x, data_x.shape[1])
 
@@ -486,8 +499,9 @@ if __name__ == '__main__':
   parser.add_argument('--window', type=bool, default=False)
   parser.add_argument('--export_csv', type=bool, default=True)
   parser.add_argument('--export_traces', type=bool, default=True)
-  parser.add_argument('--reshape', type=bool, default=True)
-  parser.add_argument('--w', type=bool, default=False)
+  parser.add_argument('--reshape', type=str, default='n')
+  parser.add_argument('--w', type=str, default='n')
+  parser.add_argument('--add_t_col', type=str, default='n')
 
   args = parser.parse_args() 
   

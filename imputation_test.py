@@ -11,6 +11,8 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str)
     parser.add_argument('--reshape', type=str)
     parser.add_argument('--w', type=str)
+    parser.add_argument('--add_t_col', type=str)
+
     args = parser.parse_args()
     print(args)
 
@@ -26,6 +28,7 @@ if __name__ == "__main__":
         EXPORT_CSV = True
     WINDOW_ON = args.w.lower() in ["yes", 'y', 't', 'true']
     RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
+    ADD_T_COL = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
     I_RANGE = 1000
 
@@ -90,6 +93,8 @@ if __name__ == "__main__":
                 parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
                 parser.add_argument('--reshape', type=str, default=RESHAPE)
                 parser.add_argument('--w', type=str, default=WINDOW_ON)
+                parser.add_argument('--add_t_col', type=str, default=ADD_T_COL)
+
 
                 args = parser.parse_args()
                 print(args)
@@ -170,7 +175,9 @@ if __name__ == "__main__":
             parser.add_argument('--enable_anscombe', type=bool, default=ANSCOMBE)
             parser.add_argument('--export_csv', type=bool, default=EXPORT_CSV)
             parser.add_argument('--export_traces', type=bool, default=EXPORT_TRACES)
-            parser.add_argument('--reshape', type=bool, default=RESHAPE)
+            parser.add_argument('--reshape', type=str, default=RESHAPE)
+            parser.add_argument('--w', type=str, default=WINDOW_ON)
+            parser.add_argument('--add_t_col', type=str, default=ADD_T_COL)
 
             args = parser.parse_args()
             imputed_data_x, rmse, rmse_li = imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str)
