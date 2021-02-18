@@ -299,31 +299,31 @@ def process(data_x, miss_rate):
 
     return data_x, miss_data_x, data_m
 
-# def reshape_matrix(matrix, days):
-#     print(matrix.shape)
-#     transp_block = []
-#     for i in range(matrix.shape[1]):
-#         transp = matrix[:, i]
-#         s = np.array_split(transp, days, axis=0)
-#         s = [x.flatten() for x in s]
-#         vstack_transp = np.vstack(s)
-#         transp_block.append(vstack_transp)
-#     hstack = np.hstack(transp_block)
-#     return hstack
-#
-#
-# def restore_matrix(imputed, n_transpond):
-#     split = np.array_split(imputed, n_transpond, axis=1)
-#     matrix = []
-#     for s in split:
-#         days = []
-#         for i in range(s.shape[0]):
-#             d = s[i, :].reshape(-1, 1)
-#             days.append(d)
-#         vstack = np.vstack(days)
-#         matrix.append(vstack)
-#     hstack = np.hstack(matrix)
-#     return hstack
+def reshape_matrix_ranjeet(matrix, days):
+    print(matrix.shape)
+    transp_block = []
+    for i in range(matrix.shape[1]):
+        transp = matrix[:, i]
+        s = np.array_split(transp, days, axis=0)
+        s = [x.flatten() for x in s]
+        vstack_transp = np.vstack(s)
+        transp_block.append(vstack_transp)
+    hstack = np.hstack(transp_block)
+    return hstack
+
+
+def restore_matrix_ranjeet(imputed, n_transpond):
+    split = np.array_split(imputed, n_transpond, axis=1)
+    matrix = []
+    for s in split:
+        days = []
+        for i in range(s.shape[0]):
+            d = s[i, :].reshape(-1, 1)
+            days.append(d)
+        vstack = np.vstack(days)
+        matrix.append(vstack)
+    hstack = np.hstack(matrix)
+    return hstack
 
 
 def reshape_matrix(matrix, days):
@@ -396,14 +396,21 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
 
   if RESHAPE:
     miss_data_x = reshape_matrix(miss_data_x, days)
+  else:
+    miss_data_x = reshape_matrix_ranjeet(miss_data_x, days)
 
-    if np.nansum(restore_matrix(miss_data_x, data_x.shape[1]) - miss_data_x_o) != 0:
-        raise ValueError("Reshaping check failed!")
+    # if np.nansum(restore_matrix(miss_data_x, data_x.shape[1]) - miss_data_x_o) != 0:
+    #     raise ValueError("Reshaping check failed!")
 
   imputed_data_x = gain(miss_data_x, gain_parameters, out)
 
+  if np.isnan(imputed_data_x).all():
+      raise ValueError("Error while imputing data, all value NaN!")
+
   if RESHAPE:
     imputed_data_x = restore_matrix(imputed_data_x, data_x.shape[1])
+  else:
+    imputed_data_x = reshape_matrix_ranjeet(imputed_data_x, data_x.shape[1])
 
   imputed_data_x_li = linear_interpolation(miss_data_x_o)
 

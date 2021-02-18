@@ -52,7 +52,8 @@ if __name__ == "__main__":
         for miss_rate in missing_range:
             rmse_list = []
             rmse_list_li = []
-            for i_r in iteration_range:
+            for i, i_r in enumerate(iteration_range):
+                print("progress %d/%d..." % (i, len(iteration_range)))
                 parser = argparse.ArgumentParser()
                 parser.add_argument('--data_dir', type=str, default=DATA_DIR)
                 parser.add_argument('--output_dir', type=str, default=OUT)
