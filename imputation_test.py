@@ -22,7 +22,7 @@ if __name__ == "__main__":
     LOG_ANSCOMBE = True
     REMOVE_ZEROS = False
     EXPORT_CSV = False
-    EXPORT_TRACES = False
+    EXPORT_TRACES = True
     ENABLE_FINAL_IMP = False
     if ENABLE_FINAL_IMP:
         EXPORT_CSV = True
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     DATA_DIR = args.data_dir
 
     # config = [(WINDOW_ON, True, False, False), (WINDOW_ON, False, False, False), (WINDOW_ON, True, True, False), (WINDOW_ON, False, True, False), (WINDOW_ON, True, False, True), (WINDOW_ON, False, False, True)]
-    config = [(WINDOW_ON, False, ANSCOMBE, LOG_ANSCOMBE)]
+    config = [(WINDOW_ON, REMOVE_ZEROS, ANSCOMBE, LOG_ANSCOMBE)]
     for WINDOW_ON, REMOVE_ZEROS, ANSCOMBE, LOG_ANSCOMBE in config:
 
         OUT += '\imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_reshape_%s' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE, str(RESHAPE))
@@ -46,10 +46,10 @@ if __name__ == "__main__":
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
                                                                                         enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
         iteration_range = np.array(list(range(10, I_RANGE, 10)))
-        missing_range = [0.1]
+        missing_range = [0.01]
         if ENABLE_FINAL_IMP:
             missing_range = [0]
-            iteration_range = [280]
+            iteration_range = [600]
             # iteration_range = [600]
 
         for miss_rate in missing_range:

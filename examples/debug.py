@@ -106,9 +106,10 @@ def natural_keys(text):
 
 if __name__ == "__main__":
 
-    DIR = "F:/Data2/test"
+    DIR = "F:/Data2/imp_full_reshape_andytcoldate_debug12"
 
     rmse_list = []
+    rmse_list_li = []
     files = []
     for path in Path(DIR).rglob('*.json'):
         files.append(str(path))
@@ -121,6 +122,7 @@ if __name__ == "__main__":
             data = json.load(json_file)
             print(data["rmse"])
             rmse_list.append(data["rmse"])
+            rmse_list_li.append(data["rmse_li"])
 
     plt.clf()
     plt.cla()
@@ -128,6 +130,7 @@ if __name__ == "__main__":
     ax.set_ylabel('RMSE')
     ax.set_xlabel('iteration')
     plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1, marker='*')
+    plt.plot([x * 10 for x in range(len(rmse_list_li))], rmse_list_li, label="RMSE LI", alpha=1, marker='*')
 
     plt.title("RMSE iteration performance")
     plt.legend()

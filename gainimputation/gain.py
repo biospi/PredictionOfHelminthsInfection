@@ -144,6 +144,8 @@ def gain(data_x, gain_parameters, outpath):
   # Start Iterations
   D_loss_list = []
   G_loss_list = []
+  if batch_size > no:
+      batch_size = no
   for it in tqdm(range(iterations)):    
       
     # Sample batch

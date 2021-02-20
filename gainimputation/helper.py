@@ -154,6 +154,9 @@ def rmse_loss(ori_data, imputed_data, data_m):
   # print("denominator=", denominator)
   # rmse = np.sqrt(nominator/float(denominator))
 
+  ori_data[ori_data == 0] = np.nan
+  imputed_data[ori_data == 0] = np.nan
+
   ori_data, norm_parameters = normalization(ori_data)
   imputed_data, _ = normalization(imputed_data, norm_parameters)
 
