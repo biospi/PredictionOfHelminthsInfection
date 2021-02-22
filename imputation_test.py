@@ -22,7 +22,7 @@ if __name__ == "__main__":
     LOG_ANSCOMBE = True
     REMOVE_ZEROS = False
     EXPORT_CSV = False
-    EXPORT_TRACES = True
+    EXPORT_TRACES = False
     ENABLE_FINAL_IMP = False
     if ENABLE_FINAL_IMP:
         EXPORT_CSV = True

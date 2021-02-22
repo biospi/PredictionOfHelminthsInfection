@@ -15,6 +15,7 @@ import numpy as np
 np.random.seed(0) #for reproducability
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
+from utils.Utils import anscombe
 
 tf.disable_v2_behavior()
 
@@ -154,17 +155,33 @@ def rmse_loss(ori_data, imputed_data, data_m):
   # print("denominator=", denominator)
   # rmse = np.sqrt(nominator/float(denominator))
 
+  ori_data[ori_data == np.log(anscombe(0))] = np.nan
+  imputed_data[imputed_data == np.log(anscombe(0))] = np.nan
   ori_data[ori_data == 0] = np.nan
-  imputed_data[ori_data == 0] = np.nan
+  imputed_data[imputed_data == 0] = np.nan
 
   ori_data, norm_parameters = normalization(ori_data)
   imputed_data, _ = normalization(imputed_data, norm_parameters)
 
+  ori_data[ori_data == np.log(anscombe(0))] = np.nan
+  imputed_data[imputed_data == np.log(anscombe(0))] = np.nan
+  ori_data[ori_data == 0] = np.nan
+  imputed_data[imputed_data == 0] = np.nan
+
   # Only for missing values
   A = (1 - data_m) * ori_data
   B = (1 - data_m) * imputed_data
-  nominator = np.nansum((A - B) ** 2)
+
+  A[A == 0] = np.nan
+  B[B == 0] = np.nan
+
+  C = A - B
+
+  nominator = np.nansum(C ** 2)
   denominator = np.nansum(1 - data_m)
+
+  print("nominator=", nominator)
+  print("denominator=", denominator)
 
   rmse = np.sqrt(nominator / float(denominator))
 
@@ -172,7 +189,7 @@ def rmse_loss(ori_data, imputed_data, data_m):
     raise ValueError("Error while calculating RMSE is NaN")
 
   if rmse == 0:
-    print("RMSE is 0 !!!!")
+    raise ValueError("RMSE is 0 !!!!")
 
   return rmse
 

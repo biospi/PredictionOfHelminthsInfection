@@ -49,7 +49,7 @@ def process_activity_data(file, i, nfiles, window):
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
     if window:
-        w = 1440 * 14
+        w = 1440 * 7 * 6
         start = 413129
         end = start + w
         df_activity = df_activity.loc[start: end, :]
@@ -306,7 +306,7 @@ def linear_interpolation(input_activity):
     for c in range(input_activity.shape[1]):
         i = np.array(input_activity[:, c], dtype=np.float)
         s = pd.Series(i)
-        s = s.interpolate(method='linear')
+        s = s.interpolate(method='linear', limit_direction='both')
         input_activity[:, c] = s
     return input_activity
 
@@ -335,7 +335,7 @@ def reshape_matrix_ranjeet(matrix):
     transp_block = []
     for i in range(matrix.shape[1]):
         transp = matrix[:, i]
-        s = np.array_split(transp, matrix.shape[0]/1440/7, axis=0)
+        s = np.array_split(transp, matrix.shape[0]/1440, axis=0)
         s = [x.flatten() for x in s]
         vstack_transp = np.vstack(s)
         transp_block.append(vstack_transp)
@@ -463,7 +463,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   else:
     imputed_data_x = restore_matrix_ranjeet(imputed_data_x, data_x.shape[1])
 
-  imputed_data_x_li = linear_interpolation(miss_data_x_o)
+  imputed_data_x_li = linear_interpolation(miss_data_x_o.copy())
 
   if args.export_csv:
     export_imputed_data(out, data_m_x, ori_data_x_o, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
