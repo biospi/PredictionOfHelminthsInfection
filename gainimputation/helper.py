@@ -140,33 +140,14 @@ def rmse_loss(ori_data, imputed_data, data_m):
     - rmse: Root Mean Squared Error
   '''
 
-  # ori_data[np.isnan(ori_data)] = 0 #ignore real nan
-  # ori_data, norm_parameters = normalization(ori_data)
-  # imputed_data, _ = normalization(imputed_data, norm_parameters)
-  #
-  # # Only for missing values
-  # A = (data_m) * ori_data
-  # B = (data_m) * imputed_data
-  # C = (A - B)
-  # nominator = np.sum(C**2)
-  # denominator = np.sum(data_m)
-  #
-  # print("nominator=", nominator)
-  # print("denominator=", denominator)
-  # rmse = np.sqrt(nominator/float(denominator))
+  ori_data_ = ori_data.copy()
+  ori_data[ori_data_ == np.log(anscombe(0))] = np.nan
+  imputed_data[ori_data_ == np.log(anscombe(0))] = np.nan
+  ori_data[ori_data_ == 0] = np.nan
+  imputed_data[ori_data_ == 0] = np.nan
 
-  ori_data[ori_data == np.log(anscombe(0))] = np.nan
-  imputed_data[imputed_data == np.log(anscombe(0))] = np.nan
-  ori_data[ori_data == 0] = np.nan
-  imputed_data[imputed_data == 0] = np.nan
-
-  ori_data, norm_parameters = normalization(ori_data)
-  imputed_data, _ = normalization(imputed_data, norm_parameters)
-
-  ori_data[ori_data == np.log(anscombe(0))] = np.nan
-  imputed_data[imputed_data == np.log(anscombe(0))] = np.nan
-  ori_data[ori_data == 0] = np.nan
-  imputed_data[imputed_data == 0] = np.nan
+  ori_data_norm, norm_parameters = normalization(ori_data)
+  imputed_data_norm, _ = normalization(imputed_data, norm_parameters)
 
   # Only for missing values
   A = (1 - data_m) * ori_data
@@ -175,7 +156,13 @@ def rmse_loss(ori_data, imputed_data, data_m):
   A[A == 0] = np.nan
   B[B == 0] = np.nan
 
+  if A[~np.isnan(A)].size != B[~np.isnan(B)].size:
+      raise ValueError("should have same number of point for rmse calculation!")
+
   C = A - B
+
+  if C[~np.isnan(C)].shape[0] == 0:
+      raise ValueError("empty array!")
 
   nominator = np.nansum(C ** 2)
   denominator = np.nansum(1 - data_m)
