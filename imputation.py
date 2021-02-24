@@ -358,7 +358,7 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, add_t_col=False, c=6):
+def reshape_matrix_andy(matrix, add_t_col=False, c=2):
     print(matrix.shape)
 
     transp_block = []
