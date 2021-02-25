@@ -158,10 +158,9 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   # if original_masked[(original_masked == 0) & (imputed_gain_masked > 0)].size > 0:
   #   raise ValueError("erroneous point!")
 
-  a = original_masked[original_masked > 0].size
-  b = imputed_gain_masked[imputed_gain_masked > 0].size
-
   # only works if normalisation does not returns 0 values
+  # a = original_masked[original_masked > 0].size
+  # b = imputed_gain_masked[imputed_gain_masked > 0].size
   # if a != b:
   #     print(a, b)
   #     raise ValueError("should have same number of point for rmse calculation!")
