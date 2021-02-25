@@ -161,9 +161,10 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   a = original_masked[original_masked > 0].size
   b = imputed_gain_masked[imputed_gain_masked > 0].size
 
-  if a != b:
-      print(a, b)
-      raise ValueError("should have same number of point for rmse calculation!")
+  # only works if normalisation does not returns 0 values
+  # if a != b:
+  #     print(a, b)
+  #     raise ValueError("should have same number of point for rmse calculation!")
 
   diff_gain = original_masked - imputed_gain_masked
   nominator_gain = np.sum(diff_gain ** 2)
@@ -308,7 +309,7 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, add_t_col=False, c=1):
+def reshape_matrix_andy(matrix, add_t_col=False, c=14):
     print(matrix.shape)
 
     transp_block = []
