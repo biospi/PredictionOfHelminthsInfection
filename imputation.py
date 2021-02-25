@@ -358,7 +358,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
     export_imputed_data(out, data_m_x, data_x, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   if args.export_traces:
-    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
+    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
 
 
 if __name__ == '__main__':  

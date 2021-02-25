@@ -23,7 +23,7 @@ if __name__ == "__main__":
     NJOB = 6
     ANSCOMBE = False
     LOG_ANSCOMBE = True
-    REMOVE_ZEROS = True
+    REMOVE_ZEROS = False
     EXPORT_CSV = True
     EXPORT_TRACES = True
     ENABLE_FINAL_IMP = False
