@@ -26,7 +26,7 @@ import warnings
 import matplotlib.pyplot as plt
 
 
-def gain(data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -202,7 +202,7 @@ def gain(data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath
     else:
       imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 
-    rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x)
+    rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
     print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
     print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
     rmse_gain.append(rmse_g)
@@ -228,4 +228,4 @@ def gain(data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath
   print(filename)
   plt.savefig(filename)
 
-  # return imputed_data
+  return imputed_data

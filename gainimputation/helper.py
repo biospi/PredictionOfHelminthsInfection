@@ -20,6 +20,8 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 from utils.Utils import anscombe
 import warnings
+import plotly.express as px
+from plotly.subplots import make_subplots
 import pandas as pd
 
 
@@ -116,7 +118,7 @@ def rounding (imputed_data, data_x):
   return rounded_data
 
 
-def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m):
+def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   '''Compute RMSE loss between ori_data and imputed_data
   
   Args:
@@ -129,19 +131,25 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m):
   '''
 
   ori_data_ = ori_data.copy()
-  data_m[ori_data_ == np.log(anscombe(0))] = 1
+  data_m[ori_data_ == np.log(anscombe(0))] = 1 #if any zeros in raw data flag as to be masked out
 
   ori_data_norm, norm_parameters = normalization(ori_data)
   imputed_data_norm, _ = normalization(imputed_data, norm_parameters)
   imputed_data_li_norm, _ = normalization(imputed_data_li, norm_parameters)
 
-  ori_data_norm[np.isnan(ori_data_norm)] = 0
+  ori_data_norm[np.isnan(ori_data_norm)] = 0 #if any nan in raw data flag as to be masked out
   data_m[ori_data_norm == 0] = 1
 
   # Only for missing values
   original_masked = (1 - data_m) * ori_data_norm
   imputed_gain_masked = (1 - data_m) * imputed_data_norm
   imputed_li_masked = (1 - data_m) * imputed_data_li_norm
+
+  #use non normalized value for histograms
+  original_masked_ = (1 - data_m) * ori_data
+  imputed_gain_masked_ = (1 - data_m) * imputed_data
+  imputed_li_masked_ = (1 - data_m) * imputed_data_li
+  export_point_of_interest_hist(original_masked_, imputed_gain_masked_, imputed_li_masked_, output_dir, i)
 
   # if original_masked[(imputed_gain_masked == 0) & (original_masked > 0)].size > 0:
   #   warnings.warn("erroneous point! nan or zeros in imputation results")
@@ -300,7 +308,7 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, add_t_col=False, c=7):
+def reshape_matrix_andy(matrix, add_t_col=False, c=1):
     print(matrix.shape)
 
     transp_block = []
@@ -346,3 +354,36 @@ def restore_matrix_andy(imputed, n_transpond, add_t_col=False):
     hstack = np.hstack(matrix)
 
     return hstack
+
+
+def export_point_of_interest_hist(original_masked, imputed_gain_masked, imputed_li_masked, output_dir, i):
+    print("export_point_of_interest_hist...")
+
+    o = original_masked.flatten()
+    ig = imputed_gain_masked.flatten()
+    il = imputed_li_masked.flatten()
+
+    o = o[o > 0]
+    ig = ig[ig > 0]
+    il = il[il > 0]
+
+    fig = make_subplots(rows=3, cols=1, x_title="value", y_title='count',
+                        subplot_titles=("Histogram of original data points",  "Histogram of gain data points",
+                                        "Histogram of linear interpolated data points"))
+
+    df = pd.DataFrame(o, columns=["value"])
+    fig1 = px.histogram(df, x="value", nbins=np.unique(o).size)
+
+    fig.add_trace(fig1['data'][0], row=1, col=1)
+
+    df = pd.DataFrame(ig, columns=["value"])
+    fig2 = px.histogram(df, x="value", nbins=np.unique(ig).size)
+    fig.add_trace(fig2['data'][0], row=2, col=1)
+
+    df = pd.DataFrame(il, columns=["value"])
+    fig3 = px.histogram(df, x="value", nbins=np.unique(il).size)
+    fig.add_trace(fig3['data'][0], row=3, col=1)
+
+    filename = output_dir + "/" + "histogram_%d.html" % i
+    fig.write_html(filename)
+    print(filename)

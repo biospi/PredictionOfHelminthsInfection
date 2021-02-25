@@ -339,10 +339,6 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   # Load data and introduce missingness
   data_x = original_data_x.copy()
 
-
-  # file_name = "C:\\Users\\fo18103\\PycharmProjects\\GAIN\\data\\letter.csv"
-  # data_x = np.loadtxt(file_name, delimiter=",", skiprows=1)
-
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation(miss_data_x.copy())
 
@@ -356,45 +352,13 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   else:
     miss_data_x = reshape_matrix_ranjeet(miss_data_x)
 
-  gain(data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+  imputed_data_x = gain(args.output_dir, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
+  if args.export_csv:
+    export_imputed_data(out, data_m_x, data_x, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
-
-
-
-  # imputed_data_x_li = linear_interpolation(miss_data_x_o.copy())
-  #
-  # if args.export_csv:
-  #   export_imputed_data(out, data_m_x, data_x.copy(), imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
-  #
-  # #Report the RMSE performance
-  # rmse = rmse_loss(data_x.copy(), imputed_data_x.copy(), data_m_x)
-  # print('RMSE Performance: ' + str(np.round(rmse, 4)))
-  #
-  #
-  # rmse_li = rmse_loss(data_x.copy(), imputed_data_x_li.copy(), data_m_x)
-  # print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
-  #
-  # rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
-  # with open(out + '/rmse.json', 'w') as f:
-  #     json.dump(rmse_info, f)
-  #
-  # # imputed_data_x[data_m_x == 0] = np.nan
-  # # imputed_data_x_li[data_m_x == 0] = np.nan
-  # # ori_data_x[data_m_x == 0] = np.nan
-  # if args.export_traces:
-  #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
-  #
-  # # rmse_per_id = {}
-  # # rmse_per_id_li = {}
-  # # for i in range(ori_data_x.shape[1]):
-  # #     rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
-  # #     id = str(ids[i])
-  # #     rmse_per_id[id] = rmse_
-  # #     rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
-  # #     rmse_per_id_li[id] = rmse_li_
-  #
-  # return imputed_data_x, rmse, rmse_li
+  if args.export_traces:
+    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
 
 
 if __name__ == '__main__':  
