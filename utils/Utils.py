@@ -15,6 +15,8 @@ def create_rec_dir(path):
     dir_path = ""
     sub_dirs = path.split("/")
     for sub_dir in sub_dirs[0:]:
+        if "." in sub_dir:
+            continue
         dir_path += sub_dir + "/"
         # print("sub_folder=", dir_path)
         if not os.path.exists(dir_path):

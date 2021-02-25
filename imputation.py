@@ -16,7 +16,7 @@ import numpy as np
 np.random.seed(0) #for reproducability
 
 from gainimputation.gain import gain
-from gainimputation.helper import binary_sampler
+from gainimputation.helper import binary_sampler, linear_interpolation, reshape_matrix_andy, reshape_matrix_ranjeet
 from gainimputation.helper import rmse_loss
 from utils.Utils import create_rec_dir
 import matplotlib.pyplot as plt
@@ -53,11 +53,6 @@ def process_activity_data(file, i, nfiles, window):
         start = 413129
         end = start + w
         df_activity = df_activity.loc[start: end, :]
-
-    # print(df_activity_w)
-    # 411989 2015-11-04T02:29
-    #159840
-
     return animal_id, df_activity
 
 
@@ -183,16 +178,6 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, timestamp, date_str, i
         df["first_sensor_value"] = ori_data_x[:, i]
         df["first_sensor_value_gain"] = idata[:, i]
         df["missingness"] = data_m_x[:, i]
-        # df["signal_strength"] = 0
-        # df["battery_voltage"] = 0
-        #
-        # df["xmin"] = 0
-        # df["xmax"] = 0
-        # df["ymin"] = 0
-        # df["ymax"] = 0
-        # df["zmin"] = 0
-        # df["zmax"] = 0
-
         id = str(ids[i])
         filename = id + ".csv"
         filepath = out + "/" + filename
@@ -294,116 +279,34 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop]
 
 
-def chunks(l, n):
-    """Yield n number of sequential chunks from l."""
-    d, r = divmod(len(l), n)
-    for i in range(n):
-        si = (d+1)*(i if i < r else r) + d*(0 if i < r else i - r)
-        yield l[si:si+(d+1 if i < r else d)]
-
-
-def linear_interpolation(input_activity):
-    for c in range(input_activity.shape[1]):
-        i = np.array(input_activity[:, c], dtype=np.float)
-        s = pd.Series(i)
-        s = s.interpolate(method='linear', limit_direction='both')
-        input_activity[:, c] = s
-    return input_activity
-
-
-def process(data_x_, miss_rate):
+def process(data_x, miss_rate):
     # Parameters
-    no, dim = data_x_.shape
+    no, dim = data_x.shape
     if miss_rate == 0:
-        miss_data_x = data_x_.copy()
+        miss_data_x = data_x.copy()
         data_m = np.ones((no, dim), dtype=int)
         data_m[np.isnan(miss_data_x)] = 0
     else:
         # Introduce missing data
         data_m = binary_sampler(1 - miss_rate, no, dim)
-        miss_data_x = data_x_.copy()
-        miss_data_x[(data_m == 0) & ~np.isnan(data_x_)] = np.nan
+        miss_data_x = data_x.copy()
+        miss_data_x[(data_m == 0) & ~np.isnan(data_x)] = np.nan
 
         data_m2 = np.ones((no, dim), dtype=int)
-        data_m2[(data_m == 0) & ~np.isnan(data_x_)] = 0
+        data_m2[(data_m == 0) & ~np.isnan(data_x)] = 0
         data_m = data_m2.copy()
 
     return miss_data_x, data_m
 
-
-def reshape_matrix_ranjeet(matrix):
-    print(matrix.shape)
-    transp_block = []
-    for i in range(matrix.shape[1]):
-        transp = matrix[:, i]
-        s = np.array_split(transp, matrix.shape[0]/1440, axis=0)
-        s = [x.flatten() for x in s]
-        vstack_transp = np.vstack(s)
-        transp_block.append(vstack_transp)
-    hstack = np.hstack(transp_block)
-    return hstack
-
-
-def restore_matrix_ranjeet(imputed, n_transpond):
-    split = np.array_split(imputed, n_transpond, axis=1)
-    matrix = []
-    for s in split:
-        days = []
-        for i in range(s.shape[0]):
-            d = s[i, :].reshape(-1, 1)
-            days.append(d)
-        vstack = np.vstack(days)
-        matrix.append(vstack)
-    hstack = np.hstack(matrix)
-    return hstack
-
-
-def reshape_matrix_andy(matrix, add_t_col=False, c=2):
-    print(matrix.shape)
-
-    transp_block = []
-    for i in range(matrix.shape[1]):
-        transp = matrix[:, i]
-        s = np.array_split(transp, matrix.shape[0]/1440/c, axis=0)
-
-        if add_t_col:
-            d = []
-            for ii, x in enumerate(s):
-                x_ = x.flatten().tolist()
-                x_d = x_ + [ii]
-                d.append(np.array(x_d))
-        else:
-            d = [x.flatten() for x in s]
-
-        vstack_transp = np.vstack(d)
-
-        if add_t_col:
-            df = pd.DataFrame(vstack_transp)
-            for n in range(matrix.shape[1]):
-                v = 1 if n == i else 0
-                df["t_%d" % n] = v
-            vstack_transp = df.values
-
-        transp_block.append(vstack_transp)
-    vstack = np.vstack(transp_block)
-    return vstack
-
-
-def restore_matrix_andy(imputed, n_transpond, add_t_col=False):
-    if add_t_col:
-        imputed = imputed[:, :-n_transpond-1] #-1 for date col
-    split = np.array_split(imputed, n_transpond, axis=0)
-    matrix = []
-    for s in split:
-        days = []
-        for i in range(s.shape[0]):
-            d = s[i, :].reshape(-1, 1)
-            days.append(d)
-        vstack = np.vstack(days)
-        matrix.append(vstack)
-    hstack = np.hstack(matrix)
-
-    return hstack
+    # # Parameters
+    # no, dim = data_x.shape
+    #
+    # # Introduce missing data
+    # data_m = binary_sampler(1 - miss_rate, no, dim)
+    # miss_data_x = data_x.copy()
+    # miss_data_x[data_m == 0] = np.nan
+    #
+    # return miss_data_x, data_m
 
 
 def main(args, raw_data, original_data_x, ids, timestamp, date_str):
@@ -431,71 +334,67 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
                      'iterations': args.iterations}
   RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
   ADD_TRANSP_COL = args.add_t_col.lower() in ["yes", 'y', 't', 'true']
+  N_TRANSPOND = int(args.n_top_traces)
 
   # Load data and introduce missingness
-  # ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
-  # ori_data_x = original_data_x.copy()
-  # ori_data_x_o = ori_data_x.copy()
   data_x = original_data_x.copy()
-  miss_data_x, data_m_x = process(data_x, args.miss_rate)
+
+
+  # file_name = "C:\\Users\\fo18103\\PycharmProjects\\GAIN\\data\\letter.csv"
+  # data_x = np.loadtxt(file_name, delimiter=",", skiprows=1)
+
+  miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
+  imputed_data_x_li = linear_interpolation(miss_data_x.copy())
+
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_hint_rate_" + str(args.hint_rate).replace(".", "_") + "_alpha_" +\
         str(args.alpha).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
-
-  miss_data_x_o = miss_data_x.copy()
 
   if RESHAPE:
     miss_data_x = reshape_matrix_andy(miss_data_x, add_t_col=ADD_TRANSP_COL)
   else:
     miss_data_x = reshape_matrix_ranjeet(miss_data_x)
 
-    # if np.nansum(restore_matrix(miss_data_x, data_x.shape[1]) - miss_data_x_o) != 0:
-    #     raise ValueError("Reshaping check failed!")
-
-  imputed_data_x = gain(miss_data_x, gain_parameters, out)
-
-  if np.isnan(imputed_data_x).all():
-      raise ValueError("Error while imputing data, all value NaN!")
-
-  if RESHAPE:
-    imputed_data_x = restore_matrix_andy(imputed_data_x, data_x.shape[1], add_t_col=ADD_TRANSP_COL)
-  else:
-    imputed_data_x = restore_matrix_ranjeet(imputed_data_x, data_x.shape[1])
-
-  imputed_data_x_li = linear_interpolation(miss_data_x_o.copy())
-
-  if args.export_csv:
-    export_imputed_data(out, data_m_x, data_x.copy(), imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
-
-  #Report the RMSE performance
-  rmse = rmse_loss(data_x.copy(), imputed_data_x.copy(), data_m_x)
-  print('RMSE Performance: ' + str(np.round(rmse, 4)))
+  gain(data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
 
-  rmse_li = rmse_loss(data_x.copy(), imputed_data_x_li.copy(), data_m_x)
-  print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
 
-  rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
-  with open(out + '/rmse.json', 'w') as f:
-      json.dump(rmse_info, f)
 
-  # imputed_data_x[data_m_x == 0] = np.nan
-  # imputed_data_x_li[data_m_x == 0] = np.nan
-  # ori_data_x[data_m_x == 0] = np.nan
-  if args.export_traces:
-    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
 
-  # rmse_per_id = {}
-  # rmse_per_id_li = {}
-  # for i in range(ori_data_x.shape[1]):
-  #     rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
-  #     id = str(ids[i])
-  #     rmse_per_id[id] = rmse_
-  #     rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
-  #     rmse_per_id_li[id] = rmse_li_
-
-  return imputed_data_x, rmse, rmse_li
+  # imputed_data_x_li = linear_interpolation(miss_data_x_o.copy())
+  #
+  # if args.export_csv:
+  #   export_imputed_data(out, data_m_x, data_x.copy(), imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
+  #
+  # #Report the RMSE performance
+  # rmse = rmse_loss(data_x.copy(), imputed_data_x.copy(), data_m_x)
+  # print('RMSE Performance: ' + str(np.round(rmse, 4)))
+  #
+  #
+  # rmse_li = rmse_loss(data_x.copy(), imputed_data_x_li.copy(), data_m_x)
+  # print('RMSE LI Performance: ' + str(np.round(rmse_li, 4)))
+  #
+  # rmse_info = {"rmse": rmse, "rmse_li": rmse_li}
+  # with open(out + '/rmse.json', 'w') as f:
+  #     json.dump(rmse_info, f)
+  #
+  # # imputed_data_x[data_m_x == 0] = np.nan
+  # # imputed_data_x_li[data_m_x == 0] = np.nan
+  # # ori_data_x[data_m_x == 0] = np.nan
+  # if args.export_traces:
+  #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, ori_data_x, ids, timestamp)
+  #
+  # # rmse_per_id = {}
+  # # rmse_per_id_li = {}
+  # # for i in range(ori_data_x.shape[1]):
+  # #     rmse_ = rmse_loss(ori_data_x[:, i], imputed_data_x[:, i], data_m[:, i], miss_data_x[:, i])
+  # #     id = str(ids[i])
+  # #     rmse_per_id[id] = rmse_
+  # #     rmse_li_ = rmse_loss(ori_data_x[:, i], imputed_data_x_li[:, i], data_m[:, i], miss_data_x[:, i])
+  # #     rmse_per_id_li[id] = rmse_li_
+  #
+  # return imputed_data_x, rmse, rmse_li
 
 
 if __name__ == '__main__':  

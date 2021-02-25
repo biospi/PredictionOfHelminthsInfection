@@ -106,7 +106,7 @@ def natural_keys(text):
 
 if __name__ == "__main__":
 
-    DIR = "F:/Data2/imp_full_reshape_andytcoldate_debug16"
+    DIR = "F:/Data2/imp_full_reshape_andytcoldate_debug20"
 
     rmse_list = []
     rmse_list_li = []

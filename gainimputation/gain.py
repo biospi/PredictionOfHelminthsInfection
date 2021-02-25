@@ -8,22 +8,25 @@ Contact: jsyoon0823@gmail.com
 
 # Necessary packages
 #import tensorflow as tf
+##IF USING TF 2 use following import to still use TF < 2.0 Functionalities
+import json
+
 import tensorflow.compat.v1 as tf
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+
 tf.disable_v2_behavior()
+
 import numpy as np
 from tqdm import tqdm
 
-from gainimputation.helper import normalization, renormalization, rounding
-from gainimputation.helper import xavier_init
+from gainimputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, linear_interpolation
+from gainimputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
 from gainimputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 
 import warnings
+import matplotlib.pyplot as plt
 
 
-def gain(data_x, gain_parameters, outpath):
+def gain(data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -140,12 +143,11 @@ def gain(data_x, gain_parameters, outpath):
   ## Iterations
   sess = tf.Session()
   sess.run(tf.global_variables_initializer())
-   
+
+  rmse_gain = []
+  rmse_li = []
   # Start Iterations
-  D_loss_list = []
-  G_loss_list = []
-  if batch_size > no:
-      batch_size = no
+  i = 0
   for it in tqdm(range(iterations)):    
       
     # Sample batch
@@ -163,49 +165,67 @@ def gain(data_x, gain_parameters, outpath):
       
     _, D_loss_curr = sess.run([D_solver, D_loss_temp], 
                               feed_dict = {M: M_mb, X: X_mb, H: H_mb})
-    D_loss_list.append(D_loss_curr)
     _, G_loss_curr, MSE_loss_curr = \
     sess.run([G_solver, G_loss_temp, MSE_loss],
              feed_dict = {X: X_mb, M: M_mb, H: H_mb})
-    G_loss_list.append(G_loss_curr)
 
-  epochs = list(range(iterations))
+    ## Return imputed data
+    Z_mb = uniform_sampler(0, 0.01, no, dim)
+    M_mb = data_m
+    X_mb = norm_data_x
+    X_mb = M_mb * X_mb + (1-M_mb) * Z_mb
+
+    imputed_data = sess.run([G_sample], feed_dict = {X: X_mb, M: M_mb})[0]
+
+    imputed_data = data_m * norm_data_x + (1-data_m) * imputed_data
+
+    # Renormalization
+    imputed_data = renormalization(imputed_data, norm_parameters)
+
+    # Rounding
+    # imputed_data = rounding(imputed_data, data_x)
+
+    '''
+    
+    RMSE Calculation
+    
+    '''
+
+    if np.isnan(imputed_data).any():
+      warnings.warn("Warning NaN in normalised imputed results.")
+
+    if np.isnan(imputed_data).all():
+      raise ValueError("Error while imputing data, all value NaN!")
+
+    if RESHAPE:
+      imputed_data = restore_matrix_andy(imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+    else:
+      imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+
+    rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x)
+    print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
+    print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
+    rmse_gain.append(rmse_g)
+    rmse_li.append(rmse_l)
+
+    rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
+    with open(outpath + '/rmse_%i.json' % i, 'w') as f:
+      json.dump(rmse_info, f)
+
+    i += 1
+
   plt.clf()
-  fig = plt.figure()
-  plt.plot(epochs, G_loss_list, label="generator loss")
-  plt.plot(epochs, D_loss_list, label="discriminator loss")
+  plt.cla()
+  fig, ax = plt.subplots()
+  ax.set_ylabel('RMSE')
+  ax.set_xlabel('iteration')
+  plt.plot(list(range(iterations)), rmse_gain, label="RMSE GAIN", alpha=1)
+  plt.plot(list(range(iterations)), rmse_li, label="RMSE LI", alpha=1)
+
+  plt.title("RMSE iteration performance")
   plt.legend()
-  plt.title("GAN error function")
-  plt.xlabel('epochs')
-  plt.ylabel('loss')
-  print(outpath)
-  fig.savefig(outpath +'/gan_loss.png')
+  filename = outpath + "/" + "RMSE.png"
+  print(filename)
+  plt.savefig(filename)
 
-  # fig = plt.figure()
-  # plt.plot(epochs, D_loss_list)
-  # plt.title("Discriminator error function")
-  # plt.xlabel('epochs')
-  # plt.ylabel('loss')
-  # fig.savefig(outpath + '/discriminator_loss.png')
-  # plt.clf()
-
-  ## Return imputed data      
-  Z_mb = uniform_sampler(0, 0.01, no, dim) 
-  M_mb = data_m
-  X_mb = norm_data_x          
-  X_mb = M_mb * X_mb + (1-M_mb) * Z_mb 
-      
-  imputed_data = sess.run([G_sample], feed_dict = {X: X_mb, M: M_mb})[0]
-
-  imputed_data = data_m * norm_data_x + (1-data_m) * imputed_data
-  
-  # Renormalization
-  imputed_data = renormalization(imputed_data, norm_parameters)  
-  
-  # Rounding
-  imputed_data = rounding(imputed_data, data_x)
-
-  if np.isnan(imputed_data).any():
-    warnings.warn("Warning NaN in normalised imputed results.")
-          
-  return imputed_data
+  # return imputed_data
