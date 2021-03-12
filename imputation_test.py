@@ -1,7 +1,8 @@
 import argparse
-import imputation as imputation
 import numpy as np
 import plotly.express as px
+
+import imputation
 from utils.Utils import create_rec_dir
 import pandas as pd
 from sys import exit
@@ -33,6 +34,7 @@ if __name__ == "__main__":
     OUT = args.output_dir
     I_RANGE = 1000
 
+
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
     # DATA_DIR = 'backfill_1min_xyz_delmas_fixed'
     DATA_DIR = args.data_dir
@@ -45,7 +47,7 @@ if __name__ == "__main__":
         # OUT = 'F:/Data2/imp_reshaped_full/imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
 
         raw_data, original_data_x, ids, timestamp, date_str = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
-                                                                                        enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
+                                                                                             enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
         hist_array = raw_data.flatten()
         hist_array_nrm = hist_array[~np.isnan(hist_array)]
@@ -64,7 +66,7 @@ if __name__ == "__main__":
         filename = args.output_dir + "/" + "histogram_raw_input.html"
         fig.write_html(filename)
 
-        missing_range = [0.02]
+        missing_range = [0.03]
 
         for i, miss_rate in enumerate(missing_range):
             rmse_list = []

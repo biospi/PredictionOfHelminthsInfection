@@ -2,7 +2,7 @@
 
 (1) normalization: MinMax Normalizer
 (2) renormalization: Recover the data from normalzied data
-(3) rounding: Handlecategorical variables after imputation
+(3) rounding: Handlecategorical variables after data_imputation
 (4) rmse_loss: Evaluate imputed data in terms of RMSE
 (5) xavier_init: Xavier initialization
 (6) binary_sampler: sample binary random variables
@@ -23,7 +23,8 @@ import warnings
 import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
-
+from scipy import interpolate
+import plotly.graph_objects as go
 
 def normalization(data, parameters=None):
     '''Normalize data in [0, 1] range.
@@ -131,28 +132,32 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   '''
 
   ori_data_ = ori_data.copy()
-  data_m[ori_data_ == np.log(anscombe(0))] = 1 #if any zeros in raw data flag as to be masked out
+  # data_m[ori_data_ == np.log(anscombe(0))] = 1 #if any zeros in raw data flag as to be masked out
+  # data_m[ori_data_ == 0] = 1
+  # data_m[imputed_data_li == 0] = 1
+  data_m[imputed_data_li.astype(int) == 0] = np.nan
+  data_m[imputed_data_li.astype(int) == np.log(anscombe(0))] = np.nan
 
   ori_data_norm, norm_parameters = normalization(ori_data)
-  imputed_data_norm, _ = normalization(imputed_data, norm_parameters)
-  imputed_data_li_norm, _ = normalization(imputed_data_li, norm_parameters)
+  imputed_data_norm, _ = normalization(imputed_data.copy(), norm_parameters)
+  imputed_data_li_norm, _ = normalization(imputed_data_li.copy(), norm_parameters)
 
-  ori_data_norm[np.isnan(ori_data_norm)] = 0 #if any nan in raw data flag as to be masked out
-  data_m[ori_data_norm == 0] = 1
+  # ori_data_norm[np.isnan(ori_data_norm)] = 0 #if any nan in raw data flag as to be masked out
+  # data_m[ori_data_norm == 0] = 1
 
   # Only for missing values
-  original_masked = (1 - data_m) * ori_data_norm
-  imputed_gain_masked = (1 - data_m) * imputed_data_norm
-  imputed_li_masked = (1 - data_m) * imputed_data_li_norm
+  original_masked_norm = (1 - data_m) * ori_data_
+  imputed_gain_masked_norm = (1 - data_m) * imputed_data
+  imputed_li_masked_norm = (1 - data_m) * imputed_data_li
 
   #use non normalized value for histograms
-  original_masked_ = (1 - data_m) * ori_data
+  original_masked_ = (1 - data_m) * ori_data_
   imputed_gain_masked_ = (1 - data_m) * imputed_data
   imputed_li_masked_ = (1 - data_m) * imputed_data_li
   export_point_of_interest_hist(original_masked_, imputed_gain_masked_, imputed_li_masked_, output_dir, i)
 
   # if original_masked[(imputed_gain_masked == 0) & (original_masked > 0)].size > 0:
-  #   warnings.warn("erroneous point! nan or zeros in imputation results")
+  #   warnings.warn("erroneous point! nan or zeros in data_imputation results")
   #   original_masked[(imputed_gain_masked == 0) & (original_masked > 0)] = 0
   #
   # if original_masked[(original_masked == 0) & (imputed_gain_masked > 0)].size > 0:
@@ -165,16 +170,16 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   #     print(a, b)
   #     raise ValueError("should have same number of point for rmse calculation!")
 
-  diff_gain = original_masked - imputed_gain_masked
-  nominator_gain = np.sum(diff_gain ** 2)
-  denominator_gain = np.sum(1 - data_m)
+  diff_gain = original_masked_norm - imputed_gain_masked_norm
+  nominator_gain = np.nansum(diff_gain ** 2)
+  denominator_gain = np.nansum(1 - data_m)
   print("nominator gain=", nominator_gain)
   print("denominator gain=", denominator_gain)
   rmse_gain = np.sqrt(nominator_gain / float(denominator_gain))
 
-  diff_li = original_masked - imputed_li_masked
-  nominator_li = np.sum(diff_li ** 2)
-  denominator_li = np.sum(1 - data_m)
+  diff_li = original_masked_norm - imputed_li_masked_norm
+  nominator_li = np.nansum(diff_li ** 2)
+  denominator_li = np.nansum(1 - data_m)
   print("nominator li=", nominator_li)
   print("denominator li=", denominator_li)
   rmse_li = np.sqrt(nominator_li / float(denominator_li))
@@ -255,18 +260,18 @@ def rmse_loss_(ori_data, imputed_data, imputed_data_li, data_m):
       - rmse: Root Mean Squared Error
     '''
 
-    ori_data, norm_parameters = normalization(ori_data)
-    imputed_data, _ = normalization(imputed_data, norm_parameters)
-    imputed_data_li, _ = normalization(imputed_data_li, norm_parameters)
+    # ori_data, norm_parameters = normalization(ori_data)
+    # imputed_data, _ = normalization(imputed_data, norm_parameters)
+    # imputed_data_li, _ = normalization(imputed_data_li, norm_parameters)
 
     # Only for missing values
-    nominator = np.sum(((1 - data_m) * ori_data - (1 - data_m) * imputed_data) ** 2)
-    denominator = np.sum(1 - data_m)
+    nominator = np.nansum(((1 - data_m) * ori_data - (1 - data_m) * imputed_data) ** 2)
+    denominator = np.nansum(1 - data_m)
 
     rmse = np.sqrt(nominator / float(denominator))
 
-    nominator_ = np.sum(((1 - data_m) * ori_data - (1 - data_m) * imputed_data_li) ** 2)
-    denominator_ = np.sum(1 - data_m)
+    nominator_ = np.nansum(((1 - data_m) * ori_data - (1 - data_m) * imputed_data_li) ** 2)
+    denominator_ = np.nansum(1 - data_m)
 
     rmse_ = np.sqrt(nominator_ / float(denominator_))
 
@@ -275,11 +280,14 @@ def rmse_loss_(ori_data, imputed_data, imputed_data_li, data_m):
 
 def linear_interpolation(input_activity):
     for c in range(input_activity.shape[1]):
-        i = np.array(input_activity[:, c], dtype=np.float)
-        s = pd.Series(i)
-        s = s.interpolate(method='linear', limit_direction='both')
-        input_activity[:, c] = s
+        y = np.array(input_activity[:, c], dtype=np.float)
+        nans, x = nan_helper(y)
+        y[nans] = np.interp(x(nans), x(~nans), y[~nans])
+        # s = pd.Series(i)
+        # s = s.interpolate(method='linear', limit_direction='both')
+        input_activity[:, c] = y
     return input_activity
+
 
 def reshape_matrix_ranjeet(matrix):
     print(matrix.shape)
@@ -308,19 +316,25 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, add_t_col=False, c=14):
-    print(matrix.shape)
+def reshape_matrix_andy(n_transponder, matrix, timestamp, date_str, add_t_col=False, c=1, thresh=None):
+    print("reshape_matrix_andy...", matrix.shape)
 
     transp_block = []
     for i in range(matrix.shape[1]):
         transp = matrix[:, i]
         s = np.array_split(transp, matrix.shape[0]/1440/c, axis=0)
 
+        s_d = np.array_split(timestamp, matrix.shape[0] / 1440 / c, axis=0)
+
+        # s = np.array_split(transp, matrix.shape[0], axis=0)
+        #
+        # s_d = np.array_split(timestamp, matrix.shape[0], axis=0)
+
         if add_t_col:
             d = []
             for ii, x in enumerate(s):
                 x_ = x.flatten().tolist()
-                x_d = x_ + [ii]
+                x_d = x_ + [s_d[ii].tolist()[0]]
                 d.append(np.array(x_d))
         else:
             d = [x.flatten() for x in s]
@@ -336,12 +350,50 @@ def reshape_matrix_andy(matrix, add_t_col=False, c=14):
 
         transp_block.append(vstack_transp)
     vstack = np.vstack(transp_block)
-    return vstack
+    shape_o = vstack.shape
+    filtered_row, idx = remove_nan_rows(vstack, thresh)
+    return filtered_row, idx, shape_o
 
 
-def restore_matrix_andy(imputed, n_transpond, add_t_col=False):
+def add_nan_rows(shape_o, input, idx):
+    m = np.zeros(shape_o)
+    m[:] = np.nan
+    cpt = 0
+    for i in idx:
+        m[i, :] = input[cpt, :]
+        cpt += 1
+    return m
+
+
+def remove_nan_rows(input, t=0.85):
+    idx = []
+    filtered_row = []
+    for i in range(input.shape[0]):
+        row = input[i, :]
+        nan_count = row[np.isnan(row)].shape[0]
+        r = nan_count/row.shape[0]
+        if r > t:
+            continue
+        print(r)
+        idx.append(i)
+        filtered_row.append(row)
+    filtered_row = np.array(filtered_row)
+    return filtered_row, idx
+
+
+def restore_matrix_andy(idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=False):
+    imputed = add_nan_rows(shape_o, imputed, row_idx)
+
+    # fig = go.Figure(data=go.Heatmap(
+    #     z=imputed[:, :-n_transpond -1],
+    #     x=np.array(list(range(imputed.shape[0])))[:-n_transpond -1],
+    #     y=np.array(list(range(imputed.shape[1])))[:-n_transpond -1],
+    #     colorscale='Viridis'))
+    # filename = output_dir + "/" + "imputed_gain_restored_%d.html" % idx
+    # fig.write_html(filename)
+
     if add_t_col:
-        imputed = imputed[:, :-n_transpond-1] #-1 for date col
+        imputed = imputed[:, :-n_transpond -1] #-1 for date col
     split = np.array_split(imputed, n_transpond, axis=0)
     matrix = []
     for s in split:
@@ -353,6 +405,14 @@ def restore_matrix_andy(imputed, n_transpond, add_t_col=False):
         matrix.append(vstack)
     hstack = np.hstack(matrix)
 
+    # fig = go.Figure(data=go.Heatmap(
+    #     z=hstack.T,
+    #     x=np.array(list(range(hstack.shape[1]))),
+    #     y=np.array(list(range(hstack.shape[0]))),
+    #     colorscale='Viridis'))
+    # filename = output_dir + "/" + "herd_gain_restored_%d.html" % idx
+    # fig.write_html(filename)
+
     return hstack
 
 
@@ -363,9 +423,13 @@ def export_point_of_interest_hist(original_masked, imputed_gain_masked, imputed_
     ig = imputed_gain_masked.flatten()
     il = imputed_li_masked.flatten()
 
-    o = o[o > 0]
-    ig = ig[ig > 0]
-    il = il[il > 0]
+    o = o[~np.isnan(o)]
+    ig = ig[~np.isnan(ig)]
+    il = il[~np.isnan(il)]
+
+    o = np.sort(o)
+    ig = np.sort(ig)
+    il = np.sort(il)
 
     fig = make_subplots(rows=3, cols=1, x_title="value", y_title='count',
                         subplot_titles=("Histogram of original data points",  "Histogram of gain data points",
@@ -387,3 +451,21 @@ def export_point_of_interest_hist(original_masked, imputed_gain_masked, imputed_
     filename = output_dir + "/" + "histogram_%d.html" % i
     fig.write_html(filename)
     print(filename)
+
+
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]

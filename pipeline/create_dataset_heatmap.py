@@ -124,7 +124,7 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
     df_activity["signal_strength"] = 0
     df_activity["battery_voltage"] = 0
 
-    #w = 1440 * 3
+    w = 1440 * 3
     if w is None or w < 0:
         w = df_activity.shape[0]
     if end is None or end < 0:

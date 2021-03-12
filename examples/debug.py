@@ -103,10 +103,27 @@ def natural_keys(text):
     '''
     return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
-
+from shutil import copyfile
 if __name__ == "__main__":
+    # files = []
+    # for path in Path("C:\\Users\\fo18103\\OneDrive - University of Bristol\\South Africa\\backfill_1min_xyz_delmas_fixed").rglob('*.csv'):
+    #     if int(path.name.split('.')[0]) not in [40101310316, 40101310040, 40101310109, 40101310110, 40101310353, 40101310314, 40101310085, 40101310143, 40101310409, 40101310134, 40101310342, 40101310069, 40101310013, 40101310098, 40101310350, 40101310386, 40101310249]:
+    #         continue
+    #     files.append(str(path))
+    #     print(str(path))
+    #     dst = str(path).replace("backfill_1min_xyz_delmas_fixed", "top_17")
+    #     copyfile(str(path), dst)
+    #
+    # exit()
+    # iterations = list(range(1000))
+    # for i in iterations:
+    #     if (i % 100 == 0) | (i == 0) | (i == iterations[-1]):
+    #         print(i)
+    # exit()
 
-    DIR = "F:/Data2/imp_full_reshape_andytcoldate_debug20"
+
+
+    DIR = "F:/Data2/imp_full_reshape_xyz_debug_59"
 
     rmse_list = []
     rmse_list_li = []
@@ -129,8 +146,8 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     ax.set_ylabel('RMSE')
     ax.set_xlabel('iteration')
-    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1, marker='*')
-    plt.plot([x * 10 for x in range(len(rmse_list_li))], rmse_list_li, label="RMSE LI", alpha=1, marker='*')
+    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1)
+    plt.plot([x * 10 for x in range(len(rmse_list_li))], rmse_list_li, label="RMSE LI", alpha=1)
 
     plt.title("RMSE iteration performance")
     plt.legend()

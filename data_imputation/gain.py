@@ -1,6 +1,6 @@
-'''gainimputation function.
+'''data_imputation function.
 Date: 2020/02/28
-Reference: J. Yoon, J. Jordon, M. van der Schaar, "gainimputation: Missing Data
+Reference: J. Yoon, J. Jordon, M. van der Schaar, "data_imputation: Missing Data
            Imputation using Generative Adversarial Nets," ICML, 2018.
 Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 Contact: jsyoon0823@gmail.com
@@ -18,20 +18,21 @@ tf.disable_v2_behavior()
 import numpy as np
 from tqdm import tqdm
 
-from gainimputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, linear_interpolation
-from gainimputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
-from gainimputation.helper import binary_sampler, uniform_sampler, sample_batch_index
+from data_imputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, linear_interpolation
+from data_imputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
+from data_imputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 
 import warnings
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 
-def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
     - data_x: original data with missing values
-    - gain_parameters: gainimputation network parameters:
+    - gain_parameters: data_imputation network parameters:
       - batch_size: Batch size
       - hint_rate: Hint rate
       - alpha: Hyperparameter
@@ -58,8 +59,11 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   # Normalization
   norm_data, norm_parameters = normalization(data_x)
   norm_data_x = np.nan_to_num(norm_data, 0)
+
+  # norm_data = data_x
+  # norm_data_x = np.nan_to_num(norm_data, 0)
   
-  ## gainimputation architecture
+  ## data_imputation architecture
   # Input placeholders
   # Data vector
   X = tf.placeholder(tf.float32, shape = [None, dim])
@@ -93,7 +97,7 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   
   theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
   
-  ## gainimputation functions
+  ## data_imputation functions
   # Generator
   def generator(x,m):
     # Concatenate Mask and Data
@@ -114,7 +118,7 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
     D_prob = tf.nn.sigmoid(D_logit)
     return D_prob
   
-  ## gainimputation structure
+  ## data_imputation structure
   # Generator
   G_sample = generator(X, M)
  
@@ -124,7 +128,7 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   # Discriminator
   D_prob = discriminator(Hat_X, H)
   
-  ## gainimputation loss
+  ## data_imputation loss
   D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) \
                                 + (1-M) * tf.log(1. - D_prob + 1e-8)) 
   
@@ -136,7 +140,7 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   D_loss = D_loss_temp
   G_loss = G_loss_temp + alpha * MSE_loss 
   
-  ## gainimputation solver
+  ## data_imputation solver
   D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
   G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
   
@@ -146,9 +150,11 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
 
   rmse_gain = []
   rmse_li = []
+  rmse_iter = []
   # Start Iterations
   i = 0
-  for it in tqdm(range(iterations)):    
+  range_iter = range(iterations)
+  for it in tqdm(range_iter):
       
     # Sample batch
     batch_idx = sample_batch_index(no, batch_size)
@@ -185,32 +191,51 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
     # Rounding
     # imputed_data = rounding(imputed_data, data_x)
 
-    '''
-    
-    RMSE Calculation
-    
-    '''
 
-    if np.isnan(imputed_data).any():
-      warnings.warn("Warning NaN in normalised imputed results.")
+    if (i % 100 == 0) | (i == 0) | (i == range_iter[-1]):
+    #if True:
+      rmse_iter.append(i)
+      fig = go.Figure(data=go.Heatmap(
+        z=imputed_data[:, :-N_TRANSPOND - 1],
+        x=np.array(list(range(imputed_data.shape[1]))[:-N_TRANSPOND - 1]),
+        y=np.array(list(range(imputed_data.shape[0]))),
+        colorscale='Viridis'))
+      fig.update_layout(
+        title="Activity data after imputation i=%s" % i,
+        xaxis_title="Time (1 min bins)",
+        yaxis_title="Transponders")
 
-    if np.isnan(imputed_data).all():
-      raise ValueError("Error while imputing data, all value NaN!")
+      filename = output_dir + "/" + "imputed_gain_%d.html" % i
+      fig.write_html(filename)
+      '''
+      
+      RMSE Calculation
+      
+      '''
 
-    if RESHAPE:
-      imputed_data = restore_matrix_andy(imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
-    else:
-      imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+      if np.isnan(imputed_data).any():
+        warnings.warn("Warning NaN in normalised imputed results.")
 
-    rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
-    print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
-    print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
-    rmse_gain.append(rmse_g)
-    rmse_li.append(rmse_l)
+      if np.isnan(imputed_data).all():
+        raise ValueError("Error while imputing data, all value NaN!")
 
-    rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
-    with open(outpath + '/rmse_%i.json' % i, 'w') as f:
-      json.dump(rmse_info, f)
+      if RESHAPE:
+        imputed_data = restore_matrix_andy(i, output_dir, shape_o, nan_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+      else:
+        imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+
+
+
+      # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
+      rmse_g, rmse_l = rmse_loss_(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x)
+      print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
+      print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
+      rmse_gain.append(rmse_g)
+      rmse_li.append(rmse_l)
+
+      rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
+      with open(outpath + '/rmse_%i.json' % i, 'w') as f:
+        json.dump(rmse_info, f)
 
     i += 1
 
@@ -219,8 +244,8 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   fig, ax = plt.subplots()
   ax.set_ylabel('RMSE')
   ax.set_xlabel('iteration')
-  plt.plot(list(range(iterations)), rmse_gain, label="RMSE GAIN", alpha=1)
-  plt.plot(list(range(iterations)), rmse_li, label="RMSE LI", alpha=1)
+  plt.plot(rmse_iter, rmse_gain, label="RMSE GAIN", alpha=1)
+  plt.plot(rmse_iter, rmse_li, label="RMSE LI", alpha=1)
 
   plt.title("RMSE iteration performance")
   plt.legend()
@@ -228,4 +253,4 @@ def gain(output_dir, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_paramet
   print(filename)
   plt.savefig(filename)
 
-  return imputed_data
+  return imputed_data, rmse_iter
