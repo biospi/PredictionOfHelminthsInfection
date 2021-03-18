@@ -25,9 +25,10 @@ from data_imputation.helper import binary_sampler, uniform_sampler, sample_batch
 import warnings
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import pandas as pd
 
 
-def gain(output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -195,10 +196,11 @@ def gain(output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o
     if (i % 100 == 0) | (i == 0) | (i == range_iter[-1]):
     #if True:
       rmse_iter.append(i)
+      i_d = imputed_data[:, :-N_TRANSPOND - 1]
       fig = go.Figure(data=go.Heatmap(
-        z=imputed_data[:, :-N_TRANSPOND - 1],
-        x=np.array(list(range(imputed_data.shape[1]))[:-N_TRANSPOND - 1]),
-        y=np.array(list(range(imputed_data.shape[0]))),
+        z=i_d,
+        x=np.array(list(range(i_d.shape[1]))),
+        y=np.array(list(range(i_d.shape[0]))),
         colorscale='Viridis'))
       fig.update_layout(
         title="Activity data after imputation i=%s" % i,
@@ -206,7 +208,30 @@ def gain(output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o
         yaxis_title="Transponders")
 
       filename = output_dir + "/" + "imputed_gain_%d.html" % i
+      print(filename)
       fig.write_html(filename)
+
+      df_ = pd.DataFrame(i_d)
+      start = 0
+      for n, item in enumerate(t_idx):
+          end = start + item
+          df_t_i = df_[start: end]
+          start = end
+          id = ids[n]
+          fig = go.Figure(data=go.Heatmap(
+            z=df_t_i.values,
+            x=np.array(list(range(df_t_i.values.shape[1]))),
+            y=np.array(list(range(df_t_i.values.shape[0]))),
+            colorscale='Viridis'))
+          fig.update_layout(
+            title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+            xaxis_title="Time (1 min bins)",
+            yaxis_title="Days")
+          filename = out + "/" + "%d_imputed_reshaped_%d_%d.html" % (id, thresh, i)
+          print(filename)
+          fig.write_html(filename)
+
+
       '''
       
       RMSE Calculation
@@ -220,37 +245,38 @@ def gain(output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o
         raise ValueError("Error while imputing data, all value NaN!")
 
       if RESHAPE:
-        imputed_data = restore_matrix_andy(i, output_dir, shape_o, nan_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+        imputed_data = restore_matrix_andy(output_dir, shape_o, nan_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
       else:
         imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 
 
+      if miss_rate > 0:
+        # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
+        rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
 
-      # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
-      rmse_g, rmse_l = rmse_loss_(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x)
-      print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
-      print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
-      rmse_gain.append(rmse_g)
-      rmse_li.append(rmse_l)
+        print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
+        print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
+        rmse_gain.append(rmse_g)
+        rmse_li.append(rmse_l)
 
-      rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
-      with open(outpath + '/rmse_%i.json' % i, 'w') as f:
-        json.dump(rmse_info, f)
+        rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
+        with open(outpath + '/rmse_%i.json' % i, 'w') as f:
+          json.dump(rmse_info, f)
 
     i += 1
+  if miss_rate > 0:
+    plt.clf()
+    plt.cla()
+    fig, ax = plt.subplots()
+    ax.set_ylabel('RMSE')
+    ax.set_xlabel('iteration')
+    plt.plot(rmse_iter, rmse_gain, label="RMSE GAIN", alpha=1)
+    plt.plot(rmse_iter, rmse_li, label="RMSE LI", alpha=1)
 
-  plt.clf()
-  plt.cla()
-  fig, ax = plt.subplots()
-  ax.set_ylabel('RMSE')
-  ax.set_xlabel('iteration')
-  plt.plot(rmse_iter, rmse_gain, label="RMSE GAIN", alpha=1)
-  plt.plot(rmse_iter, rmse_li, label="RMSE LI", alpha=1)
-
-  plt.title("RMSE iteration performance")
-  plt.legend()
-  filename = outpath + "/" + "RMSE.png"
-  print(filename)
-  plt.savefig(filename)
+    plt.title("RMSE iteration performance")
+    plt.legend()
+    filename = outpath + "/" + "RMSE.png"
+    print(filename)
+    plt.savefig(filename)
 
   return imputed_data, rmse_iter

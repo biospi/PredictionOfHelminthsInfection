@@ -146,9 +146,9 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
   # data_m[ori_data_norm == 0] = 1
 
   # Only for missing values
-  original_masked_norm = (1 - data_m) * ori_data_
-  imputed_gain_masked_norm = (1 - data_m) * imputed_data
-  imputed_li_masked_norm = (1 - data_m) * imputed_data_li
+  original_masked_norm = (1 - data_m) * ori_data_norm
+  imputed_gain_masked_norm = (1 - data_m) * imputed_data_norm
+  imputed_li_masked_norm = (1 - data_m) * imputed_data_li_norm
 
   #use non normalized value for histograms
   original_masked_ = (1 - data_m) * ori_data_
@@ -316,10 +316,11 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(n_transponder, matrix, timestamp, date_str, add_t_col=False, c=1, thresh=None):
+def reshape_matrix_andy(matrix, timestamp, add_t_col=False, c=1, thresh=None):
     print("reshape_matrix_andy...", matrix.shape)
 
     transp_block = []
+    t_idx = []
     for i in range(matrix.shape[1]):
         transp = matrix[:, i]
         s = np.array_split(transp, matrix.shape[0]/1440/c, axis=0)
@@ -349,10 +350,35 @@ def reshape_matrix_andy(n_transponder, matrix, timestamp, date_str, add_t_col=Fa
             vstack_transp = df.values
 
         transp_block.append(vstack_transp)
+
+        t_idx.append(vstack_transp.shape[0])
+
     vstack = np.vstack(transp_block)
     shape_o = vstack.shape
-    filtered_row, idx = remove_nan_rows(vstack, thresh)
-    return filtered_row, idx, shape_o
+    filtered_row, rm_idx = remove_rows(vstack, thresh)
+
+    t_idx = get_transp_idx(matrix, thresh)
+    return filtered_row, rm_idx, shape_o, t_idx
+
+
+def get_transp_idx(matrix, thresh=None):
+    print("reshape_matrix_andy...", matrix.shape)
+
+    t_idx = []
+    for i in range(matrix.shape[1]):
+        transp = matrix[:, i]
+        s = np.array_split(transp, matrix.shape[0]/1440, axis=0)
+        d = []
+        for ii, x in enumerate(s):
+            pos_count = x[x > 0].shape[0]
+            if pos_count < thresh:
+                continue
+            d.append(x)
+
+        vstack_transp = np.vstack(d)
+        t_idx.append(vstack_transp.shape[0])
+
+    return t_idx
 
 
 def add_nan_rows(shape_o, input, idx):
@@ -365,23 +391,23 @@ def add_nan_rows(shape_o, input, idx):
     return m
 
 
-def remove_nan_rows(input, t=0.85):
+def remove_rows(input, t):
     idx = []
     filtered_row = []
     for i in range(input.shape[0]):
         row = input[i, :]
-        nan_count = row[np.isnan(row)].shape[0]
-        r = nan_count/row.shape[0]
-        if r > t:
+        pos_count = row[row > 0].shape[0]
+        # r = nan_count/row.shape[0]
+        if pos_count < t:
             continue
-        print(r)
+        print(pos_count)
         idx.append(i)
         filtered_row.append(row)
     filtered_row = np.array(filtered_row)
     return filtered_row, idx
 
 
-def restore_matrix_andy(idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=False):
+def restore_matrix_andy(output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
     imputed = add_nan_rows(shape_o, imputed, row_idx)
 
     # fig = go.Figure(data=go.Heatmap(

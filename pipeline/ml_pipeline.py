@@ -422,6 +422,7 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
         return
     data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
     return data_frame
+    return data_frame
 
 
 def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):

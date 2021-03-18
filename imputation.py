@@ -56,6 +56,7 @@ def process_activity_data(file, i, nfiles, window):
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
     if window:
+        print("WINDOW ON !!!")
         w = 1440 * 7 * 12
         start = 413129
         end = start + w
@@ -178,6 +179,7 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
 def export_imputed_data(out, data_m_x, ori_data_x, idata, timestamp, date_str, ids, alpha, hint):
     print("exporting imputed data...")
     print(ids)
+    data_m_x[np.isnan(data_m_x)] = 1
     for i in range(idata.shape[1]):
         print("progress %d/%d ..." % (i, len(ids)))
         df = pd.DataFrame()
@@ -274,6 +276,34 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
 
         timestamp = a_data[1]["timestamp"]
         date_str = a_data[1]["date_str"]
+
+        # d = []
+        # thresh_pos = 800
+        # s = np.array_split(activity, activity.shape[0] / 1440, axis=0)
+        # for ii, x in enumerate(s):
+        #     x = x.flatten()
+        #     pos_count = x[x > 0].shape[0]
+        #     if pos_count < thresh_pos:
+        #         continue
+        #     d.append(x)
+        # if len(d) == 0:
+        #     continue
+        # tid = a_data[0]
+        # vstack_transp = np.vstack(d)
+        # df_ = pd.DataFrame(vstack_transp)
+        # fig = go.Figure(data=go.Heatmap(
+        #     z=df_.values,
+        #     x=np.array(list(range(df_.values.shape[1]))),
+        #     y=np.array(list(range(df_.values.shape[0]))),
+        #     colorscale='Viridis'))
+        # fig.update_layout(
+        #     title="%dthresh=%s" % (tid, thresh_pos),
+        #     xaxis_title="Time (1 min bins)",
+        #     yaxis_title="Transponders")
+        # filename = "%s_%d.html" % (tid, thresh_pos)
+        # print(filename)
+        # fig.write_html(filename)
+
     # data_first_sensor = data_first_sensor.dropna(axis=1, thresh=1000, how="any")
     data_first_sensor = data_first_sensor.sort_values(data_first_sensor.first_valid_index(), axis=1, ascending=False)
     data_first_sensor = data_first_sensor.iloc[1:-1]
@@ -302,6 +332,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     crop = n_week*7*1440
 
     return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop]
+    # return data_x_raw, data_x, ids, timestamp, date_str
 
 
 def process(data_x, miss_rate):
@@ -369,14 +400,14 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation(miss_data_x.copy())
 
-  thresh_nan = 0.4
+  thresh_pos = 10
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
-        '%04d' % int(args.iterations) + "_thresh_nan_" + str(thresh_nan).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
+        '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped, nan_row_idx, shape_o = reshape_matrix_andy(N_TRANSPOND, miss_data_x, timestamp, date_str, add_t_col=ADD_TRANSP_COL, thresh=thresh_nan)
+    miss_data_x_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(miss_data_x, timestamp, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
   else:
     miss_data_x_reshaped = reshape_matrix_ranjeet(miss_data_x)
 
@@ -387,36 +418,49 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
       y=np.array(list(range(miss_data_x_reshaped.shape[0]))),
       colorscale='Viridis'))
   fig.update_layout(
-      title="Activity data 1 min bins thresh_nan=%s" % thresh_nan,
+      title="Activity data 1 min bins thresh=%s" % thresh_pos,
       xaxis_title="Time (1 min bins)",
       yaxis_title="Transponders")
-  filename = out + "/" + "input_reshaped_%d.html" % (thresh_nan*100)
+  filename = out + "/" + "input_reshaped_%d.html" % thresh_pos
   fig.write_html(filename)
 
-  fig = go.Figure(data=go.Heatmap(
-      z=original_data_x.T,
-      x=np.array(list(range(original_data_x.shape[0]))),
-      y=np.array(list(range(original_data_x.shape[1]))),
-      colorscale='Viridis'))
-  filename = out + "/" + "input_herd.html"
-  fig.write_html(filename)
+  start = 0
+  for i, k in enumerate(transp_idx):
+      d = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
+      end = start+k
+      d_t = d[start: end]
+      start = end
 
+      id = ids[i]
 
-  imputed_data_x, rmse_iter = gain(args.output_dir, shape_o, nan_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+      fig = go.Figure(data=go.Heatmap(
+          z=d_t,
+          x=np.array(list(range(d_t.shape[1]))),
+          y=np.array(list(range(d_t.shape[0]))),
+          colorscale='Viridis'))
+      fig.update_layout(
+          title="%d thresh=%d" % (id, thresh_pos),
+          xaxis_title="Time (1 min bins)",
+          yaxis_title="Days")
+      filename = out + "/" + "%d_reshaped_%d.html" % (id, thresh_pos)
+      print(filename)
+      fig.write_html(filename)
 
-  fig = go.Figure(data=go.Heatmap(
-      z=imputed_data_x.T,
-      x=np.array(list(range(imputed_data_x.shape[1]))),
-      y=np.array(list(range(imputed_data_x.shape[0]))),
-      colorscale='Viridis'))
-  filename = args.output_dir + "/" + "herd_gain_restored_%d.html" % 0
-  fig.write_html(filename)
+  imputed_data_x, rmse_iter = gain(args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+
+  # fig = go.Figure(data=go.Heatmap(
+  #     z=imputed_data_x.T,
+  #     x=np.array(list(range(imputed_data_x.shape[1]))),
+  #     y=np.array(list(range(imputed_data_x.shape[0]))),
+  #     colorscale='Viridis'))
+  # filename = args.output_dir + "/" + "herd_gain_restored_%d.html" % 0
+  # fig.write_html(filename)
 
   if args.export_csv:
     export_imputed_data(out, data_m_x, data_x, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
-  if args.export_traces:
-    plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
+  # if args.export_traces:
+  #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
 
 
 def mrnn_imputation(data, N_TRANSPOND, output_dir):

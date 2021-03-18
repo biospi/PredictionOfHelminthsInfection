@@ -287,7 +287,7 @@ class SampleSet:
                 # Is activity valid
                 # val = math.isnan(A.min()) == False
                 # val = np.isnan(A).tolist().count(True) < (720) * deltaFamachaTime
-                missR = 1 - np.sum(M) / M.size  # missing marked as 0
+                missR = np.sum(1 - M) / M.size  # missing marked as 0
 
                 val = missR < 0.6
 

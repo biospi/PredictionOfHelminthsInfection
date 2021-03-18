@@ -47,7 +47,7 @@ if __name__ == "__main__":
     print("X:", X)
     print("y:", y)
 
-    slto = StratifiedLeaveTwoOut(n_repeats=1)
+    slto = StratifiedLeaveTwoOut(n_repeats=0)
 
     for train_index, test_index in slto.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
