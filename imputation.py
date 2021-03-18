@@ -400,7 +400,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation(miss_data_x.copy())
 
-  thresh_pos = 10
+  thresh_pos = 900
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)

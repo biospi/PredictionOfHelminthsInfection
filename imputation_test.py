@@ -66,7 +66,7 @@ if __name__ == "__main__":
         filename = args.output_dir + "/" + "histogram_raw_input.html"
         fig.write_html(filename)
 
-        missing_range = [0]
+        missing_range = [0.01]
 
         for i, miss_rate in enumerate(missing_range):
             rmse_list = []

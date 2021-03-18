@@ -744,7 +744,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     html_formatted = []
     for item in animal_ids_formatted_ent:
-        formatted = " <b><i>" + item + "</i></b>"
+        formatted = item
         split = formatted.split()
         if "1to2" in item.lower():
             formatted = ' '.join(split[0:2]) + " <b>" + split[-1] + "</b>"

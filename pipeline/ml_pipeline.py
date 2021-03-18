@@ -256,6 +256,32 @@ def get_median_norm(data_frame_no_norm, data_frame_median):
     return data_frame_median_norm
 
 
+def get_custom_norm(data_frame_no_norm):
+    print(data_frame_no_norm)
+    dfs = [x for _, x in data_frame_no_norm.groupby('id', sort=False)]
+    total_count = []
+    for df in dfs:
+        total = 0
+        for index, row in df.iterrows():
+            activity = row[:-4].values.astype(float)
+            total += np.nansum(activity)
+        total_count.append(total)
+
+    T = np.median(total_count)
+
+    df_list = []
+    for i, df in enumerate(dfs):
+        for index, row in df.iterrows():
+            activity = row[:-4].values.astype(float)
+            t = total_count[i]
+            a = activity * T / t
+            df_list.append(a.tolist() + row[-4:].tolist())
+
+    df_norm = pd.DataFrame(df_list)
+    df_norm.columns = data_frame_no_norm.columns
+    return df_norm
+
+
 def get_anscombe(data_frame):
     """Apply anscomb transform to each row in dataframe.
 
@@ -445,9 +471,13 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     # data_frame = data_frame[data_frame["missing_rate"] < 0.7]
 
     data_frame_original = data_frame.copy()
+
+    data_frame_median_norm = get_custom_norm(data_frame_original)
+
     cols_to_keep = hearder[:-4]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
+    data_frame_median_norm = data_frame_median_norm[cols_to_keep]
     # data_frame = data_frame.fillna(-1)
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
 
@@ -457,6 +487,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     for i, flabel in enumerate(flabels):
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i+1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
+        data_frame_median_norm["target"] = data_frame["target"] + data_frame_labeled[flabel]
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)
@@ -465,12 +496,15 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     class_unhealthy_label = label_series[class_unhealthy]
 
     data_frame = data_frame.drop('label', 1)
+    data_frame_median_norm = data_frame_median_norm.drop('label', 1)
 
     # data_frame = shuffle(data_frame)
     data_frame = data_frame.dropna()
+    data_frame_median_norm = data_frame_median_norm.dropna()
     # data_frame = filter_by_entropy(data_frame)
 
     print(data_frame)
+    print(data_frame_median_norm)
 
     class_count = {}
     for k in label_series.keys():
@@ -517,12 +551,12 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     # data_frame_median_norm = get_norm_l2(data_frame_no_norm)
     #
     # #data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
-    # # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
+    # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
     #
-    # plot_groups(graph_outputdir, data_frame_median_norm, title="Normalised samples", xlabel="Time", ylabel="activity",
-    #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
-    #
-    # plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation")
+    plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Andy Norm) samples", xlabel="Time", ylabel="activity",
+                idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+
+    plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(ANdy)")
 
     # data_frame_median_norm_anscombe = get_anscombe(data_frame_median_norm)
     #
@@ -535,9 +569,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame_cwt_no_norm, _, _ = create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
                                                  title="Average cwt power of raw (no normalisation) samples", stepid=1,
                                                  hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
-    # data_frame_median_norm_cwt, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
-    #                                                  title="Average cwt power of normalised samples",
-    #                                                  stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
+    data_frame_median_norm_cwt, _, _ = create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
+                                                     title="Average cwt power of normalised samples",
+                                                     stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
     #                                                           title="norm-cwt-ansc_Anscombe average cwt power of normalised samples",
     #                                                           stepid=3, enable_anscomb=True, hi_pass_filter=hi_pass_filter,
@@ -545,8 +579,8 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
 
-    data_frame_median_norm = None
-    data_frame_median_norm_cwt = None
+    # data_frame_median_norm = None
+    # data_frame_median_norm_cwt = None
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
 
@@ -1801,8 +1835,11 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        # process_data_frame(output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "norm_cwt", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series)
+        process_data_frame(output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series)
+
+        process_data_frame(output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series)
 
         process_data_frame(output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
@@ -1810,8 +1847,7 @@ if __name__ == "__main__":
         process_data_frame(output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        # process_data_frame(output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_median_norm", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series)
+
         #
         # process_data_frame(output_dir, data_frame_timed_norm_anscombe, thresh_i, thresh_z, days, farm_id, "activity_norm_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
