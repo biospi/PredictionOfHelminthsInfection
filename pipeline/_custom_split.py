@@ -16,11 +16,11 @@ np.random.seed(0)
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, n_repeats=1):
+    def __init__(self, animal_ids, n_repeats=100):
         self.n_repeats = n_repeats
         self.animal_ids = animal_ids
 
-    def split(self, X, y, verbose=True, group=None):
+    def split(self, X, y, verbose=False, group=None):
         y = y.reshape(y.size, 1)
         animal_ids = self.animal_ids.reshape(self.animal_ids.size, 1)
         df = pd.DataFrame(np.hstack((np.hstack((X, y)), animal_ids)))
@@ -30,12 +30,10 @@ class StratifiedLeaveTwoOut:
         df.columns = header
         training_idx = []
         testing_idx = []
+        iter = 0
         if verbose:
             print(df)
-        for i in range(self.n_repeats):
-            if df.shape[0] == 0:
-                warnings.warn("cannot build more folds MAX REPEAT=%d" % i)
-                break
+        while True:
             cpt = 0
             while True:
                 ltwoout_ = df.sample(n=2)
@@ -45,17 +43,44 @@ class StratifiedLeaveTwoOut:
                     break
                 cpt += 1
                 if cpt > y.size:
-                    raise ValueError("Could not build StratifiedLeaveTwoOut folds!")
-            df = df.drop(ltwoout_.index)
+                    warnings.warn("Could not build StratifiedLeaveTwoOut folds!")
+                    break
+            # df = df.drop(ltwoout_.index)
 
             testing_samples = ltwoout_
-            testing_idx.append(testing_samples.index.tolist())
+            # testing_idx.append(testing_samples.index.tolist())
 
             tr_idx = np.arange(y.size)
             tr_idx = np.setdiff1d(tr_idx, testing_samples.index.values)
 
+            # training_idx.append(tr_idx.tolist())
+
+            df_train = pd.DataFrame(training_idx)
+            df_test = pd.DataFrame(testing_idx)
+
+            unique = len(df_test[~df_test.apply(frozenset, axis=1).duplicated()]) #drop row permutably
+            # unique = len(df_test.drop_duplicates())
+
+            d = df_test.drop_duplicates()
+            testing_idx = d.values.tolist()
+
+            training_idx = df_train[df_train.index.isin(d.index)].values.tolist()
+            testing_idx.append(testing_samples.index.tolist())
             training_idx.append(tr_idx.tolist())
 
+            if len(training_idx) >= self.n_repeats:
+                break
+
+            if unique == self.n_repeats:
+                break
+
+            if iter > self.n_repeats * 1000:
+                warnings.warn("cannot build more folds MAX REPEAT=%d" % iter)
+                break
+            iter += 1
+
+        training_idx = training_idx[0:self.n_repeats]
+        print("StratifiedLeaveTwoOut could build %d unique folds." % len(training_idx))
         for j in range(len(training_idx)):
             yield training_idx[j], testing_idx[j]
 
@@ -99,15 +124,34 @@ if __name__ == "__main__":
                            "animal4",
                            "animal5",
                            "animal5"])
-    y = np.array([1, 1, 2, 2, 2, 1, 1, 2, 2, 1])
+    y = np.array([1,
+                 1,
+                 2,
+                 2,
+                 2,
+                 1,
+                 1,
+                 2,
+                 2,
+                 1])
 
-    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=10)
+    dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
+    dataset.columns = [["feature_%d" % x for x in range(X.shape[1])] + ["target", "animal_id"]]
+    dataset.to_csv("dummy_dataset_for_cv.csv")
 
+    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=100)
+
+    rows = []
     for train_index, test_index in slto.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        print("TRAIN:", train_index, "TEST:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", animal_ids[test_index])
+        print("TRAIN IDX:", train_index, "TEST IDX:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", animal_ids[test_index].tolist())
+        row = train_index + test_index + y_test.tolist() + animal_ids[test_index].tolist()
+        rows.append(row)
 
+    df_rows = pd.DataFrame(rows)
+    df_rows.columns = [ ["TRAIN IDX" for x in range(len(train_index))] + ["TEST IDX" for x in range(len(test_index))] + ["TEST TARGET" for x in range(len(y_test))] + ["TEST ANIMAL ID" for x in range(len(animal_ids[test_index].tolist()))] ]
+    df_rows.to_csv("StratifiedLeaveTwoOut.csv")
     print("******************************")
     print("Test custom cv on test dataset")
     print("******************************")

@@ -467,6 +467,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     data_frame.columns = hearder
 
+    #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
     # data_frame = data_frame[data_frame["missing_rate"] < 0.7]
 
@@ -584,9 +585,9 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
 
+    animal_ids = data_frame_original["id"].astype(str).tolist()
 
-
-    return class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
+    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
 
 
@@ -994,7 +995,7 @@ def get_aucs(estimators, X, y):
     return aucs
 
 
-def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
+def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
     print("*******************************************************************")
     print(label_series)
@@ -1050,7 +1051,7 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
     clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
     cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                          random_state=0)
-    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(), scoring=scoring, n_jobs=-1)
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(animal_ids), scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1083,7 +1084,7 @@ def process_data_frame(out_dir, data_frame, days, farm_id, option, n_splits, n_r
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                      random_state=0)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(), scoring=scoring, n_jobs=-1)
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(animal_ids), scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1821,7 +1822,7 @@ if __name__ == "__main__":
     #     pool.terminate()
     # else:
     for file in files:
-        class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
+        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
         data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
@@ -1835,16 +1836,16 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        process_data_frame(output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series)
 
-        process_data_frame(output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series)
 
-        process_data_frame(output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
 
