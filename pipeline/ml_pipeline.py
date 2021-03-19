@@ -488,7 +488,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     for i, flabel in enumerate(flabels):
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i+1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
-        data_frame_median_norm["target"] = data_frame["target"] + data_frame_labeled[flabel]
+        data_frame_median_norm["target"] = data_frame["target"]
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)

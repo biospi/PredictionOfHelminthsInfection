@@ -16,7 +16,7 @@ np.random.seed(0)
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, n_repeats=100):
+    def __init__(self, animal_ids, n_repeats=10):
         self.n_repeats = n_repeats
         self.animal_ids = animal_ids
 
@@ -74,7 +74,7 @@ class StratifiedLeaveTwoOut:
             if unique == self.n_repeats:
                 break
 
-            if iter > self.n_repeats * 1000:
+            if iter > self.n_repeats * 100:
                 warnings.warn("cannot build more folds MAX REPEAT=%d" % iter)
                 break
             iter += 1
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     dataset.columns = [["feature_%d" % x for x in range(X.shape[1])] + ["target", "animal_id"]]
     dataset.to_csv("dummy_dataset_for_cv.csv")
 
-    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=100)
+    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=10)
 
     rows = []
     for train_index, test_index in slto.split(X, y):
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     df_rows = pd.DataFrame(rows)
     df_rows.columns = [ ["TRAIN IDX" for x in range(len(train_index))] + ["TEST IDX" for x in range(len(test_index))] + ["TEST TARGET" for x in range(len(y_test))] + ["TEST ANIMAL ID" for x in range(len(animal_ids[test_index].tolist()))] ]
-    df_rows.to_csv("StratifiedLeaveTwoOut.csv")
+    df_rows.to_csv("stratified_leave_two_out_folds.csv")
     print("******************************")
     print("Test custom cv on test dataset")
     print("******************************")
