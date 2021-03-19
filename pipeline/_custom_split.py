@@ -8,79 +8,100 @@ from sklearn.metrics import recall_score, balanced_accuracy_score, precision_sco
 from sklearn.model_selection import cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
+from sys import exit
+from sklearn.model_selection import LeavePOut
 
 np.random.seed(0)
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, n_repeats=10, stratified=True):
-        self.n_repeats = n_repeats
+    def __init__(self, animal_ids, stratified=True):
         self.stratified = stratified
         self.animal_ids = np.array(animal_ids).flatten()
 
-    def split(self, X, y, verbose=True, group=None):
-        y = y.reshape(y.size, 1)
-        animal_ids = self.animal_ids.reshape(self.animal_ids.size, 1)
-        hstack = np.hstack((X, y, animal_ids))
-        df = pd.DataFrame(hstack)
-        header = ["f_" + str(x) for x in df.columns.tolist()]
-        header[-1] = "id"
-        header[-2] = "target"
-        df.columns = header
-
+    def split(self, X, y, group=None):
         training_idx = []
         testing_idx = []
-        iter = 0
-        if verbose:
-            print(df)
-        while True:
-            cpt = 0
-            while True:
-                ltwoout_ = df.sample(n=2)
-                u_id = np.unique(ltwoout_['id'].values)
-                u_target = np.unique(ltwoout_['target'].values)
-                if self.stratified:
-                    if u_id.size == 2 & u_target.size == 2:
-                        break
-                else:
-                    if u_id.size == 2:
-                        break
-                cpt += 1
-                if cpt > y.size:
-                    warnings.warn("Could not build StratifiedLeaveTwoOut folds!")
-                    break
+        lpo = LeavePOut(2)
+        for train_index, test_index in lpo.split(X):
+            y_test = y[test_index]
+            unique_target = len(np.unique(y_test))
+            unique_animal = len(self.animal_ids[test_index])
+            if self.stratified:
+                if unique_target == 1:
+                    continue
+                if unique_animal == 1:
+                    continue
 
-            testing_samples = ltwoout_
-            tr_idx = np.arange(y.size)
-            tr_idx = np.setdiff1d(tr_idx, testing_samples.index.values)
-            df_train = pd.DataFrame(training_idx)
-            df_test = pd.DataFrame(testing_idx)
-            unique = len(df_test[~df_test.apply(frozenset, axis=1).duplicated()]) #drop row permutably
-            # unique = len(df_test.drop_duplicates())
-
-            # d = df_test.drop_duplicates()
-            d = df_test[~df_test.apply(frozenset, axis=1).duplicated()]
-            testing_idx = d.values.tolist()
-
-            training_idx = df_train[df_train.index.isin(d.index)].values.tolist()
-            testing_idx.append(testing_samples.index.tolist())
-            training_idx.append(tr_idx.tolist())
-
-            if len(training_idx) >= self.n_repeats:
-                break
-
-            if unique == self.n_repeats:
-                break
-
-            if iter > self.n_repeats * 100:
-                warnings.warn("cannot build more folds MAX REPEAT=%d" % iter)
-                break
-            iter += 1
-
-        training_idx = training_idx[0:self.n_repeats]
-        print("StratifiedLeaveTwoOut could build %d/%d unique folds." % (len(training_idx), self.n_repeats))
+            training_idx.append(train_index)
+            testing_idx.append(test_index)
+        print("StratifiedLeaveTwoOut could build %d unique folds. stratification=%s" % (len(training_idx), self.stratified))
         for j in range(len(training_idx)):
             yield training_idx[j], testing_idx[j]
+
+        # y = y.reshape(y.size, 1)
+        # animal_ids = self.animal_ids.reshape(self.animal_ids.size, 1)
+        # hstack = np.hstack((X, y, animal_ids))
+        # df = pd.DataFrame(hstack)
+        # header = ["f_" + str(x) for x in df.columns.tolist()]
+        # header[-1] = "id"
+        # header[-2] = "target"
+        # df.columns = header
+        #
+        # training_idx = []
+        # testing_idx = []
+        # iter = 0
+        # if verbose:
+        #     print(df)
+        #     print("\n")
+        # while True:
+        #     cpt = 0
+        #     while True:
+        #         ltwoout_ = df.sample(n=2)
+        #         u_id = np.unique(ltwoout_['id'].values)
+        #         u_target = np.unique(ltwoout_['target'].values)
+        #         if self.stratified:
+        #             if u_id.size == 2 & u_target.size == 2:
+        #                 break
+        #         else:
+        #             if u_id.size == 2:
+        #                 break
+        #         cpt += 1
+        #         if cpt > y.size:
+        #             warnings.warn("Could not build StratifiedLeaveTwoOut folds!")
+        #             break
+        #
+        #     testing_samples = ltwoout_
+        #     tr_idx = np.arange(y.size)
+        #     tr_idx = np.setdiff1d(tr_idx, testing_samples.index.values)
+        #     df_train = pd.DataFrame(training_idx)
+        #     df_test = pd.DataFrame(testing_idx)
+        #     unique = len(df_test[~df_test.apply(frozenset, axis=1).duplicated()]) #drop row permutably
+        #     # unique = len(df_test.drop_duplicates())
+        #
+        #     # d = df_test.drop_duplicates()
+        #     d = df_test[~df_test.apply(frozenset, axis=1).duplicated()]
+        #     testing_idx = d.values.tolist()
+        #
+        #     training_idx = df_train[df_train.index.isin(d.index)].values.tolist()
+        #     testing_idx.append(testing_samples.index.tolist())
+        #     training_idx.append(tr_idx.tolist())
+        #
+        #     if len(training_idx) >= self.n_repeats:
+        #         break
+        #
+        #     if unique == self.n_repeats:
+        #         break
+        #
+        #     if iter > self.n_repeats * 100:
+        #         warnings.warn("cannot build more folds MAX REPEAT=%d" % iter)
+        #         break
+        #     iter += 1
+        #
+        # training_idx = training_idx[0:self.n_repeats]
+        # print("StratifiedLeaveTwoOut could build %d/%d unique folds." % (len(training_idx), self.n_repeats))
+        # for j in range(len(training_idx)):
+        #     yield training_idx[j], testing_idx[j]
 
 
 if __name__ == "__main__":
@@ -143,20 +164,24 @@ if __name__ == "__main__":
                  "uhealthy",
                  "healthy",
                  "healthy"])
-
+    print("DATASET:")
     dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
     dataset.columns = [["f_%d" % x for x in range(X.shape[1])] + ["target", "animal_id"]]
     dataset.to_csv("dummy_dataset_for_cv.csv")
+    print(dataset)
+    print("")
 
-    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=10, stratified=True)
+    slto = StratifiedLeaveTwoOut(animal_ids, stratified=True)
 
     rows = []
+    i = 0
     for train_index, test_index in slto.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        print("TRAIN IDX:", train_index, "TEST IDX:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", animal_ids[test_index].tolist())
-        row = train_index + test_index + y_test.tolist() + animal_ids[test_index].tolist()
+        print("FOLD %d --> TRAIN IDX:" % i, train_index, "TEST IDX:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", animal_ids[test_index].tolist())
+        row = train_index.tolist() + test_index.tolist() + y_test.tolist() + animal_ids[test_index].tolist()
         rows.append(row)
+        i += 1
 
     df_rows = pd.DataFrame(rows)
     df_rows.columns = [ ["TRAIN IDX" for x in range(len(train_index))] + ["TEST IDX" for x in range(len(test_index))] + ["TEST TARGET" for x in range(len(y_test))] + ["TEST ANIMAL ID" for x in range(len(animal_ids[test_index].tolist()))] ]
@@ -174,9 +199,9 @@ if __name__ == "__main__":
     y = y.astype(int)
 
     results = []
-    for c in [100, 1.0, 0.1e-05, 0.1e-10, 0.1e-50]:
+    for c in [100, 1.0]:
         clf_std_svc = make_pipeline(SVC(C=c, probability=True, class_weight='balanced'))
-        cv_std_svc = StratifiedLeaveTwoOut(y, n_repeats=1000)
+        cv_std_svc = StratifiedLeaveTwoOut(y, stratified=True)
         scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
 
         df_score = pd.DataFrame(scores)
