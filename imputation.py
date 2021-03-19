@@ -7,6 +7,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import datetime
 import glob
 import math
 from multiprocessing import Pool
@@ -21,7 +22,8 @@ from data_imputation.mrnn import mrnn
 np.random.seed(0) #for reproducability
 
 from data_imputation.gain import gain
-from data_imputation.helper import binary_sampler, linear_interpolation, reshape_matrix_andy, reshape_matrix_ranjeet, restore_matrix_andy
+from data_imputation.helper import binary_sampler, linear_interpolation, reshape_matrix_andy, reshape_matrix_ranjeet, \
+    restore_matrix_andy, build_formated_axis
 from data_imputation.helper import rmse_loss
 from utils.Utils import create_rec_dir
 import matplotlib.pyplot as plt
@@ -212,6 +214,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
 
     data_first_sensor = pd.DataFrame()
     data_first_sensor_raw = pd.DataFrame()
+    data_ss = pd.DataFrame()
     # data_second_sensor_min = pd.DataFrame()
     # data_second_sensor_max = pd.DataFrame()
     timestamp = None
@@ -219,6 +222,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     for result in results:
         a_data = result.get()
         activity = a_data[1]["first_sensor_value"]
+        signal_strength = a_data[1]["signal_strength"]
 
         x1 = a_data[1]["xmin"]
         y1 = a_data[1]["xmax"]
@@ -261,6 +265,8 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         data_first_sensor[a_data[0]] = [e] + activity.tolist()
 
         data_first_sensor_raw[a_data[0]] = [e] + activity.tolist()
+
+        data_ss[a_data[0]] = [e] + signal_strength.tolist()
 
         # xmin = a_data[1]["xmin"]
         # ymin = a_data[1]["ymin"]
@@ -309,6 +315,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     data_first_sensor = data_first_sensor.iloc[1:-1]
     if n_top_traces > 0:
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
+        data_ss = data_ss[data_ss.index.isin(data_first_sensor.index.values.tolist())]
     print(data_first_sensor)
 
     # data_first_sensor = data_first_sensor.fillna(-1)
@@ -322,6 +329,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     data_x = data_first_sensor.values
     data_x_raw = data_first_sensor_raw.values
     ids = data_first_sensor.columns
+    data_ss = data_ss.values
 
     week_slice = []
     x = list(range(int(data_first_sensor.shape[0]/1440)))
@@ -331,7 +339,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     n_week = len([x for x in week_slice if len(x) == 7])
     crop = n_week*7*1440
 
-    return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop]
+    return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop], data_ss[:crop]
     # return data_x_raw, data_x, ids, timestamp, date_str
 
 
@@ -367,7 +375,7 @@ def process(data_x, miss_rate):
     # return miss_data_x, data_m
 
 
-def main(args, raw_data, original_data_x, ids, timestamp, date_str):
+def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   '''Main function for UCI letter and spam datasets.
   
   Args:
@@ -400,30 +408,18 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation(miss_data_x.copy())
 
-  thresh_pos = 900
+  thresh_pos = 100
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(miss_data_x, timestamp, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
+    miss_data_x_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
   else:
     miss_data_x_reshaped = reshape_matrix_ranjeet(miss_data_x)
 
   print(miss_data_x_reshaped)
-  fig = go.Figure(data=go.Heatmap(
-      z=miss_data_x_reshaped[:, :-N_TRANSPOND-1],
-      x=np.array(list(range(miss_data_x_reshaped.shape[1]))[:-N_TRANSPOND-1]),
-      y=np.array(list(range(miss_data_x_reshaped.shape[0]))),
-      colorscale='Viridis'))
-  fig.update_layout(
-      title="Activity data 1 min bins thresh=%s" % thresh_pos,
-      xaxis_title="Time (1 min bins)",
-      yaxis_title="Transponders")
-  filename = out + "/" + "input_reshaped_%d.html" % thresh_pos
-  fig.write_html(filename)
-
   start = 0
   for i, k in enumerate(transp_idx):
       d = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
@@ -432,21 +428,37 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str):
       start = end
 
       id = ids[i]
-
+      xaxix_label, yaxis_label = build_formated_axis(timestamp[0], min_in_row=d_t.shape[1], days_in_col=d_t.shape[0])
       fig = go.Figure(data=go.Heatmap(
           z=d_t,
-          x=np.array(list(range(d_t.shape[1]))),
-          y=np.array(list(range(d_t.shape[0]))),
+          x=xaxix_label,
+          y=yaxis_label,
           colorscale='Viridis'))
+      fig.update_xaxes(tickformat="%H:%M")
+      fig.update_yaxes(tickformat="%d %b %Y")
       fig.update_layout(
           title="%d thresh=%d" % (id, thresh_pos),
-          xaxis_title="Time (1 min bins)",
-          yaxis_title="Days")
+          xaxis_title="Time (1 min bins)")
       filename = out + "/" + "%d_reshaped_%d.html" % (id, thresh_pos)
       print(filename)
       fig.write_html(filename)
 
-  imputed_data_x, rmse_iter = gain(args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+
+  m = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
+  fig = go.Figure(data=go.Heatmap(
+      z=m,
+      x=xaxix_label,
+      y=np.array(list(range(m.shape[0]))),
+      colorscale='Viridis'))
+  fig.update_xaxes(tickformat="%H:%M")
+  fig.update_layout(
+      title="Activity data 1 min bins thresh=%s" % thresh_pos,
+      xaxis_title="Time (1 min bins)",
+      yaxis_title="Transponders")
+  filename = out + "/" + "input_reshaped_%d.html" % thresh_pos
+  fig.write_html(filename)
+
+  imputed_data_x, rmse_iter = gain(xaxix_label, timestamp[0], args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
   # fig = go.Figure(data=go.Heatmap(
   #     z=imputed_data_x.T,
@@ -581,10 +593,10 @@ if __name__ == '__main__':
   args = parser.parse_args() 
   
   # Calls main function
-  data_x_o, ori_data_x, ids, timestamp, date_str = load_farm_data(args.data_dir, args.n_job, args.n_top_traces,
+  data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job, args.n_top_traces,
                                                         enable_anscombe=args.enable_anscombe,
                                                         enable_remove_zeros=args.enable_remove_zeros,
                                                         enable_log_anscombe=args.enable_log_anscombe,
                                                                   window=args.window)
-  imputed_data, rmse, rmse_li, rmse_per_id, rmse_per_id_li = main(args, data_x_o, ori_data_x, ids, timestamp, date_str)
+  imputed_data, rmse, rmse_li, rmse_per_id, rmse_per_id_li = main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
   print(imputed_data)

@@ -211,7 +211,7 @@ def get_norm_l2(data_frame_no_norm):
     df_X_norm_l2 = pd.DataFrame(preprocessing.normalize(data_frame_no_norm.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
     df_X_norm_l2["target"] = data_frame_no_norm.iloc[:, -1]
 
-    df_X_norm_l2_std = pd.DataFrame(preprocessing.StandardScaler().fit_transform(df_X_norm_l2.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
+    df_X_norm_l2_std = pd.DataFrame(preprocessing.StandardScaler(with_mean=True, with_std=False).fit_transform(df_X_norm_l2.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
     df_X_norm_l2_std["target"] = data_frame_no_norm.iloc[:, -1]
 
     return df_X_norm_l2_std
@@ -467,6 +467,8 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     data_frame.columns = hearder
 
+    data_frame = data_frame.iloc[0:30, :]
+
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
     # data_frame = data_frame[data_frame["missing_rate"] < 0.7]
@@ -585,7 +587,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
 
-    animal_ids = data_frame_original["id"].astype(str).tolist()
+    animal_ids = data_frame_original.iloc[0:len(data_frame_no_norm), :]["id"].astype(str).tolist()
 
     return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
@@ -663,7 +665,7 @@ def process_cross_farm(data_frame1, data_frame2, y_col='target'):
 
     print("->StandardScaler->SVC")
     pipe = Pipeline(
-        [('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
+        [('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(probability=True, class_weight='balanced'))])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
@@ -752,7 +754,7 @@ def dummy_run(X, y, test_size, filename):
 
         print("->StandardScaler->SVC")
         pipe = Pipeline(
-            [('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True, class_weight='balanced'))])
+            [('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(probability=True, class_weight='balanced'))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
@@ -767,7 +769,7 @@ def dummy_run(X, y, test_size, filename):
 
         print("->StandardScaler->LDA(1)->SVC")
         pipe = Pipeline(
-            [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)),
+            [('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('lda', LDA(n_components=1)),
              ('svc', SVC(probability=True, class_weight='balanced'))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
@@ -1048,7 +1050,7 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
 
 
     print('->StandardScaler->SVC')
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
     cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
                                          random_state=0)
     scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(animal_ids), scoring=scoring, n_jobs=-1)
@@ -1074,7 +1076,7 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     scores["classifier"] = "->StandardScaler->SVC"
     scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
 
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
     aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cv_std_svc, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
@@ -1836,11 +1838,11 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series)
+        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, thresh_i, thresh_z, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series)
+        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
         process_data_frame(animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)

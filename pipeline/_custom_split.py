@@ -1,33 +1,33 @@
-import random
+import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
-from sklearn.model_selection import LeavePOut, cross_validate
-from sklearn.pipeline import make_pipeline
-from sklearn.svm import SVC
+from sklearn import datasets
 from sklearn.metrics import make_scorer
 from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
-from sklearn.metrics import auc
-import warnings
-from sklearn import datasets
+from sklearn.model_selection import cross_validate
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import SVC
 
 np.random.seed(0)
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, n_repeats=10):
+    def __init__(self, animal_ids, n_repeats=10, stratified=True):
         self.n_repeats = n_repeats
-        self.animal_ids = animal_ids
+        self.stratified = stratified
+        self.animal_ids = np.array(animal_ids).flatten()
 
-    def split(self, X, y, verbose=False, group=None):
+    def split(self, X, y, verbose=True, group=None):
         y = y.reshape(y.size, 1)
         animal_ids = self.animal_ids.reshape(self.animal_ids.size, 1)
-        df = pd.DataFrame(np.hstack((np.hstack((X, y)), animal_ids)))
-        header = ["feature_" + str(x) for x in df.columns.tolist()]
+        hstack = np.hstack((X, y, animal_ids))
+        df = pd.DataFrame(hstack)
+        header = ["f_" + str(x) for x in df.columns.tolist()]
         header[-1] = "id"
         header[-2] = "target"
         df.columns = header
+
         training_idx = []
         testing_idx = []
         iter = 0
@@ -39,29 +39,27 @@ class StratifiedLeaveTwoOut:
                 ltwoout_ = df.sample(n=2)
                 u_id = np.unique(ltwoout_['id'].values)
                 u_target = np.unique(ltwoout_['target'].values)
-                if u_id.size == 2 & u_target.size == 2:
-                    break
+                if self.stratified:
+                    if u_id.size == 2 & u_target.size == 2:
+                        break
+                else:
+                    if u_id.size == 2:
+                        break
                 cpt += 1
                 if cpt > y.size:
                     warnings.warn("Could not build StratifiedLeaveTwoOut folds!")
                     break
-            # df = df.drop(ltwoout_.index)
 
             testing_samples = ltwoout_
-            # testing_idx.append(testing_samples.index.tolist())
-
             tr_idx = np.arange(y.size)
             tr_idx = np.setdiff1d(tr_idx, testing_samples.index.values)
-
-            # training_idx.append(tr_idx.tolist())
-
             df_train = pd.DataFrame(training_idx)
             df_test = pd.DataFrame(testing_idx)
-
             unique = len(df_test[~df_test.apply(frozenset, axis=1).duplicated()]) #drop row permutably
             # unique = len(df_test.drop_duplicates())
 
-            d = df_test.drop_duplicates()
+            # d = df_test.drop_duplicates()
+            d = df_test[~df_test.apply(frozenset, axis=1).duplicated()]
             testing_idx = d.values.tolist()
 
             training_idx = df_train[df_train.index.isin(d.index)].values.tolist()
@@ -80,14 +78,14 @@ class StratifiedLeaveTwoOut:
             iter += 1
 
         training_idx = training_idx[0:self.n_repeats]
-        print("StratifiedLeaveTwoOut could build %d unique folds." % len(training_idx))
+        print("StratifiedLeaveTwoOut could build %d/%d unique folds." % (len(training_idx), self.n_repeats))
         for j in range(len(training_idx)):
             yield training_idx[j], testing_idx[j]
 
 
 if __name__ == "__main__":
     print("***************************")
-    print("StratifiedLeaveTwoOut TEST")
+    print("CUSTOM SPLIT TEST")
     print("***************************")
 
     class_healthy = 1
@@ -124,22 +122,33 @@ if __name__ == "__main__":
                            "animal4",
                            "animal5",
                            "animal5"])
-    y = np.array([1,
-                 1,
-                 2,
-                 2,
-                 2,
-                 1,
-                 1,
-                 2,
-                 2,
-                 1])
+    # y = np.array([1,
+    #              1,
+    #              2,
+    #              2,
+    #              1,
+    #              1,
+    #              2,
+    #              2,
+    #              1,
+    #              1])
+
+    y = np.array(["healthy",
+                 "healthy",
+                 "uhealthy",
+                 "uhealthy",
+                 "healthy",
+                 "healthy",
+                 "uhealthy",
+                 "uhealthy",
+                 "healthy",
+                 "healthy"])
 
     dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
-    dataset.columns = [["feature_%d" % x for x in range(X.shape[1])] + ["target", "animal_id"]]
+    dataset.columns = [["f_%d" % x for x in range(X.shape[1])] + ["target", "animal_id"]]
     dataset.to_csv("dummy_dataset_for_cv.csv")
 
-    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=10)
+    slto = StratifiedLeaveTwoOut(animal_ids, n_repeats=10, stratified=True)
 
     rows = []
     for train_index, test_index in slto.split(X, y):

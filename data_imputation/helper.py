@@ -11,6 +11,7 @@
 '''
 
 # Necessary packages
+import datetime
 import warnings
 
 import numpy as np
@@ -316,7 +317,7 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, timestamp, add_t_col=False, c=1, thresh=None):
+def reshape_matrix_andy(matrix, timestamp, n_transponder, add_t_col=False, c=1, thresh=None):
     print("reshape_matrix_andy...", matrix.shape)
 
     transp_block = []
@@ -355,7 +356,7 @@ def reshape_matrix_andy(matrix, timestamp, add_t_col=False, c=1, thresh=None):
 
     vstack = np.vstack(transp_block)
     shape_o = vstack.shape
-    filtered_row, rm_idx = remove_rows(vstack, thresh)
+    filtered_row, rm_idx = remove_rows(vstack, thresh, n_transponder)
 
     t_idx = get_transp_idx(matrix, thresh)
     return filtered_row, rm_idx, shape_o, t_idx
@@ -391,12 +392,14 @@ def add_nan_rows(shape_o, input, idx):
     return m
 
 
-def remove_rows(input, t):
+def remove_rows(input, t, n_transponder, n_h=6):
     idx = []
     filtered_row = []
     for i in range(input.shape[0]):
         row = input[i, :]
-        pos_count = row[row > 0].shape[0]
+        middle_time = int(len(row[:-n_transponder-1])/2)
+        window = row[middle_time - 60*n_h: middle_time + 60*n_h]
+        pos_count = window[window > 0].shape[0]
         # r = nan_count/row.shape[0]
         if pos_count < t:
             continue
@@ -495,3 +498,9 @@ def nan_helper(y):
     """
 
     return np.isnan(y), lambda z: z.nonzero()[0]
+
+
+def build_formated_axis(start_timestamp, min_in_row=1440, days_in_col=100):
+    xaxis = np.array([datetime.datetime(2021, 1, 1) - datetime.timedelta(minutes=x) for x in range(min_in_row)])
+    yaxis = np.array([datetime.datetime.fromtimestamp(start_timestamp) - datetime.timedelta(days=x) for x in range(days_in_col)])
+    return xaxis[::-1], yaxis[::-1]

@@ -214,7 +214,7 @@ def get_norm_l2(data_frame_no_norm):
     df_X_norm_l2 = pd.DataFrame(preprocessing.normalize(data_frame_no_norm.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
     df_X_norm_l2["label"] = data_frame_no_norm.iloc[:, -1]
 
-    df_X_norm_l2_std = pd.DataFrame(preprocessing.StandardScaler().fit_transform(df_X_norm_l2.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
+    df_X_norm_l2_std = pd.DataFrame(preprocessing.StandardScaler(with_mean=True, with_std=False).fit_transform(df_X_norm_l2.iloc[:, :-1]), columns=data_frame_no_norm.columns[:-1], dtype=float)
     df_X_norm_l2_std["label"] = data_frame_no_norm.iloc[:, -1]
 
     return df_X_norm_l2

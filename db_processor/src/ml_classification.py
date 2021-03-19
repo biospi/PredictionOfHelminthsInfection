@@ -1000,12 +1000,12 @@ def process_data_frame(data_frame, y_col='label', preproc=0, downsample_false_cl
     #     X[X.columns] = preprocessing.MinMaxScaler(feature_range=(0, 1)).fit_transform(X[X.columns])
     #
     # if preproc == 1:
-    #     X = preprocessing.StandardScaler().fit_transform(X)
+    #     X = preprocessing.StandardScaler(with_mean=True, with_std=False).fit_transform(X)
     # if preproc == 2:
     #     X = preprocessing.Normalizer().fit_transform(X)
     # if preproc == 3:
     #     X = preprocessing.MinMaxScaler(feature_range=(0, 1)).fit_transform(X)
-    #     X = preprocessing.StandardScaler().fit_transform(X)
+    #     X = preprocessing.StandardScaler(with_mean=True, with_std=False).fit_transform(X)
     # X = pd.DataFrame(X)
     # X = normalize(X, norm='max')
 
@@ -1097,7 +1097,7 @@ def process_data_frame(data_frame, y_col='label', preproc=0, downsample_false_cl
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(class_weight='balanced'))])
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(class_weight='balanced'))])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)
@@ -1121,7 +1121,7 @@ def process_data_frame(data_frame, y_col='label', preproc=0, downsample_false_cl
     print(pipe.named_steps)
     print(classification_report(y_test, y_pred))
 
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('forest', RandomForestClassifier())])
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('forest', RandomForestClassifier())])
     pipe.fit(X_train, y_train)
     y_pred = pipe.predict(X_test)
     print(pipe.named_steps)

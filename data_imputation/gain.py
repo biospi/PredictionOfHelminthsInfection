@@ -13,12 +13,14 @@ import json
 
 import tensorflow.compat.v1 as tf
 
+
 tf.disable_v2_behavior()
 
 import numpy as np
 from tqdm import tqdm
 
-from data_imputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, linear_interpolation
+from data_imputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
+  linear_interpolation, build_formated_axis
 from data_imputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
 from data_imputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 
@@ -28,7 +30,7 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-def gain(miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -199,9 +201,10 @@ def gain(miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, d
       i_d = imputed_data[:, :-N_TRANSPOND - 1]
       fig = go.Figure(data=go.Heatmap(
         z=i_d,
-        x=np.array(list(range(i_d.shape[1]))),
+        x=xaxix_label,
         y=np.array(list(range(i_d.shape[0]))),
         colorscale='Viridis'))
+      fig.update_xaxes(tickformat="%H:%M")
       fig.update_layout(
         title="Activity data after imputation i=%s" % i,
         xaxis_title="Time (1 min bins)",
@@ -218,11 +221,15 @@ def gain(miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, d
           df_t_i = df_[start: end]
           start = end
           id = ids[n]
+          _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+                                                         days_in_col=df_t_i.shape[0])
           fig = go.Figure(data=go.Heatmap(
             z=df_t_i.values,
-            x=np.array(list(range(df_t_i.values.shape[1]))),
-            y=np.array(list(range(df_t_i.values.shape[0]))),
+            x=xaxix_label,
+            y=yaxis_label,
             colorscale='Viridis'))
+          fig.update_xaxes(tickformat="%H:%M")
+          fig.update_yaxes(tickformat="%d %b %Y")
           fig.update_layout(
             title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
             xaxis_title="Time (1 min bins)",

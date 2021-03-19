@@ -103,7 +103,7 @@ def process_cross_farm(data_frame1, data_frame2, y_col='label'):
     print(classification_report(y2, y_pred))
 
     print("->StandardScaler->SVC")
-    pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+    pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(probability=True))])
     pipe.fit(X1.copy(), y1.copy())
     y_pred = pipe.predict(X2.copy())
     print(classification_report(y2, y_pred))
@@ -193,7 +193,7 @@ def dummy_run(X, y, test_size, filename):
 
         print("->StandardScaler->SVC")
         outfile.write("->StandardScaler->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+        pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
@@ -212,7 +212,7 @@ def dummy_run(X, y, test_size, filename):
         print("->StandardScaler->LDA(1)->SVC")
         outfile.write("->StandardScaler->LDA(1)->SVC\n")
         pipe = Pipeline(
-            [('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+            [('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
@@ -287,14 +287,14 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
         # print(classification_report(y_test, np.round(y_pred)))
         #
         # print("->StandardScaler->PLSRegression(10)")
-        # pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('pls', PLSRegression(n_components=10))])
+        # pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('pls', PLSRegression(n_components=10))])
         # pipe.fit(X_train.copy(), y_train.copy())
         # y_pred = pipe.predict(X_test.copy())
         # print(classification_report(y_test, np.round(y_pred)))
 
         print("->StandardScaler->SVC")
         outfile.write("->StandardScaler->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('svc', SVC(probability=True))])
+        pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, np.round(y_pred)))
@@ -313,7 +313,7 @@ def process_data_frame(data_frame, output_dir, test_size, thresh_i, thresh_z, da
 
         print("->StandardScaler->LDA(1)->SVC")
         outfile.write("->StandardScaler->LDA(1)->SVC\n")
-        pipe = Pipeline([('scaler', preprocessing.StandardScaler()), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
+        pipe = Pipeline([('scaler', preprocessing.StandardScaler(with_mean=True, with_std=False)), ('lda', LDA(n_components=1)), ('svc', SVC(probability=True))])
         pipe.fit(X_train.copy(), y_train.copy())
         y_pred = pipe.predict(X_test.copy())
         print(classification_report(y_test, y_pred))
