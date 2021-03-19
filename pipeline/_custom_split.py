@@ -24,10 +24,10 @@ class StratifiedLeaveTwoOut:
         testing_idx = []
         lpo = LeavePOut(2)
         for train_index, test_index in lpo.split(X):
-            y_test = y[test_index]
-            unique_target = len(np.unique(y_test))
-            unique_animal = len(self.animal_ids[test_index])
             if self.stratified:
+                unique_target = len(np.unique(y[test_index]))
+                unique_animal = len(self.animal_ids[test_index])
+
                 if unique_target == 1:
                     continue
                 if unique_animal == 1:
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     y = y.astype(int)
 
     results = []
-    for c in [100, 1.0]:
+    for c in [100]:
         clf_std_svc = make_pipeline(SVC(C=c, probability=True, class_weight='balanced'))
         cv_std_svc = StratifiedLeaveTwoOut(y, stratified=True)
         scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
