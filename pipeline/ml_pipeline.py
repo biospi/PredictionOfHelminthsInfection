@@ -9,7 +9,7 @@ import matplotlib
 # import pywt
 import matplotlib.pyplot as plt
 
-from pipeline._custom_split import StratifiedLeaveTwoOut
+from mutils._custom_split import StratifiedLeaveTwoOut
 
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
@@ -36,7 +36,6 @@ from multiprocessing import Pool
 import random
 from sklearn.model_selection import cross_validate
 from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import RepeatedStratifiedKFold
 from numpy import unravel_index
 from sklearn.metrics import make_scorer
 from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
@@ -467,7 +466,7 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     data_frame.columns = hearder
 
-    data_frame = data_frame.iloc[0:30, :]
+    # data_frame = data_frame.iloc[0:30, :]
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
@@ -1558,7 +1557,7 @@ def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_
 
 
 def compute_fft_group(activity, target, i, total):
-    print("%d/%d" % (i, total))
+    # print("%d/%d" % (i, total))
     fft = np.fft.fftshift(np.fft.fft(activity))
     fft_cc = np.conj(fft)
     power_fft = np.real(np.multiply(fft, fft_cc)).tolist()
@@ -1603,7 +1602,7 @@ def get_n_largest_coefs(matrix, n=50):
 
 
 def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
-    print("%d/%d" % (i, total))
+    # print("%d/%d" % (i, total))
     # wavelet_type = 'morlet'
     y = activity
     w = wavelet.Morlet(3)
