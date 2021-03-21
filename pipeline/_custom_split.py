@@ -16,6 +16,7 @@ np.random.seed(0)
 
 class StratifiedLeaveTwoOut:
     def __init__(self, animal_ids, stratified=True):
+        self.nfold = 0
         self.stratified = stratified
         self.animal_ids = np.array(animal_ids).flatten()
 
@@ -24,18 +25,17 @@ class StratifiedLeaveTwoOut:
         testing_idx = []
         lpo = LeavePOut(2)
         for train_index, test_index in lpo.split(X):
+            unique_animal = len(self.animal_ids[test_index])
+            if unique_animal == 1:
+                continue
             if self.stratified:
                 unique_target = len(np.unique(y[test_index]))
-                unique_animal = len(self.animal_ids[test_index])
-
                 if unique_target == 1:
                     continue
-                if unique_animal == 1:
-                    continue
-
             training_idx.append(train_index)
             testing_idx.append(test_index)
-        print("StratifiedLeaveTwoOut could build %d unique folds. stratification=%s" % (len(training_idx), self.stratified))
+        self.nfold = len(training_idx)
+        print("StratifiedLeaveTwoOut could build %d unique folds. stratification=%s" % (self.nfold, self.stratified))
         for j in range(len(training_idx)):
             yield training_idx[j], testing_idx[j]
 
@@ -128,21 +128,13 @@ if __name__ == "__main__":
                   [5, 6],
                   [7, 8],
                   [9, 10],
-                  [11, 12],
-                  [13, 14],
-                  [15, 16],
-                  [17, 18],
-                  [19, 20]])
+                  [11, 12]])
     animal_ids = np.array(["animal1",
                            "animal1",
                            "animal2",
                            "animal2",
                            "animal3",
-                           "animal3",
-                           "animal4",
-                           "animal4",
-                           "animal5",
-                           "animal5"])
+                           "animal3"])
     # y = np.array([1,
     #              1,
     #              2,
@@ -159,10 +151,6 @@ if __name__ == "__main__":
                  "uhealthy",
                  "uhealthy",
                  "healthy",
-                 "healthy",
-                 "uhealthy",
-                 "uhealthy",
-                 "healthy",
                  "healthy"])
     print("DATASET:")
     dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
@@ -171,7 +159,8 @@ if __name__ == "__main__":
     print(dataset)
     print("")
 
-    slto = StratifiedLeaveTwoOut(animal_ids, stratified=True)
+    slto = StratifiedLeaveTwoOut(animal_ids, stratified=False)
+
 
     rows = []
     i = 0
@@ -182,26 +171,26 @@ if __name__ == "__main__":
         row = train_index.tolist() + test_index.tolist() + y_test.tolist() + animal_ids[test_index].tolist()
         rows.append(row)
         i += 1
-
+    print(slto.nfold)
     df_rows = pd.DataFrame(rows)
     df_rows.columns = [ ["TRAIN IDX" for x in range(len(train_index))] + ["TEST IDX" for x in range(len(test_index))] + ["TEST TARGET" for x in range(len(y_test))] + ["TEST ANIMAL ID" for x in range(len(animal_ids[test_index].tolist()))] ]
     df_rows.to_csv("stratified_leave_two_out_folds.csv")
-    print("******************************")
-    print("Test custom cv on test dataset")
-    print("******************************")
-    testdataset = datasets.load_diabetes()
-    X = testdataset.data[:, :]
-    y = testdataset.target
-    #make dataset binary
-    m = np.median(y)
-    y[y <= m] = 0
-    y[y > m] = 1
-    y = y.astype(int)
+    # print("******************************")
+    # print("Test custom cv on test dataset")
+    # print("******************************")
+    # testdataset = datasets.load_diabetes()
+    # X = testdataset.data[:, :]
+    # y = testdataset.target
+    # #make dataset binary
+    # m = np.median(y)
+    # y[y <= m] = 0
+    # y[y > m] = 1
+    # y = y.astype(int)
 
     results = []
     for c in [100]:
         clf_std_svc = make_pipeline(SVC(C=c, probability=True, class_weight='balanced'))
-        cv_std_svc = StratifiedLeaveTwoOut(y, stratified=True)
+        cv_std_svc = StratifiedLeaveTwoOut(animal_ids, stratified=True)
         scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
 
         df_score = pd.DataFrame(scores)

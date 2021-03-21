@@ -398,7 +398,7 @@ def plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class
         ax1.legend()
         ax2.legend()
 
-    plt.show()
+    # plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
     # print('saving fig...')
@@ -621,7 +621,7 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
     plt.title('Percentage of zeros in activity per sample')
     plt.xlabel('Famacha samples (number of sample in class)')
     plt.ylabel('Percentage of zero values in samples')
-    plt.show()
+    # plt.show()
     print(distrib)
 
     df = pd.DataFrame.from_dict({'Percent of zeros': z_prct, 'Target': target_labels})
@@ -635,7 +635,7 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
 
     fig = g.draw()
     fig.tight_layout()
-    fig.show()
+    # fig.show()
     filename = "zero_percent.png"
     filepath = "%s/%s" % (graph_outputdir, filename)
     # print('saving fig...')
@@ -723,7 +723,7 @@ def plot_contours(ax, clf, xx, yy, **params):
 
 
 def dummy_run(X, y, test_size, filename):
-    plt.show()
+    # plt.show()
     print("dummy run!")
     X = pd.DataFrame(X)
     for i, row in X.iterrows():
@@ -950,7 +950,7 @@ def plot_2d_space_cwt_scales(df_cwt_list, label='2D PCA of CWTS', y_col='target'
                     ax.scatter(X.values[y == l, 0], X.values[y == l, 1], c=colors[1], alpha=0.4, marker=markers[1])
 
         ax.set_title("PCA_SCALE_"+str(i)+"_"+label)
-        plt.show()
+        # plt.show()
 
 
 def plot_2d_space(X, y, filename_2d_scatter, label_series, title='title'):
@@ -1051,9 +1051,10 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
 
     print('->StandardScaler->SVC')
     clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
-    cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                         random_state=0)
-    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(animal_ids), scoring=scoring, n_jobs=-1)
+    # cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+    #                                      random_state=0)
+    cv_std_svc = StratifiedLeaveTwoOut(animal_ids)
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1061,8 +1062,8 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     scores["option"] = option
     scores["days"] = days
     scores["farm_id"] = farm_id
-    scores["n_repeats"] = n_repeats
-    scores["n_splits"] = n_splits
+    # scores["n_repeats"] = n_repeats
+    # scores["n_splits"] = n_splits
     scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
     # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
 
@@ -1084,9 +1085,10 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-                                     random_state=0)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=StratifiedLeaveTwoOut(animal_ids), scoring=scoring, n_jobs=-1)
+    # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
+    #                                  random_state=0)
+    cv_svc = StratifiedLeaveTwoOut(animal_ids)
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1094,8 +1096,8 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     scores["option"] = option
     scores["days"] = days
     scores["farm_id"] = farm_id
-    scores["n_repeats"] = n_repeats
-    scores["n_splits"] = n_splits
+    # scores["n_repeats"] = n_repeats
+    # scores["n_splits"] = n_splits
     scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
     # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
 
@@ -1118,6 +1120,8 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     df_report = pd.DataFrame(report_rows_list)
     df_report["class_0_label"] = label_series[class_healthy]
     df_report["class_1_label"] = label_series[class_unhealthy]
+    df_report["nfold"] = cv_svc.nfold
+    df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in df_report["fit_time"].values]
     filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
         output_dir, farm_id, days, option, downsample_false_class, sampling)
     if not os.path.exists(output_dir):
@@ -1262,7 +1266,7 @@ def plot_2D_decision_boundaries(model, clf_name, dim_reduc_name, dim, nfold, res
     ax.set_title(title)
     ttl = ax.title
     ttl.set_position([.57, 0.97])
-    fig.show()
+    # fig.show()
     plt.close()
 
 
@@ -1434,7 +1438,7 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
         ax2.legend()
 
 
-    plt.show()
+    # plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
     #print('saving fig...')
@@ -1543,7 +1547,7 @@ def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
     ax4.set_yticklabels(labels_)
 
-    plt.show()
+    # plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ","_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
     #print('saving fig...')
@@ -1767,13 +1771,18 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
         dataset_folder = sys.argv[2]
-        n_splits = int(sys.argv[3])
-        n_repeats = int(sys.argv[4])
-        cwt_low_pass_filter = int(sys.argv[5])
-        cwt_high_pass_filter = int(sys.argv[6])
-        n_process = int(sys.argv[7])
+        # n_splits = int(sys.argv[3])
+        # n_repeats = int(sys.argv[4])
+        # cwt_low_pass_filter = int(sys.argv[5])
+        # cwt_high_pass_filter = int(sys.argv[6])
+        n_process = int(sys.argv[3])
     else:
         exit(-1)
+
+    n_splits = 0
+    n_repeats = 0
+    cwt_low_pass_filter = 0
+    cwt_high_pass_filter = 0
 
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
