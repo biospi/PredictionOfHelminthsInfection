@@ -9,7 +9,7 @@ import matplotlib
 # import pywt
 import matplotlib.pyplot as plt
 
-from pipeline.utils._custom_split import StratifiedLeaveTwoOut
+from utils._custom_split import StratifiedLeaveTwoOut
 
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
