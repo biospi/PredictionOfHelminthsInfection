@@ -59,7 +59,7 @@ import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr, isinstalled
 
-utils = importr('mutils')
+utils = importr('utils')
 R = robjects.r
 
 # need to be installed from Rstudio or other package installer
