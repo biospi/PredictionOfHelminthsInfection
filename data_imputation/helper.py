@@ -410,16 +410,45 @@ def remove_rows(input, t, n_transponder, n_h=6):
     return filtered_row, idx
 
 
-def restore_matrix_andy(output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
+def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
     imputed = add_nan_rows(shape_o, imputed, row_idx)
 
-    # fig = go.Figure(data=go.Heatmap(
-    #     z=imputed[:, :-n_transpond -1],
-    #     x=np.array(list(range(imputed.shape[0])))[:-n_transpond -1],
-    #     y=np.array(list(range(imputed.shape[1])))[:-n_transpond -1],
-    #     colorscale='Viridis'))
-    # filename = output_dir + "/" + "imputed_gain_restored_%d.html" % idx
-    # fig.write_html(filename)
+    fig = go.Figure(data=go.Heatmap(
+        z=imputed[:, :-n_transpond -1],
+        x=xaxix_label,
+        y=np.array(list(range(imputed.shape[1])))[:-n_transpond -1],
+        colorscale='Viridis'))
+    fig.update_xaxes(tickformat="%H:%M")
+    fig.update_layout(
+        title="imputed all transp stack thresh=%d iteration=%d" % (thresh, i),
+        xaxis_title="Time (1 min bins)",
+        yaxis_title="Days")
+    filename = output_dir + "/" + "imputed_gain_restored_%d.html" % i
+    fig.write_html(filename)
+
+    df_ = pd.DataFrame(imputed).iloc[:, :-n_transpond - 1]
+    start = 0
+    for n, item in enumerate(t_idx):
+        end = start + item
+        df_t_i = df_[start: end]
+        start = end
+        id = ids[n]
+        _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+                                             days_in_col=df_t_i.shape[0])
+        fig = go.Figure(data=go.Heatmap(
+            z=df_t_i.values,
+            x=xaxix_label,
+            y=yaxis_label,
+            colorscale='Viridis'))
+        fig.update_xaxes(tickformat="%H:%M")
+        fig.update_yaxes(tickformat="%d %b %Y")
+        fig.update_layout(
+            title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+            xaxis_title="Time (1 min bins)",
+            yaxis_title="Days")
+        filename = output_dir + "/" + "%d_imputed_reshaped_restored_%d_%d.html" % (id, thresh, i)
+        print(filename)
+        fig.write_html(filename)
 
     if add_t_col:
         imputed = imputed[:, :-n_transpond -1] #-1 for date col

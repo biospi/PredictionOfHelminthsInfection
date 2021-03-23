@@ -458,7 +458,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   filename = out + "/" + "input_reshaped_%d.html" % thresh_pos
   fig.write_html(filename)
 
-  imputed_data_x, rmse_iter = gain(xaxix_label, timestamp[0], args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+  imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
   # fig = go.Figure(data=go.Heatmap(
   #     z=imputed_data_x.T,

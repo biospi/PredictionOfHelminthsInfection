@@ -1284,7 +1284,7 @@ def parse_param_from_filename(file):
 def mask_cwt(cwt, coi, scales, turn_off=False):
     if turn_off:
         return cwt
-    print("masking cwt...")
+    # print("masking cwt...")
 
     coi_line = []
     for j in range(cwt.shape[1]):
@@ -1655,7 +1655,7 @@ def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, tot
     #max_coef_features = get_n_largest_coefs(power_masked.copy(), n=int(power_masked.size / 2))
     # max_coef_features_fft = get_n_largest_coefs_fft(power_fft.copy(), n=int(power_masked.size / 2))
 
-    print("power_flatten_len=", len(power_flatten_masked))
+    # print("power_flatten_len=", len(power_flatten_masked))
     data = power_flatten_masked
     data.append(target)
 

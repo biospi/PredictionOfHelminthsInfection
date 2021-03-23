@@ -30,7 +30,7 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, nan_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -252,7 +252,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         raise ValueError("Error while imputing data, all value NaN!")
 
       if RESHAPE:
-        imputed_data = restore_matrix_andy(output_dir, shape_o, nan_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+        imputed_data = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out, shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
       else:
         imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 
@@ -286,4 +286,4 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     print(filename)
     plt.savefig(filename)
 
-  return imputed_data, rmse_iter
+  return imputed_data, rmse_iter, rm_row_idx
