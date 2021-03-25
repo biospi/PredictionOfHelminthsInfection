@@ -20,7 +20,7 @@ import numpy as np
 from tqdm import tqdm
 
 from data_imputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
-  linear_interpolation, build_formated_axis
+  linear_interpolation_v, build_formated_axis
 from data_imputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
 from data_imputation.helper import binary_sampler, uniform_sampler, sample_batch_index
 

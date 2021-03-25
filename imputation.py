@@ -22,8 +22,8 @@ from data_imputation.mrnn import mrnn
 np.random.seed(0) #for reproducability
 
 from data_imputation.gain import gain
-from data_imputation.helper import binary_sampler, linear_interpolation, reshape_matrix_andy, reshape_matrix_ranjeet, \
-    restore_matrix_andy, build_formated_axis
+from data_imputation.helper import binary_sampler, linear_interpolation_v, reshape_matrix_andy, reshape_matrix_ranjeet, \
+    restore_matrix_andy, build_formated_axis, linear_interpolation_h
 from data_imputation.helper import rmse_loss
 from utils.Utils import create_rec_dir
 import matplotlib.pyplot as plt
@@ -312,10 +312,12 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
 
     # data_first_sensor = data_first_sensor.dropna(axis=1, thresh=1000, how="any")
     data_first_sensor = data_first_sensor.sort_values(data_first_sensor.first_valid_index(), axis=1, ascending=False)
+    data_ss = data_ss.sort_values(data_ss.first_valid_index(), axis=1, ascending=False)
     data_first_sensor = data_first_sensor.iloc[1:-1]
+    data_ss = data_ss.iloc[1:-1]
     if n_top_traces > 0:
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
-        data_ss = data_ss[data_ss.index.isin(data_first_sensor.index.values.tolist())]
+        data_ss = data_ss.iloc[:, : n_top_traces]
     print(data_first_sensor)
 
     # data_first_sensor = data_first_sensor.fillna(-1)
@@ -406,16 +408,16 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   data_x = original_data_x.copy()
 
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
-  imputed_data_x_li = linear_interpolation(miss_data_x.copy())
+  imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-  thresh_pos = 100
+  thresh_pos = 300
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
+    miss_data_x_reshaped, signal_s_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
   else:
     miss_data_x_reshaped = reshape_matrix_ranjeet(miss_data_x)
 
@@ -425,6 +427,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       d = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
       end = start+k
       d_t = d[start: end]
+      ss = signal_s_reshaped[:, :-N_TRANSPOND - 1]
+      ss_t = ss[start: end]
+
       start = end
 
       id = ids[i]
@@ -442,6 +447,35 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       filename = out + "/" + "%d_reshaped_%d.html" % (id, thresh_pos)
       print(filename)
       fig.write_html(filename)
+
+      fig = go.Figure(data=go.Heatmap(
+          z=ss_t,
+          x=xaxix_label,
+          y=yaxis_label,
+          colorscale='Viridis'))
+      fig.update_xaxes(tickformat="%H:%M")
+      fig.update_yaxes(tickformat="%d %b %Y")
+      fig.update_layout(
+          title="%d Signal Strength thresh=%d" % (id, thresh_pos),
+          xaxis_title="Time (1 min bins)")
+      filename = out + "/" + "%d_signal_strength_reshaped_%d.html" % (id, thresh_pos)
+      print(filename)
+      fig.write_html(filename)
+
+      fig = go.Figure(data=go.Heatmap(
+          z=linear_interpolation_h(ss_t),
+          x=xaxix_label,
+          y=yaxis_label,
+          colorscale='Viridis'))
+      fig.update_xaxes(tickformat="%H:%M")
+      fig.update_yaxes(tickformat="%d %b %Y")
+      fig.update_layout(
+          title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, thresh_pos),
+          xaxis_title="Time (1 min bins)")
+      filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, thresh_pos)
+      print(filename)
+      fig.write_html(filename)
+
 
 
   m = miss_data_x_reshaped[:, :-N_TRANSPOND-1]

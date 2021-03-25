@@ -291,6 +291,9 @@ class SampleSet:
 
                 val = missR < 0.6
 
+                if len(A[np.isnan(A)]) == len(A):
+                    val = False
+
                 aniSet.append(Sample(aIdx.ID, fCurrent, df, val, missR))
 
                 if type(self.iA) == int:

@@ -279,7 +279,7 @@ def rmse_loss_(ori_data, imputed_data, imputed_data_li, data_m):
     return rmse, rmse_
 
 
-def linear_interpolation(input_activity):
+def linear_interpolation_v(input_activity):
     for c in range(input_activity.shape[1]):
         y = np.array(input_activity[:, c], dtype=np.float)
         nans, x = nan_helper(y)
@@ -287,6 +287,17 @@ def linear_interpolation(input_activity):
         # s = pd.Series(i)
         # s = s.interpolate(method='linear', limit_direction='both')
         input_activity[:, c] = y
+    return input_activity
+
+
+def linear_interpolation_h(input_activity):
+    for l in range(input_activity.shape[0]):
+        y = np.array(input_activity[l, :], dtype=np.float)
+        nans, x = nan_helper(y)
+        y[nans] = np.interp(x(nans), x(~nans), y[~nans])
+        # s = pd.Series(i)
+        # s = s.interpolate(method='linear', limit_direction='both')
+        input_activity[l, :] = y
     return input_activity
 
 
@@ -317,16 +328,18 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(matrix, timestamp, n_transponder, add_t_col=False, c=1, thresh=None):
-    print("reshape_matrix_andy...", matrix.shape)
+def reshape_matrix_andy(ss_data, activity_matrix, timestamp, n_transponder, add_t_col=False, c=1, thresh=None):
+    print("reshape_matrix_andy...", activity_matrix.shape)
 
     transp_block = []
+    transp_block_ss = []
     t_idx = []
-    for i in range(matrix.shape[1]):
-        transp = matrix[:, i]
-        s = np.array_split(transp, matrix.shape[0]/1440/c, axis=0)
-
-        s_d = np.array_split(timestamp, matrix.shape[0] / 1440 / c, axis=0)
+    for i in range(activity_matrix.shape[1]):
+        transp = activity_matrix[:, i]
+        transp_ss = ss_data[:, i]
+        s = np.array_split(transp, activity_matrix.shape[0] / 1440 / c, axis=0)
+        s_ss = np.array_split(transp_ss, activity_matrix.shape[0] / 1440 / c, axis=0)
+        s_d = np.array_split(timestamp, activity_matrix.shape[0] / 1440 / c, axis=0)
 
         # s = np.array_split(transp, matrix.shape[0], axis=0)
         #
@@ -334,32 +347,37 @@ def reshape_matrix_andy(matrix, timestamp, n_transponder, add_t_col=False, c=1, 
 
         if add_t_col:
             d = []
+            d_ss = []
             for ii, x in enumerate(s):
                 x_ = x.flatten().tolist()
                 x_d = x_ + [s_d[ii].tolist()[0]]
                 d.append(np.array(x_d))
+                d_ss.append(s_ss[ii])
         else:
             d = [x.flatten() for x in s]
+            d_ss = [x.flatten() for x in s_ss]
 
         vstack_transp = np.vstack(d)
+        vstack_transp_ss = np.vstack(d_ss)
 
         if add_t_col:
             df = pd.DataFrame(vstack_transp)
-            for n in range(matrix.shape[1]):
+            for n in range(activity_matrix.shape[1]):
                 v = 1 if n == i else 0
                 df["t_%d" % n] = v
             vstack_transp = df.values
 
         transp_block.append(vstack_transp)
-
+        transp_block_ss.append(vstack_transp_ss)
         t_idx.append(vstack_transp.shape[0])
 
     vstack = np.vstack(transp_block)
+    vstack_ss = np.vstack(transp_block_ss)
     shape_o = vstack.shape
-    filtered_row, rm_idx = remove_rows(vstack, thresh, n_transponder)
+    filtered_row, filtered_row_ss, rm_idx = remove_rows(vstack_ss, vstack, thresh, n_transponder)
 
-    t_idx = get_transp_idx(matrix, thresh)
-    return filtered_row, rm_idx, shape_o, t_idx
+    t_idx = get_transp_idx(activity_matrix, thresh)
+    return filtered_row, filtered_row_ss, rm_idx, shape_o, t_idx
 
 
 def get_transp_idx(matrix, thresh=None):
@@ -392,9 +410,10 @@ def add_nan_rows(shape_o, input, idx):
     return m
 
 
-def remove_rows(input, t, n_transponder, n_h=6):
+def remove_rows(vstack_ss, input, t, n_transponder, n_h=6):
     idx = []
     filtered_row = []
+    filtered_row_ss = []
     for i in range(input.shape[0]):
         row = input[i, :]
         middle_time = int(len(row[:-n_transponder-1])/2)
@@ -406,8 +425,10 @@ def remove_rows(input, t, n_transponder, n_h=6):
         print(pos_count)
         idx.append(i)
         filtered_row.append(row)
+        filtered_row_ss.append(vstack_ss[i, :])
     filtered_row = np.array(filtered_row)
-    return filtered_row, idx
+    filtered_row_ss = np.array(filtered_row_ss)
+    return filtered_row, filtered_row_ss, idx
 
 
 def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
