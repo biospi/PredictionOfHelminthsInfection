@@ -10,6 +10,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from utils._custom_split import StratifiedLeaveTwoOut
+from utils._normalisation import QuotientNormalizer
 
 if _platform == "linux" or _platform == "linux2":
     matplotlib.use('Agg')
@@ -458,13 +459,14 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-
+    N_META = 4
     hearder[-4] = 'label'
     hearder[-3] = 'id'
     hearder[-2] = 'missing_rate'
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
+    data_frame = data_frame.fillna(0)
 
     # data_frame = data_frame.iloc[0:30, :]
 
@@ -474,9 +476,10 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
 
     data_frame_original = data_frame.copy()
 
-    data_frame_median_norm = get_custom_norm(data_frame_original)
+    data_frame_median_norm = data_frame_original.copy()
+    data_frame_median_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_median_norm.iloc[:, :-N_META].values)
 
-    cols_to_keep = hearder[:-4]
+    cols_to_keep = hearder[:-N_META]
     cols_to_keep.append(label_col)
     data_frame = data_frame[cols_to_keep]
     data_frame_median_norm = data_frame_median_norm[cols_to_keep]
@@ -555,10 +558,10 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     # #data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
     # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
     #
-    plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Andy Norm) samples", xlabel="Time", ylabel="activity",
+    plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                 idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
 
-    plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(ANdy)")
+    plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(Quotient)")
 
     # data_frame_median_norm_anscombe = get_anscombe(data_frame_median_norm)
     #
@@ -1846,10 +1849,10 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_andy_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_andy_norm", n_splits, n_repeats,
+        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
         process_data_frame(animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
