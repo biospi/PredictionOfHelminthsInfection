@@ -451,10 +451,8 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
     return data_frame
 
 
-def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
+def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
-    class_healthy = 1
-    class_unhealthy = 2
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
@@ -466,13 +464,14 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
-    data_frame = data_frame.fillna(0)
+    # data_frame = data_frame.fillna(0)
 
     # data_frame = data_frame.iloc[0:30, :]
+    data_frame = data_frame.dropna()
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
-    # data_frame = data_frame[data_frame["missing_rate"] < 0.7]
+    #data_frame = data_frame[data_frame["missing_rate"] < 0.7]
 
     data_frame_original = data_frame.copy()
 
@@ -504,8 +503,8 @@ def load_df_from_datasets(enable_downsample_df, output_dir, fname, label_col='la
     data_frame_median_norm = data_frame_median_norm.drop('label', 1)
 
     # data_frame = shuffle(data_frame)
-    data_frame = data_frame.dropna()
-    data_frame_median_norm = data_frame_median_norm.dropna()
+    # data_frame = data_frame.dropna()
+    data_frame_median_norm = data_frame_median_norm
     # data_frame = filter_by_entropy(data_frame)
 
     print(data_frame)
@@ -999,7 +998,7 @@ def get_aucs(estimators, X, y):
     return aucs
 
 
-def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
+def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
     print("*******************************************************************")
     print(label_series)
@@ -1055,7 +1054,7 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
     # cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
     #                                      random_state=0)
-    cv_std_svc = StratifiedLeaveTwoOut(animal_ids)
+    cv_std_svc = StratifiedLeaveTwoOut(animal_ids, stratified=stratify)
     scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
@@ -1089,7 +1088,7 @@ def process_data_frame(animal_ids, out_dir, data_frame, days, farm_id, option, n
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
     #                                  random_state=0)
-    cv_svc = StratifiedLeaveTwoOut(animal_ids)
+    cv_svc = StratifiedLeaveTwoOut(animal_ids, stratified=stratify)
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
 
     scores["downsample"] = downsample_false_class
@@ -1777,7 +1776,10 @@ if __name__ == "__main__":
         # n_repeats = int(sys.argv[4])
         # cwt_low_pass_filter = int(sys.argv[5])
         # cwt_high_pass_filter = int(sys.argv[6])
-        n_process = int(sys.argv[3])
+        class_healthy = int(sys.argv[3])
+        class_unhealthy = int(sys.argv[4])
+        stratify = str(sys.argv[5])
+        n_process = int(sys.argv[6])
     else:
         exit(-1)
 
@@ -1785,14 +1787,15 @@ if __name__ == "__main__":
     n_repeats = 0
     cwt_low_pass_filter = 0
     cwt_high_pass_filter = 0
+    stratify = "y" in stratify.lower()
 
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
-    print("n_splits=", n_splits)
+    print("class_healthy=", class_healthy)
+    print("class_unhealthy=", class_unhealthy)
     print("n_repeats=", n_repeats)
-    print("n_repeats=", n_repeats)
-    print("cwt_high_pass_filter=", cwt_high_pass_filter)
-    print("cwt_low_pass_filter=", cwt_low_pass_filter)
+    print("stratify=", stratify)
+    print("n_process=", n_process)
     print("loading dataset...")
     enable_downsample_df =False
 
@@ -1836,7 +1839,7 @@ if __name__ == "__main__":
     # else:
     for file in files:
         animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
-        data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
+        data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
         # data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
@@ -1849,16 +1852,16 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        process_data_frame(animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
-        process_data_frame(animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
 
 
