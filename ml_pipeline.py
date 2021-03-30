@@ -55,6 +55,7 @@ from sklearn.feature_selection import SelectKBest
 
 from plotnine import *
 from numpy import inf
+from sklearn.metrics import roc_curve
 
 
 class SelectKBestWrapper(SelectKBest):
@@ -901,29 +902,66 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
 
 def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     print("make_roc_curve")
-
+    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
     if isinstance(X, pd.DataFrame):
         X = X.values
-    tprs = []
-    aucs = []
-    mean_fpr = np.linspace(0, 1, 100)
+
+    all_y = []
+    all_probs = []
+    for train, test in cv.split(X, y):
+        all_y.append(y[test])
+        prob = classifier.fit(X[train], y[train]).predict_proba(X[test])[:, 1]
+        all_probs.append(prob)
+
+    all_y = (np.array(all_y).flatten() == 1).astype(int)
+    all_probs = np.array(all_probs).flatten()
+    fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+    roc_auc = auc(fpr, tpr)
     plt.clf()
-    fig, ax = plt.subplots()
-    for i, (train, test) in enumerate(cv.split(X, y)):
-        classifier.fit(X[train], y[train])
-        viz = plot_roc_curve(classifier, X[test], y[test],
-                             label=None,
-                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
-        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-        interp_tpr[0] = 0.0
-        tprs.append(interp_tpr)
-        aucs.append(viz.roc_auc)
-        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(fpr, tpr, lw=2, alpha=0.5, label='LTOCV ROC (AUC = %0.2f)' % (roc_auc))
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+
+    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title='Receiver operating characteristic')
+    ax.legend(loc="lower right")
+
+    path = "%s/roc_curve/png/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.png' % clf_name)
+    print(final_path)
+    fig.savefig(final_path)
+    path = "%s/roc_curve/svg/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.svg' % clf_name)
+    print(final_path)
+    fig.savefig(final_path)
     plt.close(fig)
     plt.clf()
-    return mean_auc
+    return roc_auc
+
+    # tprs = []
+    # aucs = []
+    # mean_fpr = np.linspace(0, 1, 100)
+    # plt.clf()
+    # fig, ax = plt.subplots()
+    # for i, (train, test) in enumerate(cv.split(X, y)):
+    #     classifier.fit(X[train], y[train])
+    #     viz = plot_roc_curve(classifier, X[test], y[test],
+    #                          label=None,
+    #                          alpha=0.3, lw=1, ax=ax, c="tab:blue")
+    #     interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+    #     interp_tpr[0] = 0.0
+    #     tprs.append(interp_tpr)
+    #     aucs.append(viz.roc_auc)
+    #     # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    #
+    # mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
+    # plt.close(fig)
+    # plt.clf()
+    # return mean_auc
 
 
 def plot_2d_space_TSNE(X, y, filename_2d_scatter):
@@ -1672,7 +1710,7 @@ def normalized(v):
 
 def create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
                   low_pass=None, hi_pass_filter=None, pca_n_components=1, ntraces=None, n_process=6):
-
+    print("create_cwt_df...")
     pool_fft_group = Pool(processes=n_process)
     results_fftgroup = []
     for i, row in enumerate(df_timedomain.iterrows()):
