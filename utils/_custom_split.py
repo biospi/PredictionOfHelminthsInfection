@@ -56,8 +56,8 @@ class StratifiedLeaveTwoOut:
                 else:
                     train_idx.append(df[j][2])
 
-            train_idx = np.array(train_idx).flatten()
-            test_idx = np.array(test_idx).flatten()
+            train_idx = np.array(sum(train_idx, []))
+            test_idx = np.array(sum(test_idx, [])).flatten()
 
             if self.stratified:
                 if np.unique(y[test_idx]).shape[0] != 2:

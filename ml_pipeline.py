@@ -449,7 +449,6 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
         return
     data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
     return data_frame
-    return data_frame
 
 
 def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
@@ -1005,9 +1004,14 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
     print("*******************************************************************")
     print(label_series)
+    data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
         data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+
+    animal_ids = data_frame["id"].tolist()
+
+    data_frame = data_frame.drop("id", 1)
     report_rows_list = []
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
