@@ -918,6 +918,8 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
                              alpha=0.3, lw=1, ax=ax, c="tab:blue")
         interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
         interp_tpr[0] = 0.0
+        if np.isnan(viz.roc_auc):
+            continue
         tprs.append(interp_tpr)
         aucs.append(viz.roc_auc)
         # ax.plot(viz.fpr, viz.tpr, c="tab:green")
@@ -1332,6 +1334,7 @@ def plot_time_pca(df_time_domain, output_dir, label_series, title="title", y_col
 
 
 def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
+    return
     df_healthy = df_fft[df_fft["target"] == class_healthy].iloc[:, :-1].values
     df_unhealthy = df_fft[df_fft["target"] == class_unhealthy].iloc[:, :-1].values
 
@@ -1457,6 +1460,7 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
 
 
 def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+    return
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
