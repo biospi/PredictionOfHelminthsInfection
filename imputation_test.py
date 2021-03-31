@@ -32,7 +32,7 @@ if __name__ == "__main__":
     RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
     ADD_T_COL = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
-    I_RANGE = 1000
+    I_RANGE = 300
 
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
