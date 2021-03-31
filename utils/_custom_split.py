@@ -69,6 +69,8 @@ class StratifiedLeaveTwoOut:
                   y[test_idx], "TEST ANIMAL ID:", np.unique(animal_ids[test_idx]), "TRAIN ANIMAL ID:",
                   np.unique(animal_ids[train_idx]))
 
+        self.nfold = len(training_idx)
+        print("StratifiedLeaveTwoOut could build %d unique folds. stratification=%s" % (self.nfold, self.stratified))
         for n in range(len(training_idx)):
             yield np.array(training_idx[n]), np.array(testing_idx[n])
 
