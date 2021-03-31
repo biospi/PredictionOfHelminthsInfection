@@ -906,7 +906,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
 
     if isinstance(X, pd.DataFrame):
         X = X.values
-        
+
     tprs = []
     aucs = []
     mean_fpr = np.linspace(0, 1, 100)

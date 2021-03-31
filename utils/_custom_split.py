@@ -21,7 +21,7 @@ class StratifiedLeaveTwoOut:
         self.animal_ids = np.array(animal_ids).flatten()
 
     def split(self, X, y, group=None):
-        df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
+        df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1))))
         df.columns = ["target", "animal_id"]
         df = pd.DataFrame(df.groupby('animal_id')['target'].apply(list))
         df.reset_index(level=0, inplace=True)
@@ -66,8 +66,8 @@ class StratifiedLeaveTwoOut:
             training_idx.append(train_idx)
             testing_idx.append(test_idx)
             print("FOLD %d --> SAMPLE TRAIN IDX:" % i, train_idx, "SAMPLE TEST IDX:", test_idx, "TEST TARGET:",
-                  y[test_idx], "TEST ANIMAL ID:", np.unique(animal_ids[test_idx]), "TRAIN ANIMAL ID:",
-                  np.unique(animal_ids[train_idx]))
+                  y[test_idx], "TEST ANIMAL ID:", np.unique(self.animal_ids[test_idx]), "TRAIN ANIMAL ID:",
+                  np.unique(self.animal_ids[train_idx]))
 
         self.nfold = len(training_idx)
         print("StratifiedLeaveTwoOut could build %d unique folds. stratification=%s" % (self.nfold, self.stratified))
