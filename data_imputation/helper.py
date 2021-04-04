@@ -374,9 +374,15 @@ def reshape_matrix_andy(ss_data, activity_matrix, timestamp, n_transponder, add_
     vstack = np.vstack(transp_block)
     vstack_ss = np.vstack(transp_block_ss)
     shape_o = vstack.shape
-    filtered_row, filtered_row_ss, rm_idx = remove_rows(vstack_ss, vstack, thresh, n_transponder)
 
-    t_idx = get_transp_idx(activity_matrix, thresh)
+    if thresh > 0:
+        filtered_row, filtered_row_ss, rm_idx = remove_rows(vstack_ss, vstack, thresh, n_transponder)
+        t_idx = get_transp_idx(activity_matrix, thresh)
+    else:
+        filtered_row = vstack
+        filtered_row_ss = vstack_ss
+        rm_idx = []
+
     return filtered_row, filtered_row_ss, rm_idx, shape_o, t_idx
 
 
@@ -432,7 +438,8 @@ def remove_rows(vstack_ss, input, t, n_transponder, n_h=6):
 
 
 def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
-    imputed = add_nan_rows(shape_o, imputed, row_idx)
+    if thresh > 0:
+        imputed = add_nan_rows(shape_o, imputed, row_idx)
 
     fig = go.Figure(data=go.Heatmap(
         z=imputed[:, :-n_transpond -1],

@@ -411,7 +411,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-  thresh_pos = 1
+  thresh_pos = -1
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
@@ -463,21 +463,20 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       print(filename)
       fig.write_html(filename)
 
-      fig = go.Figure(data=go.Heatmap(
-          z=linear_interpolation_h(ss_t),
-          x=xaxix_label,
-          y=yaxis_label,
-          colorscale='Viridis'))
-      fig.update_xaxes(tickformat="%H:%M")
-      fig.update_yaxes(tickformat="%d %b %Y")
-      fig.update_layout(
-          title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, thresh_pos),
-          xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, thresh_pos)
-      print(filename)
-      fig.write_html(filename)
-
-
+      if thresh_pos > 0:
+          fig = go.Figure(data=go.Heatmap(
+              z=linear_interpolation_h(ss_t),
+              x=xaxix_label,
+              y=yaxis_label,
+              colorscale='Viridis'))
+          fig.update_xaxes(tickformat="%H:%M")
+          fig.update_yaxes(tickformat="%d %b %Y")
+          fig.update_layout(
+              title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, thresh_pos),
+              xaxis_title="Time (1 min bins)")
+          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, thresh_pos)
+          print(filename)
+          fig.write_html(filename)
 
   m = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
   fig = go.Figure(data=go.Heatmap(

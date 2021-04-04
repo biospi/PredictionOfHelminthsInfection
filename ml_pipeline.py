@@ -512,7 +512,7 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
     return data_frame
 
 
-def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
+def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -525,11 +525,7 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
-    data_frame = data_frame.fillna(0)
-    data_frame = data_frame.replace([np.inf, -np.inf], np.nan)
-
-    # data_frame = data_frame.iloc[0:30, :]
-    #data_frame = data_frame.dropna()
+    data_frame = data_frame.dropna()
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
@@ -540,14 +536,9 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     data_frame_median_norm = data_frame_original.copy()
     data_frame_median_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_median_norm.iloc[:, :-N_META].values)
 
-    data_frame_median_norm = data_frame_median_norm.fillna(0)
-    data_frame_median_norm = data_frame_median_norm.replace([np.inf, -np.inf], np.nan)
+    data_frame = data_frame.iloc[:, :-N_META+1]
+    data_frame_median_norm = data_frame_median_norm.iloc[:, :-N_META+1]
 
-    cols_to_keep = hearder[:-N_META]
-    cols_to_keep.append(label_col)
-    data_frame = data_frame[cols_to_keep]
-    data_frame_median_norm = data_frame_median_norm[cols_to_keep]
-    # data_frame = data_frame.fillna(-1)
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
 
     flabels = [x for x in data_frame_labeled.columns if 'label' in x]
@@ -564,14 +555,11 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     class_healthy_label = label_series[class_healthy]
     class_unhealthy_label = label_series[class_unhealthy]
 
+    data_frame_median_norm = data_frame_median_norm
+
+    #drop label column stored previously, just keep target for ml
     data_frame = data_frame.drop('label', 1)
     data_frame_median_norm = data_frame_median_norm.drop('label', 1)
-
-    # data_frame = shuffle(data_frame)
-    # data_frame = data_frame.dropna()
-    data_frame_median_norm = data_frame_median_norm
-    # data_frame = filter_by_entropy(data_frame)
-
     print(data_frame)
     print(data_frame_median_norm)
 
@@ -635,10 +623,10 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm, _, _ = create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
+    data_frame_cwt_no_norm, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
                                                  title="Average cwt power of raw (no normalisation) samples", stepid=1,
                                                  hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
-    data_frame_median_norm_cwt, _, _ = create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
+    data_frame_median_norm_cwt, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
                                                      title="Average cwt power of normalised samples",
                                                      stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
@@ -1440,8 +1428,10 @@ def plot_time_pca(df_time_domain, output_dir, label_series, title="title", y_col
     plot_2d_space(X, y_label, filepath, label_series, title=title)
 
 
-def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
-    return
+def plot_cwt_power(output_samples, class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
+    if not output_samples:
+        #print("sample output disabled!")
+        return
     df_healthy = df_fft[df_fft["target"] == class_healthy].iloc[:, :-1].values
     df_unhealthy = df_fft[df_fft["target"] == class_unhealthy].iloc[:, :-1].values
 
@@ -1504,9 +1494,11 @@ def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, 
     plt.close(fig)
 
 
-def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency index", ylabel="PCA component",
+def plot_cwt_pca(output_samples, df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency index", ylabel="PCA component",
                  show_min=True, show_max=True, show_mean=True, show_median=True):
-    return
+    if not output_samples:
+        #print("sample output disabled!")
+        return
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.80, 7.20))
     fig.suptitle("PCA_"+title, fontsize=18)
@@ -1567,8 +1559,10 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
     plt.close(fig)
 
 
-def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
-    return
+def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+    if not output_samples:
+        #print("sample output disabled!")
+        return
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
@@ -1722,7 +1716,7 @@ def get_n_largest_coefs(matrix, n=50):
     return f_array
 
 
-def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
+def compute_cwt(output_samples, class_healthy, class_unhealthy, df_fft, activity, target, i, total,low_pass, high_pass, pca_n_components, graph_outputdir, title):
     # print("%d/%d" % (i, total))
     # wavelet_type = 'morlet'
     y = activity
@@ -1760,7 +1754,7 @@ def compute_cwt(class_healthy, class_unhealthy, df_fft, activity, target, i, tot
     # data_pca = PCA(n_components=pca_n_components).fit_transform(power_masked).reshape(1, -1).tolist()[0]
     # data_pca.append(target)
 
-    plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs_, power_fft, coi, activity, power_masked,
+    plot_cwt_power(output_samples, class_healthy, class_unhealthy, df_fft, fftfreqs_, power_fft, coi, activity, power_masked,
                    power_cwt.copy(), coi_line_array, freqs, graph_outputdir, target,
                    entropy2(power_masked.flatten()[power_masked.flatten()>0]), i, title=title)
 
@@ -1789,7 +1783,7 @@ def normalized(v):
     return v / np.sqrt(np.sum(v ** 2))
 
 
-def create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
+def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, df_timedomain, title="title", stepid=0, enable_anscomb=False,
                   low_pass=None, hi_pass_filter=None, pca_n_components=1, ntraces=None, n_process=6):
     print("create_cwt_df...")
     pool_fft_group = Pool(processes=n_process)
@@ -1819,7 +1813,7 @@ def create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, cla
     for i, row in enumerate(df_timedomain.iterrows()):
         target = row[1][-1]
         activity = row[1][0:-1].values
-        results_cwt.append(pool_cwt.apply_async(compute_cwt, (class_healthy, class_unhealthy, df_fft, activity, target, i, df_timedomain.shape[0], low_pass, hi_pass_filter, pca_n_components, graph_outputdir, title,)))
+        results_cwt.append(pool_cwt.apply_async(compute_cwt, (output_samples, class_healthy, class_unhealthy, df_fft, activity, target, i, df_timedomain.shape[0], low_pass, hi_pass_filter, pca_n_components, graph_outputdir, title,)))
 
     pool_cwt.close()
     pool_cwt.join()
@@ -1856,9 +1850,9 @@ def create_cwt_df(class_healthy_label, class_unhealthy_label, class_healthy, cla
     if enable_anscomb:
         h_ma = get_anscombe(pd.DataFrame(h_m)).values
         uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
-        plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
     else:
-        plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
+        plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
 
     df_cwt = pd.DataFrame(features_flatten_sample_list, dtype=float)
 
@@ -1898,7 +1892,8 @@ if __name__ == "__main__":
         class_healthy = int(sys.argv[3])
         class_unhealthy = int(sys.argv[4])
         stratify = str(sys.argv[5])
-        n_process = int(sys.argv[6])
+        s_output = str(sys.argv[6])
+        n_process = int(sys.argv[7])
     else:
         exit(-1)
 
@@ -1907,12 +1902,13 @@ if __name__ == "__main__":
     cwt_low_pass_filter = 0
     cwt_high_pass_filter = 0
     stratify = "y" in stratify.lower()
+    output_samples = "y" in s_output.lower()
 
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
     print("class_healthy=", class_healthy)
     print("class_unhealthy=", class_unhealthy)
-    print("n_repeats=", n_repeats)
+    print("output_samples=", output_samples)
     print("stratify=", stratify)
     print("n_process=", n_process)
     print("loading dataset...")
@@ -1958,7 +1954,7 @@ if __name__ == "__main__":
     # else:
     for file in files:
         animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
-        data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
+        data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
         # data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
