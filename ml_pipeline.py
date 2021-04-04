@@ -1871,25 +1871,12 @@ def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, cl
 
 
 if __name__ == "__main__":
-    print("args: output_dir dataset_filepath test_size")
+    print("args: <output_dir> <dataset_filepath> <class_healthy> <class_unhealthy> <stratify> <s_output> <n_process>")
     print("********************************************************************")
-    # iris = datasets.load_iris()
-    # X = iris.data[:, :100]
-    # y = iris.target
-    # dummy_run(X, y, 40, "dummy_iris.txt")
-    # print("********************************************************************")
-    # X, y = make_blobs(n_samples=50, centers=2, n_features=100, center_box=(0, 10))
-    # dummy_run(X, y, 40, "dummy_blob.txt")
-    # print("********************************************************************")
-    # exit(0)i
 
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
         dataset_folder = sys.argv[2]
-        # n_splits = int(sys.argv[3])
-        # n_repeats = int(sys.argv[4])
-        # cwt_low_pass_filter = int(sys.argv[5])
-        # cwt_high_pass_filter = int(sys.argv[6])
         class_healthy = int(sys.argv[3])
         class_unhealthy = int(sys.argv[4])
         stratify = str(sys.argv[5])
