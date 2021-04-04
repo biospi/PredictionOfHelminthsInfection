@@ -1058,6 +1058,7 @@ def get_aucs(estimators, X, y):
 def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target', cv="l2out"):
     print("*******************************************************************")
+    mlp_layers = (45, 30, 15)
     print(label_series)
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
@@ -1144,8 +1145,8 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         report_rows_list.append(scores)
         del scores
 
-        print('->StandardScaler->MLP')
-        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+        print('->StandardScaler->MLP'+str(mlp_layers))
+        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
         scores = cross_validate(clf_std_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
         scores["downsample"] = downsample_false_class
         scores["class0"] = y[y == class_healthy].size
@@ -1161,9 +1162,9 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
         scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
         scores["sampling"] = sampling
-        scores["classifier"] = "->StandardScaler->MLP(150, 100, 50)"
+        scores["classifier"] = "->StandardScaler->MLP"+str(mlp_layers)
         scores["classifier_details"] = str(clf_std_mlp).replace('\n', '').replace(" ", '')
-        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
         aucs = make_roc_curve(out_dir, clf_std_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
         scores["roc_auc_score_mean"] = aucs
         report_rows_list.append(scores)
@@ -1195,8 +1196,8 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     report_rows_list.append(scores)
     del scores
 
-    print('->MLP')
-    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+    print('->MLP'+str(mlp_layers))
+    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
     scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1212,9 +1213,9 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
     scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
-    scores["classifier"] = "->MLP(150, 100, 50)"
+    scores["classifier"] = "->MLP"+str(mlp_layers)
     scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
-    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
     aucs = make_roc_curve(out_dir, clf_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
