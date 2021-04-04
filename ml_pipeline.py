@@ -8,6 +8,7 @@ import glob2
 import matplotlib
 # import pywt
 import matplotlib.pyplot as plt
+from sklearn.neural_network import MLPClassifier
 
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils._normalisation import QuotientNormalizer
@@ -17,7 +18,7 @@ if _platform == "linux" or _platform == "linux2":
 import pandas as pd
 import numpy as np
 #from scipy.fft import fft
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 from sklearn import preprocessing, metrics
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report
@@ -56,6 +57,8 @@ from sklearn.feature_selection import SelectKBest
 from plotnine import *
 from numpy import inf
 from sklearn.metrics import roc_curve
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 
 
 class SelectKBestWrapper(SelectKBest):
@@ -319,7 +322,7 @@ def create_rec_dir(path):
             os.makedirs(dir_path)
 
 
-def plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target',
+def plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, df, title="title", xlabel='xlabel', ylabel='target',
                 ntraces=1, idx_healthy=None, idx_unhealthy=None,
                 show_max=True, show_min=False, show_mean=True, show_median=True, stepid=0):
     """Plot all rows in dataframe for each class Health or Unhealthy.
@@ -368,7 +371,7 @@ def plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class
         ax2.set(xlabel=xlabel, ylabel=ylabel)
         ax2.set_xticklabels(ticks, fontsize=12)
         if ntraces is None:
-            ax2.set_title("Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], df_unhealthy.shape[0]))
+            ax2.set_title("Unhealthy(%s) %d samples / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], df_unhealthy.shape[0]))
         else:
             ax2.set_title("Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], ntraces))
         ax2.set_ylim([ymin, ymax])
@@ -406,10 +409,68 @@ def plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class
     fig.savefig(filepath)
     fig.savefig(filepath.replace("png", "svg"))
     # print("saved!")
+
+    print("building heatmaps...")
+    cbarlocs = [.81, .19]
+    #add row separator
+    df_ = df.copy()
+    df_["animal_ids"] = animal_ids
+
+    df_healthy_ = add_separator(df_[df_["target"] == class_healthy])
+    df_unhealthy_ = add_separator(df_[df_["target"] == class_unhealthy])
+
+    t1 = "Healthy(%s) %d animals  %d samples" % (class_healthy_label, df_healthy_["animal_ids"].astype(str).drop_duplicates().size, df_healthy_.shape[0])
+    t2 = "UnHealthy(%s) %d animals %d samples" % (class_unhealthy_label, df_unhealthy_["animal_ids"].astype(str).drop_duplicates().size, df_unhealthy_.shape[0])
+    fig_ = make_subplots(rows=2, cols=1,  x_title=xlabel, y_title="Transponder", subplot_titles=(t1, t2))
+    fig_.add_trace(
+        go.Heatmap(
+            z=df_healthy_.iloc[:, :-2],
+            x=ticks,
+            y=[str(int(float(x[0])))+"_"+str(x[1]) for x in zip(df_healthy_["animal_ids"].astype(str).tolist(), list(range(df_healthy_.shape[0])))],
+            colorbar=dict(len=0.40, y=cbarlocs[0]),
+            colorscale='Viridis'),
+        row=1, col=1
+    )
+
+    fig_.add_trace(
+        go.Heatmap(
+            z=df_unhealthy_.iloc[:, :-2],
+            x=ticks,
+            y=[str(int(float(x[0])))+"_"+str(x[1]) for x in zip(df_unhealthy_["animal_ids"].astype(str).tolist(), list(range(df_unhealthy_.shape[0])))],
+            colorbar=dict(len=0.40, y=cbarlocs[1]),
+            colorscale='Viridis'),
+        row=2, col=1
+    )
+    fig_['layout']['xaxis']['tickformat'] = '%H:%M'
+    fig_['layout']['xaxis2']['tickformat'] = '%H:%M'
+
+    fig_.update_layout(title_text=title)
+    filename = "%d_%s_heatmap.html" % (stepid, title.replace(" ", "_"))
+    filepath = "%s/%s" % (graph_outputdir, filename)
+    print(filepath)
+    fig_.write_html(filepath)
+
     fig.clear()
     plt.close(fig)
 
     return idx_healthy, idx_unhealthy
+
+
+def add_separator(df_):
+    df_ = df_.reset_index(drop=True)
+    idxs = []
+    d = df_["animal_ids"].values
+    for i in range(d.size-1):
+        if d[i] != d[i+1]:
+            idxs.append(i)
+    df_ = df_.reindex(df_.index.values.tolist() + [str(x).zfill(5)+"a" for x in idxs])
+    df_.index = [str(x).zfill(5) for x in df_.index]
+    df_ = df_.sort_index()
+    ni = pd.Series(df_["animal_ids"].astype(np.float).values).interpolate(method='nearest').values
+    df_["animal_ids"] = ni.tolist()
+    nt = pd.Series(df_["target"].astype(np.float).values).interpolate(method='nearest').values
+    df_["target"] = nt.astype(int).tolist()
+    return df_
 
 
 def concatenate_images(im_dir, filter=None, title="title"):
@@ -464,10 +525,11 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
-    # data_frame = data_frame.fillna(0)
+    data_frame = data_frame.fillna(0)
+    data_frame = data_frame.replace([np.inf, -np.inf], np.nan)
 
     # data_frame = data_frame.iloc[0:30, :]
-    data_frame = data_frame.dropna()
+    #data_frame = data_frame.dropna()
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
@@ -477,6 +539,9 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
 
     data_frame_median_norm = data_frame_original.copy()
     data_frame_median_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_median_norm.iloc[:, :-N_META].values)
+
+    data_frame_median_norm = data_frame_median_norm.fillna(0)
+    data_frame_median_norm = data_frame_median_norm.replace([np.inf, -np.inf], np.nan)
 
     cols_to_keep = hearder[:-N_META]
     cols_to_keep.append(label_col)
@@ -538,9 +603,9 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir)
 
     plot_time_pca(data_frame_no_norm, graph_outputdir, label_series, title="PCA time domain before normalisation")
-
+    animal_ids = data_frame_original.iloc[0:len(data_frame_no_norm), :]["id"].astype(str).tolist()
     ntraces = 2
-    idx_healthy, idx_unhealthy = plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_no_norm, title="Raw imputed", xlabel="Time",
+    idx_healthy, idx_unhealthy = plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_no_norm, title="Raw imputed", xlabel="Time",
                                              ylabel="activity", ntraces=ntraces)
     # idx_healthy = [1, 17]
     # idx_unhealthy = [47, 5]
@@ -557,7 +622,7 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     # #data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
     # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
     #
-    plot_groups(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+    plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                 idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
 
     plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(Quotient)")
@@ -588,7 +653,7 @@ def load_df_from_datasets(class_healthy, class_unhealthy, enable_downsample_df, 
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
 
-    animal_ids = data_frame_original.iloc[0:len(data_frame_no_norm), :]["id"].astype(str).tolist()
+
 
     return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
@@ -1003,7 +1068,7 @@ def get_aucs(estimators, X, y):
 
 
 def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
-                       downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target'):
+                       downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target', cv="l2out"):
     print("*******************************************************************")
     print(label_series)
     data_frame["id"] = animal_ids
@@ -1012,6 +1077,13 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
 
     animal_ids = data_frame["id"].tolist()
+    sample_idxs = data_frame.index.tolist()
+
+    if cv == "StratifiedLeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify)
+
+    if cv == "RepeatedStratifiedKFold":
+        cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=100, random_state=0)
 
     data_frame = data_frame.drop("id", 1)
     report_rows_list = []
@@ -1058,59 +1130,68 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count,
     class1_count, sampling)
 
+    if "no_norm" in option:
+        print('->StandardScaler->SVC')
+        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
+        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+        scores["downsample"] = downsample_false_class
+        scores["class0"] = y[y == class_healthy].size
+        scores["class1"] = y[y == class_unhealthy].size
+        scores["option"] = option
+        scores["days"] = days
+        scores["farm_id"] = farm_id
+        scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+        scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+        scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+        scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+        scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+        scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+        scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+        scores["sampling"] = sampling
+        scores["classifier"] = "->StandardScaler->SVC"
+        scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
+        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
+        aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cross_validation_method, param_str)
+        scores["roc_auc_score_mean"] = aucs
+        report_rows_list.append(scores)
+        del scores
 
-    print('->StandardScaler->SVC')
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
-    # cv_std_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-    #                                      random_state=0)
-    cv_std_svc = StratifiedLeaveTwoOut(animal_ids, stratified=stratify)
-    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cv_std_svc, scoring=scoring, n_jobs=-1)
+        print('->StandardScaler->MLP')
+        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+        scores = cross_validate(clf_std_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+        scores["downsample"] = downsample_false_class
+        scores["class0"] = y[y == class_healthy].size
+        scores["class1"] = y[y == class_unhealthy].size
+        scores["option"] = option
+        scores["days"] = days
+        scores["farm_id"] = farm_id
+        scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+        scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+        scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+        scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+        scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+        scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+        scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+        scores["sampling"] = sampling
+        scores["classifier"] = "->StandardScaler->MLP(150, 100, 50)"
+        scores["classifier_details"] = str(clf_std_mlp).replace('\n', '').replace(" ", '')
+        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+        aucs = make_roc_curve(out_dir, clf_std_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+        scores["roc_auc_score_mean"] = aucs
+        report_rows_list.append(scores)
+        del scores
 
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["option"] = option
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    # scores["n_repeats"] = n_repeats
-    # scores["n_splits"] = n_splits
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["sampling"] = sampling
-    scores["classifier"] = "->StandardScaler->SVC"
-    scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
-
-    clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cv_std_svc, param_str)
-    scores["roc_auc_score_mean"] = aucs
-    report_rows_list.append(scores)
-    del scores
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    # cv_svc = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats,
-    #                                  random_state=0)
-    cv_svc = StratifiedLeaveTwoOut(animal_ids, stratified=stratify)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, scoring=scoring, n_jobs=-1)
-
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
     scores["class1"] = y[y == class_unhealthy].size
     scores["option"] = option
     scores["days"] = days
     scores["farm_id"] = farm_id
-    # scores["n_repeats"] = n_repeats
-    # scores["n_splits"] = n_splits
     scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-
     scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
     scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
     scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
@@ -1121,16 +1202,42 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cv_svc, param_str)
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
 
+    print('->MLP')
+    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+    scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = option
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->MLP(150, 100, 50)"
+    scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
+    clf_mlp = make_pipeline(MLPClassifier(hidden_layer_sizes=(150, 100, 50), max_iter=300, activation='relu', solver='adam', random_state=0))
+    aucs = make_roc_curve(out_dir, clf_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+    scores["roc_auc_score_mean"] = aucs
+    report_rows_list.append(scores)
+    del scores
 
     df_report = pd.DataFrame(report_rows_list)
     df_report["class_0_label"] = label_series[class_healthy]
     df_report["class_1_label"] = label_series[class_unhealthy]
-    df_report["nfold"] = cv_svc.nfold
+    df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
+    df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method, 'cvargs') else np.nan
+    df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method, 'n_repeats') else np.nan
     df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in df_report["fit_time"].values]
     filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
         output_dir, farm_id, days, option, downsample_false_class, sampling)
@@ -1334,6 +1441,7 @@ def plot_time_pca(df_time_domain, output_dir, label_series, title="title", y_col
 
 
 def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, coi, activity, power_cwt_masked, power_cwt, coi_line_array, freqs, graph_outputdir, target, entropy, idx, title="title", time_domain_signal=None):
+    return
     df_healthy = df_fft[df_fft["target"] == class_healthy].iloc[:, :-1].values
     df_unhealthy = df_fft[df_fft["target"] == class_unhealthy].iloc[:, :-1].values
 
@@ -1398,6 +1506,7 @@ def plot_cwt_power(class_healthy, class_unhealthy, df_fft, fftfreqs, fft_power, 
 
 def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency index", ylabel="PCA component",
                  show_min=True, show_max=True, show_mean=True, show_median=True):
+    return
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.80, 7.20))
     fig.suptitle("PCA_"+title, fontsize=18)
@@ -1459,6 +1568,7 @@ def plot_cwt_pca(df_cwt, title, graph_outputdir, stepid=5, xlabel="CWT Frequency
 
 
 def plot_cwt_power_sidebyside(class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain, graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3, title="title", stepid=10):
+    return
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
@@ -1862,16 +1972,28 @@ if __name__ == "__main__":
         #                    sampling, enable_downsample_df, label_series)
         #
         process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy)
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+
+        # process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
+        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
+        #
+        # process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
+        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
+        #
+        # process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
+        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
+        #
+        # process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
+        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
 
 
         #

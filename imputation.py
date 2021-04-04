@@ -178,7 +178,7 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
         # plt.close(fig)
 
 
-def export_imputed_data(out, data_m_x, ori_data_x, idata, timestamp, date_str, ids, alpha, hint):
+def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, date_str, ids, alpha, hint):
     print("exporting imputed data...")
     print(ids)
     data_m_x[np.isnan(data_m_x)] = 1
@@ -189,6 +189,7 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, timestamp, date_str, i
         df["date_str"] = date_str.values
         df["first_sensor_value"] = ori_data_x[:, i]
         df["first_sensor_value_gain"] = idata[:, i]
+        df["first_sensor_value_li"] = ildata[:, i]
         df["missingness"] = data_m_x[:, i]
         id = str(ids[i])
         filename = id + ".csv"
@@ -410,7 +411,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-  thresh_pos = 50
+  thresh_pos = 1
 
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
         '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
@@ -503,7 +504,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   # fig.write_html(filename)
 
   if args.export_csv:
-    export_imputed_data(out, data_m_x, data_x, imputed_data_x, timestamp, date_str, ids, args.alpha, args.hint_rate)
+    export_imputed_data(out, data_m_x, data_x, imputed_data_x, imputed_data_x_li, timestamp, date_str, ids, args.alpha, args.hint_rate)
 
   # if args.export_traces:
   #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
