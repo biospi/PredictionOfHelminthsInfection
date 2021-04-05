@@ -525,7 +525,7 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
-    data_frame = data_frame.dropna()
+    data_frame = data_frame.fillna(-1)
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
