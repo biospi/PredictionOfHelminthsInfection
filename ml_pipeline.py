@@ -679,7 +679,7 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
     print(distrib)
 
     df = pd.DataFrame.from_dict({'Percent of zeros': z_prct, 'Target': target_labels})
-    df.to_csv("z_prct_data")
+    df.to_csv(graph_outputdir+"/z_prct_data.csv")
     g = (ggplot(df)  # defining what data to use
      + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defining what variable to use
      + geom_jitter()  # defining the type of plot to use
