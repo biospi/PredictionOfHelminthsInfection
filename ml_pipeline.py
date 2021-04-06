@@ -963,6 +963,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     plt.clf()
     fig, ax = plt.subplots()
     for i, (train, test) in enumerate(cv.split(X, y)):
+        print("make_roc_curve fold=", i)
         classifier.fit(X[train], y[train])
         viz = plot_roc_curve(classifier, X[test], y[test],
                              label=None,
@@ -974,7 +975,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
         tprs.append(interp_tpr)
         aucs.append(viz.roc_auc)
         # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-
+    print("make_roc_curve done!")
     mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
     plt.close(fig)
     plt.clf()
