@@ -512,7 +512,7 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
     return data_frame
 
 
-def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
+def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -533,11 +533,11 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
 
     data_frame_original = data_frame.copy()
 
-    data_frame_median_norm = data_frame_original.copy()
-    data_frame_median_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_median_norm.iloc[:, :-N_META].values)
+    data_frame_norm = data_frame_original.copy()
+    data_frame_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_norm.iloc[:, :-N_META].values)
 
     data_frame = data_frame.iloc[:, :-N_META+1]
-    data_frame_median_norm = data_frame_median_norm.iloc[:, :-N_META+1]
+    data_frame_norm = data_frame_norm.iloc[:, :-N_META+1]
 
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
 
@@ -547,7 +547,7 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
     for i, flabel in enumerate(flabels):
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i+1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
-        data_frame_median_norm["target"] = data_frame["target"]
+        data_frame_norm["target"] = data_frame["target"]
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)
@@ -555,13 +555,13 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
     class_healthy_label = label_series[class_healthy]
     class_unhealthy_label = label_series[class_unhealthy]
 
-    data_frame_median_norm = data_frame_median_norm
+    #data_frame_norm = data_frame_norm
 
     #drop label column stored previously, just keep target for ml
     data_frame = data_frame.drop('label', 1)
-    data_frame_median_norm = data_frame_median_norm.drop('label', 1)
+    data_frame_norm = data_frame_norm.drop('label', 1)
     print(data_frame)
-    print(data_frame_median_norm)
+    print(data_frame_norm)
 
     class_count = {}
     for k in label_series.keys():
@@ -610,10 +610,10 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
     # #data_frame_median_norm = get_median_norm_preprint(data_frame_no_norm, data_frame_mean)
     # data_frame_median_norm = get_median_norm(data_frame_no_norm, data_frame_median)
     #
-    plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_median_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+    plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir, data_frame_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                 idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
 
-    plot_time_pca(data_frame_median_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(Quotient)")
+    plot_time_pca(data_frame_norm, graph_outputdir, label_series, title="LDA time domain after normalisation(Quotient)")
 
     # data_frame_median_norm_anscombe = get_anscombe(data_frame_median_norm)
     #
@@ -623,26 +623,23 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
-                                                 title="Average cwt power of raw (no normalisation) samples", stepid=1,
-                                                 hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
-    data_frame_median_norm_cwt, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
-                                                     title="Average cwt power of normalised samples",
-                                                     stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
+    data_frame_cwt_no_norm = None
+    data_frame_median_norm_cwt = None
+    if output_cwt:
+        print("processing frequency domain...")
+        data_frame_cwt_no_norm, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_no_norm.copy(),
+                                                     title="Average cwt power of raw (no normalisation) samples", stepid=1,
+                                                     hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
+        data_frame_median_norm_cwt, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, idx_healthy, idx_unhealthy, graph_outputdir, data_frame_norm.copy(),
+                                                         title="Average cwt power of normalised samples",
+                                                         stepid=2, hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
     #                                                           title="norm-cwt-ansc_Anscombe average cwt power of normalised samples",
     #                                                           stepid=3, enable_anscomb=True, hi_pass_filter=hi_pass_filter,
     #                                                           low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
-
-    # data_frame_median_norm = None
-    # data_frame_median_norm_cwt = None
-    data_frame_median_norm_anscombe = None
-    data_frame_median_norm_cwt_anscombe = None
-
-    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
-           data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
+    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series
 
 
 def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
@@ -1904,6 +1901,7 @@ if __name__ == "__main__":
     print("class_unhealthy=", class_unhealthy)
     print("output_samples=", output_samples)
     print("stratify=", stratify)
+    print("output_cwt=", output_cwt)
     print("n_process=", n_process)
     print("loading dataset...")
     enable_downsample_df =False
@@ -1947,8 +1945,7 @@ if __name__ == "__main__":
     #     pool.terminate()
     # else:
     for file in files:
-        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
-        data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series = load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
+        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
         # data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
@@ -1962,10 +1959,10 @@ if __name__ == "__main__":
         #                    sampling, enable_downsample_df, label_series)
         #
 
-        process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
-        process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
+        process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
         if output_cwt:
