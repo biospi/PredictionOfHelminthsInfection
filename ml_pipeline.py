@@ -1058,7 +1058,7 @@ def get_aucs(estimators, X, y):
 def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, option, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target', cv="l2out"):
     print("*******************************************************************")
-    mlp_layers = (45, 30, 15)
+    mlp_layers = (20, 10, 5)
     print(label_series)
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
