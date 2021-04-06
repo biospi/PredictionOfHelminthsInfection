@@ -1,5 +1,6 @@
 from __future__ import division  # for python2 regular div
 
+import gc
 import math
 import shutil
 from sys import platform as _platform
@@ -641,8 +642,6 @@ def load_df_from_datasets(output_samples, class_healthy, class_unhealthy, enable
     data_frame_median_norm_anscombe = None
     data_frame_median_norm_cwt_anscombe = None
 
-
-
     return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_median_norm, data_frame_median_norm_anscombe, \
            data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe, label_series
 
@@ -1080,6 +1079,11 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     y = y.astype(int)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
 
+    print("release data_frame memory...")
+    del data_frame
+    gc.collect()
+    print("****************************")
+
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
@@ -1170,7 +1174,6 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         report_rows_list.append(scores)
         del scores
 
-
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
@@ -1235,6 +1238,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         os.makedirs(output_dir)
     df_report.to_csv(filename, sep=',', index=False)
     print("filename=", filename)
+
 
 
 def get_proba(y_probas, y_pred):
