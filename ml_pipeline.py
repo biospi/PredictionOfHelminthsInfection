@@ -14,8 +14,6 @@ from sklearn.neural_network import MLPClassifier
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils._normalisation import QuotientNormalizer
 
-if _platform == "linux" or _platform == "linux2":
-    matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
 #from scipy.fft import fft
@@ -61,6 +59,7 @@ from sklearn.metrics import roc_curve
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
+matplotlib.use('Agg')
 
 class SelectKBestWrapper(SelectKBest):
     def transform(self, X):
