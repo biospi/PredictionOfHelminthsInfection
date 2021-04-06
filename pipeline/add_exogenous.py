@@ -86,12 +86,12 @@ if __name__ == "__main__":
     create_rec_dir(out_dir)
     filename = "%s/temp_%s" % (out_dir, dataset.name)
     print(filename)
-    df_concat_temp_df.to_csv(filename)
+    df_concat_temp_df.to_csv(filename, index=False)
     filename = "%s/humidity_%s" % (out_dir, dataset.name)
     print(filename)
-    df_concat_humidity_df.to_csv(filename)
+    df_concat_humidity_df.to_csv(filename, index=False)
     filename = "%s/temp_humidity_%s" % (out_dir, dataset.name)
     print(filename)
-    df_concat_temp_humidity_df.to_csv(filename)
+    df_concat_temp_humidity_df.to_csv(filename, index=False)
 
 
