@@ -1875,7 +1875,7 @@ def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, cl
 
 
 if __name__ == "__main__":
-    print("args: <output_dir> <dataset_filepath> <class_healthy> <class_unhealthy> <stratify> <s_output> <n_process>")
+    print("args: <output_dir> <dataset_filepath> <class_healthy> <class_unhealthy> <stratify> <s_output> <cwt> <n_process>")
     print("********************************************************************")
 
     if len(sys.argv) > 1:
@@ -1885,7 +1885,8 @@ if __name__ == "__main__":
         class_unhealthy = int(sys.argv[4])
         stratify = str(sys.argv[5])
         s_output = str(sys.argv[6])
-        n_process = int(sys.argv[7])
+        cwt = str(sys.argv[7])
+        n_process = int(sys.argv[8])
     else:
         exit(-1)
 
@@ -1895,6 +1896,7 @@ if __name__ == "__main__":
     cwt_high_pass_filter = 0
     stratify = "y" in stratify.lower()
     output_samples = "y" in s_output.lower()
+    output_cwt = "y" in cwt.lower()
 
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
@@ -1959,17 +1961,21 @@ if __name__ == "__main__":
         # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series)
         #
-        process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
-        process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
-
         process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+
+        if output_cwt:
+            process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+
+            process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm",
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
 
         # process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
