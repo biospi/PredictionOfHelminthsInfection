@@ -525,7 +525,7 @@ def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhea
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
-    data_frame = data_frame.fillna(-1)
+    data_frame = data_frame.dropna()
 
     #MUST DO FILTER HERE NOT LATER
     #todo filter with missingness rate
@@ -1065,7 +1065,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     sample_idxs = data_frame.index.tolist()
 
     if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify)
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify, verbose=True)
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=100, random_state=0)

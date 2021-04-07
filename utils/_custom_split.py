@@ -10,19 +10,22 @@ from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
 from sys import exit
 from sklearn.model_selection import LeavePOut
+import itertools
 
 np.random.seed(0)
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, sample_idx, stratified=False):
+    def __init__(self, animal_ids, sample_idx, stratified=False, verbose=False):
         self.nfold = 0
+        self.verbose = verbose
         self.stratified = stratified
         self.sample_idx = np.array(sample_idx).flatten()
         self.animal_ids = np.array(animal_ids).flatten()
 
     def split(self, X, y, group=None):
         df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1), self.sample_idx.reshape(self.sample_idx.size, 1))))
+
         #df.to_csv("F:/Data2/test.csv")
         # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
         df = df.apply(pd.to_numeric, downcast='integer')
@@ -38,32 +41,33 @@ class StratifiedLeaveTwoOut:
         df_["sample_idx"] = groupby_sample["sample_idx"]
         df_ = df_[['animal_id', 'target', 'sample_idx']]
 
-        print("DATASET:")
-        print(df_)
-        df_ = df_.values
+        if self.verbose:
+            print("DATASET:")
+            print(df_)
+
+        a = df_["animal_id"].tolist()
+        comb = []
+        for i in range(0, len(a) + 1):
+            for subset in itertools.combinations(a, i):
+                if len(subset) != 2:
+                    continue
+                if subset not in comb:
+                    comb.append(subset)
+        comb = np.array(comb)
+
         training_idx = []
         testing_idx = []
         len_check = []
-        for i in range(df_.shape[0]):
-            train_idx = []
-            test_idx = []
-            a1 = df_[i][0]
-            if i < df_.shape[0]-1:
-                a2 = df_[i + 1][0]
-            else:
-                a2 = a1
-            for j in range(df_.shape[0]):
-                a3 = df_[j][0]
-
-                if a3 in [a1, a2]:
-                    test_idx.append(df_[j][2])
-                else:
-                    train_idx.append(df_[j][2])
-
-            # train_idx = np.array(sum(train_idx, [])).flatten()
-            # test_idx = np.array(sum(test_idx, [])).flatten()
-            all_train_idx = sum(train_idx, [])
+        map = dict(df["sample_idx"])
+        map = dict(zip(map.values(), map.keys()))
+        for i, c in enumerate(comb):
+            test_idx = df_[df_["animal_id"].isin(c)]["sample_idx"].tolist()
             all_test_idx = sum(test_idx, [])
+            all_test_idx = [map[x] for x in all_test_idx]
+            train_idx = df_[~df_["animal_id"].isin(c)]["sample_idx"].tolist()
+            all_train_idx = sum(train_idx, [])
+            all_train_idx = [map[x] for x in all_train_idx]
+
             if self.stratified:
                 temp = []
                 for e in test_idx:
@@ -86,15 +90,13 @@ class StratifiedLeaveTwoOut:
                     if np.unique(s).size != 1:
                         continue
 
-            all_train_idx = df[df['sample_idx'].isin(all_train_idx)].index.tolist()
-            all_test_idx = df[df['sample_idx'].isin(all_test_idx)].index.tolist()
             training_idx.append(all_train_idx)
             testing_idx.append(all_test_idx)
             len_check.append(len(test_idx))
-
-            print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, np.array(all_train_idx), "\nSAMPLE TEST IDX:", np.array(all_test_idx), "\nTEST TARGET:",
-                  np.unique(y[all_test_idx]), "\nTEST ANIMAL ID:", np.unique(self.animal_ids[all_test_idx]), "\nTRAIN ANIMAL ID:",
-                  np.unique(self.animal_ids[all_train_idx]))
+            if self.verbose:
+                print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, np.array(all_train_idx), "\nSAMPLE TEST IDX:", np.array(all_test_idx), "\nTEST TARGET:",
+                      np.unique(y[all_test_idx]), "\nTEST ANIMAL ID:", np.unique(self.animal_ids[all_test_idx]), "\nTRAIN ANIMAL ID:",
+                      np.unique(self.animal_ids[all_train_idx]))
 
         len_check = np.array(len_check)
         if len_check[len_check > 2].size > 0:
@@ -190,7 +192,7 @@ if __name__ == "__main__":
     print(dataset)
     print("")
 
-    slto = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=True)
+    slto = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=False, verbose=True)
 
     rows = []
     i = 0

@@ -105,6 +105,21 @@ def natural_keys(text):
 
 from shutil import copyfile
 if __name__ == "__main__":
+    files = []
+    dfs = []
+    for path in Path("F:\\Data2\\bc\\ml_output").rglob('*.csv'):
+        if 'final' not in path.name:
+            continue
+        print(path)
+        df = pd.read_csv(str(path), index_col=None)
+        df["dataset"] = str(path).split('\\')[4]
+        print(df)
+        dfs.append(df)
+
+    df_merged = pd.concat(dfs)
+    df_merged.to_csv("F:\\Data2\\bc\\ml_output\\result_merge.csv", index=False)
+
+
     # files = []
     # for path in Path("C:\\Users\\fo18103\\OneDrive - University of Bristol\\South Africa\\backfill_1min_xyz_delmas_fixed").rglob('*.csv'):
     #     if int(path.name.split('.')[0]) not in [40101310316, 40101310040, 40101310109, 40101310110, 40101310353, 40101310314, 40101310085, 40101310143, 40101310409, 40101310134, 40101310342, 40101310069, 40101310013, 40101310098, 40101310350, 40101310386, 40101310249]:
@@ -123,127 +138,127 @@ if __name__ == "__main__":
 
 
 
-    DIR = "F:/Data2/imp_full_reshape_xyz_debug_59"
-
-    rmse_list = []
-    rmse_list_li = []
-    files = []
-    for path in Path(DIR).rglob('*.json'):
-        files.append(str(path))
-
-    files.sort(key=natural_keys)
-
-    for path in files:
-        print(path)
-        with open(path) as json_file:
-            data = json.load(json_file)
-            print(data["rmse"])
-            rmse_list.append(data["rmse"])
-            rmse_list_li.append(data["rmse_li"])
-
-    plt.clf()
-    plt.cla()
-    fig, ax = plt.subplots()
-    ax.set_ylabel('RMSE')
-    ax.set_xlabel('iteration')
-    plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1)
-    plt.plot([x * 10 for x in range(len(rmse_list_li))], rmse_list_li, label="RMSE LI", alpha=1)
-
-    plt.title("RMSE iteration performance")
-    plt.legend()
-    plt.show()
-
-
-    exit()
-
-
-    df = pd.read_csv("z_prct_data.csv")
-    g = (ggplot(df)  # defining what data to use
-     + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defning what variable to usei
-     + geom_jitter()  # defining the type of plot to use
-     + stat_summary(geom="crossbar", color="black", width=0.2)
-     + theme(subplots_adjust={'right': 0.82})
-     )
-
-    fig = g.draw()
-    fig.tight_layout()
-    fig.show()
-
-    exit(0)
-
-
-
-    # generate 2d classification dataset
-    X, y = make_blobs(n_samples=100, centers=2, n_features=2)
-    # scatter plot, dots colored by class value
-    df = pd.DataFrame(dict(x=X[:, 0], y=X[:, 1], label=y))
-    colors = {0: 'red', 1: 'blue', 2: 'green'}
-    fig, ax = plt.subplots()
-    grouped = df.groupby('label')
-    for key, group in grouped:
-        group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
-    plt.show()
-
-    scoring = {
-        'balanced_accuracy_score': make_scorer(balanced_accuracy_score)
-    }
-
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    cv_svc = RepeatedStratifiedKFold(n_splits=2, n_repeats=5,
-                                     random_state=0)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, n_jobs=-1, scoring=scoring, return_estimator=True)
-
-
-    # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
-    a, b = make_roc_curve("out_dir", clf_svc, X.copy(), y.copy(), cv_svc, "param_str")
-    # auc_cv = []
-    # for e in scores['estimator']:
-    #     y_pred = e.predict_proba(X)
-    #     y_true = y
-    #     aucs = []
-    #     for fold in range(y_pred.shape[1]):
-    #         y_p = y_pred[:, fold]
-    #         fpr, tpr, _ = metrics.roc_curve(y_true, y_p, pos_label=1)
-    #         aucs.append(metrics.auc(fpr, tpr))
-    #     auc_cv.append(np.mean(aucs))
-    # auc_cv_mean = np.mean(auc_cv)
-    exit(0)
-
-
-    classifier = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    cv = RepeatedStratifiedKFold(n_splits=2, n_repeats=10,
-                                     random_state=0)
-
-
-    tprs = []
-    fprs = []
-    aucs = []
-    bas = []
-    for i, (train, test) in enumerate(cv.split(X, y)):
-        classifier.fit(X[train], y[train])
-        # viz = plot_roc_curve(classifier, X[test], y[test],
-        #                      label=None,
-        #                      alpha=0.3, lw=1, ax=ax, c="tab:blue")
-        # interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-        # interp_tpr[0] = 0.0
-        # tprs.append(interp_tpr)
-        # aucs.append(viz.roc_auc)
-        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-        y_true = y[test]
-        y_pred = classifier.predict(X[test])
-
-        fpr, tpr, _ = metrics.roc_curve(y_true, y_pred, pos_label=1)
-        tprs.append(tpr)
-        fprs.append(fpr)
-        aucs.append(metrics.auc(fpr, tpr))
-        bas.append(balanced_accuracy_score(y_true, y_pred))
-        p_s = precision_score(y_true, y_pred, average=None)
-        p_s_0 = p_s[0]
-        p_s_1 = p_s[1]
-
-        r_s = recall_score(y_true, y_pred, average=None)
-        r_s_0 = r_s[0]
-        r_s_1 = r_s[1]
-
+    # DIR = "F:/Data2/imp_full_reshape_xyz_debug_59"
+    #
+    # rmse_list = []
+    # rmse_list_li = []
+    # files = []
+    # for path in Path(DIR).rglob('*.json'):
+    #     files.append(str(path))
+    #
+    # files.sort(key=natural_keys)
+    #
+    # for path in files:
+    #     print(path)
+    #     with open(path) as json_file:
+    #         data = json.load(json_file)
+    #         print(data["rmse"])
+    #         rmse_list.append(data["rmse"])
+    #         rmse_list_li.append(data["rmse_li"])
+    #
+    # plt.clf()
+    # plt.cla()
+    # fig, ax = plt.subplots()
+    # ax.set_ylabel('RMSE')
+    # ax.set_xlabel('iteration')
+    # plt.plot([x * 10 for x in range(len(rmse_list))], rmse_list, label="RMSE GAIN", alpha=1)
+    # plt.plot([x * 10 for x in range(len(rmse_list_li))], rmse_list_li, label="RMSE LI", alpha=1)
+    #
+    # plt.title("RMSE iteration performance")
+    # plt.legend()
+    # plt.show()
+    #
+    #
+    # exit()
+    #
+    #
+    # df = pd.read_csv("z_prct_data.csv")
+    # g = (ggplot(df)  # defining what data to use
+    #  + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defning what variable to usei
+    #  + geom_jitter()  # defining the type of plot to use
+    #  + stat_summary(geom="crossbar", color="black", width=0.2)
+    #  + theme(subplots_adjust={'right': 0.82})
+    #  )
+    #
+    # fig = g.draw()
+    # fig.tight_layout()
+    # fig.show()
+    #
+    # exit(0)
+    #
+    #
+    #
+    # # generate 2d classification dataset
+    # X, y = make_blobs(n_samples=100, centers=2, n_features=2)
+    # # scatter plot, dots colored by class value
+    # df = pd.DataFrame(dict(x=X[:, 0], y=X[:, 1], label=y))
+    # colors = {0: 'red', 1: 'blue', 2: 'green'}
+    # fig, ax = plt.subplots()
+    # grouped = df.groupby('label')
+    # for key, group in grouped:
+    #     group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+    # plt.show()
+    #
+    # scoring = {
+    #     'balanced_accuracy_score': make_scorer(balanced_accuracy_score)
+    # }
+    #
+    # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # cv_svc = RepeatedStratifiedKFold(n_splits=2, n_repeats=5,
+    #                                  random_state=0)
+    # scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cv_svc, n_jobs=-1, scoring=scoring, return_estimator=True)
+    #
+    #
+    # # scores["roc_auc_score_mean"] = np.mean(scores["test_roc_auc_score"])
+    # a, b = make_roc_curve("out_dir", clf_svc, X.copy(), y.copy(), cv_svc, "param_str")
+    # # auc_cv = []
+    # # for e in scores['estimator']:
+    # #     y_pred = e.predict_proba(X)
+    # #     y_true = y
+    # #     aucs = []
+    # #     for fold in range(y_pred.shape[1]):
+    # #         y_p = y_pred[:, fold]
+    # #         fpr, tpr, _ = metrics.roc_curve(y_true, y_p, pos_label=1)
+    # #         aucs.append(metrics.auc(fpr, tpr))
+    # #     auc_cv.append(np.mean(aucs))
+    # # auc_cv_mean = np.mean(auc_cv)
+    # exit(0)
+    #
+    #
+    # classifier = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # cv = RepeatedStratifiedKFold(n_splits=2, n_repeats=10,
+    #                                  random_state=0)
+    #
+    #
+    # tprs = []
+    # fprs = []
+    # aucs = []
+    # bas = []
+    # for i, (train, test) in enumerate(cv.split(X, y)):
+    #     classifier.fit(X[train], y[train])
+    #     # viz = plot_roc_curve(classifier, X[test], y[test],
+    #     #                      label=None,
+    #     #                      alpha=0.3, lw=1, ax=ax, c="tab:blue")
+    #     # interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+    #     # interp_tpr[0] = 0.0
+    #     # tprs.append(interp_tpr)
+    #     # aucs.append(viz.roc_auc)
+    #     # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    #     y_true = y[test]
+    #     y_pred = classifier.predict(X[test])
+    #
+    #     fpr, tpr, _ = metrics.roc_curve(y_true, y_pred, pos_label=1)
+    #     tprs.append(tpr)
+    #     fprs.append(fpr)
+    #     aucs.append(metrics.auc(fpr, tpr))
+    #     bas.append(balanced_accuracy_score(y_true, y_pred))
+    #     p_s = precision_score(y_true, y_pred, average=None)
+    #     p_s_0 = p_s[0]
+    #     p_s_1 = p_s[1]
+    #
+    #     r_s = recall_score(y_true, y_pred, average=None)
+    #     r_s_0 = r_s[0]
+    #     r_s_1 = r_s[1]
+    #
 
 
