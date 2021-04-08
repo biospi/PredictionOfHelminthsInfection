@@ -16,6 +16,8 @@ if __name__ == "__main__":
     parser.add_argument('--reshape', type=str)
     parser.add_argument('--w', type=str)
     parser.add_argument('--add_t_col', type=str)
+    parser.add_argument('--thresh_daytime', type=str)
+    parser.add_argument('--thresh_nan_ratio', type=str)
 
     args = parser.parse_args()
     print(args)
@@ -33,6 +35,8 @@ if __name__ == "__main__":
     ADD_T_COL = args.reshape.lower() in ["yes", 'y', 't', 'true']
     OUT = args.output_dir
     I_RANGE = 300
+    THRESH_DT = int(args.thresh_daytime)
+    THRESH_NAN_R = int(args.thresh_nan_ratio)
 
 
     # DATA_DIR = 'F:/Data2/backfill_1min_xyz_delmas_fixed'
@@ -110,7 +114,8 @@ if __name__ == "__main__":
             parser.add_argument('--reshape', type=str, default=RESHAPE)
             parser.add_argument('--w', type=str, default=WINDOW_ON)
             parser.add_argument('--add_t_col', type=str, default=ADD_T_COL)
-
+            parser.add_argument('--thresh_daytime', type=str, default=THRESH_DT)
+            parser.add_argument('--thresh_nan_ratio', type=str, default=THRESH_NAN_R)
 
             args = parser.parse_args()
             print(args)

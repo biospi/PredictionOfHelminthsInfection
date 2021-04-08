@@ -14,7 +14,7 @@ np.random.seed(0)
 def normalize(X):
     total_count = []
     for sample in X:
-        total_count.append(np.nansum(sample))
+        total_count.append(np.nansum(sample[sample > 0]))
 
     M = np.median(total_count)
 

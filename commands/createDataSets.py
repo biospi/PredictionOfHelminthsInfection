@@ -28,14 +28,19 @@ from commands.Samples import *
 from commands.cmdsextra import bc
 from utils.Utils import create_rec_dir
 
-if len(sys.argv) != 4:
+if len(sys.argv) != 6:
     print("Usage: "
-          "createSample <Famacha HDF5 file> <Directory with data> <Output Directory>")
+          "createSample <Famacha HDF5 file> <Directory with data> <Output Directory> <Data column> <Days>")
     exit(1)
 
 famFile = Path(sys.argv[1])
 dataDir = Path(sys.argv[2])
 outDir = Path(sys.argv[3])
+#first_sensor_value_gain
+#first_sensor_value
+#first_sensor_value_li
+data_col = sys.argv[4]
+ndays = int(sys.argv[5])
 
 print("Commanline argument: ", famFile)
 
@@ -45,7 +50,7 @@ fileHerd = HerdFile(famFile)
 famachaHerd = HerdData()
 
 print("Loading Activity traces and Times of famacha based animals")
-activityData = ActivityFile(dataDir)
+activityData = ActivityFile(dataDir, data_col)
 
 # load Famacha based scores from HDF5
 fileHerd.loadHerd(famachaHerd)
@@ -62,7 +67,6 @@ famachaHerd.removeMissing()
 # Load only data based on Famacha data.
 samples = SampleSet()
 
-ndays = 7
 samples.generateSet(famachaHerd, activityData, ndays)
 
 

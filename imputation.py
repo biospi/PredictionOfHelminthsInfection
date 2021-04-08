@@ -190,7 +190,7 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
         df["first_sensor_value"] = ori_data_x[:, i]
         df["first_sensor_value_gain"] = idata[:, i]
         df["first_sensor_value_li"] = ildata[:, i]
-        df["missingness"] = data_m_x[:, i]
+        df["imputed"] = (idata[:, i] > 0).astype(int)
         id = str(ids[i])
         filename = id + ".csv"
         filepath = out + "/" + filename
@@ -405,20 +405,21 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   ADD_TRANSP_COL = args.add_t_col.lower() in ["yes", 'y', 't', 'true']
   N_TRANSPOND = int(args.n_top_traces)
 
+  THRESH_DT = int(args.thresh_daytime)
+  THRESH_NAN_R = int(args.thresh_nan_ratio)
+
   # Load data and introduce missingness
   data_x = original_data_x.copy()
 
   miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
   imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-  thresh_pos = -1
-
   out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
-        '%04d' % int(args.iterations) + "_thresh_" + str(thresh_pos).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
+        '%04d' % int(args.iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped, signal_s_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=thresh_pos)
+    miss_data_x_reshaped, signal_s_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(THRESH_NAN_R, ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=THRESH_DT)
   else:
     miss_data_x_reshaped = reshape_matrix_ranjeet(miss_data_x)
 
@@ -443,9 +444,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       fig.update_xaxes(tickformat="%H:%M")
       fig.update_yaxes(tickformat="%d %b %Y")
       fig.update_layout(
-          title="%d thresh=%d" % (id, thresh_pos),
+          title="%d thresh=%d" % (id, THRESH_DT),
           xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_reshaped_%d.html" % (id, thresh_pos)
+      filename = out + "/" + "%d_reshaped_%d.html" % (id, THRESH_DT)
       print(filename)
       fig.write_html(filename)
 
@@ -457,13 +458,13 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       fig.update_xaxes(tickformat="%H:%M")
       fig.update_yaxes(tickformat="%d %b %Y")
       fig.update_layout(
-          title="%d Signal Strength thresh=%d" % (id, thresh_pos),
+          title="%d Signal Strength thresh=%d" % (id, THRESH_DT),
           xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_signal_strength_reshaped_%d.html" % (id, thresh_pos)
+      filename = out + "/" + "%d_signal_strength_reshaped_%d.html" % (id, THRESH_DT)
       print(filename)
       fig.write_html(filename)
 
-      if thresh_pos > 0:
+      if THRESH_DT > 0:
           fig = go.Figure(data=go.Heatmap(
               z=linear_interpolation_h(ss_t),
               x=xaxix_label,
@@ -472,9 +473,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
           fig.update_xaxes(tickformat="%H:%M")
           fig.update_yaxes(tickformat="%d %b %Y")
           fig.update_layout(
-              title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, thresh_pos),
+              title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, THRESH_DT),
               xaxis_title="Time (1 min bins)")
-          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, thresh_pos)
+          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, THRESH_DT)
           print(filename)
           fig.write_html(filename)
 
@@ -486,13 +487,13 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       colorscale='Viridis'))
   fig.update_xaxes(tickformat="%H:%M")
   fig.update_layout(
-      title="Activity data 1 min bins thresh=%s" % thresh_pos,
+      title="Activity data 1 min bins thresh=%s" % THRESH_DT,
       xaxis_title="Time (1 min bins)",
       yaxis_title="Transponders")
-  filename = out + "/" + "input_reshaped_%d.html" % thresh_pos
+  filename = out + "/" + "input_reshaped_%d.html" % THRESH_DT
   fig.write_html(filename)
 
-  imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], args.miss_rate, out, thresh_pos, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+  imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], args.miss_rate, out, THRESH_DT, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
   # fig = go.Figure(data=go.Heatmap(
   #     z=imputed_data_x.T,
@@ -623,6 +624,8 @@ if __name__ == '__main__':
   parser.add_argument('--reshape', type=str, default='n')
   parser.add_argument('--w', type=str, default='n')
   parser.add_argument('--add_t_col', type=str, default='n')
+  parser.add_argument('--thresh_daytime', type=str)
+  parser.add_argument('--thresh_nan_ratio', type=str)
 
   args = parser.parse_args() 
   

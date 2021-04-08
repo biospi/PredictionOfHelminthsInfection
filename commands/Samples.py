@@ -82,8 +82,10 @@ class ActivityFile:
     dataDir = 0
     files = 0
     ID = 0
+    col = None
 
-    def __init__(self, _dataDir):
+    def __init__(self, _dataDir, col):
+        self.col = col
         self.dataDir = Path(_dataDir)
         self.files = sorted(self.dataDir.glob('*.csv'))
         _ID = [x.stem[0:x.stem.find('_')] if '_' in x.stem else x.stem for x in self.files]
@@ -127,7 +129,7 @@ class ActivityFile:
             # magnitude_min = math.sqrt(xmin * xmin + ymin * ymin + zmin * zmin)
             # magnitude_max = math.sqrt(xmax * xmax + ymax * ymax + zmax * zmax)
 
-            atrace = np.array(dataFrame.loc[:, 'first_sensor_value_gain'])
+            atrace = np.array(dataFrame.loc[:, self.col])
             atime = np.array(dataFrame.loc[:, 'timestamp'])
             animalTrace.append(Activity(self.ID[0, idx], atrace, atime))
         return animalTrace
@@ -140,8 +142,8 @@ class ActivityFile:
         idx = np.where(self.ID == _ID)[1][0]
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
-        atrace = np.array(dataFrame.loc[:, 'first_sensor_value_gain'])
-        missingness = np.array(dataFrame.loc[:, 'missingness'])
+        atrace = np.array(dataFrame.loc[:, self.col])
+        missingness = np.array(dataFrame.loc[:, 'imputed'])
 
         # xmin = dataFrame.loc[:, 'xmin']
         # xmax = dataFrame.loc[:, 'xmax']
@@ -276,25 +278,37 @@ class SampleSet:
 
                 w_size = (deltaFamachaTime * 1440)+1
                 if A.size != w_size:
-                    date_range = np.array(pd.date_range(dt.datetime.fromtimestamp(fTimeIdxStart), periods=w_size, freq='T').tolist())
-                    epoch_range = [int(dt.datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S').timestamp()) for x in date_range]
-
-                    T = epoch_range
-                    A = np.zeros(len(epoch_range))
-                    A[:] = np.nan
-                    # continue
+                    # date_range = np.array(pd.date_range(dt.datetime.fromtimestamp(fTimeIdxStart), periods=w_size, freq='T').tolist())
+                    # epoch_range = [int(dt.datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S').timestamp()) for x in date_range]
+                    # print("edit", w_size, A.size, A)
+                    # T = epoch_range
+                    # A = np.zeros(len(epoch_range))
+                    #
+                    # A[:] = np.nan
+                    continue
 
                 # Is activity valid
                 # val = math.isnan(A.min()) == False
                 # val = np.isnan(A).tolist().count(True) < (720) * deltaFamachaTime
-                missR = np.sum(1 - M) / M.size  # missing marked as 0
+                #missR = np.sum(1 - M) / M.size  # missing marked as 0
+                valid_imputed_day = 0
 
-                val = missR < 0.6
+                cpt = 0
+                for elem in M:
+                    if elem > 0:
+                        cpt += 1
+                    if cpt == 1440-1:
+                        valid_imputed_day += 1
+                        cpt = 0
+
+                val = valid_imputed_day > 1
 
                 if len(A[np.isnan(A)]) == len(A):
                     val = False
+                    #valid_imputed_day = 0
 
-                aniSet.append(Sample(aIdx.ID, fCurrent, df, val, missR))
+
+                aniSet.append(Sample(aIdx.ID, fCurrent, df, val, valid_imputed_day))
 
                 if type(self.iA) == int:
                     self.iA = np.array(A)
