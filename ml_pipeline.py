@@ -550,6 +550,7 @@ def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhea
     hearder[-1] = 'date'
 
     data_frame.columns = hearder
+    #data_frame = data_frame.iloc[:, -N_META - (n_days * 1440):]
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
     data_frame = data_frame.fillna(-1)
     #data_frame["to_remove"] = data_frame.apply(filter_fn, axis=1)
@@ -557,7 +558,7 @@ def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhea
     # data_frame = data_frame.drop('to_remove', 1)
     # MUST DO FILTER HERE NOT LATER
     # todo filter with imputed_days count
-    data_frame = data_frame[data_frame["imputed_days"] >= 2]
+    data_frame = data_frame[data_frame["imputed_days"] >= 1]
 
     data_frame_original = data_frame.copy()
 
@@ -1000,7 +1001,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     plt.clf()
     fig, ax = plt.subplots()
     for i, (train, test) in enumerate(cv.split(X, y)):
-        print("make_roc_curve fold=", i)
+        print("make_roc_curve fold %d/%d" % (i, cv.nfold))
         classifier.fit(X[train], y[train])
         viz = plot_roc_curve(classifier, X[test], y[test],
                              label=None,
@@ -1095,7 +1096,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
                        cv="l2out"):
     print("*******************************************************************")
-    mlp_layers = (20, 10, 5)
+    mlp_layers = (100, 45, 30, 15)
     print(label_series)
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
@@ -1636,7 +1637,8 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
     # idx_healthy = range(df_healthy.shape[0])
     # idx_unhealthy = range(df_unhealthy.shape[0])
 
-    ymin = np.min(df_timedomain.iloc[:, :-1].values)
+    # ymin = np.min(df_timedomain.iloc[:, :-1].values)
+    ymin = 0
     if idx_healthy is None or idx_unhealthy is None:
         ymax = np.max(df_timedomain.iloc[:, :-1].values)
     else:
