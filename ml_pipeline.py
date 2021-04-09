@@ -536,7 +536,7 @@ def filter_fn(row):
     return row[:-N_META][row[:-N_META] > 0].size
 
 
-def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir,
+def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir,
                           fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
     print("load_df_from_datasets...", fname)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
@@ -558,7 +558,7 @@ def load_df_from_datasets(output_cwt, output_samples, class_healthy, class_unhea
     # data_frame = data_frame.drop('to_remove', 1)
     # MUST DO FILTER HERE NOT LATER
     # todo filter with imputed_days count
-    data_frame = data_frame[data_frame["imputed_days"] >= 1]
+    data_frame = data_frame[data_frame["imputed_days"] >= day]
 
     data_frame_original = data_frame.copy()
 
@@ -1978,6 +1978,7 @@ if __name__ == "__main__":
     print("n_process=", n_process)
     print("loading dataset...")
     enable_downsample_df = False
+    day = int(dataset_folder.split('_')[-1][0])
 
     # if os.path.exists(output_dir):
     #     print("purge %s..." % output_dir)
@@ -2018,7 +2019,7 @@ if __name__ == "__main__":
     #     pool.terminate()
     # else:
     for file in files:
-        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(
+        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
             output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file,
             hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
