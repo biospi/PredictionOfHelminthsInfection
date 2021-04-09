@@ -25,7 +25,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormapmake
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 from sys import exit
@@ -1096,7 +1096,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
                        cv="l2out"):
     print("*******************************************************************")
-    mlp_layers = (100, 45, 30, 15)
+    mlp_layers = (1000, 500, 100, 45, 30, 15)
     print(label_series)
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
@@ -1164,8 +1164,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
 
     if "no_norm" in option:
         print('->StandardScaler->SVC')
-        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-                                    SVC(probability=True, class_weight='balanced'))
+        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
         scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
         scores["downsample"] = downsample_false_class
         scores["class0"] = y[y == class_healthy].size
@@ -1288,6 +1287,8 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         os.makedirs(output_dir)
     df_report.to_csv(filename, sep=',', index=False)
     print("filename=", filename)
+
+
 
 
 def get_proba(y_probas, y_pred):

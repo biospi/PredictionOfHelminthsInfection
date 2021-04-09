@@ -12,20 +12,39 @@ np.random.seed(0)
 
 
 def normalize(X):
-    total_count = []
-    for sample in X:
-        total_count.append(np.nansum(sample[sample > 0]))
+    X = X.astype(np.float)
+    #step 1 find pointwise median sample [median of col1, .... median of col n].
+    median_array = np.median(X, axis=0)
 
-    M = np.median(total_count)
+    #step 2 divide each sample by median array
+    X_median = []
+    for x in X:
+        div = np.divide(x, median_array, out=np.zeros_like(x), where=median_array != 0) #return 0 if div by 0!
+        X_median.append(div)
 
-    X_norm = []
-    for i, sample in enumerate(X):
-        activity = np.array(sample)
-        t = total_count[i]
-        a = activity * M / t
-        X_norm.append(a)
+    #step 3 Within each sample (from iii) store the median value of the sample, which will produce an array of
+    # median values (1 per samples).
+    within_median = []
+    for msample in X_median:
+        within_median.append(np.median(msample))
 
-    df_norm = np.array(X_norm)
+    #step 4 Use the array of medians to scale(multiply) each original sample, which will give all quotient normalized samples.
+    qnorm_sample = []
+    for i, s in enumerate(X):
+        qnorm_sample.append(s * within_median[i])
+
+    #step 5 Multiply each quotient normalised sample by the total sum off all original samples divided by the sum of
+    # f all element in the original corresponding sample.
+    T = np.sum(X.flatten())
+    t = []
+    for orig_sample in X:
+        t.append(np.sum(orig_sample))
+
+    qnorm_sample_ = []
+    for i, qqsample in enumerate(qnorm_sample):
+        qnorm_sample_.append(qqsample * T/t[i])
+
+    df_norm = np.array(qnorm_sample_)
     return df_norm
 
 
@@ -106,13 +125,16 @@ def createSyntheticActivityData(n_samples=4):
 
 if __name__ == "__main__":
     print("********QuotientNormalizer*********")
-    df = pd.DataFrame([[4, 1, 2, 2], [1, 3, 9, 3],
-         [5, 7, 5, 1], [2, 4, 6, 8],
-         [1, 6, 5, 4], [1, 2, 5, 4]])
+    df = pd.DataFrame([[4, 1, 2, 2], [1, 3, 0, 3],
+         [0, 7, 5, 1], [2, 0, 6, 8],
+         [1, 6, 5, 4], [1, 2, 0, 4]])
     X = df.values
     print("X=", X)
 
     X_normalized = QuotientNormalizer().transform(X)
+    # plotData(X, title="Activity sample before quotient normalisation")
+    # plotData(X_normalized, title="Activity sample after quotient normalisation")
+
     print("after normalisation.")
     print(X_normalized)
     print("************************************")
