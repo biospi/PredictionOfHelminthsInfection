@@ -8,50 +8,39 @@ from sklearn.preprocessing import Normalizer
 from sklearn.utils import check_array
 import numpy as np
 
+from utils.Utils import inverse_anscombe
+
 np.random.seed(0)
 
-
-def normalize(X):
-    X = X.astype(np.float)
-    #step 1 find pointwise median sample [median of col1, .... median of col n].
-    median_array = np.median(X, axis=0)
-
-    #step 2 divide each sample by median array
-    X_median = []
-    for x in X:
-        div = np.divide(x, median_array, out=np.zeros_like(x), where=median_array != 0) #return 0 if div by 0!
-        X_median.append(div)
-
-    #step 3 Within each sample (from iii) store the median value of the sample, which will produce an array of
-    # median values (1 per samples).
-    within_median = []
-    for msample in X_median:
-        within_median.append(np.median(msample))
-
-    #step 4 Use the array of medians to scale(multiply) each original sample, which will give all quotient normalized samples.
-    qnorm_sample = []
-    for i, s in enumerate(X):
-        qnorm_sample.append(s * within_median[i])
-
-    #step 5 Multiply each quotient normalised sample by the total sum off all original samples divided by the sum of
-    # f all element in the original corresponding sample.
-    T = np.sum(X.flatten())
-    t = []
-    for orig_sample in X:
-        t.append(np.sum(orig_sample))
-
-    qnorm_sample_ = []
-    for i, qqsample in enumerate(qnorm_sample):
-        qnorm_sample_.append(qqsample * T/t[i])
-
-    df_norm = np.array(qnorm_sample_)
-    return df_norm
+def anscombe(arr, sigma_sq=0, alpha=1):
+    """
+    Generalized Anscombe variance-stabilizing transformation
+    References:
+    [1] http://www.cs.tut.fi/~foi/invansc/
+    [2] M. Makitalo and A. Foi, "Optimal inversion of the generalized
+    Anscombe transformation for Poisson-Gaussian noise", IEEE Trans.
+    Image Process, 2012
+    [3] J.L. Starck, F. Murtagh, and A. Bijaoui, Image  Processing
+    and Data Analysis, Cambridge University Press, Cambridge, 1998)
+    :param arr: variance-stabilized signal
+    :param sigma_sq: variance of the Gaussian noise component
+    :param alpha: scaling factor of the Poisson noise component
+    :return: variance-stabilized array
+    """
+    v = np.maximum((arr / alpha) + (3. / 8.) + sigma_sq / (alpha ** 2), 0)
+    f = 2. * np.sqrt(v)
+    return f
 
 
-class QuotientNormalizer(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, copy=True):
-        self.norm = norm
+class Anscombe(TransformerMixin, BaseEstimator):
+    def __init__(self, *, copy=True):
         self.copy = copy
+
+    def _reset(self):
+        """Reset internal data-dependent state of the scaler, if necessary.
+
+        __init__ parameters are not touched.
+        """
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -66,20 +55,15 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         self._validate_data(X, accept_sparse='csr')
         return self
 
-    def transform(self, X, copy=None):
-        """Scale each non zero row of X to unit norm
+    def partial_fit(self, X, y=None):
+        return self
 
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape [n_samples, n_features]
-            The data to normalize, row by row. scipy.sparse matrices should be
-            in CSR format to avoid an un-necessary copy.
-        copy : bool, optional (default: None)
-            Copy the input X or not.
-        """
-        #copy = copy if copy is not None else self.copy
+    def transform(self, X, copy=None):
         X = check_array(X, accept_sparse='csr')
-        return normalize(X)
+        return anscombe(X)
+
+    def inverse_transform(self, X):
+        return inverse_anscombe(X)
 
 
 def createSynthetic(activity):
@@ -102,7 +86,7 @@ def plotData(X, title="Activity sample before quotient normalisation"):
             x=timestamp,
             y=sample,
         ), row=1, col=1)
-    fig.update_layout(yaxis_range=[0, 40])
+    fig.update_layout(yaxis_range=[0, 20])
     fig.update_layout(title_text=title)
     fig.show()
 
@@ -131,7 +115,7 @@ if __name__ == "__main__":
     X = df.values
     print("X=", X)
 
-    X_normalized = QuotientNormalizer().transform(X)
+    X_normalized = Anscombe().transform(X)
     # plotData(X, title="Activity sample before quotient normalisation")
     # plotData(X_normalized, title="Activity sample after quotient normalisation")
 
@@ -142,8 +126,8 @@ if __name__ == "__main__":
     X = createSyntheticActivityData()
     plotData(X, title="Activity sample before quotient normalisation")
 
-    X_normalized = QuotientNormalizer().transform(X)
+    X_normalized = Anscombe().transform(X)
 
     plotData(X_normalized, title="Activity sample after quotient normalisation")
-    print()
+
 

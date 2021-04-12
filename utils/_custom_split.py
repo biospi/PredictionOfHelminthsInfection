@@ -12,6 +12,8 @@ from sys import exit
 from sklearn.model_selection import LeavePOut
 import itertools
 
+from utils._anscombe import Anscombe
+
 np.random.seed(0)
 
 
@@ -89,13 +91,17 @@ class StratifiedLeaveTwoOut:
                     s = np.array(s1[0])
                     if np.unique(s).size != 1:
                         continue
+            if np.unique(y[all_train_idx]).size == 1:
+                warnings.warn("Cannot use fold for training! Only 1 target in FOLD %d" % i)
+                continue
 
             training_idx.append(all_train_idx)
             testing_idx.append(all_test_idx)
             len_check.append(len(test_idx))
             if self.verbose:
                 print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, np.array(all_train_idx), "\nSAMPLE TEST IDX:", np.array(all_test_idx), "\nTEST TARGET:",
-                      np.unique(y[all_test_idx]), "\nTEST ANIMAL ID:", np.unique(self.animal_ids[all_test_idx]), "\nTRAIN ANIMAL ID:",
+                      np.unique(y[all_test_idx]), "\nTRAIN TARGET:",
+                      np.unique(y[all_train_idx]), "\nTEST ANIMAL ID:", np.unique(self.animal_ids[all_test_idx]), "\nTRAIN ANIMAL ID:",
                       np.unique(self.animal_ids[all_train_idx]))
 
         len_check = np.array(len_check)
@@ -143,6 +149,7 @@ if __name__ == "__main__":
        1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]).reshape(-1, 1)
 
     X = np.array(list(range(y.size))).reshape(-1, 1)
+    X = np.concatenate((X, X), 1)
 
     animal_ids = np.array(['40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
        '40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
@@ -185,8 +192,8 @@ if __name__ == "__main__":
                   194, 197, 198, 199, 201, 205, 206, 207, 209, 210, 211, 214, 215, 219, 220]
 
     print("DATASET:")
-    dataset = pd.DataFrame(np.hstack((X.reshape(X.size, 1), y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
-    header = ["activity", "target", "animal_id"]
+    dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
+    header = ["a1", "a2", "target", "animal_id"]
     dataset.columns = header
     dataset.to_csv("dummy_dataset_for_cv.csv")
     print(dataset)
@@ -228,6 +235,17 @@ if __name__ == "__main__":
         df_score = pd.DataFrame(scores)
         acc = np.mean(df_score["test_balanced_accuracy_score"].values)
         results.append(acc)
-    print("mean accuracy=", results)
+    print("without anscombe mean accuracy=", results)
+
+    results = []
+    for c in [100]:
+        clf_std_svc = make_pipeline(Anscombe(), SVC(C=c, probability=True, class_weight='balanced'))
+        #cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
+        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=slto, scoring=scoring, n_jobs=-1)
+
+        df_score = pd.DataFrame(scores)
+        acc = np.mean(df_score["test_balanced_accuracy_score"].values)
+        results.append(acc)
+    print("with anscombe mean accuracy=", results)
 
 

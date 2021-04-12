@@ -11,6 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
 
+from utils._anscombe import Anscombe
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils._normalisation import QuotientNormalizer
 
@@ -1189,11 +1190,9 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         report_rows_list.append(scores)
         del scores
 
-        print('->StandardScaler->MLP' + str(mlp_layers))
-        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-                                    MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
-                                                  solver='adam', random_state=0))
-        scores = cross_validate(clf_std_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+        print('->StandardScaler->Anscombe->SVC')
+        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), Anscombe(), SVC(probability=True, class_weight='balanced'))
+        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
         scores["downsample"] = downsample_false_class
         scores["class0"] = y[y == class_healthy].size
         scores["class1"] = y[y == class_unhealthy].size
@@ -1208,15 +1207,42 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
         scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
         scores["sampling"] = sampling
-        scores["classifier"] = "->StandardScaler->MLP" + str(mlp_layers)
-        scores["classifier_details"] = str(clf_std_mlp).replace('\n', '').replace(" ", '')
-        clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-                                    MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
-                                                  solver='adam', random_state=0))
-        aucs = make_roc_curve(out_dir, clf_std_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+        scores["classifier"] = "->StandardScaler->Anscombe->SVC"
+        scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
+        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), Anscombe(), SVC(probability=True, class_weight='balanced'))
+        aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cross_validation_method, param_str)
         scores["roc_auc_score_mean"] = aucs
         report_rows_list.append(scores)
         del scores
+
+        # print('->StandardScaler->MLP' + str(mlp_layers))
+        # clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
+        #                             MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
+        #                                           solver='adam', random_state=0))
+        # scores = cross_validate(clf_std_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+        # scores["downsample"] = downsample_false_class
+        # scores["class0"] = y[y == class_healthy].size
+        # scores["class1"] = y[y == class_unhealthy].size
+        # scores["option"] = option
+        # scores["days"] = days
+        # scores["farm_id"] = farm_id
+        # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+        # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+        # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+        # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+        # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+        # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+        # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+        # scores["sampling"] = sampling
+        # scores["classifier"] = "->StandardScaler->MLP" + str(mlp_layers)
+        # scores["classifier_details"] = str(clf_std_mlp).replace('\n', '').replace(" ", '')
+        # clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
+        #                             MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
+        #                                           solver='adam', random_state=0))
+        # aucs = make_roc_curve(out_dir, clf_std_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+        # scores["roc_auc_score_mean"] = aucs
+        # report_rows_list.append(scores)
+        # del scores
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
@@ -1243,10 +1269,9 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     report_rows_list.append(scores)
     del scores
 
-    print('->MLP' + str(mlp_layers))
-    clf_mlp = make_pipeline(
-        MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
-    scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    print('Anscombe->SVC')
+    clf_svc = make_pipeline(Anscombe(), SVC(probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
     scores["class1"] = y[y == class_unhealthy].size
@@ -1261,14 +1286,40 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
     scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
-    scores["classifier"] = "->MLP" + str(mlp_layers)
-    scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
-    clf_mlp = make_pipeline(
-        MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
-    aucs = make_roc_curve(out_dir, clf_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+    scores["classifier"] = "Anscombe->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(Anscombe(), SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
+
+    # print('->MLP' + str(mlp_layers))
+    # clf_mlp = make_pipeline(
+    #     MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
+    # scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    # scores["downsample"] = downsample_false_class
+    # scores["class0"] = y[y == class_healthy].size
+    # scores["class1"] = y[y == class_unhealthy].size
+    # scores["option"] = option
+    # scores["days"] = days
+    # scores["farm_id"] = farm_id
+    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    # scores["sampling"] = sampling
+    # scores["classifier"] = "->MLP" + str(mlp_layers)
+    # scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
+    # clf_mlp = make_pipeline(
+    #     MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
+    # aucs = make_roc_curve(out_dir, clf_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
+    # scores["roc_auc_score_mean"] = aucs
+    # report_rows_list.append(scores)
+    # del scores
 
     df_report = pd.DataFrame(report_rows_list)
     df_report["class_0_label"] = label_series[class_healthy]
@@ -1287,8 +1338,6 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         os.makedirs(output_dir)
     df_report.to_csv(filename, sep=',', index=False)
     print("filename=", filename)
-
-
 
 
 def get_proba(y_probas, y_pred):

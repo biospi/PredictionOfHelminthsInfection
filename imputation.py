@@ -25,7 +25,7 @@ from data_imputation.gain import gain
 from data_imputation.helper import binary_sampler, linear_interpolation_v, reshape_matrix_andy, reshape_matrix_ranjeet, \
     restore_matrix_andy, build_formated_axis, linear_interpolation_h
 from data_imputation.helper import rmse_loss
-from utils.Utils import create_rec_dir
+from utils.Utils import create_rec_dir, inverse_anscombe
 import matplotlib.pyplot as plt
 import matplotlib
 #matplotlib.use('Qt5Agg')
@@ -182,14 +182,15 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
     print("exporting imputed data...")
     print(ids)
     data_m_x[np.isnan(data_m_x)] = 1
+
     for i in range(idata.shape[1]):
         print("progress %d/%d ..." % (i, len(ids)))
         df = pd.DataFrame()
         df["timestamp"] = timestamp.values
         df["date_str"] = date_str.values
-        df["first_sensor_value"] = ori_data_x[:, i]
-        df["first_sensor_value_gain"] = idata[:, i]
-        df["first_sensor_value_li"] = ildata[:, i]
+        df["first_sensor_value"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ori_data_x[:, i]), 0)])
+        df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(idata[:, i]), 0)])
+        df["first_sensor_value_li"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata[:, i]), 0)])
         df["imputed"] = (idata[:, i] > 0).astype(int)
         id = str(ids[i])
         filename = id + ".csv"
@@ -245,23 +246,23 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         if enable_remove_zeros:
             activity = a_data[1]["first_sensor_value"].replace(0, np.nan)
             #activity[activity < 2] = np.nan
-        activity_o = activity
+        activity_o = activity.values
         power1_o = power1
         power2_o = power2
 
         if enable_anscombe:
-            anscombe_m = np.vectorize(anscombe)
             # activity = anscombe_m(np.log(activity, out=np.zeros_like(activity), where=(activity != 0)))
             # activity = np.log(activity, out=np.zeros_like(activity), where=(activity != 0))
-            activity = anscombe_m(activity)
-            power1 = anscombe_m(power1)
-            power2 = anscombe_m(power2)
+            activity = anscombe(activity)
 
         if enable_log_anscombe:
-            anscombe_m = np.vectorize(anscombe)
-            activity = np.log(anscombe_m(activity))
-            power1 = np.log(anscombe_m(power1))
-            power2 = np.log(anscombe_m(power2))
+            activity = np.log(anscombe(activity.values, 0))
+            activity_reverse = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(activity), 0)])#cast to count
+
+            assert np.array_equal(activity_o, activity_reverse, equal_nan=True), "Inverse ascombe failed!"
+
+            # power1 = np.log(anscombe_m(power1))
+            # power2 = np.log(anscombe_m(power2))
 
         data_first_sensor[a_data[0]] = [e] + activity.tolist()
 
