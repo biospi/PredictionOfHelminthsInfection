@@ -26,7 +26,7 @@ def normalize(X):
     # median values (1 per samples).
     within_median = []
     for msample in X_median:
-        within_median.append(np.median(msample))
+        within_median.append(np.median(msample[msample > 0]))
 
     #step 4 Use the array of medians to scale(multiply) each original sample, which will give all quotient normalized samples.
     qnorm_sample = []

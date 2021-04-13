@@ -301,7 +301,7 @@ class SampleSet:
                         valid_imputed_day += 1
                         cpt = 0
 
-                val = valid_imputed_day > 1
+                val = valid_imputed_day >= 1
 
                 if len(A[np.isnan(A)]) == len(A):
                     val = False

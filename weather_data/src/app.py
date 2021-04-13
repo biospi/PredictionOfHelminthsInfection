@@ -6,6 +6,8 @@ from time import sleep
 import json
 import os
 import pymysql
+import pandas as pd
+from datetime import timedelta
 
 
 def purge_file(filename):
@@ -46,10 +48,21 @@ def execute_sql_query(query, records=None, log_enabled=True):
 
 
 def get_historical_weather_data(farm_id=None, out_file=None, city=None):
-    days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_day" % farm_id)
-    days_ = []
-    for item in days:
-        days_.append(item['timestamp_s'].split(' ')[0])
+    # days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_day" % farm_id)
+    df = pd.read_csv("F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", header=None)
+    # days_ = pd.to_datetime(df[df.columns[-1]], format='%d/%m/%Y').dt.strftime('%Y-%m-%dT00:00')
+    days = pd.to_datetime(df[df.columns[-1]], format='%d/%m/%Y')
+    q_dates = []
+
+    for d in days:
+        for i in reversed(range(8)):
+            p_d = d - timedelta(days=i)
+            q_dates.append(p_d)
+
+    days_ = [x.strftime('%Y-%m-%dT00:00') for x in q_dates]
+    # days_ = []
+    # for item in days:
+    #     days_.append(item['timestamp_s'].split(' ')[0])
     # h5 = tables.open_file(path, "r")
     # data = h5.root.resolution_d.data
     # days = []
@@ -65,7 +78,7 @@ def get_historical_weather_data(farm_id=None, out_file=None, city=None):
     purge_file(out_file)
     with open(out_file, 'a') as outfile:
         for i, date in enumerate(days_):
-            PARAMS = {'key': "b2c98e7e99b545f196e55352200101", 'q': "%s,south+africa" % city,
+            PARAMS = {'key': "cdb86ad906ff492cbcc111656211304", 'q': "%s,south+africa" % city,
                       'date': date, 'tp': 1, 'format': 'json'}
             r = requests.get(url=URL, params=PARAMS)
             data = r.json()
@@ -73,6 +86,7 @@ def get_historical_weather_data(farm_id=None, out_file=None, city=None):
             json.dump(data, outfile)
             outfile.write('\n')
             sleep(0.5)
+    print(outfile)
 
 
 def format_time(time):
@@ -112,8 +126,8 @@ def get_humidity_date(path, name):
 
 if __name__ == '__main__':
     print(sys.argv)
-    connect_to_sql_database()
-    # get_historical_weather_data(farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
+    #connect_to_sql_database()
+    get_historical_weather_data(farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
     # get_humidity_date('delmas_weather_raw.json', 'delmas')
-    get_historical_weather_data(farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
-    get_humidity_date('cedara_weather_raw.json', 'cedara')
+    #get_historical_weather_data(farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
+    get_humidity_date('delmas_weather_raw.json', 'delmas')

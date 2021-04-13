@@ -26,7 +26,6 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from matplotlib.colors import LinearSegmentedColormapmake
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 from sys import exit
@@ -1707,7 +1706,7 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
 
     for i in idx_healthy:
         ax1.plot(ticks, df_healthy[i])
-        ax1.set(xlabel="Time", ylabel="activity")
+        ax1.set(xlabel="", ylabel="activity")
         ax1.set_title("Healthy(%s) animals %d / displaying %d" % (class_healthy_label, total_healthy, len(idx_healthy)))
         ax1.set_ylim([ymin, ymax])
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
@@ -1715,7 +1714,7 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
 
     for i in idx_unhealthy:
         ax2.plot(ticks, df_unhealthy[i])
-        ax2.set(xlabel="Time", ylabel="activity")
+        ax2.set(xlabel="", ylabel="activity")
         ax2.set_yticks(ax2.get_yticks().tolist())
         ax2.set_xticklabels(ticks, fontsize=12)
         ax2.set_title(

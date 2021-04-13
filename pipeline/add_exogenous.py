@@ -82,9 +82,10 @@ if __name__ == "__main__":
     df_concat_humidity_df = pd.concat([df_humidity, df], axis=1)
     df_concat_temp_humidity_df = pd.concat([df_temp, df_humidity, df], axis=1)
 
-    out_dir = str(out_dir).replace("\\", "/")
-    create_rec_dir(out_dir)
-    filename = "%s/temp_%s" % (out_dir, dataset.name)
+    out_dir_base = str(out_dir).replace("\\", "/")
+    out_dir_temp = out_dir_base+"/temp"
+    create_rec_dir(out_dir_temp)
+    filename = "%s/temp_%s" % (out_dir_temp, dataset.name)
     print(filename)
     df_concat_temp_df.to_csv(filename, index=False)
     filename = "%s/humidity_%s" % (out_dir, dataset.name)
