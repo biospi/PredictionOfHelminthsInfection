@@ -794,18 +794,6 @@ def purge_file(filename):
 
 
 def make_meshgrid(x, y, h=.02):
-    """Create a mesh of points to plot in
-
-    Parameters
-    ----------
-    x: data to base x-axis meshgrid on
-    y: data to base y-axis meshgrid on
-    h: stepsize for meshgrid, optional
-
-    Returns
-    -------
-    xx, yy : ndarray
-    """
     x_min, x_max = x.min() - 1, x.max() + 1
     y_min, y_max = y.min() - 1, y.max() + 1
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
@@ -1234,34 +1222,6 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         report_rows_list.append(scores)
         del scores
 
-        # print('->StandardScaler->MLP' + str(mlp_layers))
-        # clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-        #                             MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
-        #                                           solver='adam', random_state=0))
-        # scores = cross_validate(clf_std_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-        # scores["downsample"] = downsample_false_class
-        # scores["class0"] = y[y == class_healthy].size
-        # scores["class1"] = y[y == class_unhealthy].size
-        # scores["option"] = option
-        # scores["days"] = days
-        # scores["farm_id"] = farm_id
-        # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-        # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-        # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-        # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-        # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-        # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-        # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-        # scores["sampling"] = sampling
-        # scores["classifier"] = "->StandardScaler->MLP" + str(mlp_layers)
-        # scores["classifier_details"] = str(clf_std_mlp).replace('\n', '').replace(" ", '')
-        # clf_std_mlp = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-        #                             MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu',
-        #                                           solver='adam', random_state=0))
-        # aucs = make_roc_curve(out_dir, clf_std_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
-        # scores["roc_auc_score_mean"] = aucs
-        # report_rows_list.append(scores)
-        # del scores
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
@@ -1313,32 +1273,6 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     report_rows_list.append(scores)
     del scores
 
-    # print('->MLP' + str(mlp_layers))
-    # clf_mlp = make_pipeline(
-    #     MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
-    # scores = cross_validate(clf_mlp, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-    # scores["downsample"] = downsample_false_class
-    # scores["class0"] = y[y == class_healthy].size
-    # scores["class1"] = y[y == class_unhealthy].size
-    # scores["option"] = option
-    # scores["days"] = days
-    # scores["farm_id"] = farm_id
-    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    # scores["sampling"] = sampling
-    # scores["classifier"] = "->MLP" + str(mlp_layers)
-    # scores["classifier_details"] = str(clf_mlp).replace('\n', '').replace(" ", '')
-    # clf_mlp = make_pipeline(
-    #     MLPClassifier(hidden_layer_sizes=mlp_layers, max_iter=300, activation='relu', solver='adam', random_state=0))
-    # aucs = make_roc_curve(out_dir, clf_mlp, X.copy(), y.copy(), cross_validation_method, param_str)
-    # scores["roc_auc_score_mean"] = aucs
-    # report_rows_list.append(scores)
-    # del scores
 
     df_report = pd.DataFrame(report_rows_list)
     df_report["class_0_label"] = label_series[class_healthy]
@@ -1831,7 +1765,6 @@ def get_n_largest_coefs_fft(matrix, n=50):
 
 
 def get_n_largest_coefs(matrix, n=50):
-    # matrix[matrix == -1] = np.nan
     features_list = []
     for i in range(n):
         location = unravel_index(matrix.argmax(), matrix.shape)
@@ -1840,10 +1773,6 @@ def get_n_largest_coefs(matrix, n=50):
         matrix[location] = -1
         features_list.append(features)
     f_array = np.array(features_list).flatten().tolist()
-    # plt.clf()
-    # plt.title("get_n_largest_coefs")
-    # plt.imshow(matrix, aspect='auto')
-    # plt.show()
     return f_array
 
 
@@ -2011,7 +1940,7 @@ def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, cl
 
     return df_cwt, results_cwt_matrix_healthy, results_cwt_matrix_unhealthy
 
-
+#TODO MOVE ML TO NEW EXCLUSIVE SCRIPT
 if __name__ == "__main__":
     print(
         "args: <output_dir> <dataset_filepath> <class_healthy> <class_unhealthy> <stratify> <s_output> <cwt> <n_process>")
@@ -2064,29 +1993,6 @@ if __name__ == "__main__":
     MULTI_THREADING_ENABLED = (n_process > 0)
     print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
 
-    # if MULTI_THREADING_ENABLED:
-    #     pool = Pool(processes=n_process)
-    #     for file in files:
-    #         data_frame_original, data_frame_timed_no_norm, data_frame_timed_norm, data_frame_timed_norm_anscombe, \
-    #         data_frame_cwt_no_norm, data_frame_median_norm_cwt, data_frame_median_norm_cwt_anscombe = load_df_from_datasets(enable_downsample_df, output_dir, file, hi_pass_filter=cwt_high_pass_filter)
-    #         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
-    #
-    #         print("thresh_i=", thresh_i)
-    #         print("thresh_z=", thresh_z)
-    #         print("days=", days)
-    #         print("farm_id=", farm_id)
-    #         print("option=", option)
-    #         pool.apply_async(process_data_frame,
-    #                          (output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
-    #                            sampling, enable_downsample_df,))
-    #         pool.apply_async(process_data_frame,
-    #                          (output_dir, data_frame_median_norm_cwt, thresh_i, thresh_z, days, farm_id, "norm_cwt", n_splits, n_repeats,
-    #                            sampling, enable_downsample_df,))
-    #
-    #     pool.close()
-    #     pool.join()
-    #     pool.terminate()
-    # else:
     for file in files:
         animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
             output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file,
@@ -2099,10 +2005,6 @@ if __name__ == "__main__":
         print("days=", days)
         print("farm_id=", farm_id)
         print("option=", option)
-
-        # process_data_frame(output_dir, data_frame_median_norm_cwt_anscombe, thresh_i, thresh_z, days, farm_id, "norm_cwt_anscombe", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series)
-        #
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_norm, days, farm_id, "activity_quotient_norm",
                            n_splits, n_repeats,
@@ -2119,27 +2021,6 @@ if __name__ == "__main__":
                                "cwt_quotient_norm", n_splits, n_repeats,
                                sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                cv="StratifiedLeaveTwoOut")
-
-            # process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm",
-            #                    n_splits, n_repeats,
-            #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-            #                    cv="StratifiedLeaveTwoOut")
-
-        # process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
-        #
-        # process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_norm, days, farm_id, "activity_quotient_norm", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
-        #
-        # process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
-        #
-        # process_data_frame(stratify, animal_ids, output_dir, data_frame_timed_no_norm, days, farm_id, "activity_no_norm", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
-
-        #
-        # process_data_frame(output_dir, data_frame_timed_norm_anscombe, thresh_i, thresh_z, days, farm_id, "activity_norm_anscombe", n_splits, n_repeats,
-        #                    sampling, enable_downsample_df, label_series)
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)

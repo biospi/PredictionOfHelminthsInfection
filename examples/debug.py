@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
 from sklearn.datasets import make_blobs
-
+import plotly.express as px
 
 def mean_confidence_interval(x):
     # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
@@ -105,19 +105,28 @@ def natural_keys(text):
 
 from shutil import copyfile
 if __name__ == "__main__":
-    files = []
-    dfs = []
-    for path in Path("F:\\Data2\\biospi").rglob('*.csv'):
-        if 'final' not in path.name:
-            continue
-        print(path)
-        df = pd.read_csv(str(path), index_col=None)
-        df["dataset"] = str(path).split('\\')[-2]
-        print(df)
-        dfs.append(df)
 
-    df_merged = pd.concat(dfs)
-    df_merged.to_csv("F:\\Data2\\biospi\\result_merge.csv", index=False)
+    path = "F:/Data2/biospi/ml_gain_1_4_7day/final_classification_report_cv_0_0.csv"
+    df = pd.read_csv(str(path), index_col=None)
+    df["config"] = [str(x) for x in list(zip(df.option, df.classifier))]
+    df = df.sort_values('roc_auc_score_mean')
+    print(df)
+    fig = px.bar(df, x='config', y='roc_auc_score_mean', title="AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0], df["class_1_label"].values[0]))
+    fig.show()
+
+    # files = []
+    # dfs = []
+    # for path in Path("F:\\Data2\\biospi").rglob('*.csv'):
+    #     if 'final' not in path.name:
+    #         continue
+    #     print(path)
+    #     df = pd.read_csv(str(path), index_col=None)
+    #     df["dataset"] = str(path).split('\\')[-2]
+    #     print(df)
+    #     dfs.append(df)
+    #
+    # df_merged = pd.concat(dfs)
+    # df_merged.to_csv("F:\\Data2\\biospi\\result_merge.csv", index=False)
 
 
     # files = []
