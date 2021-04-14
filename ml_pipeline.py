@@ -576,8 +576,7 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     data_frame_norm = data_frame.copy()
     data_frame_norm.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir).transform(data_frame_norm.iloc[:, :-N_META].values)
 
-    data_frame_cwt = data_frame_norm.copy()
-    data_frame_cwt = pd.DataFrame(CWT(out_dir=graph_outputdir).transform(data_frame_cwt.iloc[:, :-N_META].values))
+    data_frame_cwt = pd.DataFrame(CWT(out_dir=graph_outputdir).transform(data_frame_norm.copy().iloc[:, :-N_META].values))
     data_frame_cwt.index = data_frame_norm.index #!!!!
     df_meta = data_frame_norm.iloc[:, -N_META:]
     data_frame_cwt = pd.concat([data_frame_cwt, df_meta], axis=1)

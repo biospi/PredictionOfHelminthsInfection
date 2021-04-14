@@ -16,6 +16,7 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import auc
 from sklearn.datasets import make_blobs
 import plotly.express as px
+import plotly.graph_objects as go
 
 def mean_confidence_interval(x):
     # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
@@ -91,6 +92,9 @@ import glob
 from pathlib import Path
 import json
 import re
+from plotly.subplots import make_subplots
+from shutil import copyfile
+
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -103,15 +107,43 @@ def natural_keys(text):
     '''
     return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
-from shutil import copyfile
+
+def format(text):
+    return text.replace("activity_no_norm", "TimeDom->").replace("activity_quotient_norm", "TimeDom->QN->").replace("cwt_quotient_norm", "CWT->QN->").replace("cwt_no_norm", "CWT->").replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->")
+
+
 if __name__ == "__main__":
 
     path = "F:/Data2/biospi/ml_gain_1_4_7day/final_classification_report_cv_0_0.csv"
     df = pd.read_csv(str(path), index_col=None)
-    df["config"] = [str(x) for x in list(zip(df.option, df.classifier))]
+    df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
     print(df)
-    fig = px.bar(df, x='config', y='roc_auc_score_mean', title="AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0], df["class_1_label"].values[0]))
+
+    t1 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t2 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t3 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t4 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+
+    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=1, col=1)
+    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=2, col=1)
+    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=3, col=1)
+    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=4, col=1)
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
+
     fig.show()
 
     # files = []

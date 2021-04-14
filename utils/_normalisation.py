@@ -38,9 +38,10 @@ def normalize(X, out_dir):
     within_median = []
     for msample in X_median:
         clean_sample = msample[~np.isnan(msample)]
-        clean_sample = clean_sample[clean_sample > 0]
+        ##clean_sample = clean_sample[clean_sample > 0]
+        clean_sample[clean_sample == 0] = 1
         within_median.append(np.median(clean_sample))
-    traces.append(plotLine([within_median], out_dir_, "STEP 3 | Within each sample (rows from step2) store the median value of the sample(exclude NaN and 0), which will produce an array of median values (1 per samples)", "3_within_median.html", x_axis_count=True))
+    traces.append(plotLine([within_median], out_dir_, "STEP 3 | Within each sample (rows from step2) store the median value of the sample(exclude NaN and 0->1), which will produce an array of median values (1 per samples)", "3_within_median.html", x_axis_count=True))
 
     #step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
