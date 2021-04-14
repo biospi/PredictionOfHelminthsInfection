@@ -26,7 +26,8 @@ def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
     # axs[0].xaxis.set_major_locator(mdates.DayLocator())
 
     axs[1].imshow(power_masked)
-    axs[1].plot(coi_line_array, linestyle="--", linewidth=5, c="white")
+    if(len(coi_line_array) > 0):
+        axs[1].plot(coi_line_array, linestyle="--", linewidth=5, c="white")
     axs[1].set_aspect('auto')
     axs[1].set_title("CWT")
     axs[1].set_xlabel("Time")
@@ -66,7 +67,7 @@ def mask_cwt(cwt, coi, scales, turn_off=False):
         for i, s in enumerate(scales):
             c = coi[j]
             if s > c:
-                cwt[i:, j] = -1
+                cwt[i:, j] = -99
                 coi_line.append(i)
                 break
 
@@ -86,12 +87,16 @@ def compute_cwt(X, out_dir):
         coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
         coefs_cc = np.conj(coefs)
         with np.errstate(divide='ignore'):#ignore numpy divide by zero warning
-            power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
-        power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
-        power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+            #power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
+            power_cwt = np.real(np.multiply(coefs, coefs_cc))
+
+        # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
+        # power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+        power_masked, coi_line_array = power_cwt, []
+
         plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
-        power_flatten_masked = power_flatten_masked[power_flatten_masked != -1]
+        power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]
         cwt.append(power_flatten_masked)
         i += 1
     cwt = np.array(cwt)

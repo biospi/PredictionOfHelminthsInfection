@@ -73,43 +73,6 @@ def normalize(X, out_dir):
     return df_norm
 
 
-def normalize_simple(X, out_dir):
-    out_dir = out_dir + "_normalisation_simplified"
-    traces = []
-    X = X.astype(np.float)
-    traces.append(plotHeatmap(np.array(X), out_dir, "STEP 0 | Samples", "0_X_samples.html"))
-
-    # step 1 find pointwise median sample [median of col1, .... median of col n].
-    median_array = np.median(X, axis=0)
-    traces.append(plotLine([median_array], out_dir,
-                           "STEP 1 | find pointwise median sample [median of col1, .... median of col n]",
-                           "1_median_array.html"))
-
-    # step 2 divide each sample by median array
-    X_median = []
-    for x in X:
-        div = np.divide(x, median_array, out=np.zeros_like(x), where=median_array != 0)  # return 0 if div by 0!
-        X_median.append(div)
-    traces.append(
-        plotHeatmap(np.array(X_median), out_dir, "STEP 2 | divide each sample by median array", "2_X_median.html"))
-
-    # step 3 calculate the mean intensity in the median sample
-    mean_intensity = np.mean(median_array)
-    traces.append(plotLine([[mean_intensity]], out_dir,
-                           "STEP 3 | calculate the mean intensity in the median sample",
-                           "3_mean_intensity.html"))
-
-    # step 4 multiply all the results of (step 2 )  with mean intensity from step 3
-    df_norm = np.array(X_median) * mean_intensity
-    traces.append(plotHeatmap(df_norm, out_dir,
-                           "STEP 4 | multiply all the results of (step 2 )  with mean intensity from step 3",
-                           "4_X_mean_intensity.html"))
-
-    plot_all(traces, out_dir, title="Quotient Normalisation 4 STEPS", filename="steps_simplified.html", simple=True)
-
-    return df_norm
-
-
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
     def __init__(self, norm='q', *, out_dir=None, copy=True):
         self.out_dir = out_dir
