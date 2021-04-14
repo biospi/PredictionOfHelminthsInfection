@@ -13,6 +13,7 @@ from sklearn.neural_network import MLPClassifier
 
 from utils._anscombe import Anscombe
 from utils._custom_split import StratifiedLeaveTwoOut
+from utils._cwt import CWT
 from utils._normalisation import QuotientNormalizer
 
 import pandas as pd
@@ -538,6 +539,16 @@ def filter_fn(row):
 
 def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir,
                           fname, label_col='label', hi_pass_filter=None, low_pass_filter=None, n_process=None):
+
+    graph_outputdir = "%s/input_graphs/" % output_dir
+    if os.path.exists(graph_outputdir):
+        print("purge %s ..." % graph_outputdir)
+        try:
+            shutil.rmtree(graph_outputdir)
+        except IOError:
+            print("file not found.")
+    create_rec_dir(graph_outputdir)
+
     print("load_df_from_datasets...", fname)
     data_frame = pd.read_csv(fname, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -563,10 +574,25 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     data_frame_original = data_frame.copy()
 
     data_frame_norm = data_frame.copy()
-    data_frame_norm.iloc[:, :-N_META] = QuotientNormalizer().transform(data_frame_norm.iloc[:, :-N_META].values)
+    data_frame_norm.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir).transform(data_frame_norm.iloc[:, :-N_META].values)
+
+    data_frame_cwt = data_frame_norm.copy()
+    data_frame_cwt = pd.DataFrame(CWT(out_dir=graph_outputdir).transform(data_frame_cwt.iloc[:, :-N_META].values))
+    data_frame_cwt.index = data_frame_norm.index #!!!!
+    df_meta = data_frame_norm.iloc[:, -N_META:]
+    data_frame_cwt = pd.concat([data_frame_cwt, df_meta], axis=1)
+
+    #sanity check#################################################################################################
+    rdm_idxs = random.choices(data_frame_norm.index.tolist(), k=2)
+    samples_tocheck = data_frame_norm.loc[(rdm_idxs), :].values[:, :-N_META]
+    cwt_to_check = pd.DataFrame(CWT(out_dir=graph_outputdir+"cwt_sanity_check/").transform(samples_tocheck))
+    prev_cwt_results = data_frame_cwt.loc[(rdm_idxs), :].values[:, :-N_META]
+    assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
+    #############################################################################################################
 
     data_frame = data_frame.iloc[:, :-N_META + 1]
     data_frame_norm = data_frame_norm.iloc[:, :-N_META + 1]
+    data_frame_cwt = data_frame_cwt.iloc[:, :-N_META + 1]
 
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
 
@@ -577,6 +603,7 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
         data_frame_norm["target"] = data_frame["target"]
+        data_frame_cwt["target"] = data_frame["target"]
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)
@@ -589,8 +616,11 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     # drop label column stored previously, just keep target for ml
     data_frame = data_frame.drop('label', 1)
     data_frame_norm = data_frame_norm.drop('label', 1)
+    data_frame_cwt = data_frame_cwt.drop('label', 1)
+
     print(data_frame)
     print(data_frame_norm)
+    print(data_frame_cwt)
 
     class_count = {}
     for k in label_series.keys():
@@ -608,15 +638,6 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     # data_frame_mean = data_frame.loc[data_frame['label'].isin(["'mean_True'", "'mean_False'"])].reset_index(drop=True)
     # data_frame_mean = data_frame_mean.replace({"label": {"'mean_True'": "True", "'mean_False'": "False"}})
 
-    graph_outputdir = "%s/input_graphs/" % output_dir
-    if os.path.exists(graph_outputdir):
-        print("purge %s ..." % graph_outputdir)
-        try:
-            shutil.rmtree(graph_outputdir)
-        except IOError:
-            print("file not found.")
-    create_rec_dir(graph_outputdir)
-
     plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir)
 
     plot_time_pca(data_frame_no_norm, graph_outputdir, label_series, title="PCA time domain before normalisation")
@@ -628,7 +649,6 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
                                              ylabel="activity", ntraces=ntraces)
     # idx_healthy = [1, 17]
     # idx_unhealthy = [47, 5]
-
     # plot_groups(graph_outputdir, data_frame_median, title="Median for each sample samples", xlabel="Time", ylabel="activity",
     #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=1)
     # plot_groups(graph_outputdir, data_frame_mean, title="Mean for each sample samples", xlabel="Time", ylabel="activity",
@@ -655,30 +675,30 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, title="input_tramsform")
 
-    data_frame_cwt_no_norm = None
-    data_frame_median_norm_cwt = None
-    if output_cwt:
-        print("processing frequency domain...")
-        data_frame_cwt_no_norm, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label,
-                                                     class_healthy, class_unhealthy, idx_healthy, idx_unhealthy,
-                                                     graph_outputdir, data_frame_no_norm.copy(),
-                                                     title="Average cwt power of raw (no normalisation) samples",
-                                                     stepid=1,
-                                                     hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter,
-                                                     ntraces=ntraces, n_process=n_process)
-        data_frame_median_norm_cwt, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label,
-                                                         class_healthy, class_unhealthy, idx_healthy, idx_unhealthy,
-                                                         graph_outputdir, data_frame_norm.copy(),
-                                                         title="Average cwt power of normalised samples",
-                                                         stepid=2, hi_pass_filter=hi_pass_filter,
-                                                         low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
+    # data_frame_cwt_no_norm = None
+    # data_frame_median_norm_cwt = None
+    # if output_cwt:
+    #     print("processing frequency domain...")
+    #     data_frame_cwt_no_norm, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label,
+    #                                                  class_healthy, class_unhealthy, idx_healthy, idx_unhealthy,
+    #                                                  graph_outputdir, data_frame_no_norm.copy(),
+    #                                                  title="Average cwt power of raw (no normalisation) samples",
+    #                                                  stepid=1,
+    #                                                  hi_pass_filter=hi_pass_filter, low_pass=hi_pass_filter,
+    #                                                  ntraces=ntraces, n_process=n_process)
+    #     data_frame_median_norm_cwt, _, _ = create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label,
+    #                                                      class_healthy, class_unhealthy, idx_healthy, idx_unhealthy,
+    #                                                      graph_outputdir, data_frame_norm.copy(),
+    #                                                      title="Average cwt power of normalised samples",
+    #                                                      stepid=2, hi_pass_filter=hi_pass_filter,
+    #                                                      low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
     # data_frame_median_norm_cwt_anscombe, _, _ = create_cwt_df(idx_healthy, idx_unhealthy, graph_outputdir, data_frame_median_norm.copy(),
     #                                                           title="norm-cwt-ansc_Anscombe average cwt power of normalised samples",
     #                                                           stepid=3, enable_anscomb=True, hi_pass_filter=hi_pass_filter,
     #                                                           low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
-    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series
+    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt, label_series
 
 
 def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
@@ -2068,7 +2088,7 @@ if __name__ == "__main__":
     #     pool.terminate()
     # else:
     for file in files:
-        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
+        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
             output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file,
             hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
@@ -2100,10 +2120,10 @@ if __name__ == "__main__":
                                sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                cv="StratifiedLeaveTwoOut")
 
-            process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm",
-                               n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
+            # process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id, "cwt_no_norm",
+            #                    n_splits, n_repeats,
+            #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+            #                    cv="StratifiedLeaveTwoOut")
 
         # process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id, "cwt_quotient_norm", n_splits, n_repeats,
         #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="RepeatedStratifiedKFold")
