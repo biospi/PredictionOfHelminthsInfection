@@ -24,8 +24,8 @@ def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
     axs[0].set(xlabel="Time", ylabel="activity")
     # axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     # axs[0].xaxis.set_major_locator(mdates.DayLocator())
-
-    axs[1].imshow(power_masked)
+    with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
+        axs[1].imshow(np.log(power_masked))
     if(len(coi_line_array) > 0):
         axs[1].plot(coi_line_array, linestyle="--", linewidth=5, c="white")
     axs[1].set_aspect('auto')
@@ -91,8 +91,8 @@ def compute_cwt(X, out_dir):
             power_cwt = np.real(np.multiply(coefs, coefs_cc))
 
         # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
-        # power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
-        power_masked, coi_line_array = power_cwt, []
+        power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+        #power_masked, coi_line_array = power_cwt, []
 
         plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
