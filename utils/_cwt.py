@@ -84,7 +84,7 @@ def compute_cwt(X, out_dir):
     for activity in tqdm(X):
         y = activity
         w = wavelet.Morlet()
-        coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
+        coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w, dj=1/24)
         coefs_cc = np.conj(coefs)
         with np.errstate(divide='ignore'):#ignore numpy divide by zero warning
             #power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
@@ -96,7 +96,7 @@ def compute_cwt(X, out_dir):
 
         plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
-        power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]
+        power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]#remove masked values
         cwt.append(power_flatten_masked)
         i += 1
     cwt = np.array(cwt)

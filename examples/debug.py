@@ -142,7 +142,28 @@ if __name__ == "__main__":
     fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=2, col=1)
     fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=3, col=1)
     fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=4, col=1)
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.945, x1=1.0, y1=0.945, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.665, x1=1.0, y1=0.665,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.380, x1=1.0, y1=0.380,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.110, x1=1.0, y1=0.110,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    # fig.update_layout(shapes=[
+    #     dict(
+    #         type='line',
+    #         color="MediumPurple",
+    #         yref='paper', y0=0.945, y1=0.945,
+    #         xref='x', x0=-0.5, x1=7.5
+    #     )
+    # ])
+    # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
+    # fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
 
     fig.show()
 

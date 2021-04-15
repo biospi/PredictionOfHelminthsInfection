@@ -10,7 +10,7 @@ import matplotlib
 # import pywt
 import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
-
+from sklearn.neighbors import KNeighborsClassifier
 from utils._anscombe import Anscombe
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils._cwt import CWT
@@ -582,7 +582,7 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     data_frame_cwt = pd.concat([data_frame_cwt, df_meta], axis=1)
 
     #sanity check#################################################################################################
-    rdm_idxs = random.choices(data_frame_norm.index.tolist(), k=2)
+    rdm_idxs = random.choices(data_frame_norm.index.tolist(), k=1)
     samples_tocheck = data_frame_norm.loc[(rdm_idxs), :].values[:, :-N_META]
     cwt_to_check = pd.DataFrame(CWT(out_dir=graph_outputdir+"cwt_sanity_check/").transform(samples_tocheck))
     prev_cwt_results = data_frame_cwt.loc[(rdm_idxs), :].values[:, :-N_META]
@@ -1169,58 +1169,6 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
         option, str(downsample_false_class), thresh_i, thresh_z, days, farm_id, n_repeats, n_splits, class0_count,
         class1_count, sampling)
 
-    if "no_norm" in option:
-        print('->StandardScaler->SVC')
-        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), SVC(probability=True, class_weight='balanced'))
-        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-        scores["downsample"] = downsample_false_class
-        scores["class0"] = y[y == class_healthy].size
-        scores["class1"] = y[y == class_unhealthy].size
-        scores["option"] = option
-        scores["days"] = days
-        scores["farm_id"] = farm_id
-        scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-        scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-        scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-        scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-        scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-        scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-        scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-        scores["sampling"] = sampling
-        scores["classifier"] = "->StandardScaler->SVC"
-        scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
-        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False),
-                                    SVC(probability=True, class_weight='balanced'))
-        aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cross_validation_method, param_str)
-        scores["roc_auc_score_mean"] = aucs
-        report_rows_list.append(scores)
-        del scores
-
-        print('->StandardScaler->Anscombe->SVC')
-        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), Anscombe(), SVC(probability=True, class_weight='balanced'))
-        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-        scores["downsample"] = downsample_false_class
-        scores["class0"] = y[y == class_healthy].size
-        scores["class1"] = y[y == class_unhealthy].size
-        scores["option"] = option
-        scores["days"] = days
-        scores["farm_id"] = farm_id
-        scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-        scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-        scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-        scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-        scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-        scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-        scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-        scores["sampling"] = sampling
-        scores["classifier"] = "->StandardScaler->Anscombe->SVC"
-        scores["classifier_details"] = str(clf_std_svc).replace('\n', '').replace(" ", '')
-        clf_std_svc = make_pipeline(preprocessing.StandardScaler(with_mean=True, with_std=False), Anscombe(), SVC(probability=True, class_weight='balanced'))
-        aucs = make_roc_curve(out_dir, clf_std_svc, X.copy(), y.copy(), cross_validation_method, param_str)
-        scores["roc_auc_score_mean"] = aucs
-        report_rows_list.append(scores)
-        del scores
-
 
     print('->SVC')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
@@ -1271,6 +1219,35 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
+
+
+    print('StandardScaler->SVC')
+    clf_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = option
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "StandardScaler->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
+    scores["roc_auc_score_mean"] = aucs
+    report_rows_list.append(scores)
+    del scores
+
+
+    #####################################################################################################################
 
 
     df_report = pd.DataFrame(report_rows_list)
