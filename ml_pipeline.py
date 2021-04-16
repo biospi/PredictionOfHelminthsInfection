@@ -1220,9 +1220,8 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     report_rows_list.append(scores)
     del scores
 
-
-    print('StandardScaler->SVC')
-    clf_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    print('Anscombe->Log->SVC')
+    clf_svc = make_pipeline(Anscombe(log=True), SVC(probability=True, class_weight='balanced'))
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1238,14 +1237,13 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
     scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
     scores["sampling"] = sampling
-    scores["classifier"] = "StandardScaler->SVC"
+    scores["classifier"] = "Anscombe->Log->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(preprocessing.StandardScaler(), SVC(probability=True, class_weight='balanced'))
+    clf_svc = make_pipeline(Anscombe(log=True), SVC(probability=True, class_weight='balanced'))
     aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
-
 
     #####################################################################################################################
 

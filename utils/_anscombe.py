@@ -33,8 +33,9 @@ def anscombe(arr, sigma_sq=0, alpha=1):
 
 
 class Anscombe(TransformerMixin, BaseEstimator):
-    def __init__(self, *, copy=True):
+    def __init__(self, *, log=False, copy=True):
         self.copy = copy
+        self.log = log
 
     def _reset(self):
         """Reset internal data-dependent state of the scaler, if necessary.
@@ -60,7 +61,10 @@ class Anscombe(TransformerMixin, BaseEstimator):
 
     def transform(self, X, copy=None):
         X = check_array(X, accept_sparse='csr')
-        return anscombe(X)
+        if self.log:
+            return np.log(anscombe(X))
+        else:
+            return anscombe(X)
 
     def inverse_transform(self, X):
         return inverse_anscombe(X)

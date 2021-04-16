@@ -9,7 +9,7 @@ from sklearn.utils import check_array
 import numpy as np
 from datetime import datetime, timedelta
 
-from utils.Utils import create_rec_dir
+from utils.Utils import create_rec_dir, anscombe
 
 np.random.seed(0)
 
@@ -18,7 +18,9 @@ def normalize(X, out_dir):
     out_dir_ = out_dir + "_normalisation"
     traces = []
     X = X.astype(np.float)
-    traces.append(plotHeatmap(np.array(X), out_dir_, "STEP 0 | Samples", "0_X_samples.html"))
+    zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+
+    traces.append(plotHeatmap(zmin, zmax, np.array(X).copy(), out_dir_, "STEP 0 | Samples", "0_X_samples.html", y_log=True))
 
     #step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
@@ -27,46 +29,38 @@ def normalize(X, out_dir):
     #step 2 divide each sample by median array keep div by 0 as NaN!!
     X_median = []
     for x in X:
-        div = np.divide(x, median_array) #return 0 if div by 0!
+        div = np.divide(x, median_array)
         div[div == -np.inf] = np.nan
         div[div == np.inf] = np.nan
+        div[div == 0] = np.nan
         X_median.append(div)
-    traces.append(plotHeatmap(np.array(X_median), out_dir_, "STEP 2 | divide each sample by median array keep div by 0 as NaN", "2_X_median.html", y_log=True))
+    traces.append(plotHeatmap(zmin, zmax, np.array(X_median).copy(), out_dir_, "STEP 2 | divide each sample by median array "
+                                                                        "keep div by 0 as NaN, set 0 to NaN", "2_X_median.html", y_log=True))
 
     #step 3 Within each sample (from iii) store the median value of the sample(excluding 0 value!), which will produce an array of
     # median values (1 per samples).
     within_median = []
     for msample in X_median:
         clean_sample = msample[~np.isnan(msample)]
-        ##clean_sample = clean_sample[clean_sample > 0]
-        clean_sample[clean_sample == 0] = 1
         within_median.append(np.median(clean_sample))
-    traces.append(plotLine([within_median], out_dir_, "STEP 3 | Within each sample (rows from step2) store the median value of the sample(exclude NaN and 0->1), which will produce an array of median values (1 per samples)", "3_within_median.html", x_axis_count=True))
+    traces.append(plotLine([within_median], out_dir_, "STEP 3 | Within each sample (rows from step2) store the median"
+                                                      " value of the sample, which will produce an array of median "
+                                                      "values (1 per samples)", "3_within_median.html", x_axis_count=True, y_log=True))
 
     #step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
     for i, s in enumerate(X):
         qnorm_samples.append(np.divide(s, within_median[i]))
-    traces.append(plotHeatmap(np.array(qnorm_samples), out_dir_, "STEP 4 | Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.", "4_qnorm_sample.html"))
+    traces.append(plotHeatmap(zmin, zmax, np.array(qnorm_samples).copy(), out_dir_, "STEP 4 | Use the array of medians"
+                                                                             " to scale(divide) each original sample,"
+                                                                             " which will give all quotient normalized samples.",
+                              "4_qnorm_sample.html", y_log=True))
 
     #step 5 substract step 1 from step 4
     diff = X - np.array(qnorm_samples)
-    traces.append(plotHeatmap(diff, out_dir_, "STEP 5 | Substract step 1 (original samples) from step 4 (quotient normalised samples)", "5_diff.html"))
+    traces.append(plotHeatmap(np.min(diff), np.max(diff), diff, out_dir_, "STEP 5 | Substract step 1 (original samples)"
+                                                                          " from step 4 (quotient normalised samples)", "5_diff.html"))
 
-    # #step 5 Multiply each quotient normalised sample by the total sum off all original samples divided by the sum of
-    # # f all element in the original corresponding sample.
-    # T = np.sum(X.flatten())
-    # t = []
-    # for orig_sample in X:
-    #     t.append(np.sum(orig_sample))
-    #
-    # qnorm_sample_ = []
-    # for i, qqsample in enumerate(qnorm_sample):
-    #     qnorm_sample_.append(qqsample * T/t[i])
-    #
-    # traces.append(plotHeatmap(np.array(qnorm_sample_), out_dir_, "STEP 5 | Multiply each quotient normalised sample by the "
-    #                                                             "total sum off all original samples divided by the sum of "
-    #                                                             "all element in the original corresponding sample.", "5_qnorm_sample_.html"))
     plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
 
     df_norm = np.array(qnorm_samples)
@@ -169,16 +163,18 @@ def get_time_ticks(nticks):
     return date_list
 
 
-def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
+def plotHeatmap(zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = get_time_ticks(X.shape[1])
     fig = make_subplots(rows=1, cols=1)
     if y_log:
-        X_log = np.log(X)
+        X_log = np.log(anscombe(X))
     trace = go.Heatmap(
             z=X_log if y_log else X,
             x=ticks,
             y=list(range(X.shape[0])),
+            zmin=zmin,
+            zmax=zmax,
             colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)

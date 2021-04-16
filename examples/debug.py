@@ -118,6 +118,7 @@ if __name__ == "__main__":
     df = pd.read_csv(str(path), index_col=None)
     df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
+    df = df.drop([2, 8, 5])
     print(df)
 
     t1 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (

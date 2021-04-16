@@ -84,7 +84,7 @@ def compute_cwt(X, out_dir):
     for activity in tqdm(X):
         y = activity
         w = wavelet.Morlet()
-        coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w, dj=1/24)
+        coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
         coefs_cc = np.conj(coefs)
         with np.errstate(divide='ignore'):#ignore numpy divide by zero warning
             #power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
@@ -94,7 +94,7 @@ def compute_cwt(X, out_dir):
         power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
         #power_masked, coi_line_array = power_cwt, []
 
-        plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs)
+        plot_cwt_power(out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
         power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]#remove masked values
         cwt.append(power_flatten_masked)
@@ -185,7 +185,7 @@ def get_time_ticks(nticks):
 def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_xrange=False, head=False):
     # fig = make_subplots(rows=len(transponders), cols=1)
     if head:
-        X = X[:2, :]
+        X = X[:4, :]
     ticks = get_time_ticks(X.shape[1])
     if force_xrange:
         ticks = list(range(X.shape[1]))

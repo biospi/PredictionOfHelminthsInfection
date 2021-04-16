@@ -8,6 +8,9 @@ import os
 import pymysql
 import pandas as pd
 from datetime import timedelta
+import numpy as np
+import time
+import datetime
 
 
 def purge_file(filename):
@@ -74,18 +77,47 @@ def get_historical_weather_data(farm_id=None, out_file=None, city=None):
     # days_ = list(set(days))
     # days_ = sorted(days_, key=lambda n: datetime.strptime(n, '%Y-%m-%d'))
     print(len(days_), days_)
+    REQ = 490
+    keys = ["cdb86ad906ff492cbcc111656211304", "4f95d1403a4c4e4485e230252211504", "6b7c8bdf73044f12a82230404211504"]
+    n_d = np.ceil(len(days_)/REQ)
+    print("For 500 req a day you'll need %d days." % n_d)
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
     purge_file(out_file)
     with open(out_file, 'a') as outfile:
-        for i, date in enumerate(days_):
-            PARAMS = {'key': "cdb86ad906ff492cbcc111656211304", 'q': "%s,south+africa" % city,
-                      'date': date, 'tp': 1, 'format': 'json'}
-            r = requests.get(url=URL, params=PARAMS)
-            data = r.json()
-            print(i, len(days_), data)
-            json.dump(data, outfile)
-            outfile.write('\n')
-            sleep(0.5)
+        i = 0
+        while True:
+            if i >= len(days_):
+                break
+
+            for key in keys:
+                cpt = 0
+
+                while True:
+                    if i >= len(days_):
+                        break
+
+                    PARAMS = {'key': key, 'q': "%s,south+africa" % city,
+                              'date': days_[i], 'tp': 1, 'format': 'json'}
+                    r = requests.get(url=URL, params=PARAMS)
+                    data = r.json()
+                    print("progress %d/%d" % (i, len(days_)))
+                    json.dump(data, outfile)
+                    outfile.write('\n')
+                    sleep(0.5)
+                    cpt += 1
+                    i += 1
+                    if cpt >= REQ:
+                        print("use next avail key %s." % key)
+                        break
+
+            print("used all avail keys wait until 2AM...")
+            t = datetime.datetime.today()
+            future = datetime.datetime(t.year, t.month, t.day, 2, 0)
+            if t.hour >= 2:
+                future += datetime.timedelta(days=1)
+            time.sleep((future - t).total_seconds())
+            print("reached max req %d for the day. Wait for next day..." % REQ*len(keys))
+
     print(outfile)
 
 
