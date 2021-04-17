@@ -109,7 +109,7 @@ def natural_keys(text):
 
 
 def format(text):
-    return text.replace("activity_no_norm", "TimeDom->").replace("activity_quotient_norm", "TimeDom->QN->").replace("cwt_quotient_norm", "CWT->QN->").replace("cwt_no_norm", "CWT->").replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->")
+    return text.replace("activity_no_norm", "TimeDom->").replace("activity_quotient_norm", "TimeDom->QN->").replace("cwt_quotient_norm", "TimeDom->QN->CWT->").replace("cwt_no_norm", "TimeDom->CWT->").replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->")
 
 
 if __name__ == "__main__":
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     df = pd.read_csv(str(path), index_col=None)
     df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
-    df = df.drop([2, 8, 5])
+
     print(df)
 
     t1 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
@@ -144,15 +144,20 @@ if __name__ == "__main__":
     fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=3, col=1)
     fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=4, col=1)
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.945, x1=1.0, y1=0.945, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+    fig.update_yaxes(range=[0, 1], row=1, col=1)
+    fig.update_yaxes(range=[0, 1], row=2, col=1)
+    fig.update_yaxes(range=[0, 1], row=3, col=1)
+    fig.update_yaxes(range=[0, 1], row=4, col=1)
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.665, x1=1.0, y1=0.665,
+    fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
                   line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.380, x1=1.0, y1=0.380,
+    fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
                   line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.110, x1=1.0, y1=0.110,
+    fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
                   line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
     # fig.update_layout(shapes=[

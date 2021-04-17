@@ -32,10 +32,9 @@ def anscombe(arr, sigma_sq=0, alpha=1):
     return f
 
 
-class Anscombe(TransformerMixin, BaseEstimator):
-    def __init__(self, *, log=False, copy=True):
+class Log(TransformerMixin, BaseEstimator):
+    def __init__(self, *, copy=True):
         self.copy = copy
-        self.log = log
 
     def _reset(self):
         """Reset internal data-dependent state of the scaler, if necessary.
@@ -61,10 +60,41 @@ class Anscombe(TransformerMixin, BaseEstimator):
 
     def transform(self, X, copy=None):
         X = check_array(X, accept_sparse='csr')
-        if self.log:
-            return np.log(anscombe(X))
-        else:
-            return anscombe(X)
+        return np.log(X)
+
+    def inverse_transform(self, X):
+        return np.exp(X)
+
+
+class Anscombe(TransformerMixin, BaseEstimator):
+    def __init__(self, *, copy=True):
+        self.copy = copy
+
+    def _reset(self):
+        """Reset internal data-dependent state of the scaler, if necessary.
+
+        __init__ parameters are not touched.
+        """
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse='csr')
+        return self
+
+    def partial_fit(self, X, y=None):
+        return self
+
+    def transform(self, X, copy=None):
+        X = check_array(X, accept_sparse='csr')
+        return anscombe(X)
 
     def inverse_transform(self, X):
         return inverse_anscombe(X)

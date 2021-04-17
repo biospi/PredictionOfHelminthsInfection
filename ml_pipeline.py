@@ -11,7 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from utils._anscombe import Anscombe
+from utils._anscombe import Anscombe, Log
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils._cwt import CWT
 from utils._normalisation import QuotientNormalizer
@@ -997,7 +997,11 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
 
 def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     print("make_roc_curve")
-    clf_name = "%s_%s" % ("_".join([x[0] for x in classifier.steps]), param_str)
+    details = str(classifier).replace('\n', '').replace(" ", '')
+    slug = "".join(x for x in details if x.isalnum())
+
+    clf_name = "%s_%s" % (slug, param_str)
+    print(clf_name)
 
     if isinstance(X, pd.DataFrame):
         X = X.values
@@ -1221,7 +1225,7 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     del scores
 
     print('Anscombe->Log->SVC')
-    clf_svc = make_pipeline(Anscombe(log=True), SVC(probability=True, class_weight='balanced'))
+    clf_svc = make_pipeline(Anscombe(), Log(), SVC(probability=True, class_weight='balanced'))
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -1239,7 +1243,33 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     scores["sampling"] = sampling
     scores["classifier"] = "Anscombe->Log->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(Anscombe(log=True), SVC(probability=True, class_weight='balanced'))
+    clf_svc = make_pipeline(Anscombe(), Log(), SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
+    scores["roc_auc_score_mean"] = aucs
+    report_rows_list.append(scores)
+    del scores
+
+
+    print('Anscombe->Log->SVC(linear)')
+    clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = option
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "Anscombe->Log->SVC(linear)"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
     aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
