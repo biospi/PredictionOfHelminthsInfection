@@ -1,10 +1,7 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from sklearn.base import TransformerMixin, BaseEstimator
-from sklearn.preprocessing import Normalizer
 from sklearn.utils import check_array
 import numpy as np
 from datetime import datetime, timedelta

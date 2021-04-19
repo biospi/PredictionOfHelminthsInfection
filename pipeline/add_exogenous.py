@@ -5,7 +5,7 @@ from sys import exit
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
-
+from tqdm import tqdm
 from utils.Utils import create_rec_dir
 
 
@@ -15,7 +15,7 @@ def get_temp(d_dates, weather_file_path, metric="temp_c"):
         data = json.load(json_file)
     print("loaded weather data")
     exo = []
-    for row in d_dates:
+    for row in tqdm(d_dates):
         temp_ = []
         #print(row)
         for item in row:
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     df.columns = header
     print(df)
     dates = df["date"]
-    dates = pd.to_datetime(dates).values
+    dates = pd.to_datetime(dates, format="%d/%m/%Y").values
     n_days = int(dataset.name.split("_")[-2])
 
     data = []
@@ -78,20 +78,27 @@ if __name__ == "__main__":
     df_temp = get_temp(np.array(data), weather_file, metric="temp_c")
     df_humidity = get_temp(np.array(data), weather_file, metric="humidity")
 
-    df_concat_temp_df = pd.concat([df_temp, df], axis=1)
-    df_concat_humidity_df = pd.concat([df_humidity, df], axis=1)
-    df_concat_temp_humidity_df = pd.concat([df_temp, df_humidity, df], axis=1)
+    df_concat_temp_df = pd.concat([df_temp], axis=1)
+    df_concat_humidity_df = pd.concat([df_humidity], axis=1)
+    df_concat_temp_humidity_df = pd.concat([df_temp, df_humidity], axis=1)
 
     out_dir_base = str(out_dir).replace("\\", "/")
     out_dir_temp = out_dir_base+"/temp"
     create_rec_dir(out_dir_temp)
+
     filename = "%s/temp_%s" % (out_dir_temp, dataset.name)
     print(filename)
     df_concat_temp_df.to_csv(filename, index=False)
-    filename = "%s/humidity_%s" % (out_dir, dataset.name)
+
+    out_dir_humidity = out_dir_base+"/humidity"
+    create_rec_dir(out_dir_humidity)
+    filename = "%s/humidity_%s" % (out_dir_humidity, dataset.name)
     print(filename)
     df_concat_humidity_df.to_csv(filename, index=False)
-    filename = "%s/temp_humidity_%s" % (out_dir, dataset.name)
+
+    out_dir_temp_humidity = out_dir_base+"/temp_humidity"
+    create_rec_dir(out_dir_temp_humidity)
+    filename = "%s/temp_humidity_%s" % (out_dir_temp_humidity, dataset.name)
     print(filename)
     df_concat_temp_humidity_df.to_csv(filename, index=False)
 

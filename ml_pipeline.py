@@ -1,5 +1,6 @@
 from __future__ import division  # for python2 regular div
 
+import argparse
 import gc
 import math
 import shutil
@@ -576,22 +577,28 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     data_frame_norm = data_frame.copy()
     data_frame_norm.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir).transform(data_frame_norm.iloc[:, :-N_META].values)
 
-    data_frame_cwt = pd.DataFrame(CWT(out_dir=graph_outputdir).transform(data_frame_norm.copy().iloc[:, :-N_META].values))
-    data_frame_cwt.index = data_frame_norm.index #!!!!
+    data_frame_cwt_norm = pd.DataFrame(CWT(out_dir=graph_outputdir+'cwt_norm/').transform(data_frame_norm.copy().iloc[:, :-N_META].values))
+    data_frame_cwt_norm.index = data_frame_norm.index #!!!!
     df_meta = data_frame_norm.iloc[:, -N_META:]
-    data_frame_cwt = pd.concat([data_frame_cwt, df_meta], axis=1)
+    data_frame_cwt_norm = pd.concat([data_frame_cwt_norm, df_meta], axis=1)
+
+    data_frame_cwt_no_norm = pd.DataFrame(CWT(out_dir=graph_outputdir+'cwt_no_norm').transform(data_frame.copy().iloc[:, :-N_META].values))
+    data_frame_cwt_no_norm.index = data_frame_norm.index #!!!!
+    df_meta = data_frame_norm.iloc[:, -N_META:]
+    data_frame_cwt_no_norm = pd.concat([data_frame_cwt_no_norm, df_meta], axis=1)
 
     #sanity check#################################################################################################
     rdm_idxs = random.choices(data_frame_norm.index.tolist(), k=1)
     samples_tocheck = data_frame_norm.loc[(rdm_idxs), :].values[:, :-N_META]
     cwt_to_check = pd.DataFrame(CWT(out_dir=graph_outputdir+"cwt_sanity_check/").transform(samples_tocheck))
-    prev_cwt_results = data_frame_cwt.loc[(rdm_idxs), :].values[:, :-N_META]
+    prev_cwt_results = data_frame_cwt_norm.loc[(rdm_idxs), :].values[:, :-N_META]
     assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
     #############################################################################################################
 
     data_frame = data_frame.iloc[:, :-N_META + 1]
     data_frame_norm = data_frame_norm.iloc[:, :-N_META + 1]
-    data_frame_cwt = data_frame_cwt.iloc[:, :-N_META + 1]
+    data_frame_cwt_norm = data_frame_cwt_norm.iloc[:, :-N_META + 1]
+    data_frame_cwt_no_norm = data_frame_cwt_no_norm.iloc[:, :-N_META + 1]
 
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
 
@@ -602,7 +609,8 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
         data_frame_norm["target"] = data_frame["target"]
-        data_frame_cwt["target"] = data_frame["target"]
+        data_frame_cwt_norm["target"] = data_frame["target"]
+        data_frame_cwt_no_norm["target"] = data_frame["target"]
 
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     print(label_series)
@@ -615,11 +623,13 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     # drop label column stored previously, just keep target for ml
     data_frame = data_frame.drop('label', 1)
     data_frame_norm = data_frame_norm.drop('label', 1)
-    data_frame_cwt = data_frame_cwt.drop('label', 1)
+    data_frame_cwt_norm = data_frame_cwt_norm.drop('label', 1)
+    data_frame_cwt_no_norm = data_frame_cwt_no_norm.drop('label', 1)
 
     print(data_frame)
     print(data_frame_norm)
-    print(data_frame_cwt)
+    print(data_frame_cwt_norm)
+    print(data_frame_cwt_no_norm)
 
     class_count = {}
     for k in label_series.keys():
@@ -697,7 +707,7 @@ def load_df_from_datasets(day, output_cwt, output_samples, class_healthy, class_
     #                                                           low_pass=hi_pass_filter, ntraces=ntraces, n_process=n_process)
 
     # concatenate_images("%s/input_graphs/*.png" % output_dir, filter="cwt", title="spectogram_tranform")
-    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt, label_series
+    return animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_cwt_no_norm, data_frame_cwt_norm, label_series
 
 
 def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir):
@@ -1250,30 +1260,30 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     del scores
 
 
-    print('Anscombe->Log->SVC(linear)')
-    clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["option"] = option
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["sampling"] = sampling
-    scores["classifier"] = "Anscombe->Log->SVC(linear)"
-    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
-    scores["roc_auc_score_mean"] = aucs
-    report_rows_list.append(scores)
-    del scores
+    # print('Anscombe->Log->SVC(linear)')
+    # clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
+    # scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    # scores["downsample"] = downsample_false_class
+    # scores["class0"] = y[y == class_healthy].size
+    # scores["class1"] = y[y == class_unhealthy].size
+    # scores["option"] = option
+    # scores["days"] = days
+    # scores["farm_id"] = farm_id
+    # scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    # scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    # scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    # scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    # scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    # scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    # scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    # scores["sampling"] = sampling
+    # scores["classifier"] = "Anscombe->Log->SVC(linear)"
+    # scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    # clf_svc = make_pipeline(Anscombe(), Log(), SVC(kernel='linear', probability=True, class_weight='balanced'))
+    # aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, param_str)
+    # scores["roc_auc_score_mean"] = aucs
+    # report_rows_list.append(scores)
+    # del scores
 
     #####################################################################################################################
 
@@ -1282,10 +1292,10 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     df_report["class_0_label"] = label_series[class_healthy]
     df_report["class_1_label"] = label_series[class_unhealthy]
     df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
-    df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
-                                                                                  'cvargs') else np.nan
-    df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
-                                                                          'n_repeats') else np.nan
+    # df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
+    #                                                                               'cvargs') else np.nan
+    # df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
+    #                                                                       'n_repeats') else np.nan
     df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in
                                    df_report["fit_time"].values]
     filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
@@ -1944,23 +1954,55 @@ def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, cl
 
     return df_cwt, results_cwt_matrix_healthy, results_cwt_matrix_unhealthy
 
+
+def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
+    # fig = make_subplots(rows=len(transponders), cols=1)
+    ticks = list(range(X.shape[1]))
+    fig = make_subplots(rows=1, cols=1)
+    if y_log:
+        X_log = np.log(anscombe(X))
+    trace = go.Heatmap(
+            z=X_log if y_log else X,
+            x=ticks,
+            y=list(range(X.shape[0])),
+            colorscale='Viridis')
+    fig.add_trace(trace, row=1, col=1)
+    fig.update_layout(title_text=title)
+    #fig.show()
+    create_rec_dir(out_dir)
+    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    print(file_path)
+    fig.write_html(file_path)
+    return trace, title
+
+
 #TODO MOVE ML TO NEW EXCLUSIVE SCRIPT
 if __name__ == "__main__":
-    print(
-        "args: <output_dir> <dataset_filepath> <class_healthy> <class_unhealthy> <stratify> <s_output> <cwt> <n_process>")
+    print("ML PIPELINE")
     print("********************************************************************")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output_dir', help='output directory', type=str)
+    parser.add_argument('dataset_folder', help='dataset input directory', type=str)
+    parser.add_argument('--class_healthy', help='target for healthy class', default=1, type=int)
+    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=2, type=int)
+    parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
+    parser.add_argument('--s_output', help='output sample files', default='y', type=str)
+    parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
+    parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
+    parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
+    parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
+    args = parser.parse_args()
 
-    if len(sys.argv) > 1:
-        output_dir = sys.argv[1]
-        dataset_folder = sys.argv[2]
-        class_healthy = int(sys.argv[3])
-        class_unhealthy = int(sys.argv[4])
-        stratify = str(sys.argv[5])
-        s_output = str(sys.argv[6])
-        cwt = str(sys.argv[7])
-        n_process = int(sys.argv[8])
-    else:
-        exit(-1)
+    output_dir = args.output_dir
+    dataset_folder = args.dataset_folder
+    class_healthy = args.class_healthy
+    class_unhealthy = args.class_unhealthy
+    stratify = args.stratify
+    s_output = args.s_output
+    cwt = args.cwt
+    hum_file = args.hum_file
+    temp_file = args.temp_file
+    n_process = args.n_process
 
     n_splits = 0
     n_repeats = 0
@@ -1977,38 +2019,69 @@ if __name__ == "__main__":
     print("output_samples=", output_samples)
     print("stratify=", stratify)
     print("output_cwt=", output_cwt)
+    print("hum_file=", hum_file)
+    print("temp_file=", temp_file)
     print("n_process=", n_process)
     print("loading dataset...")
     enable_downsample_df = False
     day = int(dataset_folder.split('_')[-1][0])
 
-    # if os.path.exists(output_dir):
-    #     print("purge %s..." % output_dir)
-    #     try:
-    #         shutil.rmtree(output_dir)
-    #     except IOError:
-    #         print("file not found.")
-
     files = glob2.glob(dataset_folder + "/*.csv")  # find datset files
     files = [file.replace("\\", '/') for file in files]
-    # files = [file.replace("\\", '/') for file in files if 'activity' in file]
     print("found %d files." % len(files))
+    print(files)
 
     MULTI_THREADING_ENABLED = (n_process > 0)
     print("MULTI_THREADING_ENABLED=", MULTI_THREADING_ENABLED)
 
+    has_humidity_data = False
+    if hum_file is not None:
+        has_humidity_data = True
+        print("humidity file detected!", hum_file)
+        df_hum = pd.read_csv(hum_file)
+        print(df_hum.shape)
+        plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
+
+    has_temperature_data = True
+    if temp_file is not None:
+        has_temperature_data = True
+        print("temperature file detected!", temp_file)
+        df_temp = pd.read_csv(temp_file)
+        plotHeatmap(df_temp.values, output_dir, "Samples temperature", "temperature.html")
+        print(df_temp.shape)
+
+    has_humidity_and_temp = False
+    if temp_file is not None and hum_file is not None:
+        has_humidity_and_temp = True
+        print("temperature file detected!", temp_file)
+        print("humidity file detected!", hum_file)
+        df_hum_temp = pd.concat([df_temp, df_hum], axis=1)
+        plotHeatmap(df_hum_temp.values, output_dir, "Samples temperature and Humidity", "temperature_humidity.html")
+        print(df_hum_temp.shape)
+
     for file in files:
-        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
+        animal_ids, class_healthy, class_unhealthy, data_frame_original, data_frame_no_norm, data_frame_norm,\
+        data_frame_cwt_no_norm, data_frame_median_norm_cwt, label_series = load_df_from_datasets(day,
             output_cwt, output_samples, class_healthy, class_unhealthy, enable_downsample_df, output_dir, file,
             hi_pass_filter=cwt_high_pass_filter, n_process=n_process)
         thresh_i, thresh_z, days, farm_id, option, sampling = parse_param_from_filename(file)
 
-        # data_frame_original, data_frame, data_frame_cwt = load_matlab_dataset(file)
-        print("thresh_i=", thresh_i)
-        print("thresh_z=", thresh_z)
         print("days=", days)
         print("farm_id=", farm_id)
         print("option=", option)
+
+        if has_humidity_data:
+            print("ADD EXOGENEOUS...")
+            df_hum = df_hum.loc[data_frame_norm.index]
+            data_frame_norm_hum = pd.concat([df_hum, data_frame_norm], axis=1)
+            data_frame_no_norm_hum = pd.concat([df_hum, data_frame_no_norm], axis=1)
+            data_frame_median_norm_cwt_hum = pd.concat([df_hum, data_frame_median_norm_cwt], axis=1)
+            data_frame_cwt_no_norm_hum = pd.concat([df_hum, data_frame_cwt_no_norm], axis=1)
+            df_hum["target"] = data_frame_norm["target"]
+            process_data_frame(stratify, animal_ids, output_dir, df_hum, days, farm_id, "humidity",
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_norm, days, farm_id, "activity_quotient_norm",
                            n_splits, n_repeats,
@@ -2020,11 +2093,39 @@ if __name__ == "__main__":
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                            cv="StratifiedLeaveTwoOut")
 
+        if has_humidity_data:
+            process_data_frame(stratify, animal_ids, output_dir, data_frame_norm_hum, days, farm_id, "activity_quotient_norm_humidity",
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
+
+            process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm_hum, days, farm_id, "activity_no_norm_humidity",
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
+
         if output_cwt:
             process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id,
                                "cwt_quotient_norm", n_splits, n_repeats,
                                sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                cv="StratifiedLeaveTwoOut")
+
+            process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id,
+                               "cwt_quotient_no_norm", n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
+
+            if has_humidity_data:
+                process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt_hum, days, farm_id,
+                                   "cwt_quotient_norm_humidity", n_splits, n_repeats,
+                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                                   cv="StratifiedLeaveTwoOut")
+
+                process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm_hum, days, farm_id,
+                                   "cwt_quotient_no_norm_humidity", n_splits, n_repeats,
+                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                                   cv="StratifiedLeaveTwoOut")
+
 
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
