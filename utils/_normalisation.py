@@ -15,7 +15,8 @@ def normalize(X, out_dir):
     out_dir_ = out_dir + "_normalisation"
     traces = []
     X = X.astype(np.float)
-    zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+    #zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+    zmin, zmax = None, None
 
     traces.append(plotHeatmap(zmin, zmax, np.array(X).copy(), out_dir_, "STEP 0 | Samples", "0_X_samples.html", y_log=True))
 
@@ -53,10 +54,10 @@ def normalize(X, out_dir):
                                                                              " which will give all quotient normalized samples.",
                               "4_qnorm_sample.html", y_log=True))
 
-    #step 5 substract step 1 from step 4
-    diff = X - np.array(qnorm_samples)
-    traces.append(plotHeatmap(np.min(diff), np.max(diff), diff, out_dir_, "STEP 5 | Substract step 1 (original samples)"
-                                                                          " from step 4 (quotient normalised samples)", "5_diff.html"))
+    #step 5 substract step 4 from step 1
+    diff = np.array(qnorm_samples) - median_array
+    traces.append(plotHeatmap(np.min(diff), np.max(diff), diff, out_dir_, "STEP 5 | Substract step 4 (quotient normalised samples)"
+                                                                          " from step 1 (median array)", "5_diff.html", y_log=True))
 
     plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
 
@@ -162,17 +163,25 @@ def get_time_ticks(nticks):
 
 def plotHeatmap(zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
     # fig = make_subplots(rows=len(transponders), cols=1)
-    ticks = get_time_ticks(X.shape[1])
+    # ticks = get_time_ticks(X.shape[1])
+    ticks = list(range(X.shape[1]))
     fig = make_subplots(rows=1, cols=1)
     if y_log:
         X_log = np.log(anscombe(X))
-    trace = go.Heatmap(
+    if zmin is None:
+        trace = go.Heatmap(
             z=X_log if y_log else X,
             x=ticks,
             y=list(range(X.shape[0])),
-            zmin=zmin,
-            zmax=zmax,
             colorscale='Viridis')
+    else:
+        trace = go.Heatmap(
+                z=X_log if y_log else X,
+                x=ticks,
+                y=list(range(X.shape[0])),
+                zmin=zmin,
+                zmax=zmax,
+                colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
     #fig.show()

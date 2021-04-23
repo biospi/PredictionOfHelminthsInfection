@@ -1,3 +1,5 @@
+import os
+
 from sklearn.utils import check_array
 from sklearn.base import TransformerMixin, BaseEstimator
 import pycwt as wavelet
@@ -9,8 +11,101 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from sys import exit
+import random
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
+from sklearn.metrics import make_scorer
+from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
+from sklearn.metrics import auc
+from sklearn.metrics import plot_roc_curve
+import plotly.express as px
 
 from utils.Utils import create_rec_dir
+
+
+def mean_confidence_interval(x):
+    # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
+    x.sort()
+    lo_x_boot = np.percentile(x, 2.5)
+    hi_x_boot = np.percentile(x, 97.5)
+    # print(lo_x_boot, hi_x_boot)
+    return lo_x_boot, hi_x_boot
+
+
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
+            label='Chance', alpha=1)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    # std_auc = np.std(aucs)
+    lo, hi = mean_confidence_interval(aucs)
+    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    if len(aucs) <= 2:
+        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
+    ax.plot(mean_fpr, mean_tpr, color='tab:blue',
+            label=label,
+            lw=2, alpha=.8)
+
+    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic iteration")
+    ax.legend(loc="lower right")
+    # fig.show()
+    path = "%s/roc_curve/png/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+
+    path = "%s/roc_curve/svg/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+    return mean_auc
+
+
+def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
+    print("make_roc_curve")
+    details = str(classifier).replace('\n', '').replace(" ", '')
+    slug = "".join(x for x in details if x.isalnum())
+
+    clf_name = "%s_%s" % (slug, param_str)
+    print(clf_name)
+
+    if isinstance(X, pd.DataFrame):
+        X = X.values
+
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+    plt.clf()
+    fig, ax = plt.subplots()
+    for i, (train, test) in enumerate(cv.split(X, y)):
+        if isinstance(cv, RepeatedStratifiedKFold):
+            print("make_roc_curve fold %d/%d" % (i, cv.get_n_splits()))
+        else:
+            print("make_roc_curve fold %d/%d" % (i, cv.nfold))
+        classifier.fit(X[train], y[train])
+        viz = plot_roc_curve(classifier, X[test], y[test],
+                             label=None,
+                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        if np.isnan(viz.roc_auc):
+            continue
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    print("make_roc_curve done!")
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, clf_name, fig)
+    plt.close(fig)
+    plt.clf()
+    return mean_auc
 
 
 def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
@@ -32,7 +127,7 @@ def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
     axs[1].set_title("CWT")
     axs[1].set_xlabel("Time")
     axs[1].set_ylabel("Frequency of wavelet")
-    # axs[1].set_yscale('log')
+    axs[1].set_yscale('log')
     # n_x_ticks = axs[1].get_xticks().shape[0]
     # labels = [item.strftime("%H:%M") for item in ticks]
     # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_x_ticks)))]
@@ -51,6 +146,7 @@ def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
     filepath = "%s/%s" % (out_dir, filename)
     create_rec_dir(filepath)
     # print('saving fig...')
+    print(filepath)
     fig.savefig(filepath)
     # print("saved!")
     fig.clear()
@@ -78,7 +174,6 @@ def compute_cwt(X, out_dir):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
-
     cwt = []
     i = 0
     for activity in tqdm(X):
@@ -89,11 +184,9 @@ def compute_cwt(X, out_dir):
         with np.errstate(divide='ignore'):#ignore numpy divide by zero warning
             #power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
             power_cwt = np.real(np.multiply(coefs, coefs_cc))
-
         # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
         power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
         #power_masked, coi_line_array = power_cwt, []
-
         plot_cwt_power(out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
         power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]#remove masked values
@@ -101,7 +194,7 @@ def compute_cwt(X, out_dir):
         i += 1
     cwt = np.array(cwt)
 
-    plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=True)
+    plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     return cwt
 
 
@@ -171,6 +264,7 @@ def plotLine(X, out_dir="", title="title", filename="file.html"):
     file_path = out_dir + "/" + filename.replace("=", "_").lower()
     print(file_path)
     fig.write_html(file_path)
+    # fig.show()
     return trace, title
 
 
@@ -198,7 +292,7 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
             colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
-    #fig.show()
+    # fig.show()
     create_rec_dir(out_dir)
     file_path = out_dir + "/" + filename.replace("=", "_").lower()
     print(file_path)
@@ -206,15 +300,178 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
     return trace, title
 
 
+def createSinWave(f, time):
+    t = np.linspace(0, time, int(time)+10)
+    y = np.sin(2. * np.pi * t * f)*100
+    return y.astype(int)
+
+
+def createSinWaves(d):
+    targets = []
+    waves = []
+    t = d
+    for _ in range(60):
+        waves.append(createSinWave(2 + random.random()/40, t))
+        targets.append(1)
+    for _ in range(60):
+        waves.append(createSinWave(5 + random.random()/40, t))
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
+
 if __name__ == "__main__":
     print("********CWT*********")
 
     out_dir = "F:/Data2/_cwt_debug"
-    X = np.array(createSyntheticActivityData())
-    plotHeatmap(X, out_dir=out_dir, title="Activity samples", filename="X.html")
+    #X = np.array(createSyntheticActivityData())
+    d = (60*60*24*1)/60
+    X, targets = createSinWaves(d)
+
+    X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
+    X.columns = list(range(X.shape[1]))
+    #plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
     X_CWT = CWT(out_dir=out_dir).transform(X)
 
-    plotHeatmap(X_CWT, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html")
-    print("********END*********")
+    #plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
+    print("********************")
+    report_rows_list = []
+    y = np.array(targets)
+    y = y.astype(int)
+
+    class_healthy = 1
+    class_unhealthy = 2
+    cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)
+    scoring = {
+        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
+    }
+
+    print('TimeDom->SVC')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = "TimeDom"
+    scores["days"] = d
+    scores["farm_id"] = 0
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["classifier"] = "->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, "time_dom")
+    scores["roc_auc_score_mean"] = aucs
+    print(aucs)
+    report_rows_list.append(scores)
+    del scores
+
+    print('CWT->SVC')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X_CWT.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["option"] = "CWT"
+    scores["days"] = d
+    scores["farm_id"] = 0
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["classifier"] = "->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X_CWT.copy(), y.copy(), cross_validation_method, "freq_dom")
+    scores["roc_auc_score_mean"] = aucs
+    print(aucs)
+    report_rows_list.append(scores)
+    del scores
+
+    df_report = pd.DataFrame(report_rows_list)
+
+    if not os.path.exists(out_dir):
+        print("mkdir", out_dir)
+        os.makedirs(out_dir)
+    filename = "%s/report.csv" % (out_dir)
+    df_report.to_csv(filename, sep=',', index=False)
+    print("filename=", filename)
+
+    print("REPORT")
+    df = pd.read_csv(str(filename), index_col=None)
+    df["class_0_label"] = "1"
+    df["class_1_label"] = "2"
+    df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
+    df = df.sort_values('roc_auc_score_mean')
+
+    print(df)
+
+    t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    df["class_1_label"].values[0])
+
+    fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+
+    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
+    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
+    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
+    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
+
+    fig.update_yaxes(range=[0, 1], row=1, col=1)
+    fig.update_yaxes(range=[0, 1], row=2, col=1)
+    fig.update_yaxes(range=[0, 1], row=3, col=1)
+    fig.update_yaxes(range=[0, 1], row=4, col=1)
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
+                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.update_xaxes(showticklabels=False)  # hide all the xticks
+    fig.update_xaxes(showticklabels=True, row=4, col=1)
+
+    # fig.update_layout(shapes=[
+    #     dict(
+    #         type='line',
+    #         color="MediumPurple",
+    #         yref='paper', y0=0.945, y1=0.945,
+    #         xref='x', x0=-0.5, x1=7.5
+    #     )
+    # ])
+    fig.update_yaxes(showgrid=True, gridwidth=1)
+    fig.update_xaxes(showgrid=True, gridwidth=1)
+    fig.write_html("ML_performance.html")
+    # fig.show()
 

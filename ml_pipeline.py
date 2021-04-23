@@ -1968,6 +1968,7 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=F
             colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
+    fig.update_layout(xaxis_title="Time in minutes")
     #fig.show()
     create_rec_dir(out_dir)
     file_path = out_dir + "/" + filename.replace("=", "_").lower()
@@ -2070,39 +2071,40 @@ if __name__ == "__main__":
         print("farm_id=", farm_id)
         print("option=", option)
 
-        if has_humidity_data:
-            print("ADD EXOGENEOUS...")
-            df_hum = df_hum.loc[data_frame_norm.index]
-            data_frame_norm_hum = pd.concat([df_hum, data_frame_norm], axis=1)
-            data_frame_no_norm_hum = pd.concat([df_hum, data_frame_no_norm], axis=1)
-            data_frame_median_norm_cwt_hum = pd.concat([df_hum, data_frame_median_norm_cwt], axis=1)
-            data_frame_cwt_no_norm_hum = pd.concat([df_hum, data_frame_cwt_no_norm], axis=1)
-            df_hum["target"] = data_frame_norm["target"]
-            process_data_frame(stratify, animal_ids, output_dir, df_hum, days, farm_id, "humidity",
-                               n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
+        # if has_humidity_data:
+        #     print("ADD EXOGENEOUS...")
+        #     df_hum = df_hum.loc[data_frame_norm.index]
+        #     plotHeatmap(df_hum.values, output_dir, "ML Samples Humidity", "ml_samples_humidity.html")
+        #     data_frame_norm_hum = pd.concat([df_hum, data_frame_norm], axis=1)
+        #     data_frame_no_norm_hum = pd.concat([df_hum, data_frame_no_norm], axis=1)
+        #     data_frame_median_norm_cwt_hum = pd.concat([df_hum, data_frame_median_norm_cwt], axis=1)
+        #     data_frame_cwt_no_norm_hum = pd.concat([df_hum, data_frame_cwt_no_norm], axis=1)
+        #     df_hum["target"] = data_frame_norm["target"]
+        #     process_data_frame(stratify, animal_ids, output_dir, df_hum, days, farm_id, "humidity",
+        #                        n_splits, n_repeats,
+        #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                        cv="StratifiedLeaveTwoOut")
 
         process_data_frame(stratify, animal_ids, output_dir, data_frame_norm, days, farm_id, "activity_quotient_norm",
                            n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                            cv="StratifiedLeaveTwoOut")
 
-        process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm, days, farm_id, "activity_no_norm",
-                           n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                           cv="StratifiedLeaveTwoOut")
+        # process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm, days, farm_id, "activity_no_norm",
+        #                    n_splits, n_repeats,
+        #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                    cv="StratifiedLeaveTwoOut")
 
-        if has_humidity_data:
-            process_data_frame(stratify, animal_ids, output_dir, data_frame_norm_hum, days, farm_id, "activity_quotient_norm_humidity",
-                               n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
-
-            process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm_hum, days, farm_id, "activity_no_norm_humidity",
-                               n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
+        # if has_humidity_data:
+        #     process_data_frame(stratify, animal_ids, output_dir, data_frame_norm_hum, days, farm_id, "activity_quotient_norm_humidity",
+        #                        n_splits, n_repeats,
+        #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                        cv="StratifiedLeaveTwoOut")
+        #
+        #     process_data_frame(stratify, animal_ids, output_dir, data_frame_no_norm_hum, days, farm_id, "activity_no_norm_humidity",
+        #                        n_splits, n_repeats,
+        #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                        cv="StratifiedLeaveTwoOut")
 
         if output_cwt:
             process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt, days, farm_id,
@@ -2110,21 +2112,21 @@ if __name__ == "__main__":
                                sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                cv="StratifiedLeaveTwoOut")
 
-            process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id,
-                               "cwt_quotient_no_norm", n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
+            # process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm, days, farm_id,
+            #                    "cwt_quotient_no_norm", n_splits, n_repeats,
+            #                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+            #                    cv="StratifiedLeaveTwoOut")
 
-            if has_humidity_data:
-                process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt_hum, days, farm_id,
-                                   "cwt_quotient_norm_humidity", n_splits, n_repeats,
-                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                                   cv="StratifiedLeaveTwoOut")
-
-                process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm_hum, days, farm_id,
-                                   "cwt_quotient_no_norm_humidity", n_splits, n_repeats,
-                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                                   cv="StratifiedLeaveTwoOut")
+            # if has_humidity_data:
+            #     process_data_frame(stratify, animal_ids, output_dir, data_frame_median_norm_cwt_hum, days, farm_id,
+            #                        "cwt_quotient_norm_humidity", n_splits, n_repeats,
+            #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+            #                        cv="StratifiedLeaveTwoOut")
+            #
+            #     process_data_frame(stratify, animal_ids, output_dir, data_frame_cwt_no_norm_hum, days, farm_id,
+            #                        "cwt_quotient_no_norm_humidity", n_splits, n_repeats,
+            #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+            #                        cv="StratifiedLeaveTwoOut")
 
 
     if not os.path.exists(output_dir):

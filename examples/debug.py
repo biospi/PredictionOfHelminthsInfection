@@ -109,7 +109,14 @@ def natural_keys(text):
 
 
 def format(text):
-    return text.replace("activity_no_norm", "TimeDom->").replace("activity_quotient_norm", "TimeDom->QN->").replace("cwt_quotient_norm", "TimeDom->QN->CWT->").replace("cwt_no_norm", "TimeDom->CWT->").replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->")
+    return text.replace("activity_no_norm", "TimeDom->")\
+        .replace("activity_quotient_norm", "TimeDom->QN->")\
+        .replace("cwt_quotient_norm", "TimeDom->QN->CWT->")\
+        .replace("cwt_no_norm", "TimeDom->CWT->") \
+        .replace("cwt_quotient_no_norm", "TimeDom->CWT->") \
+        .replace("humidity", "Humidity->") \
+        .replace("_humidity", "Humidity->") \
+        .replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->").replace("_","->")
 
 
 if __name__ == "__main__":
@@ -121,28 +128,30 @@ if __name__ == "__main__":
 
     print(df)
 
-    t1 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
     df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
     df["class_1_label"].values[0])
 
-    t2 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
     df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
     df["class_1_label"].values[0])
 
-    t3 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
     df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
     df["class_1_label"].values[0])
 
-    t4 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
     df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
     df["class_1_label"].values[0])
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
-    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=1, col=1)
-    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=2, col=1)
-    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=3, col=1)
-    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=4, col=1)
+    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
+    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
+    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
+    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
+
+
 
     fig.update_yaxes(range=[0, 1], row=1, col=1)
     fig.update_yaxes(range=[0, 1], row=2, col=1)
@@ -160,6 +169,9 @@ if __name__ == "__main__":
     fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
                   line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
+    fig.update_xaxes(showticklabels=False)  # hide all the xticks
+    fig.update_xaxes(showticklabels=True, row=4, col=1)
+
     # fig.update_layout(shapes=[
     #     dict(
     #         type='line',
@@ -168,9 +180,9 @@ if __name__ == "__main__":
     #         xref='x', x0=-0.5, x1=7.5
     #     )
     # ])
-    # fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
-    # fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightPink')
-
+    fig.update_yaxes(showgrid=True, gridwidth=1)
+    fig.update_xaxes(showgrid=True, gridwidth=1)
+    fig.write_html("ML_performance.html")
     fig.show()
 
     # files = []
