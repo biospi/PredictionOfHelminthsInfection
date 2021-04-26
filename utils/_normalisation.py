@@ -15,8 +15,8 @@ def normalize(X, out_dir):
     out_dir_ = out_dir + "_normalisation"
     traces = []
     X = X.astype(np.float)
-    #zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
-    zmin, zmax = None, None
+    zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+    #zmin, zmax = None, None
 
     traces.append(plotHeatmap(zmin, zmax, np.array(X).copy(), out_dir_, "STEP 0 | Samples", "0_X_samples.html", y_log=True))
 
@@ -55,9 +55,10 @@ def normalize(X, out_dir):
                               "4_qnorm_sample.html", y_log=True))
 
     #step 5 substract step 4 from step 1
-    diff = np.array(qnorm_samples) - median_array
-    traces.append(plotHeatmap(np.min(diff), np.max(diff), diff, out_dir_, "STEP 5 | Substract step 4 (quotient normalised samples)"
-                                                                          " from step 1 (median array)", "5_diff.html", y_log=True))
+    diff = np.log(anscombe(np.array(qnorm_samples))) - np.log(anscombe(median_array))
+
+    traces.append(plotHeatmap(zmin, zmax, diff, out_dir_, "STEP 5 | Substract step 4 (quotient normalised samples)"
+                                                                          " from step 1 (median array)", "5_diff.html", y_log=False))
 
     plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
 

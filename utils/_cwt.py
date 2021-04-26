@@ -24,6 +24,7 @@ from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 
 from utils.Utils import create_rec_dir
+from utils.visualisation import plot_cwt_power_sidebyside
 
 
 def mean_confidence_interval(x):
@@ -170,11 +171,25 @@ def mask_cwt(cwt, coi, scales, turn_off=False):
     return cwt, coi_line
 
 
+def CWTVisualisation(graph_outputdir, shape, freqs, coi_line_array,
+                  df_timedomain, df_cwt,
+                  class_healthy_label, class_unhealthy_label,
+                  class_healthy, class_unhealthy):
+    idx_healthy = df_timedomain[df_timedomain["target"] == class_healthy].index.tolist()
+    idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
+    h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
+    uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
+    plot_cwt_power_sidebyside(True, class_healthy_label, class_unhealthy_label, class_healthy,
+                                  class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
+                                  graph_outputdir, h_m, uh_m, freqs, ntraces=2)
+
+
 def compute_cwt(X, out_dir):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
+    cwt_full = []
     i = 0
     for activity in tqdm(X):
         y = activity
@@ -186,22 +201,29 @@ def compute_cwt(X, out_dir):
             power_cwt = np.real(np.multiply(coefs, coefs_cc))
         # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
         power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+        shape = power_cwt.shape
         #power_masked, coi_line_array = power_cwt, []
         plot_cwt_power(out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
+        cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]#remove masked values
         cwt.append(power_flatten_masked)
         i += 1
     cwt = np.array(cwt)
+    cwt_full = np.array(cwt_full)
 
-    plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
-    return cwt
+    # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
+    plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
+    return cwt, cwt_full, freqs, coi, shape
 
 
 class CWT(TransformerMixin, BaseEstimator):
     def __init__(self, *, out_dir=None, copy=True):
         self.out_dir = out_dir
         self.copy = copy
+        self.freqs = None
+        self.coi = None
+        self.shape = None
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -219,7 +241,11 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         #copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt = compute_cwt(X, self.out_dir)
+        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir)
+        self.freqs = freqs
+        self.coi = coi
+        self.shape = shape
+        self.cwt_full = cwt_full
         return cwt
 
 
@@ -278,8 +304,8 @@ def get_time_ticks(nticks):
 
 def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_xrange=False, head=False):
     # fig = make_subplots(rows=len(transponders), cols=1)
-    if head:
-        X = X[:4, :]
+    if head and X.shape[0] > 4:
+        X = X[[0, 1, -2, -1]]
     ticks = get_time_ticks(X.shape[1])
     if force_xrange:
         ticks = list(range(X.shape[1]))
@@ -301,9 +327,23 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
 
 
 def createSinWave(f, time):
-    t = np.linspace(0, time, int(time)+10)
+    t = np.linspace(0, time, int(time))
     y = np.sin(2. * np.pi * t * f)*100
-    return y.astype(int)
+    return y.astype(float)
+
+
+def createPoisson(f, time, freq):
+    t = np.linspace(0, time, int(time))
+    y = np.random.poisson(int(f+2), size=int(time))*np.sin(2. * np.pi * t * (freq+np.random.random()/100))
+    y[y < 0] = 0
+    return y
+
+
+def createNormal(f, time, freq):
+    t = np.linspace(0, time, int(time))
+    y = np.random.normal(int(f+2), size=int(time))*np.sin(2. * np.pi * t * (freq+np.random.random()/100))
+    y[y < 0] = 0
+    return y
 
 
 def createSinWaves(d):
@@ -311,10 +351,37 @@ def createSinWaves(d):
     waves = []
     t = d
     for _ in range(60):
-        waves.append(createSinWave(2 + random.random()/40, t))
+        waves.append(createSinWave(200+random.random()/10, t))
         targets.append(1)
     for _ in range(60):
-        waves.append(createSinWave(5 + random.random()/40, t))
+        waves.append(createSinWave(100+random.random()/10, t))
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
+def createPoisonWaves(d):
+    targets = []
+    waves = []
+    t = d
+    for _ in range(60):
+        waves.append(createPoisson(random.random(), t, 10))
+        targets.append(1)
+    for _ in range(60):
+        waves.append(createPoisson(random.random(), t, 2))
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
+
+def createNormalWaves(d):
+    targets = []
+    waves = []
+    t = d
+    for _ in range(60):
+        waves.append(createNormal(random.random(), t, 10))
+        targets.append(1)
+    for _ in range(60):
+        waves.append(createNormal(random.random(), t, 2))
         targets.append(2)
     waves = np.array(waves)
     return waves, targets
@@ -323,155 +390,164 @@ def createSinWaves(d):
 if __name__ == "__main__":
     print("********CWT*********")
 
-    out_dir = "F:/Data2/_cwt_debug"
-    #X = np.array(createSyntheticActivityData())
-    d = (60*60*24*1)/60
-    X, targets = createSinWaves(d)
+    for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
+        for out_dir in ["F:/Data2/_cwt_debug_poisson_%d/" % d, "F:/Data2/_cwt_debug_normal_%d/" % d]:
+            #X = np.array(createSyntheticActivityData()
+            #X, targets = createSinWaves(d)
+            #X, targets = createPoisonWaves(d)
+            if "poisson" in out_dir:
+                X, targets = createPoisonWaves(d)
 
-    X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
-    X.columns = list(range(X.shape[1]))
-    #plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
+            if "normal" in out_dir:
+                X, targets = createNormalWaves(d)
 
-    X_CWT = CWT(out_dir=out_dir).transform(X)
+            #X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
+            #X.columns = list(range(X.shape[1]))
+            #plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
-    #plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
-    print("********************")
-    report_rows_list = []
-    y = np.array(targets)
-    y = y.astype(int)
+            X_CWT = CWT(out_dir=out_dir).transform(X)
 
-    class_healthy = 1
-    class_unhealthy = 2
-    cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)
-    scoring = {
-        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
-        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
-        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
-        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
-        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
-        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
-        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
-        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
-    }
+            #plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
+            print("********************")
+            report_rows_list = []
+            y = np.array(targets)
+            y = y.astype(int)
 
-    print('TimeDom->SVC')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["option"] = "TimeDom"
-    scores["days"] = d
-    scores["farm_id"] = 0
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["classifier"] = "->SVC"
-    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, "time_dom")
-    scores["roc_auc_score_mean"] = aucs
-    print(aucs)
-    report_rows_list.append(scores)
-    del scores
+            class_healthy = 1
+            class_unhealthy = 2
+            cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)
+            scoring = {
+                'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+                # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+                'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+                'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+                'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+                'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+                'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+                'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
+            }
 
-    print('CWT->SVC')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    scores = cross_validate(clf_svc, X_CWT.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["option"] = "CWT"
-    scores["days"] = d
-    scores["farm_id"] = 0
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["classifier"] = "->SVC"
-    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_svc, X_CWT.copy(), y.copy(), cross_validation_method, "freq_dom")
-    scores["roc_auc_score_mean"] = aucs
-    print(aucs)
-    report_rows_list.append(scores)
-    del scores
+            print('TimeDom->SVC')
+            clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+            scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+            scores["class0"] = y[y == class_healthy].size
+            scores["class1"] = y[y == class_unhealthy].size
+            scores["option"] = "TimeDom"
+            scores["days"] = d
+            scores["farm_id"] = 0
+            scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+            scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+            scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+            scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+            scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+            scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+            scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+            scores["classifier"] = "->SVC"
+            scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+            clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+            aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, "time_dom")
+            scores["roc_auc_score_mean"] = aucs
+            print(aucs)
+            report_rows_list.append(scores)
+            del scores
 
-    df_report = pd.DataFrame(report_rows_list)
+            print('CWT->SVC')
+            clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+            scores = cross_validate(clf_svc, X_CWT.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+            scores["class0"] = y[y == class_healthy].size
+            scores["class1"] = y[y == class_unhealthy].size
+            scores["option"] = "CWT"
+            scores["days"] = d
+            scores["farm_id"] = 0
+            scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+            scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+            scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+            scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+            scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+            scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+            scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+            scores["classifier"] = "->SVC"
+            scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+            clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+            aucs = make_roc_curve(out_dir, clf_svc, X_CWT.copy(), y.copy(), cross_validation_method, "freq_dom")
+            scores["roc_auc_score_mean"] = aucs
+            print(aucs)
+            report_rows_list.append(scores)
+            del scores
 
-    if not os.path.exists(out_dir):
-        print("mkdir", out_dir)
-        os.makedirs(out_dir)
-    filename = "%s/report.csv" % (out_dir)
-    df_report.to_csv(filename, sep=',', index=False)
-    print("filename=", filename)
+            df_report = pd.DataFrame(report_rows_list)
 
-    print("REPORT")
-    df = pd.read_csv(str(filename), index_col=None)
-    df["class_0_label"] = "1"
-    df["class_1_label"] = "2"
-    df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
-    df = df.sort_values('roc_auc_score_mean')
+            if not os.path.exists(out_dir):
+                print("mkdir", out_dir)
+                os.makedirs(out_dir)
+            filename = "%s/report.csv" % (out_dir)
+            df_report.to_csv(filename, sep=',', index=False)
+            print("filename=", filename)
 
-    print(df)
+            print("REPORT")
+            df = pd.read_csv(str(filename), index_col=None)
+            df["class_0_label"] = "1"
+            df["class_1_label"] = "2"
+            df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
+            df = df.sort_values('roc_auc_score_mean')
 
-    t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+            print(df)
 
-    t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+            t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+            df["class_1_label"].values[0])
 
-    t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+            t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+            df["class_1_label"].values[0])
 
-    t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+            t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+            df["class_1_label"].values[0])
 
-    fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+            t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+            df["class_1_label"].values[0])
 
-    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
-    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
-    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
-    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
+            fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
-    fig.update_yaxes(range=[0, 1], row=1, col=1)
-    fig.update_yaxes(range=[0, 1], row=2, col=1)
-    fig.update_yaxes(range=[0, 1], row=3, col=1)
-    fig.update_yaxes(range=[0, 1], row=4, col=1)
+            fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
+            fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
+            fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
+            fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+            fig.update_yaxes(range=[0, 1], row=1, col=1)
+            fig.update_yaxes(range=[0, 1], row=2, col=1)
+            fig.update_yaxes(range=[0, 1], row=3, col=1)
+            fig.update_yaxes(range=[0, 1], row=4, col=1)
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+            fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+            fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
+                          line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+            fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
+                          line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
-    fig.update_xaxes(showticklabels=False)  # hide all the xticks
-    fig.update_xaxes(showticklabels=True, row=4, col=1)
+            fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
+                          line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
-    # fig.update_layout(shapes=[
-    #     dict(
-    #         type='line',
-    #         color="MediumPurple",
-    #         yref='paper', y0=0.945, y1=0.945,
-    #         xref='x', x0=-0.5, x1=7.5
-    #     )
-    # ])
-    fig.update_yaxes(showgrid=True, gridwidth=1)
-    fig.update_xaxes(showgrid=True, gridwidth=1)
-    fig.write_html("ML_performance.html")
-    # fig.show()
+            fig.update_xaxes(showticklabels=False)  # hide all the xticks
+            fig.update_xaxes(showticklabels=True, row=4, col=1)
+
+            # fig.update_layout(shapes=[
+            #     dict(
+            #         type='line',
+            #         color="MediumPurple",
+            #         yref='paper', y0=0.945, y1=0.945,
+            #         xref='x', x0=-0.5, x1=7.5
+            #     )
+            # ])
+            fig.update_yaxes(showgrid=True, gridwidth=1)
+            fig.update_xaxes(showgrid=True, gridwidth=1)
+
+            filename = "%s/ML_performance.html" % (out_dir)
+            print(filename)
+            fig.write_html(filename)
+            # fig.show()
 

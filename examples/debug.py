@@ -121,7 +121,7 @@ def format(text):
 
 if __name__ == "__main__":
 
-    path = "F:/Data2/biospi/ml_gain_1_4_7day/final_classification_report_cv_0_0.csv"
+    path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report_cv_0_0.csv"
     df = pd.read_csv(str(path), index_col=None)
     df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
