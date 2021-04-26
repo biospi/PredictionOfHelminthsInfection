@@ -22,113 +22,88 @@
 #%%
 
 import argparse
+import gc
 import glob
 import os
 import random
-import shutil
+import time
 import warnings
-import pandas as pd
-from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 import numpy as np
-import plotly.graph_objects as go
-from utils.Utils import anscombe, create_rec_dir
+import pandas as pd
+from sklearn.cross_decomposition import PLSRegression
+from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
+    plot_roc_curve
+from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import SVC
+from utils.Utils import create_rec_dir
 from utils._anscombe import Anscombe, Log
+from utils._custom_split import StratifiedLeaveTwoOut
 from utils._cwt import CWT, CWTVisualisation
 from utils._normalisation import QuotientNormalizer
-import matplotlib.pyplot as plt
-from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
-
-from utils.visualisation import plot_time_pca, plot_groups, plot_time_lda
+from utils.visualisation import plot_time_pca, plot_groups, plot_time_lda, plot_2d_space, plotMlReport, plotHeatmap, \
+    plot_zeros_distrib, plot_roc_range
 
 
-def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title="Percentage of zeros in activity per sample"):
-    print("plot_zeros_distrib...")
-    data = {}
-    target_labels = []
-    z_prct = []
-
-    for index, row in data_frame_no_norm.iterrows():
-        a = row[:-1].values
-        label = label_series[row[-1]]
-
-        target_labels.append(label)
-        z_prct.append(np.sum(a == np.log(anscombe(0))) / len(a))
-
-        if label not in data.keys():
-            data[label] = a
-        else:
-            data[label] = np.append(data[label], a)
-    distrib = {}
-    for key, value in data.items():
-        zeros_count = np.sum(value == np.log(anscombe(0))) / len(value)
-        lcount = np.sum(data_frame_no_norm["target"] == {v: k for k, v in label_series.items()}[key])
-        distrib[str(key) + " (%d)" % lcount] = zeros_count
-
-    plt.bar(range(len(distrib)), list(distrib.values()), align='center')
-    plt.xticks(range(len(distrib)), list(distrib.keys()))
-    plt.title(title)
-    plt.xlabel('Famacha samples (number of sample in class)')
-    plt.ylabel('Percentage of zero values in samples')
-    # plt.show()
-    print(distrib)
-
-    df = pd.DataFrame.from_dict({'Percent of zeros': z_prct, 'Target': target_labels})
-    df.to_csv(graph_outputdir + "/z_prct_data.csv")
-    g = (ggplot(df)  # defining what data to use
-         + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defining what variable to use
-         + geom_jitter()  # defining the type of plot to use
-         + stat_summary(geom="crossbar", color="black", width=0.2)
-         + theme(subplots_adjust={'right': 0.82})
-         )
-
-    fig = g.draw()
-    fig.tight_layout()
-    # fig.show()
-    filename = "zero_percent_%s.png" % title.lower().replace(" ","_")
-    filepath = "%s/%s" % (graph_outputdir, filename)
-    # print('saving fig...')
-    fig.savefig(filepath)
-    # print("saved!")
-    fig.clear()
+def make_roc_curve(out_dir, classifier, X, y, cv, steps):
+    print("make_roc_curve")
+    if isinstance(X, pd.DataFrame):
+        X = X.values
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+    plt.clf()
+    fig, ax = plt.subplots()
+    for i, (train, test) in enumerate(cv.split(X, y)):
+        print("make_roc_curve fold %d/%d" % (i, cv.nfold))
+        classifier.fit(X[train], y[train])
+        viz = plot_roc_curve(classifier, X[test], y[test],
+                             label=None,
+                             alpha=0.3, lw=1, ax=ax, c="tab:blue")
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        if np.isnan(viz.roc_auc):
+            continue
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+    print("make_roc_curve done!")
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, steps, fig)
     plt.close(fig)
+    plt.clf()
+    return mean_auc
 
 
-def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
-    # fig = make_subplots(rows=len(transponders), cols=1)
-    ticks = list(range(X.shape[1]))
-    fig = make_subplots(rows=1, cols=1)
-    if y_log:
-        X_log = np.log(anscombe(X))
-    trace = go.Heatmap(
-            z=X_log if y_log else X,
-            x=ticks,
-            y=list(range(X.shape[0])),
-            colorscale='Viridis')
-    fig.add_trace(trace, row=1, col=1)
-    fig.update_layout(title_text=title)
-    fig.update_layout(xaxis_title="Time in minutes")
-    #fig.show()
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
-    print(file_path)
-    fig.write_html(file_path)
-    return trace, title
+def downsample_df(data_frame, class_healthy, class_unhealthy):
+    df_true = data_frame[data_frame['target'] == class_unhealthy]
+    df_false = data_frame[data_frame['target'] == class_healthy]
+    try:
+        if df_false.shape[0] > df_true.shape[0]:
+            df_false = df_false.sample(df_true.shape[0])
+        else:
+            print("more 12 to 11.")
+            df_true = df_true.sample(df_false.shape[0])
+    except ValueError as e:
+        print(e)
+        return
+    data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+    return data_frame
 
 
 def setupGraphOutputPath(output_dir):
     graph_outputdir = "%s/input_graphs/" % output_dir
-    if os.path.exists(graph_outputdir):
-        print("purge %s ..." % graph_outputdir)
-        try:
-            shutil.rmtree(graph_outputdir)
-        except IOError:
-            print("file not found.")
+    # if os.path.exists(graph_outputdir):
+    #     print("purge %s ..." % graph_outputdir)
+    #     try:
+    #         shutil.rmtree(graph_outputdir)
+    #     except IOError:
+    #         print("file not found.")
     create_rec_dir(graph_outputdir)
     return graph_outputdir
 
 
 def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealth):
-
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + step_slug
 
@@ -190,6 +165,130 @@ def loadActivityData(filepath):
     return data_frame, N_META
 
 
+def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+                       downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
+                       cv="l2out"):
+    print("*******************************************************************")
+    mlp_layers = (1000, 500, 100, 45, 30, 15)
+    print(label_series)
+    data_frame["id"] = animal_ids
+    data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
+    if downsample_false_class:
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+
+    #animal_ids = data_frame["id"].tolist()
+    sample_idxs = data_frame.index.tolist()
+
+    if cv == "StratifiedLeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify, verbose=True)
+
+    if cv == "RepeatedStratifiedKFold":
+        cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
+    data_frame = data_frame.drop("id", 1)
+    report_rows_list = []
+    y = data_frame[y_col].values.flatten()
+    y = y.astype(int)
+    X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+
+    print("release data_frame memory...")
+    del data_frame
+    gc.collect()
+    print("****************************")
+
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+
+    filename_2d_scatter = "%s/PLS/%s_2DPLS_days_%d_option_%s_downsampled_%s_sampling_%s.png" % (
+        output_dir, farm_id, days, steps, downsample_false_class, sampling)
+
+    pls = PLSRegression(n_components=2)
+    X_pls = pls.fit_transform(X.copy(), y.copy())[0]
+    plot_2d_space(X_pls, y, filename_2d_scatter, label_series, '2 PLS components ' + steps)
+
+    print("************************************************")
+    print("downsample on= " + str(downsample_false_class))
+    class0_count = str(y[y == class_healthy].size)
+    class1_count = str(y[y == class_unhealthy].size)
+    print("X-> class0=" + class0_count + " class1=" + class1_count)
+    try:
+        if int(class1_count) < 2 or int(class0_count) < 2:
+            print("not enough samples!")
+            return
+    except ValueError as e:
+        print(e)
+        return
+
+    scoring = {
+        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
+    }
+
+    # param_str = "option_%s_downsample_%s_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (
+    #     steps, str(downsample_false_class), days, farm_id, n_repeats, n_splits, class0_count,
+    #     class1_count, sampling)
+
+    print('->SVC')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+    scores["downsample"] = downsample_false_class
+    scores["class0"] = y[y == class_healthy].size
+    scores["class1"] = y[y == class_unhealthy].size
+    scores["steps"] = steps
+    scores["days"] = days
+    scores["farm_id"] = farm_id
+    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+    scores["sampling"] = sampling
+    scores["classifier"] = "->SVC"
+    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps)
+    scores["roc_auc_score_mean"] = aucs
+    report_rows_list.append(scores)
+    del scores
+
+    df_report = pd.DataFrame(report_rows_list)
+    df_report["class_0_label"] = label_series[class_healthy]
+    df_report["class_1_label"] = label_series[class_unhealthy]
+    df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
+    # df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
+    #                                                                               'cvargs') else np.nan
+    # df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
+    #                                                                       'n_repeats') else np.nan
+    df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in
+                                   df_report["fit_time"].values]
+    filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+        output_dir, farm_id, days, steps, downsample_false_class, sampling)
+    if not os.path.exists(output_dir):
+        print("mkdir", output_dir)
+        os.makedirs(output_dir)
+    df_report.to_csv(filename, sep=',', index=False)
+    print("filename=", filename)
+
+
+def parse_param_from_filename(file):
+    split = file.split("/")[-1].split('.')[0].split('_')
+    # activity_delmas_70101200027_dbft_1_1min
+    sampling = split[5]
+    days = int(split[4])
+    farm_id = split[1] + "_" + split[2]
+    option = split[0]
+    return days, farm_id, option, sampling
+
+
 if __name__ == "__main__":
     print("ML PIPELINE")
     print("********************************************************************")
@@ -203,6 +302,8 @@ if __name__ == "__main__":
     parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
     parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
+    parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
+    parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -215,6 +316,8 @@ if __name__ == "__main__":
     cwt = args.cwt
     hum_file = args.hum_file
     temp_file = args.temp_file
+    n_splits = args.n_splits
+    n_repeats = args.n_repeats
     n_process = args.n_process
 
     stratify = "y" in stratify.lower()
@@ -292,34 +395,80 @@ if __name__ == "__main__":
         # keep only two class of samples
         data_frame = data_frame[data_frame["target"].isin([class_healthy, class_unhealthy])]
 
-        # ["QN", "ANSCOMBE", "LOG", "CWT"]
-        df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["CWT"],
-                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
-
-        df_processed = df_processed.iloc[:, :-N_META + 1]
-
+        ################################################################################################################
         ##VISUALISATION
-        df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"])
+        df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"],
+                                          class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         plot_zeros_distrib(label_series, df_norm, output_dir,
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
                            title='Percentage of zeros in activity per sample before normalisation')
 
-        plot_time_pca(data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
-        plot_time_pca(df_norm, output_dir, label_series, title="PCA time domain after normalisation")
+        plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
+        plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
 
-        plot_time_lda(data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
-        plot_time_lda(data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
+        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
+        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
 
         animal_ids = df_norm.iloc[0:len(df_norm), :]["id"].astype(str).tolist()
         ntraces = 2
-        idx_healthy, idx_unhealthy = plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy,
+        idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
+                                                 class_healthy,
                                                  class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
                                                  xlabel="Time",
                                                  ylabel="activity", ntraces=ntraces)
-        plot_groups(animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
                     output_dir,
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+        ################################################################################################################
+        #["QN", "ANSCOMBE", "LOG", "CWT"]
+        for steps in [["QN"], ["QN", "ANSCOMBE"], ["QN", "ANSCOMBE", "LOG"]]:
+            step_slug = "_".join(steps)
+            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+            targets = df_processed["target"]
+            df_processed = df_processed.iloc[:, :-N_META]
+            df_processed["target"] = targets
+            days, farm_id, option, sampling = parse_param_from_filename(file)
+            process_data_frame(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
 
+        steps = ["QN", "ANSCOMBE", "LOG", "HUMIDITY"]
+        step_slug = "_".join(steps)
+        df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+        targets = df_processed["target"]
+        df_processed = df_processed.iloc[:, :-N_META]
+        df_processed["target"] = targets
+        days, _, _, _ = parse_param_from_filename(file)
+        process_data_frame(stratify, animal_ids, output_dir, pd.concat([df_hum, df_processed], axis=1), days, farm_id, step_slug,
+                           n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                           cv="StratifiedLeaveTwoOut")
 
+        steps = ["QN", "ANSCOMBE", "LOG", "TEMPERATURE"]
+        step_slug = "_".join(steps)
+        df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+        targets = df_processed["target"]
+        df_processed = df_processed.iloc[:, :-N_META]
+        df_processed["target"] = targets
+        days, _, _, _ = parse_param_from_filename(file)
+        process_data_frame(stratify, animal_ids, output_dir, pd.concat([df_temp, df_processed], axis=1), days, farm_id, step_slug,
+                           n_splits, n_repeats,
+                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                           cv="StratifiedLeaveTwoOut")
+
+    files = [output_dir + "/" + file for file in os.listdir(output_dir) if file.endswith(".csv")]
+    print("found %d files." % len(files))
+    print("compiling final file...")
+    df_final = pd.DataFrame()
+    dfs = [pd.read_csv(file, sep=",") for file in files]
+    df_final = pd.concat(dfs)
+    filename = "%s/final_classification_report.csv" % output_dir
+    df_final.to_csv(filename, sep=',', index=False)
+    print(df_final)
+    plotMlReport(filename, output_dir)
