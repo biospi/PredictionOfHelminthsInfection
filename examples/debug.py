@@ -121,10 +121,11 @@ def format(text):
 
 if __name__ == "__main__":
 
-    path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report_cv_0_0.csv"
+    path = "F:/Data2/ml_debug7/final_classification_report.csv"
     df = pd.read_csv(str(path), index_col=None)
-    df["config"] = [format(str(x)) for x in list(zip(df.option, df.classifier))]
+    df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
+    df = df.drop_duplicates(subset=['config'], keep='first')
 
     print(df)
 
