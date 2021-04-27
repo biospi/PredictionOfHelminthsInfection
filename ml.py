@@ -140,7 +140,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             #############################################################################################################
             data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
             data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
-            CWTVisualisation(output_dir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
+            CWTVisualisation(graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         print("AFTER STEP ->", df)
     return df
@@ -422,7 +422,7 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
@@ -445,6 +445,7 @@ if __name__ == "__main__":
         df_processed["target"] = targets
         days, _, _, _ = parse_param_from_filename(file)
         df_hum = df_hum.loc[df_processed.index]
+        df_hum["target"] = targets
         process_data_frame(stratify, animal_ids, output_dir, df_hum, days, farm_id, step_slug,
                            n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
@@ -459,6 +460,7 @@ if __name__ == "__main__":
         df_processed["target"] = targets
         days, _, _, _ = parse_param_from_filename(file)
         df_temp = df_temp.loc[df_processed.index]
+        df_temp["target"] = targets
         process_data_frame(stratify, animal_ids, output_dir, df_temp, days, farm_id, step_slug,
                            n_splits, n_repeats,
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
