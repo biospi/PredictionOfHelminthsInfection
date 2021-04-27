@@ -435,6 +435,7 @@ if __name__ == "__main__":
                                sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                cv="StratifiedLeaveTwoOut")
 
+        #todo add preprocessing step for exogeneous. concat with activity
         steps = ["HUMIDITY"]
         step_slug = "_".join(steps)
         df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,

@@ -293,7 +293,7 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
     ax3.set_yticklabels(labels_)
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
-    p = power_cwt_healthy.copy()
+    p = power_cwt_unhealthy.copy()
     p[p == -99] = np.nan
     p = np.log(p)
     ax4.imshow(p)
