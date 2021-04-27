@@ -509,3 +509,14 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
     print(final_path)
     fig.savefig(final_path)
     return mean_auc
+
+
+def plotDistribution(X, output_dir, filename):
+    print("plot data distribution...")
+    hist_array = X.flatten()
+    hist_array_nrm = hist_array[~np.isnan(hist_array)]
+    df = pd.DataFrame(hist_array_nrm, columns=["value"])
+    fig = px.histogram(df, x="value", nbins=np.unique(hist_array_nrm).size, title=filename)
+    filename = output_dir + "/" + "%s.html" % filename
+    create_rec_dir(filename)
+    fig.write_html(filename)

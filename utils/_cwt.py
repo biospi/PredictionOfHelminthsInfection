@@ -345,6 +345,18 @@ def createNormal(f, time, freq):
     y[y < 0] = 0
     return y
 
+def createNormalPoisson(f, time, freq):
+    t = np.linspace(0, time, int(time))
+    s = np.sin(2. * np.pi * t * (freq+np.random.random()/100))
+
+    y_n = np.random.normal(int(f+2), size=int(time)) * s
+    y_n[y_n < 0] = 0
+
+    y_p = np.random.poisson(int(f + 2), size=int(time)) * s
+    y_p[y_p < 0] = 0
+
+    return y_n, y_p
+
 
 def createSinWaves(d):
     targets = []
@@ -386,11 +398,22 @@ def createNormalWaves(d):
     waves = np.array(waves)
     return waves, targets
 
+def createWaves(d):
+    targets = []
+    waves = []
+    t = d
+    for _ in range(60):
+        waves.append(createNormalPoisson(random.random(), t, 10))
+        targets.append(1)
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
 
 if __name__ == "__main__":
     print("********CWT*********")
 
-    for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
+    for d in [(60*60*24*1)/60, (60*60*24*2)/60]:
         for out_dir in ["F:/Data2/_cwt_debug_poisson_%d/" % d, "F:/Data2/_cwt_debug_normal_%d/" % d]:
             #X = np.array(createSyntheticActivityData()
             #X, targets = createSinWaves(d)

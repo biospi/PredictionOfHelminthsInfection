@@ -43,7 +43,7 @@ from utils._custom_split import StratifiedLeaveTwoOut
 from utils._cwt import CWT, CWTVisualisation
 from utils._normalisation import QuotientNormalizer
 from utils.visualisation import plot_time_pca, plot_groups, plot_time_lda, plot_2d_space, plotMlReport, plotHeatmap, \
-    plot_zeros_distrib, plot_roc_range
+    plot_zeros_distrib, plot_roc_range, plotDistribution
 
 
 def make_roc_curve(out_dir, classifier, X, y, cv, steps):
@@ -111,11 +111,11 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
         print("no steps to apply! return data as is")
         return df
     print("BEFORE STEP ->", df)
+    plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-
         if step not in ["ANSCOMBE", "LOG", "QN", "CWT"]:
             warnings.warn("processing step %s does not exist!" % step)
-
+        plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
@@ -143,6 +143,9 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             CWTVisualisation(graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         print("AFTER STEP ->", df)
+        plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
+
+    plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
     return df
 
 
@@ -423,7 +426,9 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN"], ["QN", "CWT"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "CWT"], ["QN", "ANSCOMBE", "CWT", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN"], ["QN", "CWT"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "CWT"],
+                      ["QN", "CWT", "ANSCOMBE"], ["QN", "ANSCOMBE", "CWT", "LOG"],
+                       ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
