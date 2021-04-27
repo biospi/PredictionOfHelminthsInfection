@@ -290,7 +290,8 @@ def parse_param_from_filename(file):
 
 
 if __name__ == "__main__":
-    print("ML PIPELINE")
+    print("********************************************************************")
+    print("*                          ML PIPELINE                             *")
     print("********************************************************************")
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', help='output directory', type=str)
@@ -422,7 +423,7 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN"], ["QN", "CWT"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "CWT"], ["QN", "ANSCOMBE", "CWT", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)

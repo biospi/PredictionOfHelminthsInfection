@@ -336,6 +336,7 @@ def plotMlReport(path, output_dir):
     df = pd.read_csv(str(path), index_col=None)
     df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
     df = df.sort_values('roc_auc_score_mean')
+    df = df.drop_duplicates(subset=['config'], keep='first')
     print(df)
     t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
     df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
