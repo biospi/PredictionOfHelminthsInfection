@@ -430,7 +430,7 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN"], ["QN", "CWT"],
+        for steps in [["QN"], ["CWT"], ["QN", "CWT"],
                       ["QN", "ANSCOMBE"], ["QN", "ANSCOMBE", "CWT"], ["QN", "CWT", "ANSCOMBE"],
                       ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
