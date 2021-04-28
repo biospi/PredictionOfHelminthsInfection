@@ -36,6 +36,7 @@ from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_scor
     plot_roc_curve
 from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
 from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from utils.Utils import create_rec_dir
 from utils._anscombe import Anscombe, Log
@@ -111,12 +112,14 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
         print("no steps to apply! return data as is")
         return df
     print("BEFORE STEP ->", df)
-    plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
+    #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "STDS"]:
             warnings.warn("processing step %s does not exist!" % step)
-        plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
+        #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
+        if step == "STDS":
+            df.iloc[:, :-N_META] = StandardScaler().transform(df.iloc[:, :-N_META].values)
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
         if step == "LOG":
@@ -143,9 +146,9 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             CWTVisualisation(graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         print("AFTER STEP ->", df)
-        plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
+        #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
 
-    plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
+    #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
     return df
 
 
@@ -401,6 +404,7 @@ if __name__ == "__main__":
 
         ################################################################################################################
         ##VISUALISATION
+        ################################################################################################################
         df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"],
                                           class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         plot_zeros_distrib(label_series, df_norm, output_dir,
@@ -426,9 +430,9 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN"], ["QN", "CWT"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "CWT"],
-                      ["QN", "CWT", "ANSCOMBE"], ["QN", "ANSCOMBE", "CWT", "LOG"],
-                       ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN"], ["QN", "CWT"],
+                      ["QN", "ANSCOMBE"], ["QN", "ANSCOMBE", "CWT"], ["QN", "CWT", "ANSCOMBE"],
+                      ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
@@ -442,7 +446,7 @@ if __name__ == "__main__":
                                cv="StratifiedLeaveTwoOut")
 
         #todo add preprocessing step for exogeneous. concat with activity
-        steps = ["HUMIDITY"]
+        steps = ["HUMIDITY", "STDS"]
         step_slug = "_".join(steps)
         df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
@@ -457,7 +461,7 @@ if __name__ == "__main__":
                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                            cv="StratifiedLeaveTwoOut")
 
-        steps = ["TEMPERATURE"]
+        steps = ["TEMPERATURE", "STDS"]
         step_slug = "_".join(steps)
         df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
