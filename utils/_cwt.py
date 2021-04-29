@@ -23,7 +23,7 @@ from sklearn.metrics import auc
 from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 
-from utils.Utils import create_rec_dir
+from utils.Utils import create_rec_dir, anscombe
 from utils.visualisation import plot_cwt_power_sidebyside
 
 
@@ -109,7 +109,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     return mean_auc
 
 
-def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
+def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs):
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
     fig.suptitle("Signal , CWT", fontsize=18)
@@ -121,7 +121,9 @@ def plot_cwt_power(out_dir, i, activity, power_masked, coi_line_array, freqs):
     # axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     # axs[0].xaxis.set_major_locator(mdates.DayLocator())
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
-        axs[1].imshow(np.log(power_masked))
+        if step_slug == "QN_CWT_ANSCOMBE_LOG":
+            power_masked = np.log(anscombe(power_masked))
+        axs[1].imshow(power_masked)
     if(len(coi_line_array) > 0):
         axs[1].plot(coi_line_array, linestyle="--", linewidth=5, c="white")
     axs[1].set_aspect('auto')
@@ -164,14 +166,14 @@ def mask_cwt(cwt, coi, scales, turn_off=False):
         for i, s in enumerate(scales):
             c = coi[j]
             if s > c:
-                cwt[i:, j] = -99
+                cwt[i:, j] = np.nan
                 coi_line.append(i)
                 break
 
     return cwt, coi_line
 
 
-def CWTVisualisation(graph_outputdir, shape, freqs, coi_line_array,
+def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
                   df_timedomain, df_cwt,
                   class_healthy_label, class_unhealthy_label,
                   class_healthy, class_unhealthy):
@@ -179,12 +181,12 @@ def CWTVisualisation(graph_outputdir, shape, freqs, coi_line_array,
     idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
     h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
     uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
-    plot_cwt_power_sidebyside(True, class_healthy_label, class_unhealthy_label, class_healthy,
+    plot_cwt_power_sidebyside(step_slug, True, class_healthy_label, class_unhealthy_label, class_healthy,
                                   class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
                                   graph_outputdir, h_m, uh_m, freqs, ntraces=2)
 
 
-def compute_cwt(X, out_dir):
+def compute_cwt(X, out_dir, step_slug):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
@@ -203,10 +205,10 @@ def compute_cwt(X, out_dir):
         power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
         shape = power_cwt.shape
         #power_masked, coi_line_array = power_cwt, []
-        plot_cwt_power(out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
+        plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
-        power_flatten_masked = power_flatten_masked[power_flatten_masked != -99]#remove masked values
+        power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]#remove masked values
         cwt.append(power_flatten_masked)
         i += 1
     cwt = np.array(cwt)
@@ -218,12 +220,13 @@ def compute_cwt(X, out_dir):
 
 
 class CWT(TransformerMixin, BaseEstimator):
-    def __init__(self, *, out_dir=None, copy=True):
+    def __init__(self, *, out_dir=None, copy=True, step_slug=None):
         self.out_dir = out_dir
         self.copy = copy
         self.freqs = None
         self.coi = None
         self.shape = None
+        self.step_slug = step_slug
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -241,7 +244,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         #copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir)
+        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
@@ -332,97 +335,82 @@ def createSinWave(f, time):
     return y.astype(float)
 
 
-def createPoisson(f, time, freq):
-    t = np.linspace(0, time, int(time))
-    y = np.random.poisson(int(f+2), size=int(time))*np.sin(2. * np.pi * t * (freq+np.random.random()/100))
-    y[y < 0] = 0
+def createPoisson(time, s):
+    seed = np.ceil(random.random()*2)+1
+    noise = np.random.poisson(int(seed), size=int(time))
+    y = noise*s
     return y
 
 
-def createNormal(f, time, freq):
-    t = np.linspace(0, time, int(time))
-    y = np.random.normal(int(f+2), size=int(time))*np.sin(2. * np.pi * t * (freq+np.random.random()/100))
-    y[y < 0] = 0
+def createNormal(f, time, s):
+    seed = np.ceil(f * 2) + 1
+    noise = np.random.normal(seed, size=int(time))
+    y = noise*s
     return y
 
-def createNormalPoisson(f, time, freq):
+
+def createPoisonWaves(d, signal10, signal2):
+    targets = []
+    waves = []
+    t = d
+    for s in signal10:
+        waves.append(createPoisson(t, s))
+        targets.append(1)
+    for s in signal2:
+        waves.append(createPoisson(t, s))
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
+
+def createNormalWaves(d, signal10, signal2):
+    targets = []
+    waves = []
+    t = d
+    for s in signal10:
+        waves.append(createNormal(random.random(), t, s))
+        targets.append(1)
+    for s in signal2:
+        waves.append(createNormal(random.random(), t, s))
+        targets.append(2)
+    waves = np.array(waves)
+    return waves, targets
+
+
+def creatSin(freq, time):
     t = np.linspace(0, time, int(time))
-    s = np.sin(2. * np.pi * t * (freq+np.random.random()/100))
-
-    y_n = np.random.normal(int(f+2), size=int(time)) * s
-    y_n[y_n < 0] = 0
-
-    y_p = np.random.poisson(int(f + 2), size=int(time)) * s
-    y_p[y_p < 0] = 0
-
-    return y_n, y_p
-
-
-def createSinWaves(d):
-    targets = []
-    waves = []
-    t = d
-    for _ in range(60):
-        waves.append(createSinWave(200+random.random()/10, t))
-        targets.append(1)
-    for _ in range(60):
-        waves.append(createSinWave(100+random.random()/10, t))
-        targets.append(2)
-    waves = np.array(waves)
-    return waves, targets
-
-def createPoisonWaves(d):
-    targets = []
-    waves = []
-    t = d
-    for _ in range(60):
-        waves.append(createPoisson(random.random(), t, 10))
-        targets.append(1)
-    for _ in range(60):
-        waves.append(createPoisson(random.random(), t, 2))
-        targets.append(2)
-    waves = np.array(waves)
-    return waves, targets
-
-
-def createNormalWaves(d):
-    targets = []
-    waves = []
-    t = d
-    for _ in range(60):
-        waves.append(createNormal(random.random(), t, 10))
-        targets.append(1)
-    for _ in range(60):
-        waves.append(createNormal(random.random(), t, 2))
-        targets.append(2)
-    waves = np.array(waves)
-    return waves, targets
-
-def createWaves(d):
-    targets = []
-    waves = []
-    t = d
-    for _ in range(60):
-        waves.append(createNormalPoisson(random.random(), t, 10))
-        targets.append(1)
-        targets.append(2)
-    waves = np.array(waves)
-    return waves, targets
+    y = np.sin(2. * np.pi * t * freq)
+    y[y < 0] = 0
+    return y
 
 
 if __name__ == "__main__":
     print("********CWT*********")
 
-    for d in [(60*60*24*1)/60, (60*60*24*2)/60]:
+    X = []
+    for i in np.arange(5, 100, 5):
+        X.append(creatSin(i, 1440))
+    X = np.array(X)
+    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit").transform(X)
+
+    for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
+
+        signal10 = []
+        for _ in range(60):
+            signal10.append(creatSin(15 + np.random.random() / 100, d))
+        signal2 = []
+        for _ in range(60):
+            signal2.append(creatSin(2 + np.random.random() / 100, d))
+
         for out_dir in ["F:/Data2/_cwt_debug_poisson_%d/" % d, "F:/Data2/_cwt_debug_normal_%d/" % d]:
             #X = np.array(createSyntheticActivityData()
             #X, targets = createSinWaves(d)
             #X, targets = createPoisonWaves(d)
             if "poisson" in out_dir:
-                X, targets = createPoisonWaves(d)
+                X, targets = createPoisonWaves(d, signal10, signal2)
 
             if "normal" in out_dir:
-                X, targets = createNormalWaves(d)
+                X, targets = createNormalWaves(d, signal10, signal2)
 
             #X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
             #X.columns = list(range(X.shape[1]))

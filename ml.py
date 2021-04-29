@@ -119,7 +119,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
         if step == "STDS":
-            df.iloc[:, :-N_META] = StandardScaler().transform(df.iloc[:, :-N_META].values)
+            df.iloc[:, :-N_META] = StandardScaler().fit_transform(df.iloc[:, :-N_META].values)
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
         if step == "LOG":
@@ -128,7 +128,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir + "/" +step).transform(df.iloc[:, :-N_META].values)
         if step == "CWT":
             df_o = df.copy()
-            CWT_Transform = CWT(out_dir=graph_outputdir + "/" + step)
+            CWT_Transform = CWT(out_dir=graph_outputdir + "/" + step, step_slug=step_slug)
             data_frame_cwt = pd.DataFrame(
                 CWT_Transform.transform(df.copy().iloc[:, :-N_META].values))
             data_frame_cwt.index = df.index  # need to keep original sample index!!!!
@@ -143,7 +143,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             #############################################################################################################
             data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
             data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
-            CWTVisualisation(graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
+            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         print("AFTER STEP ->", df)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
@@ -430,9 +430,7 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN"], ["CWT"], ["QN", "CWT"],
-                      ["QN", "ANSCOMBE"], ["QN", "ANSCOMBE", "CWT"], ["QN", "CWT", "ANSCOMBE"],
-                      ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)

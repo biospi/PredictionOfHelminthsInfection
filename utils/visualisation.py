@@ -240,7 +240,7 @@ def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="la
     plot_2d_space(X, y, filepath, label_series, title=title)
 
 
-def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
+def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                               class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
                               graph_outputdir, power_cwt_healthy, power_cwt_unhealthy, freqs, ntraces=3,
                               title="cwt_power_by_target", stepid=10, meta_size=4):
@@ -279,8 +279,8 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
 
     #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     p = power_cwt_healthy.copy()
-    p[p == -99] = np.nan
-    p = np.log(p)
+    if step_slug == "QN_CWT_ANSCOMBE_LOG":
+        p = np.log(anscombe(p))
     ax3.imshow(p)
     ax3.set_aspect('auto')
     ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
@@ -294,8 +294,8 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
     p = power_cwt_unhealthy.copy()
-    p[p == -99] = np.nan
-    p = np.log(p)
+    if step_slug == "QN_CWT_ANSCOMBE_LOG":
+        p = np.log(anscombe(p))
     ax4.imshow(p)
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
