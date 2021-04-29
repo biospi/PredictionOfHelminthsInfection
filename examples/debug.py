@@ -18,6 +18,9 @@ from sklearn.datasets import make_blobs
 import plotly.express as px
 import plotly.graph_objects as go
 
+from utils.visualisation import plotMlReport
+
+
 def mean_confidence_interval(x):
     # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
     x.sort()
@@ -122,71 +125,74 @@ def format(text):
 if __name__ == "__main__":
 
     path = "F:/Data2/ml_debug7/final_classification_report.csv"
-    df = pd.read_csv(str(path), index_col=None)
-    df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
-    df = df.sort_values('roc_auc_score_mean')
-    df = df.drop_duplicates(subset=['config'], keep='first')
+    output_dir = "F:/Data2/ml_debug7/"
+    plotMlReport(path, output_dir)
 
-    print(df)
-
-    t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
-
-    t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
-
-    t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
-
-    t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
-
-    fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
-
-    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
-    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
-    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
-    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
-
-
-
-    fig.update_yaxes(range=[0, 1], row=1, col=1)
-    fig.update_yaxes(range=[0, 1], row=2, col=1)
-    fig.update_yaxes(range=[0, 1], row=3, col=1)
-    fig.update_yaxes(range=[0, 1], row=4, col=1)
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
-
-    fig.update_xaxes(showticklabels=False)  # hide all the xticks
-    fig.update_xaxes(showticklabels=True, row=4, col=1)
-
-    # fig.update_layout(shapes=[
-    #     dict(
-    #         type='line',
-    #         color="MediumPurple",
-    #         yref='paper', y0=0.945, y1=0.945,
-    #         xref='x', x0=-0.5, x1=7.5
-    #     )
-    # ])
-    fig.update_yaxes(showgrid=True, gridwidth=1)
-    fig.update_xaxes(showgrid=True, gridwidth=1)
-    fig.write_html("ML_performance.html")
-    fig.show()
-
-    # files = []
+    # df = pd.read_csv(str(path), index_col=None)
+    # df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
+    # df = df.sort_values('roc_auc_score_mean')
+    # df = df.drop_duplicates(subset=['config'], keep='first')
+    #
+    # print(df)
+    #
+    # t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    # df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    # df["class_1_label"].values[0])
+    #
+    # t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    # df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    # df["class_1_label"].values[0])
+    #
+    # t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    # df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    # df["class_1_label"].values[0])
+    #
+    # t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
+    # df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+    # df["class_1_label"].values[0])
+    #
+    # fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+    #
+    # fig.append_trace(px.bar(df, x='config', y='precision_score0_mean', range_y=[df["precision_score0_mean"].min(), df["precision_score0_mean"].max]).data[0], row=1, col=1)
+    # fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
+    # fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
+    # fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
+    #
+    #
+    #
+    # fig.update_yaxes(range=[0, 1], row=1, col=1)
+    # fig.update_yaxes(range=[0, 1], row=2, col=1)
+    # fig.update_yaxes(range=[0, 1], row=3, col=1)
+    # fig.update_yaxes(range=[0, 1], row=4, col=1)
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.update_xaxes(showticklabels=False)  # hide all the xticks
+    # fig.update_xaxes(showticklabels=True, row=4, col=1)
+    #
+    # # fig.update_layout(shapes=[
+    # #     dict(
+    # #         type='line',
+    # #         color="MediumPurple",
+    # #         yref='paper', y0=0.945, y1=0.945,
+    # #         xref='x', x0=-0.5, x1=7.5
+    # #     )
+    # # ])
+    # fig.update_yaxes(showgrid=True, gridwidth=1)
+    # fig.update_xaxes(showgrid=True, gridwidth=1)
+    # fig.write_html("ML_performance.html")
+    # fig.show()
+    #
+    # # files = []
     # dfs = []
     # for path in Path("F:\\Data2\\biospi").rglob('*.csv'):
     #     if 'final' not in path.name:

@@ -361,21 +361,21 @@ def plotMlReport(path, output_dir):
     fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
     fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
 
-    fig.update_yaxes(range=[0, 1], row=1, col=1)
-    fig.update_yaxes(range=[0, 1], row=2, col=1)
-    fig.update_yaxes(range=[0, 1], row=3, col=1)
-    fig.update_yaxes(range=[0, 1], row=4, col=1)
+    fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
+    fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
+    fig.update_yaxes(range=[df["balanced_accuracy_score_mean"].min()/1.1, 1], row=3, col=1)
+    fig.update_yaxes(range=[df["roc_auc_score_mean"].min()/1.1, 1], row=4, col=1)
 
-    fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
-
-    fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
-                  line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    # fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
     fig.update_xaxes(showticklabels=False)  # hide all the xticks
     fig.update_xaxes(showticklabels=True, row=4, col=1)
@@ -390,7 +390,9 @@ def plotMlReport(path, output_dir):
     # ])
     fig.update_yaxes(showgrid=True, gridwidth=1)
     fig.update_xaxes(showgrid=True, gridwidth=1)
-    fig.write_html(output_dir + "/" + "ML_performance.html")
+    filepath = output_dir + "/" + "ML_performance.html"
+    print(filepath)
+    fig.write_html(filepath)
     # fig.show()
 
 

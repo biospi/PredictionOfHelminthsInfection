@@ -24,9 +24,59 @@ from sklearn.metrics import auc
 from sklearn.preprocessing import binarize
 from utils.visualisation import mean_confidence_interval, plot_roc_range
 from keras.utils.vis_utils import plot_model
-
+import time
 import os
-os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+# os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+
+
+class Score:
+    def __init__(self, y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
+                 test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
+                 test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
+                 cross_validation_method, start_time, output_dir, downsample_false_class):
+        report_rows_list = []
+        scores = {}
+        scores["fit_time"] = 0
+        scores["score_time"] = 0
+        scores["test_balanced_accuracy_score"] = test_balanced_accuracy_score
+        scores["test_precision_score0"] = test_precision_score0
+        scores["test_precision_score1"] = test_precision_score1
+        scores["test_recall_score0"] = test_recall_score0
+        scores["test_recall_score1"] = test_recall_score1
+        scores["test_f1_score0"] = test_f1_score0
+        scores["test_f1_score1"] = test_f1_score1
+        scores["downsample"] = downsample_false_class
+        scores["class0"] = y[y == class_healthy].size
+        scores["class1"] = y[y == class_unhealthy].size
+        scores["steps"] = steps
+        scores["days"] = days
+        scores["farm_id"] = farm_id
+        scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)
+        scores["precision_score0_mean"] = np.mean(test_precision_score0)
+        scores["precision_score1_mean"] = np.mean(test_precision_score1)
+        scores["recall_score0_mean"] = np.mean(test_recall_score0)
+        scores["recall_score1_mean"] = np.mean(test_recall_score1)
+        scores["f1_score0_mean"] = np.mean(test_f1_score0)
+        scores["f1_score1_mean"] = np.mean(test_f1_score1)
+        scores["sampling"] = sampling
+        scores["classifier"] = "->CNN"
+        scores["classifier_details"] = "1DCNN"
+        scores["roc_auc_score_mean"] = mean_auc
+        report_rows_list.append(scores)
+
+        df_report = pd.DataFrame(report_rows_list)
+        df_report["class_0_label"] = label_series[class_healthy]
+        df_report["class_1_label"] = label_series[class_unhealthy]
+        df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
+        df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))]
+        filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+            output_dir, farm_id, days, steps, downsample_false_class, sampling)
+        if not os.path.exists(output_dir):
+            print("mkdir", output_dir)
+            os.makedirs(output_dir)
+        filename = filename.replace("->", "_")
+        df_report.to_csv(filename, sep=',', index=False)
+        print("filename=", filename)
 
 
 def plot_roc(ax, model, X_test, y_test):
@@ -37,11 +87,11 @@ def plot_roc(ax, model, X_test, y_test):
     fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
     ax.plot(fpr, tpr, label=None, alpha=0.3, lw=1, c="tab:blue")
     roc_auc = auc(fpr, tpr)
-    report = classification_report(y_test, y_pred_idx, output_dict=False)
+    report = classification_report(y_test, y_pred_idx, output_dict=True)
     print(report)
-    # targets = list(report.keys())[:-3]
-    # if len(targets) == 1:
-    #     warnings.warn("classifier only predicted 1 target.")
+    targets = list(report.keys())[:-3]
+    if len(targets) == 1:
+        warnings.warn("classifier only predicted 1 target.")
     #     if targets[0] == "0":
     #         report["1"] = {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0}
     #     if targets[0] == "1":
@@ -50,7 +100,19 @@ def plot_roc(ax, model, X_test, y_test):
     # if np.isnan(roc_auc):
     #     roc_auc = 0
     print("roc_auc=", roc_auc)
-    return roc_auc, fpr, tpr
+    p0, p1, r0, r1, f0, f1 = 0, 0, 0, 0, 0, 0
+    acc = report["accuracy"]
+    if "0" in report:
+        p0 = report["0"]["precision"]
+        r0 = report["0"]["recall"]
+        f0 = report["0"]["f1-score"]
+
+    if "1" in report:
+        p1 = report["1"]["precision"]
+        r1 = report["1"]["recall"]
+        f1 = report["1"]["f1-score"]
+
+    return roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1
 
 
 def summarize_results(scores):
@@ -59,16 +121,14 @@ def summarize_results(scores):
     print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-
-def evaluate_model(ax, trainX, trainy, testX, testy):
+def evaluate_model(ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=32):
     X_train, X_test, y_train, y_test = format(trainX, trainy, testX, testy)
-    verbose, epochs, batch_size = 0, 10, 32
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
     model = Sequential()
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(n_timesteps, n_features)))
-    #model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
-    # model.add(Dropout(0.5))
-    # model.add(MaxPooling1D(pool_size=2))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(MaxPooling1D(pool_size=2))
     model.add(Flatten())
     model.add(Dense(100, activation='relu'))
     model.add(Dense(n_outputs, activation='softmax'))
@@ -82,7 +142,7 @@ def evaluate_model(ax, trainX, trainy, testX, testy):
         metrics.Recall(name='recall'),
         metrics.AUC(name='auc'),
     ]
-    plot_model(model, show_shapes=True, to_file='multichannel.png')
+    # plot_model(model, show_shapes=True, to_file='multichannel.png')
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=METRICS)
     # fit network
     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
@@ -92,8 +152,8 @@ def evaluate_model(ax, trainX, trainy, testX, testy):
     #     print(name, ': ', value)
     # test_predictions_baseline = model.predict(X_test, batch_size=5)
     # plot_roc("Test Baseline", y_test, test_predictions_baseline, linestyle='--')
-    roc_auc, fpr, tpr = plot_roc(ax, model, X_test, y_test)
-    return roc_auc, fpr, tpr
+    roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, X_test, y_test)
+    return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
 
 
 def formatDataForKeras(X):
@@ -118,6 +178,49 @@ def format(trainX, trainy, testX, testy):
     return X_train, X_test, y_train, y_test
 
 
+def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
+    start_time = time.time()
+    fig, ax = plt.subplots()
+    mean_fpr = np.linspace(0, 1, 100)
+    tprs = []
+    aucs = []
+    test_balanced_accuracy_score = []
+    test_precision_score0 = []
+    test_precision_score1 = []
+    test_recall_score0 = []
+    test_recall_score1 = []
+    test_f1_score0 = []
+    test_f1_score1 = []
+    for train_index, test_index in cross_validation_method.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate_model(ax, X_train, y_train, X_test, y_test, epochs=epochs)
+        if np.isnan(roc_auc):
+            warnings.warn("classifier returned the same target for all testing samples.")
+            continue
+        interp_tpr = np.interp(mean_fpr, fpr, tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(roc_auc)
+        test_balanced_accuracy_score.append(acc)
+        test_precision_score0.append(p0)
+        test_precision_score1.append(p1)
+        test_recall_score0.append(r0)
+        test_recall_score1.append(r1)
+        test_f1_score0.append(f0)
+        test_f1_score1.append(f1)
+
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_CNN", fig)
+    # fig.show()
+    plt.close(fig)
+    plt.clf()
+
+    Score(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
+                 test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
+                 test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
+                 cross_validation_method, start_time, output_dir, downsample_false_class)
+
+
 if __name__ == "__main__":
     print("***************************")
     print("CNN")
@@ -135,7 +238,7 @@ if __name__ == "__main__":
     #     X.append(np.random.rand(y.size).reshape(-1, 1))
     # X = np.concatenate(X, 1)
 
-    X, y = make_blobs(n_samples=y.size, centers=2, n_features=100, random_state=0, cluster_std=40)
+    X, y = make_blobs(n_samples=y.size, centers=2, n_features=100, random_state=0, cluster_std=50)
     plt.figure()
     plt.scatter(X[:, 0], X[:, 1], c=y)
     plt.title('centers = 2')
@@ -186,28 +289,8 @@ if __name__ == "__main__":
     dataset.to_csv("dummy_dataset_for_cv.csv")
     print(dataset)
     print("")
-
-    slto = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=False, verbose=True)
-
-    rows = []
-    i = 0
-    fig, ax = plt.subplots()
-    mean_fpr = np.linspace(0, 1, 100)
-    tprs = []
-    aucs = []
-    out_dir = "F:/Data2/"
-    for train_index, test_index in slto.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        roc_auc, fpr, tpr = evaluate_model(ax, X_train, y_train, X_test, y_test)
-        if np.isnan(roc_auc):
-            warnings.warn("classifier returned the same target for all testing samples.")
-            continue
-        interp_tpr = np.interp(mean_fpr, fpr, tpr)
-        interp_tpr[0] = 0.0
-        tprs.append(interp_tpr)
-        aucs.append(roc_auc)
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, "CNN", fig)
-    fig.show()
-    plt.close(fig)
-    plt.clf()
+    output_dir = "F:/Data2/cnn_debug"
+    label_series = {0: "l0", 1: "l1", 2: "l2", 3: "l3", 4: "l4"}
+    stratified = False
+    cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=stratified, verbose=True)
+    run1DCnn(cross_validation_method, X, y, animal_ids, sample_idx, 1, 2, "steps->2", 7, "farm_id", "sampling", label_series, False, output_dir)

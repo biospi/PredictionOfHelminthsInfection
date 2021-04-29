@@ -38,6 +38,8 @@ from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+
+from onedcnn.cnn import run1DCnn
 from utils.Utils import create_rec_dir
 from utils._anscombe import Anscombe, Log
 from utils._custom_split import StratifiedLeaveTwoOut
@@ -104,9 +106,9 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealth):
+def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name=""):
     step_slug = "_".join(steps)
-    graph_outputdir = setupGraphOutputPath(output_dir) + "/" + step_slug
+    graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
 
     if len(steps) == 0:
         print("no steps to apply! return data as is")
@@ -171,9 +173,35 @@ def loadActivityData(filepath):
     return data_frame, N_META
 
 
-def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+def process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
-                       cv="l2out"):
+                       cv="StratifiedLeaveTwoOut"):
+    print(label_series)
+    data_frame["id"] = animal_ids
+    data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
+    if downsample_false_class:
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+
+    sample_idxs = data_frame.index.tolist()
+
+    if cv == "StratifiedLeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify, verbose=True)
+
+    if cv == "RepeatedStratifiedKFold":
+        cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
+    data_frame = data_frame.drop("id", 1)
+
+    y = data_frame[y_col].values.flatten()
+    y = y.astype(int)
+    X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
+             days, farm_id, sampling, label_series, downsample_false_class, output_dir)
+
+
+def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+                           downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
+                           cv="l2out"):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
     print(label_series)
@@ -311,6 +339,7 @@ if __name__ == "__main__":
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
+    parser.add_argument('--epochs', help='1d cnn epochs', default=1000, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -325,6 +354,7 @@ if __name__ == "__main__":
     temp_file = args.temp_file
     n_splits = args.n_splits
     n_repeats = args.n_repeats
+    epochs = args.epochs
     n_process = args.n_process
 
     stratify = "y" in stratify.lower()
@@ -340,6 +370,7 @@ if __name__ == "__main__":
     print("output_cwt=", output_cwt)
     print("hum_file=", hum_file)
     print("temp_file=", temp_file)
+    print("epochs=", epochs)
     print("n_process=", n_process)
     print("loading dataset...")
     enable_downsample_df = False
@@ -376,6 +407,7 @@ if __name__ == "__main__":
         print(df_hum_temp.shape)
 
     for file in files:
+        days, farm_id, option, sampling = parse_param_from_filename(file)
         print("loading dataset file %s ..." % file)
         data_frame, N_META = loadActivityData(file)
         data_frame_o = data_frame.copy()
@@ -433,46 +465,57 @@ if __name__ == "__main__":
         for steps in [["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
-            days, farm_id, option, sampling = parse_param_from_filename(file)
-            process_data_frame(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
-                               n_splits, n_repeats,
-                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                               cv="StratifiedLeaveTwoOut")
+            process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+                                   n_splits, n_repeats,
+                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                                   cv="StratifiedLeaveTwoOut")
+
+        #CNN
+        for steps in [["QN"], ["QN", "CWT"]]:
+            step_slug = "_".join(steps)
+            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
+            targets = df_processed["target"]
+            df_processed = df_processed.iloc[:, :-N_META]
+            df_processed["target"] = targets
+            process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
+                           enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+
 
         #todo add preprocessing step for exogeneous. concat with activity
         steps = ["HUMIDITY", "STDS"]
         step_slug = "_".join(steps)
         df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
         targets = df_processed["target"]
         df_processed = df_processed.iloc[:, :-N_META]
         df_processed["target"] = targets
         days, _, _, _ = parse_param_from_filename(file)
         df_hum = df_hum.loc[df_processed.index]
         df_hum["target"] = targets
-        process_data_frame(stratify, animal_ids, output_dir, df_hum, days, farm_id, step_slug,
-                           n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                           cv="StratifiedLeaveTwoOut")
+        process_data_frame_svm(stratify, animal_ids, output_dir, df_hum, days, farm_id, step_slug,
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
 
         steps = ["TEMPERATURE", "STDS"]
         step_slug = "_".join(steps)
         df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                                               class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
         targets = df_processed["target"]
         df_processed = df_processed.iloc[:, :-N_META]
         df_processed["target"] = targets
         days, _, _, _ = parse_param_from_filename(file)
         df_temp = df_temp.loc[df_processed.index]
         df_temp["target"] = targets
-        process_data_frame(stratify, animal_ids, output_dir, df_temp, days, farm_id, step_slug,
-                           n_splits, n_repeats,
-                           sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                           cv="StratifiedLeaveTwoOut")
+        process_data_frame_svm(stratify, animal_ids, output_dir, df_temp, days, farm_id, step_slug,
+                               n_splits, n_repeats,
+                               sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                               cv="StratifiedLeaveTwoOut")
 
     files = [output_dir + "/" + file for file in os.listdir(output_dir) if file.endswith(".csv")]
     print("found %d files." % len(files))
