@@ -121,7 +121,7 @@ def summarize_results(scores):
     print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-def evaluate_model(ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=32):
+def evaluate_model(ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
     X_train, X_test, y_train, y_test = format(trainX, trainy, testX, testy)
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
     model = Sequential()

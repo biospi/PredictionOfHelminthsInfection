@@ -310,7 +310,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_yticklabels(labels_)
 
     # plt.show()
-    filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
+    filename = "%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"))
     filepath = "%s/%s" % (graph_outputdir, filename)
     # print('saving fig...')
     print(filepath)

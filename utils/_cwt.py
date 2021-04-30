@@ -1,5 +1,7 @@
 import os
 
+import matplotlib
+from matplotlib.ticker import ScalarFormatter
 from sklearn.utils import check_array
 from sklearn.base import TransformerMixin, BaseEstimator
 import pycwt as wavelet
@@ -110,48 +112,53 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
 
 
 def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs):
+    wavelength = 1/freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
     fig.suptitle("Signal , CWT", fontsize=18)
-
     ticks = get_time_ticks(len(activity))
     axs[0].plot(ticks, activity)
     axs[0].set_title("Time domain signal")
     axs[0].set(xlabel="Time", ylabel="activity")
-    # axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    # axs[0].xaxis.set_major_locator(mdates.DayLocator())
+    axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    axs[0].xaxis.set_major_locator(mdates.DayLocator())
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
         if step_slug == "QN_CWT_ANSCOMBE_LOG":
             power_masked = np.log(anscombe(power_masked))
         axs[1].imshow(power_masked)
     if(len(coi_line_array) > 0):
-        axs[1].plot(coi_line_array, linestyle="--", linewidth=5, c="white")
+        axs[1].plot(coi_line_array, linestyle="--", linewidth=0, c="white")#todo fix xratio
     axs[1].set_aspect('auto')
     axs[1].set_title("CWT")
     axs[1].set_xlabel("Time")
-    axs[1].set_ylabel("Frequency of wavelet")
-    axs[1].set_yscale('log')
-    # n_x_ticks = axs[1].get_xticks().shape[0]
-    # labels = [item.strftime("%H:%M") for item in ticks]
-    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_x_ticks)))]
-    # labels_[0:2] = labels[0]
-    # labels_[-2:] = labels[0]
-    # axs[1].set_xticklabels(labels_)
-    #
-    # n_y_ticks = axs[1].get_yticks().shape[0]
-    # labels = ["%.4f" % item for item in freqs]
-    # # print(labels)
-    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    # axs[1].set_yticklabels(labels_)
-    # plt.show()
+    axs[1].set_ylabel("Wave length of wavelet (in minutes)")
+    #axs[1].set_yscale('log')
 
-    filename = "%d_cwt.png" % i
+    n_x_ticks = axs[1].get_xticks().shape[0]
+    labels_ = [item.strftime("%H:00") for item in ticks]
+    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
+    labels_[:] = labels_[0]
+    axs[1].set_xticklabels(labels_)
+
+    n_y_ticks = axs[1].get_yticks().shape[0]
+    labels_wl = ["%.f" % item for item in wavelength]
+    # print(labels)
+    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))]
+
+    new_lab = []
+    for ii, lab in enumerate(axs[1].get_yticklabels()):
+        lab._text = labels_wt[ii]
+        new_lab.append(matplotlib.text.Text(ii, axs[1].get_yticks()[ii], labels_wt[ii]))
+
+    axs[1].set_yticklabels(new_lab)
+    axs[1].tick_params(axis='y', which='both', colors='black')
+
+    filename = "%d_%s_cwt.png" % (i, step_slug)
     filepath = "%s/%s" % (out_dir, filename)
     create_rec_dir(filepath)
-    # print('saving fig...')
     print(filepath)
+    fig.tight_layout()
     fig.savefig(filepath)
-    # print("saved!")
     fig.clear()
     plt.close(fig)
 
@@ -186,6 +193,24 @@ def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
                                   graph_outputdir, h_m, uh_m, freqs, ntraces=2)
 
 
+def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER"):
+    y = activity
+    wavelenght = len(activity) #7day wavelenght in minutes
+    f0 = 1 / wavelenght
+    w = wavelet.Morlet(f0)
+    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
+    coefs_cc = np.conj(coefs)
+    with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
+        # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
+        power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
+    power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+    shape = power_cwt.shape
+    # power_masked, coi_line_array = power_cwt, []
+    plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
+    return power_masked, freqs, coi, shape
+
+
 def compute_cwt(X, out_dir, step_slug):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
@@ -194,18 +219,7 @@ def compute_cwt(X, out_dir, step_slug):
     cwt_full = []
     i = 0
     for activity in tqdm(X):
-        y = activity
-        w = wavelet.Morlet()
-        coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
-        coefs_cc = np.conj(coefs)
-        with np.errstate(divide='ignore'):#ignore numpy divide by zero warning
-            #power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
-            power_cwt = np.real(np.multiply(coefs, coefs_cc))
-        # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
-        power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
-        shape = power_cwt.shape
-        #power_masked, coi_line_array = power_cwt, []
-        plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
+        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug)
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]#remove masked values
