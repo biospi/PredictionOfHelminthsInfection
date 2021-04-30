@@ -20,7 +20,7 @@
 #
 
 #%%
-
+from sys import exit
 import argparse
 import gc
 import glob
@@ -339,7 +339,7 @@ if __name__ == "__main__":
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--epochs', help='1d cnn epochs', default=1000, type=int)
+    parser.add_argument('--epochs', help='1d cnn epochs', default=100, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -438,7 +438,8 @@ if __name__ == "__main__":
         ##VISUALISATION
         ################################################################################################################
         df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"],
-                                          class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                                          class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+                                          clf_name="SVM_QN_VISU")
         plot_zeros_distrib(label_series, df_norm, output_dir,
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
@@ -462,7 +463,7 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
