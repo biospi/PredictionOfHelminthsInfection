@@ -249,6 +249,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.20, 7.20))
     # fig.suptitle(title, fontsize=18)
+    wavelength = 1 / freqs
 
     df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-meta_size].values
     df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-meta_size].values
@@ -285,12 +286,18 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax3.set_aspect('auto')
     ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
     ax3.set_xlabel("Time")
-    ax3.set_ylabel("Frequency")
+    ax3.set_ylabel("Wave length of wavelet (in minutes)")
     # ax3.set_yscale('log')
     n_y_ticks = ax3.get_yticks().shape[0]
-    labels = ["%.4f" % item for item in freqs]
+    labels = ["%.f" % item for item in wavelength]
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
     ax3.set_yticklabels(labels_)
+
+    n_x_ticks = ax3.get_xticks().shape[0]
+    labels_ = [item.strftime("%H:00") for item in ticks]
+    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
+    labels_[:] = labels_[0]
+    ax3.set_xticklabels(labels_)
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
     p = power_cwt_unhealthy.copy()
@@ -300,14 +307,20 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
     ax4.set_xlabel("Time")
-    ax4.set_ylabel("Frequency")
+    ax4.set_ylabel("Wave length of wavelet (in minutes)")
     #ax4.set_yscale('log')
 
     n_y_ticks = ax4.get_yticks().shape[0]
-    labels = ["%.4f" % item for item in freqs]
+    labels = ["%.f" % item for item in wavelength]
     # print(labels)
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
     ax4.set_yticklabels(labels_)
+
+    n_x_ticks = ax4.get_xticks().shape[0]
+    labels_ = [item.strftime("%H:00") for item in ticks]
+    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
+    labels_[:] = labels_[0]
+    ax4.set_xticklabels(labels_)
 
     # plt.show()
     filename = "%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"))
