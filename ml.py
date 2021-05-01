@@ -475,16 +475,16 @@ if __name__ == "__main__":
                                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                    cv="StratifiedLeaveTwoOut")
 
-        #CNN
-        for steps in [["QN"], ["QN", "CWT"]]:
-            step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
-            targets = df_processed["target"]
-            df_processed = df_processed.iloc[:, :-N_META]
-            df_processed["target"] = targets
-            process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
-                           enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+        # #CNN
+        # for steps in [["QN"], ["QN", "CWT"]]:
+        #     step_slug = "_".join(steps)
+        #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+        #                                            class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
+        #     targets = df_processed["target"]
+        #     df_processed = df_processed.iloc[:, :-N_META]
+        #     df_processed["target"] = targets
+        #     process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
+        #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
 
         #todo add preprocessing step for exogeneous. concat with activity
