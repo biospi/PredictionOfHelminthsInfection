@@ -198,6 +198,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER"):
     wavelenght = len(activity) #7day wavelenght in minutes
     f0 = 1 / wavelenght
     w = wavelet.Morlet(f0)
+    #w = wavelet.MexicanHat()
     coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
     coefs_cc = np.conj(coefs)
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
