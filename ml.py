@@ -463,28 +463,29 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "ANSCOMBE", "CWT", "LOG"], ["QN", "CWT", "ANSCOMBE", "LOG"], ["QN", "CWT", "ANSCOMBE"], ["CWT"], ["QN", "CWT"], ["QN", "ANSCOMBE", "LOG"]]:
-            step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
-            targets = df_processed["target"]
-            df_processed = df_processed.iloc[:, :-N_META]
-            df_processed["target"] = targets
-            process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
-                                   n_splits, n_repeats,
-                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                                   cv="StratifiedLeaveTwoOut")
-
-        # #CNN
-        # for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
+        # for steps in [["QN"], ["QN", "CWT"], ["QN", "CWT", "ANSCOMBE"], ["QN", "CWT", "LOG"],
+        #               ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG"]]:
         #     step_slug = "_".join(steps)
         #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-        #                                            class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
+        #                                            class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
         #     targets = df_processed["target"]
         #     df_processed = df_processed.iloc[:, :-N_META]
         #     df_processed["target"] = targets
-        #     process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
-        #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+        #     process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+        #                            n_splits, n_repeats,
+        #                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                            cv="StratifiedLeaveTwoOut")
+
+        #CNN
+        for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
+            step_slug = "_".join(steps)
+            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
+            targets = df_processed["target"]
+            df_processed = df_processed.iloc[:, :-N_META]
+            df_processed["target"] = targets
+            process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
+                           enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
 
         #todo add preprocessing step for exogeneous. concat with activity
