@@ -151,7 +151,10 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
         labels_[:] = labels_[0]
         axs[1].set_xticklabels(labels_)
 
-    n_y_ticks = axs[1].get_yticks().shape[0]-2
+    # n_y_ticks = axs[1].get_yticks().shape[0]-2
+    cwty = axs[1].get_yticks()
+    n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
+
     labels_wl = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))]
