@@ -111,17 +111,25 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     return mean_auc
 
 
-def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs):
+def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs, format_xaxis=True):
     wavelength = 1/freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
     fig.suptitle("Signal , CWT", fontsize=18)
-    ticks = get_time_ticks(len(activity))
+    ticks = list(range(len(activity)))
+    if format_xaxis:
+        ticks = get_time_ticks(len(activity))
     axs[0].plot(ticks, activity)
     axs[0].set_title("Time domain signal")
-    axs[0].set(xlabel="Time", ylabel="activity")
-    axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    axs[0].xaxis.set_major_locator(mdates.DayLocator())
+
+    axs[0].set(xlabel="Time in minute", ylabel="activity")
+    if format_xaxis:
+        axs[0].set(xlabel="Time", ylabel="activity")
+
+    if format_xaxis:
+        axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        axs[0].xaxis.set_major_locator(mdates.DayLocator())
+
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
         if step_slug == "QN_CWT_ANSCOMBE_LOG":
             power_masked = np.log(anscombe(power_masked))
@@ -130,27 +138,31 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
         axs[1].plot(coi_line_array, linestyle="--", linewidth=0, c="white")#todo fix xratio
     axs[1].set_aspect('auto')
     axs[1].set_title("CWT")
-    axs[1].set_xlabel("Time")
-    axs[1].set_ylabel("Wave length of wavelet (in minutes)")
+    axs[1].set_xlabel("Time in minute")
+    if format_xaxis:
+        axs[1].set_xlabel("Time")
+    axs[1].set_ylabel("Wave length of wavelet (in minute)")
     #axs[1].set_yscale('log')
 
-    n_x_ticks = axs[1].get_xticks().shape[0]
-    labels_ = [item.strftime("%H:00") for item in ticks]
-    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
-    labels_[:] = labels_[0]
-    axs[1].set_xticklabels(labels_)
+    if format_xaxis:
+        n_x_ticks = axs[1].get_xticks().shape[0]
+        labels_ = [item.strftime("%H:00") for item in ticks]
+        labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
+        labels_[:] = labels_[0]
+        axs[1].set_xticklabels(labels_)
 
-    n_y_ticks = axs[1].get_yticks().shape[0]
-    labels_wl = ["%.f" % item for item in wavelength]
+    n_y_ticks = axs[1].get_yticks().shape[0]-2
+    labels_wl = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))]
 
+    #new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
     new_lab = []
-    for ii, lab in enumerate(axs[1].get_yticklabels()):
-        lab._text = labels_wt[ii]
-        new_lab.append(matplotlib.text.Text(ii, axs[1].get_yticks()[ii], labels_wt[ii]))
-
+    for ii, l in enumerate(labels_wt):
+        new_lab.append(matplotlib.text.Text(ii, float(l), l))
+    #new_lab[-1] = matplotlib.text.Text(8, float(l), l)
     axs[1].set_yticklabels(new_lab)
+
     axs[1].tick_params(axis='y', which='both', colors='black')
 
     filename = "%d_%s_cwt.png" % (i, step_slug)
@@ -193,13 +205,13 @@ def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
                                   graph_outputdir, h_m, uh_m, freqs, ntraces=2)
 
 
-def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER"):
+def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
     y = activity
-    wavelenght = len(activity) #7day wavelenght in minutes
+    wavelenght = len(activity) #nday wavelenght in minutes
     f0 = 1 / wavelenght
     w = wavelet.Morlet(f0)
     #w = wavelet.MexicanHat()
-    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 1, wavelet=w)
+    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 0.1, wavelet=w, dj=1./100.)
     coefs_cc = np.conj(coefs)
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
         # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
@@ -208,11 +220,11 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER"):
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
-    plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs)
+    plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs, format_xaxis=format_xaxis)
     return power_masked, freqs, coi, shape
 
 
-def compute_cwt(X, out_dir, step_slug):
+def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
@@ -220,7 +232,7 @@ def compute_cwt(X, out_dir, step_slug):
     cwt_full = []
     i = 0
     for activity in tqdm(X):
-        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug)
+        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis)
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]#remove masked values
@@ -235,13 +247,14 @@ def compute_cwt(X, out_dir, step_slug):
 
 
 class CWT(TransformerMixin, BaseEstimator):
-    def __init__(self, *, out_dir=None, copy=True, step_slug=None):
+    def __init__(self, *, out_dir=None, copy=True, step_slug=None, format_xaxis=False):
         self.out_dir = out_dir
         self.copy = copy
         self.freqs = None
         self.coi = None
         self.shape = None
         self.step_slug = step_slug
+        self.format_xaxis = format_xaxis
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -259,7 +272,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         #copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug)
+        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.format_xaxis)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
@@ -406,7 +419,7 @@ if __name__ == "__main__":
     for i in np.arange(5, 100, 5):
         X.append(creatSin(i, 1440))
     X = np.array(X)
-    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit").transform(X)
+    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit", format_xaxis=False).transform(X)
 
     for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
 
@@ -431,7 +444,7 @@ if __name__ == "__main__":
             #X.columns = list(range(X.shape[1]))
             #plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
-            X_CWT = CWT(out_dir=out_dir).transform(X)
+            X_CWT = CWT(out_dir=out_dir, format_xaxis=False).transform(X)
 
             #plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
             print("********************")
