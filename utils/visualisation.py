@@ -287,7 +287,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax3.set_aspect('auto')
     ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
     ax3.set_xlabel("Time")
-    ax3.set_ylabel("Wave length of wavelet (in minutes)")
+    ax3.set_ylabel("Wave length of wavelet (in minute)")
     # ax3.set_yscale('log')
     #n_y_ticks = ax3.get_yticks().shape[0] - 2
     # labels = ["%.f" % item for item in wavelength]
@@ -297,10 +297,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
     labels = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
+    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
     new_lab = []
     for ii, l in enumerate(labels_):
-        new_lab.append(matplotlib.text.Text(ii, float(l), l))
+        new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
     ax3.set_yticklabels(new_lab)
 
     n_x_ticks = ax3.get_xticks().shape[0]
@@ -317,16 +317,16 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
     ax4.set_xlabel("Time")
-    ax4.set_ylabel("Wave length of wavelet (in minutes)")
+    ax4.set_ylabel("Wave length of wavelet (in minute)")
     #ax4.set_yscale('log')
 
     #n_y_ticks = ax4.get_yticks().shape[0] - 1
     labels = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
+    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
     new_lab = []
     for ii, l in enumerate(labels_):
-        new_lab.append(matplotlib.text.Text(ii, float(l), l))
+        new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
     ax4.set_yticklabels(new_lab)
 
     n_x_ticks = ax4.get_xticks().shape[0]
