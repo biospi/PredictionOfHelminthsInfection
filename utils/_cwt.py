@@ -155,7 +155,6 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
     labels_wl = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))]
-
     #new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
     new_lab = []
     for ii, l in enumerate(labels_wt):
@@ -205,6 +204,16 @@ def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
                                   graph_outputdir, h_m, uh_m, freqs, ntraces=2)
 
 
+def check_scale_spacing(scales):
+    spaces = []
+    for i in range(scales.shape[0] - 1):
+        wavelet_scale_space = scales[i] - scales[i + 1]
+        spaces.append(wavelet_scale_space)
+    print(spaces)
+    print(np.min(spaces), np.max(spaces))
+    return np.mean(spaces)
+
+
 def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
     y = activity
     wavelenght = len(activity) #nday wavelenght in minutes
@@ -212,6 +221,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
     w = wavelet.Morlet(f0)
     #w = wavelet.MexicanHat()
     coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 0.1, wavelet=w, dj=1./100.)
+    #mean_scale_space = check_scale_spacing(scales)
     coefs_cc = np.conj(coefs)
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
         # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))

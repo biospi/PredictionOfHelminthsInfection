@@ -1,3 +1,4 @@
+import matplotlib
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -243,7 +244,7 @@ def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="la
 def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                               class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
                               graph_outputdir, power_cwt_healthy, power_cwt_unhealthy, freqs, ntraces=3,
-                              title="cwt_power_by_target", stepid=10, meta_size=4):
+                              title="cwt_power_by_target", stepid=10, meta_size=4, format_xaxis=False):
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
@@ -288,10 +289,18 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax3.set_xlabel("Time")
     ax3.set_ylabel("Wave length of wavelet (in minutes)")
     # ax3.set_yscale('log')
-    n_y_ticks = ax3.get_yticks().shape[0]
-    labels = ["%.f" % item for item in wavelength]
+    #n_y_ticks = ax3.get_yticks().shape[0] - 2
+    # labels = ["%.f" % item for item in wavelength]
+    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
+    # ax3.set_yticklabels(labels_)
+    n_y_ticks = ax3.get_yticks().shape[0] - 2
+    labels = ["%.2f" % item for item in wavelength]
+    # print(labels)
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    ax3.set_yticklabels(labels_)
+    new_lab = []
+    for ii, l in enumerate(labels_):
+        new_lab.append(matplotlib.text.Text(ii, float(l), l))
+    ax3.set_yticklabels(new_lab)
 
     n_x_ticks = ax3.get_xticks().shape[0]
     labels_ = [item.strftime("%H:00") for item in ticks]
@@ -310,11 +319,14 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_ylabel("Wave length of wavelet (in minutes)")
     #ax4.set_yscale('log')
 
-    n_y_ticks = ax4.get_yticks().shape[0]
-    labels = ["%.f" % item for item in wavelength]
+    n_y_ticks = ax4.get_yticks().shape[0]-2
+    labels = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    ax4.set_yticklabels(labels_)
+    new_lab = []
+    for ii, l in enumerate(labels_):
+        new_lab.append(matplotlib.text.Text(ii, float(l), l))
+    ax4.set_yticklabels(new_lab)
 
     n_x_ticks = ax4.get_xticks().shape[0]
     labels_ = [item.strftime("%H:00") for item in ticks]
