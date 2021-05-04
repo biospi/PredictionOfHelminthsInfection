@@ -220,7 +220,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
     f0 = 1 / wavelenght
     w = wavelet.Morlet(f0)
     #w = wavelet.MexicanHat()
-    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 0.1, wavelet=w, dj=1./100.)
+    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 0.1, wavelet=w, dj=1./30.)
     #mean_scale_space = check_scale_spacing(scales)
     coefs_cc = np.conj(coefs)
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
