@@ -293,7 +293,8 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     # labels = ["%.f" % item for item in wavelength]
     # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
     # ax3.set_yticklabels(labels_)
-    n_y_ticks = ax3.get_yticks().shape[0] - 2
+    cwty = ax3.get_yticks()
+    n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
     labels = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
@@ -319,7 +320,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_ylabel("Wave length of wavelet (in minutes)")
     #ax4.set_yscale('log')
 
-    n_y_ticks = ax4.get_yticks().shape[0]-2
+    #n_y_ticks = ax4.get_yticks().shape[0] - 1
     labels = ["%.2f" % item for item in wavelength]
     # print(labels)
     labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
