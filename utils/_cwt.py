@@ -111,7 +111,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     return mean_auc
 
 
-def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs, format_xaxis=True):
+def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_masked, coi_line_array, freqs, format_xaxis=True):
     wavelength = 1/freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
@@ -119,7 +119,9 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
     ticks = list(range(len(activity)))
     if format_xaxis:
         ticks = get_time_ticks(len(activity))
-    axs[0].plot(ticks, activity)
+    axs[0].plot(ticks, activity, label='activity')
+    axs[0].plot(ticks, activity_centered, label='activity centered (signal - average of signal (=%.2f))' % np.average(activity))
+    axs[0].legend(loc="upper right")
     axs[0].set_title("Time domain signal")
 
     axs[0].set(xlabel="Time in minute", ylabel="activity")
@@ -133,7 +135,8 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
         if step_slug == "QN_CWT_ANSCOMBE_LOG":
             power_masked = np.log(anscombe(power_masked))
-        axs[1].imshow(power_masked)
+        pos = axs[1].imshow(power_masked)
+        fig.colorbar(pos, ax=axs[1])
     if(len(coi_line_array) > 0):
         axs[1].plot(coi_line_array, linestyle="--", linewidth=0, c="white")#todo fix xratio
     axs[1].set_aspect('auto')
@@ -157,7 +160,7 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
 
     labels_wl = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][1:]
+    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][:]
     #new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
     new_lab = []
     for ii, l in enumerate(labels_wt):
@@ -217,8 +220,13 @@ def check_scale_spacing(scales):
     return np.mean(spaces)
 
 
+def center_signal(y):
+    y_centered = y - np.average(y)
+    return y_centered
+
+
 def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
-    y = activity
+    y = center_signal(activity)
     wavelenght = len(activity) #nday wavelenght in minutes
     f0 = 1 / wavelenght
     w = wavelet.Morlet(f0)
@@ -233,7 +241,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
     power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
-    plot_cwt_power(step_slug, out_dir, i, activity, power_masked.copy(), coi_line_array, freqs, format_xaxis=format_xaxis)
+    plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi_line_array, freqs, format_xaxis=format_xaxis)
     return power_masked, freqs, coi, shape
 
 
@@ -432,7 +440,7 @@ if __name__ == "__main__":
     for i in np.arange(5, 100, 5):
         X.append(creatSin(i, 1440))
     X = np.array(X)
-    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit", format_xaxis=False).transform(X)
+    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False).transform(X)
 
     for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
 
