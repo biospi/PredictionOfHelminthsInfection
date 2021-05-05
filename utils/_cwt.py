@@ -115,7 +115,7 @@ def plot_cwt_power(step_slug, out_dir, i, activity, power_masked, coi_line_array
     wavelength = 1/freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
-    fig.suptitle("Signal , CWT", fontsize=18)
+    #fig.suptitle("Signal , CWT", fontsize=18)
     ticks = list(range(len(activity)))
     if format_xaxis:
         ticks = get_time_ticks(len(activity))
