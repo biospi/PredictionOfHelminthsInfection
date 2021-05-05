@@ -160,7 +160,7 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
 
     labels_wl = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][:]
+    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][1:]
     #new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
     new_lab = []
     for ii, l in enumerate(labels_wt):
