@@ -283,7 +283,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     p = power_cwt_healthy.copy()
     if step_slug == "QN_CWT_ANSCOMBE_LOG":
         p = np.log(anscombe(p))
-    ax3.imshow(p)
+    if step_slug == "QN_CWT_ANSCOMBE":
+        p = anscombe(p)
+    pos = ax3.imshow(p)
+    fig.colorbar(pos, ax=ax3)
     ax3.set_aspect('auto')
     ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
     ax3.set_xlabel("Time")
@@ -313,7 +316,9 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     p = power_cwt_unhealthy.copy()
     if step_slug == "QN_CWT_ANSCOMBE_LOG":
         p = np.log(anscombe(p))
-    ax4.imshow(p)
+    pos = ax4.imshow(p)
+    fig.colorbar(pos, ax=ax4)
+
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
     ax4.set_xlabel("Time")
