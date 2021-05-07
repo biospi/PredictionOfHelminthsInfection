@@ -281,19 +281,16 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     imshow_y_axis = []
-    p = power_cwt_healthy.copy()
+    p0 = power_cwt_healthy.copy()
     if step_slug == "QN_CWT_ANSCOMBE_LOG":
-        p = np.log(anscombe(p))
+        p0 = np.log(anscombe(p0))
     if step_slug == "QN_CWT_ANSCOMBE":
-        p = anscombe(p)
-    pos = ax3.imshow(p)
-    imshow_y_axis.append(np.min(p))
-    imshow_y_axis.append(np.max(p))
-    fig.colorbar(pos, ax=ax3)
-    ax3.set_aspect('auto')
-    ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
-    ax3.set_xlabel("Time")
-    ax3.set_ylabel("Wave length of wavelet (in minute)")
+        p0 = anscombe(p0)
+
+    imshow_y_axis.append(np.nanmin(p0))
+    imshow_y_axis.append(np.nanmax(p0))
+
+
     # ax3.set_yscale('log')
     #n_y_ticks = ax3.get_yticks().shape[0] - 2
     # labels = ["%.f" % item for item in wavelength]
@@ -316,16 +313,32 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax3.set_xticklabels(labels_)
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
-    p = power_cwt_unhealthy.copy()
+    p1 = power_cwt_unhealthy.copy()
     if step_slug == "QN_CWT_ANSCOMBE_LOG":
-        p = np.log(anscombe(p))
-    pos = ax4.imshow(p)
-    imshow_y_axis.append(np.min(p))
-    imshow_y_axis.append(np.max(p))
-    fig.colorbar(pos, ax=ax4)
+        p1 = np.log(anscombe(p1))
+    if step_slug == "QN_CWT_ANSCOMBE":
+        p1 = anscombe(p1)
 
-    ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
-    ax4.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
+    imshow_y_axis.append(np.nanmin(p1))
+    imshow_y_axis.append(np.nanmax(p1))
+
+    vmin, vmax = min(imshow_y_axis), max(imshow_y_axis)
+
+    pos0 = ax3.imshow(p0, vmin=vmin, vmax=vmax)
+    fig.colorbar(pos0, ax=ax3)
+
+    pos1 = ax4.imshow(p1, vmin=vmin, vmax=vmax)
+    fig.colorbar(pos1, ax=ax4)
+
+
+
+    # ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
+    # ax4.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
+
+    ax3.set_aspect('auto')
+    ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
+    ax3.set_xlabel("Time")
+    ax3.set_ylabel("Wave length of wavelet (in minute)")
 
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
