@@ -113,7 +113,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
 
 
 def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_masked, coi_line_array, freqs, scales,
-                   format_xaxis=True):
+                   format_xaxis=True, avg=0):
     wavelength = 1 / freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
@@ -123,7 +123,7 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
         ticks = get_time_ticks(len(activity))
     axs[0].plot(ticks, activity, label='activity')
     axs[0].plot(ticks, activity_centered,
-                label='activity centered (signal - average of signal (=%.2f))' % np.average(activity))
+                label='activity centered (signal - average of all sample (=%.2f))' % avg)
     axs[0].legend(loc="upper right")
     axs[0].set_title("Time domain signal")
 
@@ -269,7 +269,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, 
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
     plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi, freqs, scales,
-                   format_xaxis=format_xaxis)
+                   format_xaxis=format_xaxis, avg=avg)
     return power_masked, freqs, coi, shape
 
 
