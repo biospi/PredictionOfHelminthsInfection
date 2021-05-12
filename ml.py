@@ -481,8 +481,7 @@ if __name__ == "__main__":
                       ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
                       ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
             step_slug = "_".join(steps)
-            if "CWT" in step_slug:
-                continue
+
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
                                                    class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0], scale_spacing=scale_spacing)
