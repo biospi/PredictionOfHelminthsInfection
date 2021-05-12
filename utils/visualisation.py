@@ -324,10 +324,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     vmin, vmax = min(imshow_y_axis), max(imshow_y_axis)
 
-    pos0 = ax3.imshow(p0, vmin=vmin, vmax=vmax)
+    pos0 = ax3.imshow(p0, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
     fig.colorbar(pos0, ax=ax3)
 
-    pos1 = ax4.imshow(p1, vmin=vmin, vmax=vmax)
+    pos1 = ax4.imshow(p1, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
     fig.colorbar(pos1, ax=ax4)
 
     # ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
@@ -337,12 +337,13 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
     ax3.set_xlabel("Time")
     ax3.set_ylabel("Wave length of wavelet (in minute)")
+    ax3.set_yscale('log')
 
     ax4.set_aspect('auto')
     ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
     ax4.set_xlabel("Time")
     ax4.set_ylabel("Wave length of wavelet (in minute)")
-    #ax4.set_yscale('log')
+    ax4.set_yscale('log')
 
     #n_y_ticks = ax4.get_yticks().shape[0] - 1
     #labels = ["%.2f" % item for item in wavelength]

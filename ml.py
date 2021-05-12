@@ -139,18 +139,20 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_cwt, df_meta], axis=1)
             # sanity check#################################################################################################
-            rdm_idxs = random.choices(df.index.tolist(), k=1)
-            samples_tocheck = df_o.loc[(rdm_idxs), :].values[:, :-N_META]
-            cwt_to_check = pd.DataFrame(CWT(out_dir=graph_outputdir + "/" + step + "/cwt_sanity_check/").transform(samples_tocheck))
-            prev_cwt_results = df.loc[(rdm_idxs), :].values[:, :-N_META]
-            assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
+            #wont work sincce using avg of sample!
+            # rdm_idxs = random.choices(df.index.tolist(), k=1)
+            # samples_tocheck = df_o.loc[(rdm_idxs), :].values[:, :-N_META]
+            # cwt_to_check = pd.DataFrame(CWT(out_dir=graph_outputdir + "/" + step + "/cwt_sanity_check/").transform(samples_tocheck))
+            # prev_cwt_results = df.loc[(rdm_idxs), :].values[:, :-N_META]
+            # assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
             #############################################################################################################
             data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
             data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         if step == "PCA":
-            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df.iloc[:, :-N_META].values))
+            df_before_reduction = df.iloc[:, :-N_META].values
+            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df_before_reduction))
             data_frame_pca.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_pca, df_meta], axis=1)
@@ -445,40 +447,40 @@ if __name__ == "__main__":
         ################################################################################################################
         ##VISUALISATION
         ################################################################################################################
-        df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"],
-                                          class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-                                          clf_name="SVM_QN_VISU")
-        plot_zeros_distrib(label_series, df_norm, output_dir,
-                           title='Percentage of zeros in activity per sample after normalisation')
-        plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
-                           title='Percentage of zeros in activity per sample before normalisation')
-
-        plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
-        plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
-
-        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
-        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
-
-        animal_ids = df_norm.iloc[0:len(df_norm), :]["id"].astype(str).tolist()
-        ntraces = 2
-        idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
-                                                 class_healthy,
-                                                 class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
-                                                 xlabel="Time",
-                                                 ylabel="activity", ntraces=ntraces)
-        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-                    output_dir,
-                    df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
-                    idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+        # df_norm = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, ["QN"],
+        #                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+        #                                   clf_name="SVM_QN_VISU")
+        # plot_zeros_distrib(label_series, df_norm, output_dir,
+        #                    title='Percentage of zeros in activity per sample after normalisation')
+        # plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
+        #                    title='Percentage of zeros in activity per sample before normalisation')
+        #
+        # plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
+        # plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
+        #
+        # plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
+        # plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
+        #
+        animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
+        # ntraces = 2
+        # idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
+        #                                          class_healthy,
+        #                                          class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
+        #                                          xlabel="Time",
+        #                                          ylabel="activity", ntraces=ntraces)
+        # plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+        #             output_dir,
+        #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+        #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
         for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
-                      ["QN"], ["QN", "ANSCOMBE", "LOG", "CWT"],
+                      ["QN"], ["QN", "PCA"],
                       ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
                       ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
-                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[1]-N_META)
+                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0])
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
