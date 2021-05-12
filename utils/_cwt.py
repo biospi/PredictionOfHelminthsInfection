@@ -291,7 +291,7 @@ def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
     cwt_full = np.array(cwt_full)
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
-    plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
+    #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
     return cwt, cwt_full, freqs, coi, shape
 
 
