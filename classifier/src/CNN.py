@@ -169,11 +169,7 @@ def load_ucihar_data_(folder):
     return train_signals, train_labels, test_signals, test_labels
 
 
-def load_ucihar_data(folder, X_train, X_test, y_train, y_test ):
-    train_folder = folder + 'train/InertialSignals/'
-    test_folder = folder + 'test/InertialSignals/'
-    labelfile_train = folder + 'train/y_train.txt'
-    labelfile_test = folder + 'test/y_test.txt'
+def load_ucihar_data(X_train, X_test, y_train, y_test ):
     train_signals, test_signals = [], []
     # for input_file in os.listdir(train_folder):
     #     # signal = read_signals_ucihar(train_folder + input_file)
@@ -265,46 +261,8 @@ def load_df_from_datasets(fname, label_col='label'):
     return data_frame_original, data_frame
 
 
-
-if __name__ == "__main__":
-    # dataset = "http://paos.colorado.edu/research/wavelets/wave_idl/sst_nino3.dat"
-    # df_nino = pd.read_table(dataset)
-    # N = df_nino.shape[0]
-    # t0 = 1871
-    # dt = 0.25
-    # time = np.arange(0, N) * dt + t0
-    # signal = df_nino.values.squeeze()
-    #
-    # scales = np.arange(1, 128)
-    # plot_signal_plus_average(time, signal)
-    # plot_fft_plus_power(time, signal)
-    # plot_wavelet(time, signal, scales)
-
-    file = "F:/Data/gen_dataset_debug/delmas_70101200027_1min_famachadays_1_threshold_interpol_30_threshold_zero2nan_480/training_sets/activity_delmas_70101200027_dbft_1_1min_threshi_30_threshz_480.csv"
-    data_frame_original, data_frame = load_df_from_datasets(file)
-    downsample_false_class = True
-    if downsample_false_class:
-        df_true = data_frame[data_frame['label'] == True]
-        df_false = data_frame[data_frame['label'] == False]
-        try:
-            df_false = df_false.sample(df_true.shape[0])
-        except ValueError as e:
-            print(e)
-            sys.exit(-1)
-        data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
-
-    data_frame = get_norm_l2(data_frame)
-
-    y = data_frame['label'].values.flatten()
-    y = y.astype(int)
-    X = data_frame[data_frame.columns[1:data_frame.shape[1] - 1]]
-    test_size = 10
-    X_train_, X_test_, y_train_, y_test_ = train_test_split(X, y, random_state=0, stratify=y, test_size=int(test_size)/100)
-
-
-    folder_ucihar = 'F:/Data/CNN/UCI HAR Dataset/'
-    # uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data_(folder_ucihar)
-    uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data(folder_ucihar, X_train_, X_test_, y_train_, y_test_ )
+def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
+    uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data(X_train_, X_test_, y_train_, y_test_ )
     # print(uci_har_labels_test)
 
     scales = range(1, X_train_.shape[1])
@@ -423,6 +381,48 @@ if __name__ == "__main__":
     # print("CNN                                     ")
     # y_test = np.argmax(y_test, axis=1)
     # print(classification_report(y_test, y_pred_bool))
+
+
+if __name__ == "__main__":
+    # dataset = "http://paos.colorado.edu/research/wavelets/wave_idl/sst_nino3.dat"
+    # df_nino = pd.read_table(dataset)
+    # N = df_nino.shape[0]
+    # t0 = 1871
+    # dt = 0.25
+    # time = np.arange(0, N) * dt + t0
+    # signal = df_nino.values.squeeze()
+    #
+    # scales = np.arange(1, 128)
+    # plot_signal_plus_average(time, signal)
+    # plot_fft_plus_power(time, signal)
+    # plot_wavelet(time, signal, scales)
+
+    file = "F:/Data/gen_dataset_debug/delmas_70101200027_1min_famachadays_1_threshold_interpol_30_threshold_zero2nan_480/training_sets/activity_delmas_70101200027_dbft_1_1min_threshi_30_threshz_480.csv"
+    data_frame_original, data_frame = load_df_from_datasets(file)
+    downsample_false_class = True
+    if downsample_false_class:
+        df_true = data_frame[data_frame['label'] == True]
+        df_false = data_frame[data_frame['label'] == False]
+        try:
+            df_false = df_false.sample(df_true.shape[0])
+        except ValueError as e:
+            print(e)
+            sys.exit(-1)
+        data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
+
+    data_frame = get_norm_l2(data_frame)
+
+    y = data_frame['label'].values.flatten()
+    y = y.astype(int)
+    X = data_frame[data_frame.columns[1:data_frame.shape[1] - 1]]
+    test_size = 10
+    X_train_, X_test_, y_train_, y_test_ = train_test_split(X, y, random_state=0, stratify=y, test_size=int(test_size)/100)
+    cnn2d(X_train_, X_test_, y_train_, y_test_)
+
+
+    folder_ucihar = 'F:/Data/CNN/UCI HAR Dataset/'
+    # uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data_(folder_ucihar)
+
 
 
 

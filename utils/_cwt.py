@@ -2,6 +2,7 @@ import os
 
 import matplotlib
 from matplotlib.ticker import ScalarFormatter
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import check_array
 from sklearn.base import TransformerMixin, BaseEstimator
 import pycwt as wavelet
@@ -111,16 +112,18 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     return mean_auc
 
 
-def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_masked, coi_line_array, freqs, format_xaxis=True):
-    wavelength = 1/freqs
+def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_masked, coi_line_array, freqs, scales,
+                   format_xaxis=True):
+    wavelength = 1 / freqs
     plt.clf()
     fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
-    #fig.suptitle("Signal , CWT", fontsize=18)
+    # fig.suptitle("Signal , CWT", fontsize=18)
     ticks = list(range(len(activity)))
     if format_xaxis:
         ticks = get_time_ticks(len(activity))
     axs[0].plot(ticks, activity, label='activity')
-    axs[0].plot(ticks, activity_centered, label='activity centered (signal - average of signal (=%.2f))' % np.average(activity))
+    axs[0].plot(ticks, activity_centered,
+                label='activity centered (signal - average of signal (=%.2f))' % np.average(activity))
     axs[0].legend(loc="upper right")
     axs[0].set_title("Time domain signal")
 
@@ -135,17 +138,17 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
         if step_slug == "QN_CWT_ANSCOMBE_LOG":
             power_masked = np.log(anscombe(power_masked))
-        pos = axs[1].imshow(power_masked)
+        pos = axs[1].imshow(power_masked, extent=[0, len(activity), len(scales), 1])
         fig.colorbar(pos, ax=axs[1])
-    if(len(coi_line_array) > 0):
-        axs[1].plot(coi_line_array, linestyle="--", linewidth=0, c="white")#todo fix xratio
+
+    #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
     axs[1].set_aspect('auto')
     axs[1].set_title("CWT")
     axs[1].set_xlabel("Time in minute")
     if format_xaxis:
         axs[1].set_xlabel("Time")
     axs[1].set_ylabel("Wave length of wavelet (in minute)")
-    #axs[1].set_yscale('log')
+    axs[1].set_yscale('log')
 
     if format_xaxis:
         n_x_ticks = axs[1].get_xticks().shape[0]
@@ -154,21 +157,22 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
         labels_[:] = labels_[0]
         axs[1].set_xticklabels(labels_)
 
-    # n_y_ticks = axs[1].get_yticks().shape[0]-2
-    cwty = axs[1].get_yticks()
-    n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
-
-    labels_wl = ["%.2f" % item for item in wavelength]
-    # print(labels)
-    labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][1:]
-    #new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
-    new_lab = []
-    for ii, l in enumerate(labels_wt):
-        new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
-    #new_lab[-1] = matplotlib.text.Text(8, float(l), l)
-    axs[1].set_yticklabels(new_lab)
-
-    axs[1].tick_params(axis='y', which='both', colors='black')
+    # # n_y_ticks = axs[1].get_yticks().shape[0]-2
+    # cwty = axs[1].get_yticks()
+    # n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
+    #
+    # labels_wl = ["%.2f" % item for item in wavelength]
+    # # print(labels)
+    # labels_wt = np.array(labels_wl)[list(range(1, len(labels_wl), int(len(labels_wl) / n_y_ticks)))][1:]
+    # # new_lab = [matplotlib.text.Text(0, float(labels_wt[0]), labels_wt[0])]
+    # new_lab = []
+    # for ii, l in enumerate(labels_wt):
+    #     new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
+    # # new_lab[-1] = matplotlib.text.Text(8, float(l), l)
+    # axs[1].set_yticklabels(new_lab)
+    #
+    # axs[1].tick_params(axis='y', which='both', colors='black')
+    # axs[1].set_yticks(wavelength)
 
     filename = "%d_%s_cwt.png" % (i, step_slug)
     filepath = "%s/%s" % (out_dir, filename)
@@ -180,34 +184,25 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
     plt.close(fig)
 
 
-def mask_cwt(cwt, coi, scales, turn_off=False):
-    if turn_off:
-        return cwt
-    # print("masking cwt...")
-
-    coi_line = []
-    for j in range(cwt.shape[1]):
-        for i, s in enumerate(scales):
-            c = coi[j]
-            if s > c:
-                cwt[i:, j] = np.nan
-                coi_line.append(i)
-                break
-
-    return cwt, coi_line
+def mask_cwt(cwt, coi):
+    mask = np.ones(cwt.shape)
+    for i in range(cwt.shape[1]):
+        mask[int(coi[i]):, i] = np.nan
+    cwt = mask * cwt
+    return cwt
 
 
 def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
-                  df_timedomain, df_cwt,
-                  class_healthy_label, class_unhealthy_label,
-                  class_healthy, class_unhealthy):
+                     df_timedomain, df_cwt,
+                     class_healthy_label, class_unhealthy_label,
+                     class_healthy, class_unhealthy):
     idx_healthy = df_timedomain[df_timedomain["target"] == class_healthy].index.tolist()
     idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
     h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
     uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
     plot_cwt_power_sidebyside(step_slug, True, class_healthy_label, class_unhealthy_label, class_healthy,
-                                  class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                                  graph_outputdir, h_m, uh_m, freqs, ntraces=2)
+                              class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
+                              graph_outputdir, h_m, uh_m, freqs, ntraces=2)
 
 
 def check_scale_spacing(scales):
@@ -220,28 +215,61 @@ def check_scale_spacing(scales):
     return np.mean(spaces)
 
 
-def center_signal(y):
-    y_centered = y - np.average(y)
+def center_signal(y, avg):
+    y_centered = y - avg
     return y_centered
 
 
-def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None):
-    y = center_signal(activity)
-    wavelenght = len(activity) #nday wavelenght in minutes
-    f0 = 1 / wavelenght
+def simple_example():
+    num_steps = 512
+    x = np.arange(num_steps)
+    y = np.sin(2 * np.pi * x / 32)
+    delta_t = 1
+    scales = np.arange(1, num_steps + 1)
+    # pycwt
+    w = wavelet.Morlet(0.1)
+    freqs = 1 / (w.flambda() * scales)
+    test = 1 / freqs
+
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
+    coefs_cc = np.conj(coefs)
+    power_cwt = np.real(np.multiply(coefs, coefs_cc))
+
+    fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
+    axs[0].plot(y, label='signal')
+    axs[0].set(xlabel="Time", ylabel="amplitude")
+
+    pos = axs[1].imshow(power_cwt)
+    fig.colorbar(pos, ax=axs[1])
+    axs[1].set_aspect('auto')
+    axs[1].set_title("CWT")
+    axs[1].set_xlabel("Time")
+    #axs[1].set_yscale('log')
+    fig.show()
+    fig.clear()
+    plt.close(fig)
+
+
+def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0):
+    y = center_signal(activity, avg)
+    delta_t = 1
+    scales = np.arange(1, len(y) + 1)
+    freqs = 1 / (scales)
+    f0 = 2*np.pi*freqs[-1]
     w = wavelet.Morlet(f0)
-    #w = wavelet.MexicanHat()
-    coefs, scales, freqs, coi, _, _ = wavelet.cwt(y, 0.1, wavelet=w, dj=1./30.)
-    #mean_scale_space = check_scale_spacing(scales)
+    coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
+    coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
+
     coefs_cc = np.conj(coefs)
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
         # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
         power_cwt = np.real(np.multiply(coefs, coefs_cc))
     # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
-    power_masked, coi_line_array = mask_cwt(power_cwt.copy(), coi, scales)
+    power_masked = mask_cwt(power_cwt.copy(), coi)
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
-    plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi_line_array, freqs, format_xaxis=format_xaxis)
+    plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi, freqs, scales,
+                   format_xaxis=format_xaxis)
     return power_masked, freqs, coi, shape
 
 
@@ -253,10 +281,10 @@ def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
     cwt_full = []
     i = 0
     for activity in tqdm(X):
-        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis)
+        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X))
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
-        power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]#remove masked values
+        power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         cwt.append(power_flatten_masked)
         i += 1
     cwt = np.array(cwt)
@@ -291,7 +319,7 @@ class CWT(TransformerMixin, BaseEstimator):
         return self
 
     def transform(self, X, copy=None):
-        #copy = copy if copy is not None else self.copy
+        # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
         cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.format_xaxis)
         self.freqs = freqs
@@ -315,8 +343,8 @@ def createSyntheticActivityData(n_samples=4):
     samples_path = "F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv"
     df = pd.read_csv(samples_path, header=None)
     df = df.fillna(0)
-    crop = -4 - int(df.shape[1]/1.1)
-    activity = df.iloc[259, 9353: 9353+60*6].values
+    crop = -4 - int(df.shape[1] / 1.1)
+    activity = df.iloc[259, :-4].values.astype(int)
 
     dataset = []
     for j in range(n_samples):
@@ -364,10 +392,10 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
 
     fig = make_subplots(rows=1, cols=1)
     trace = go.Heatmap(
-            z=X,
-            x=ticks,
-            y=list(range(X.shape[0])),
-            colorscale='Viridis')
+        z=X,
+        x=ticks,
+        y=list(range(X.shape[0])),
+        colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
     # fig.show()
@@ -380,21 +408,21 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
 
 def createSinWave(f, time):
     t = np.linspace(0, time, int(time))
-    y = np.sin(2. * np.pi * t * f)*100
+    y = np.sin(2. * np.pi * t * f) * 100
     return y.astype(float)
 
 
 def createPoisson(time, s):
-    seed = np.ceil(random.random()*2)+1
+    seed = np.ceil(random.random() * 2) + 1
     noise = np.random.poisson(int(seed), size=int(time))
-    y = noise*s
+    y = noise * s
     return y
 
 
 def createNormal(f, time, s):
     seed = np.ceil(f * 2) + 1
     noise = np.random.normal(seed, size=int(time))
-    y = noise*s
+    y = noise * s
     return y
 
 
@@ -435,14 +463,18 @@ def creatSin(freq, time):
 
 if __name__ == "__main__":
     print("********CWT*********")
+    # simple_example()
+
 
     X = []
     for i in np.arange(5, 100, 5):
         X.append(creatSin(i, 1440))
     X = np.array(X)
+    X = np.array(createSyntheticActivityData())
     X_CWT = CWT(out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False).transform(X)
+    exit()
 
-    for d in [(60*60*24*1)/60, (60*60*24*7)/60]:
+    for d in [(60 * 60 * 24 * 1) / 60, (60 * 60 * 24 * 7) / 60]:
 
         signal10 = []
         for _ in range(60):
@@ -452,22 +484,22 @@ if __name__ == "__main__":
             signal2.append(creatSin(2 + np.random.random() / 100, d))
 
         for out_dir in ["F:/Data2/_cwt_debug_poisson_%d/" % d, "F:/Data2/_cwt_debug_normal_%d/" % d]:
-            #X = np.array(createSyntheticActivityData()
-            #X, targets = createSinWaves(d)
-            #X, targets = createPoisonWaves(d)
+            # X = np.array(createSyntheticActivityData()
+            # X, targets = createSinWaves(d)
+            # X, targets = createPoisonWaves(d)
             if "poisson" in out_dir:
                 X, targets = createPoisonWaves(d, signal10, signal2)
 
             if "normal" in out_dir:
                 X, targets = createNormalWaves(d, signal10, signal2)
 
-            #X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
-            #X.columns = list(range(X.shape[1]))
-            #plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
+            # X = pd.concat([pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X), pd.DataFrame(X)], axis=1)
+            # X.columns = list(range(X.shape[1]))
+            # plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
             X_CWT = CWT(out_dir=out_dir, format_xaxis=False).transform(X)
 
-            #plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
+            # plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
             print("********************")
             report_rows_list = []
             y = np.array(targets)
@@ -513,7 +545,8 @@ if __name__ == "__main__":
 
             print('CWT->SVC')
             clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-            scores = cross_validate(clf_svc, X_CWT.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+            scores = cross_validate(clf_svc, X_CWT.copy(), y.copy(), cv=cross_validation_method, scoring=scoring,
+                                    n_jobs=-1)
             scores["class0"] = y[y == class_healthy].size
             scores["class1"] = y[y == class_unhealthy].size
             scores["option"] = "CWT"
@@ -554,20 +587,20 @@ if __name__ == "__main__":
             print(df)
 
             t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-            df["class_1_label"].values[0])
+                df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+                df["class_1_label"].values[0])
 
             t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-            df["class_1_label"].values[0])
+                df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+                df["class_1_label"].values[0])
 
             t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-            df["class_1_label"].values[0])
+                df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+                df["class_1_label"].values[0])
 
             t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-            df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-            df["class_1_label"].values[0])
+                df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
+                df["class_1_label"].values[0])
 
             fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
@@ -581,7 +614,8 @@ if __name__ == "__main__":
             fig.update_yaxes(range=[0, 1], row=3, col=1)
             fig.update_yaxes(range=[0, 1], row=4, col=1)
 
-            fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+            fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920,
+                          line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
             fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
                           line=dict(color="LightSeaGreen", width=4, dash="dot", ))
@@ -610,4 +644,3 @@ if __name__ == "__main__":
             print(filename)
             fig.write_html(filename)
             # fig.show()
-

@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.cross_decomposition import PLSRegression
+from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
     plot_roc_curve
 from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
@@ -39,7 +40,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
-from onedcnn.cnn import run1DCnn
+from cnn.cnn import run1DCnn, run2DCnn
 from utils.Utils import create_rec_dir
 from utils._anscombe import Anscombe, Log
 from utils._custom_split import StratifiedLeaveTwoOut
@@ -106,7 +107,8 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name=""):
+def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
+                            class_healthy, class_unhealthy, clf_name="", output_dim=2):
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
 
@@ -147,6 +149,12 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+        if step == "PCA":
+            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df.iloc[:, :-N_META].values))
+            data_frame_pca.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_pca, df_meta], axis=1)
+
         print("AFTER STEP ->", df)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
 
@@ -195,7 +203,7 @@ def process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, data_frame,
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
-    run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
+    run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
              days, farm_id, sampling, label_series, downsample_false_class, output_dir)
 
 
@@ -339,7 +347,7 @@ if __name__ == "__main__":
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--epochs', help='1d cnn epochs', default=100, type=int)
+    parser.add_argument('--epochs', help='1d cnn epochs', default=30, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -463,10 +471,14 @@ if __name__ == "__main__":
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "CWT"], ["QN"], ["QN", "CWT", "ANSCOMBE"], ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
+                      ["QN"], ["QN", "ANSCOMBE", "LOG", "CWT"],
+                      ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
+                      ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
+                                                   class_healthy_label, class_unhealthy_label, class_healthy,
+                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[1]-N_META)
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
@@ -475,7 +487,7 @@ if __name__ == "__main__":
                                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                    cv="StratifiedLeaveTwoOut")
 
-        # #CNN
+        #CNN
         # for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
         #     step_slug = "_".join(steps)
         #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
@@ -485,7 +497,7 @@ if __name__ == "__main__":
         #     df_processed["target"] = targets
         #     process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
         #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
-        #
+
 
         #todo add preprocessing step for exogeneous. concat with activity
         steps = ["HUMIDITY", "STDS"]

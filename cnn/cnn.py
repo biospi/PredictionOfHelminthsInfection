@@ -1,4 +1,10 @@
 import warnings
+import keras
+from keras.layers import Dense, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.models import Sequential
+from keras.callbacks import History
+import pywt
 from numpy import mean
 from numpy import std
 from numpy import dstack
@@ -16,6 +22,7 @@ import numpy as np
 import pandas as pd
 from sklearn.datasets import make_blobs
 
+from utils.Utils import create_rec_dir
 from utils._custom_split import StratifiedLeaveTwoOut
 import sklearn
 import matplotlib.pyplot as plt
@@ -26,7 +33,7 @@ from utils.visualisation import mean_confidence_interval, plot_roc_range
 from keras.utils.vis_utils import plot_model
 import time
 import os
-# os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 
 class Score:
@@ -121,7 +128,7 @@ def summarize_results(scores):
     print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-def evaluate_model(ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
+def evaluate_model(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
     X_train, X_test, y_train, y_test = format(trainX, trainy, testX, testy)
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
     model = Sequential()
@@ -142,10 +149,39 @@ def evaluate_model(ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, bat
         metrics.Recall(name='recall'),
         metrics.AUC(name='auc'),
     ]
-    # plot_model(model, show_shapes=True, to_file='multichannel.png')
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=METRICS)
+    plot_model(model, show_shapes=True, to_file='multichannel.png')
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=METRICS)
     # fit network
-    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    # list all data in history
+    print(history.history.keys())
+    # summarize history for accuracy
+    plt.plot(history.history['auc'])
+    ##plt.plot(history.history['val_auc'])
+    plt.title('model auc for fold %d' % i)
+    plt.ylabel('auc')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    path = "%s/model/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
+    print(final_path)
+    plt.savefig(final_path)
+    plt.clf()
+
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    ##plt.plot(history.history['val_loss'])
+    plt.title('model loss for fold %d' % i)
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    path = "%s/model/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
+    print(final_path)
+    plt.savefig(final_path)
+
     # evaluate model
     baseline_results = model.evaluate(X_test, y_test, batch_size=batch_size, verbose=0)
     # for name, value in zip(model.metrics_names, baseline_results):
@@ -178,6 +214,183 @@ def format(trainX, trainy, testX, testy):
     return X_train, X_test, y_train, y_test
 
 
+def formatDataFor2DCnn(X_train, X_test, y_train, y_test):
+    train_signals, test_signals = [], []
+    # for input_file in os.listdir(train_folder):
+    #     # signal = read_signals_ucihar(train_folder + input_file)
+
+    train_signals.append(X_train)
+    train_signals = np.transpose(np.array(train_signals), (1, 2, 0))
+    # for input_file in os.listdir(test_folder):
+    #     signal = read_signals_ucihar(test_folder + input_file)
+    #     test_signals.append(signal)
+    test_signals.append(X_test)
+    test_signals = np.transpose(np.array(test_signals), (1, 2, 0))
+
+    train_labels = y_train.tolist()
+    test_labels = y_test.tolist()
+    return train_signals, train_labels, test_signals, test_labels
+
+
+def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
+    start_time = time.time()
+    fig, ax = plt.subplots()
+    mean_fpr = np.linspace(0, 1, 100)
+    tprs = []
+    aucs = []
+    test_balanced_accuracy_score = []
+    test_precision_score0 = []
+    test_precision_score1 = []
+    test_recall_score0 = []
+    test_recall_score1 = []
+    test_f1_score0 = []
+    test_f1_score1 = []
+    i = 0
+    for train_index, test_index in cross_validation_method.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate2DCnn(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
+        i += 1
+        if np.isnan(roc_auc):
+            warnings.warn("classifier returned the same target for all testing samples.")
+            continue
+        interp_tpr = np.interp(mean_fpr, fpr, tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(roc_auc)
+        test_balanced_accuracy_score.append(acc)
+        test_precision_score0.append(p0)
+        test_precision_score1.append(p1)
+        test_recall_score0.append(r0)
+        test_recall_score1.append(r1)
+        test_f1_score0.append(f0)
+        test_f1_score1.append(f1)
+
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_CNN", fig)
+    # fig.show()
+    plt.close(fig)
+    plt.clf()
+
+    Score(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
+                 test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
+                 test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
+                 cross_validation_method, start_time, output_dir, downsample_false_class)
+
+
+def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=0, epochs=1000, batch_size=8):
+    Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
+
+    scales = range(1, X_train_.shape[1])
+    waveletname = 'morl'
+    train_size = Xtrain.shape[0]
+    test_size = Xtest.shape[0]
+    train_data_cwt = np.ndarray(shape=(train_size, Xtrain.shape[1]-1, Xtrain.shape[1], 1))
+
+    for ii in range(0, train_size):
+        print(ii, train_size)
+        jj = 0
+        signal = Xtrain[ii, :, jj]
+        coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        coeff_ = coeff[:, :X_train_.shape[1]]
+        train_data_cwt[ii, :, :, jj] = coeff_
+
+    test_data_cwt = np.ndarray(shape=(test_size, X_test_.shape[1]-1, X_test_.shape[1], 1))
+    for ii in range(0, test_size):
+        print(ii, test_size)
+        jj = 0
+        signal = Xtest[ii, :, jj]
+        coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        coeff_ = coeff[:, :X_train_.shape[1]]
+        test_data_cwt[ii, :, :, jj] = coeff_
+
+
+    ytrain = list(map(lambda x: int(x) - 1, ytrain))
+    ytest = list(map(lambda x: int(x) - 1, ytest))
+
+    x_train = train_data_cwt
+    y_train = list(ytrain[:train_size])
+    x_test = test_data_cwt
+    y_test = list(ytest[:test_size])
+
+    img_x = coeff_.shape[0]
+    img_y = coeff_.shape[1]
+    img_z = 1
+    input_shape = (img_x, img_y, img_z)
+
+    batch_size = 5
+    num_classes = 2
+    epochs = 10
+
+    x_train = x_train.astype('float16')
+    x_test = x_test.astype('float16')
+
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
+
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
+                     activation='relu',
+                     input_shape=input_shape))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(10, 10)))
+    model.add(Conv2D(64, (5, 5), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+    model.add(Dense(1000, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+
+    METRICS = [
+        keras.metrics.TruePositives(name='tp'),
+        keras.metrics.FalsePositives(name='fp'),
+        keras.metrics.TrueNegatives(name='tn'),
+        keras.metrics.FalseNegatives(name='fn'),
+        keras.metrics.BinaryAccuracy(name='accuracy'),
+        keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'),
+        keras.metrics.AUC(name='auc'),
+    ]
+    model.compile(loss=keras.losses.categorical_crossentropy,
+                  optimizer=keras.optimizers.Adam(),
+                  metrics=METRICS)
+
+    history = model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=1)
+    # list all data in history
+    print(history.history.keys())
+    # summarize history for accuracy
+    plt.plot(history.history['auc'])
+    ##plt.plot(history.history['val_auc'])
+    plt.title('model auc for fold %d' % i)
+    plt.ylabel('auc')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    path = "%s/model/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
+    print(final_path)
+    plt.savefig(final_path)
+    plt.clf()
+
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    ##plt.plot(history.history['val_loss'])
+    plt.title('model loss for fold %d' % i)
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    path = "%s/model/" % out_dir
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
+    print(final_path)
+    plt.savefig(final_path)
+
+    # evaluate model
+    baseline_results = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)
+    roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, x_test, y_test)
+    return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
+
+
 def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
     start_time = time.time()
     fig, ax = plt.subplots()
@@ -191,10 +404,12 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     test_recall_score1 = []
     test_f1_score0 = []
     test_f1_score1 = []
+    i = 0
     for train_index, test_index in cross_validation_method.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate_model(ax, X_train, y_train, X_test, y_test, epochs=epochs)
+        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate_model(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
+        i += 1
         if np.isnan(roc_auc):
             warnings.warn("classifier returned the same target for all testing samples.")
             continue

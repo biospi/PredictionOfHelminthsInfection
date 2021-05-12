@@ -250,7 +250,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     plt.clf()
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.20, 7.20))
     # fig.suptitle(title, fontsize=18)
-    wavelength = 1 / freqs
+    #wavelength = 1 / freqs
 
     df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-meta_size].values
     df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-meta_size].values
@@ -296,15 +296,15 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     # labels = ["%.f" % item for item in wavelength]
     # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
     # ax3.set_yticklabels(labels_)
-    cwty = ax3.get_yticks()
-    n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
-    labels = ["%.2f" % item for item in wavelength]
+    #cwty = ax3.get_yticks()
+    #n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
+    #labels = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
-    new_lab = []
-    for ii, l in enumerate(labels_):
-        new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
-    ax3.set_yticklabels(new_lab)
+    #labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
+    #new_lab = []
+    #for ii, l in enumerate(labels_):
+    #    new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
+    #ax3.set_yticklabels(new_lab)
 
     n_x_ticks = ax3.get_xticks().shape[0]
     labels_ = [item.strftime("%H:00") for item in ticks]
@@ -330,8 +330,6 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     pos1 = ax4.imshow(p1, vmin=vmin, vmax=vmax)
     fig.colorbar(pos1, ax=ax4)
 
-
-
     # ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
     # ax4.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
 
@@ -347,13 +345,13 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     #ax4.set_yscale('log')
 
     #n_y_ticks = ax4.get_yticks().shape[0] - 1
-    labels = ["%.2f" % item for item in wavelength]
+    #labels = ["%.2f" % item for item in wavelength]
     # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
-    new_lab = []
-    for ii, l in enumerate(labels_):
-        new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
-    ax4.set_yticklabels(new_lab)
+    #labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
+    #new_lab = []
+    #for ii, l in enumerate(labels_):
+    #    new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
+    #ax4.set_yticklabels(new_lab)
 
     n_x_ticks = ax4.get_xticks().shape[0]
     labels_ = [item.strftime("%H:00") for item in ticks]
