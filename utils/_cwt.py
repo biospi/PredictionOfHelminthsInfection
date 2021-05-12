@@ -250,10 +250,10 @@ def simple_example():
     plt.close(fig)
 
 
-def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0):
+def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1):
     y = center_signal(activity, avg)
     delta_t = 1
-    scales = np.arange(1, len(y) + 1)
+    scales = np.arange(1, len(y) + 1, scale_spacing)
     freqs = 1 / (scales)
     f0 = 2*np.pi*freqs[-1]
     w = wavelet.Morlet(f0)
@@ -273,7 +273,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, 
     return power_masked, freqs, coi, shape
 
 
-def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
+def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
@@ -281,7 +281,7 @@ def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
     cwt_full = []
     i = 0
     for activity in tqdm(X):
-        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X))
+        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
@@ -296,12 +296,13 @@ def compute_cwt(X, out_dir, step_slug, format_xaxis=None):
 
 
 class CWT(TransformerMixin, BaseEstimator):
-    def __init__(self, *, out_dir=None, copy=True, step_slug=None, format_xaxis=False):
+    def __init__(self, *, out_dir=None, copy=True, step_slug=None, format_xaxis=False, scale_spacing=None):
         self.out_dir = out_dir
         self.copy = copy
         self.freqs = None
         self.coi = None
         self.shape = None
+        self.scale_spacing = scale_spacing
         self.step_slug = step_slug
         self.format_xaxis = format_xaxis
 
@@ -321,7 +322,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.format_xaxis)
+        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.format_xaxis)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape

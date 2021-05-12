@@ -108,7 +108,7 @@ def setupGraphOutputPath(output_dir):
 
 
 def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
-                            class_healthy, class_unhealthy, clf_name="", output_dim=2):
+                            class_healthy, class_unhealthy, clf_name="", output_dim=2, scale_spacing=1):
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
 
@@ -132,7 +132,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir + "/" +step).transform(df.iloc[:, :-N_META].values)
         if step == "CWT":
             df_o = df.copy()
-            CWT_Transform = CWT(out_dir=graph_outputdir + "/" + step, step_slug=step_slug)
+            CWT_Transform = CWT(out_dir=graph_outputdir + "/" + step, step_slug=step_slug, scale_spacing=scale_spacing)
             data_frame_cwt = pd.DataFrame(
                 CWT_Transform.transform(df.copy().iloc[:, :-N_META].values))
             data_frame_cwt.index = df.index  # need to keep original sample index!!!!
@@ -345,6 +345,7 @@ if __name__ == "__main__":
     parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
     parser.add_argument('--s_output', help='output sample files', default='y', type=str)
     parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
+    parser.add_argument('--scale_spacing', help='cwt scale spacing', default=10, type=int)
     parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
@@ -360,12 +361,14 @@ if __name__ == "__main__":
     stratify = args.stratify
     s_output = args.s_output
     cwt = args.cwt
+    scale_spacing = args.scale_spacing
     hum_file = args.hum_file
     temp_file = args.temp_file
     n_splits = args.n_splits
     n_repeats = args.n_repeats
     epochs = args.epochs
     n_process = args.n_process
+
 
     stratify = "y" in stratify.lower()
     output_samples = "y" in s_output.lower()
@@ -478,9 +481,11 @@ if __name__ == "__main__":
                       ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
                       ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
             step_slug = "_".join(steps)
+            if "CWT" in step_slug:
+                continue
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
-                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0])
+                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0], scale_spacing=scale_spacing)
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
