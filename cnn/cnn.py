@@ -4,12 +4,12 @@ from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import Sequential
 from keras.callbacks import History
-import pywt
 from numpy import mean
 from numpy import std
 from numpy import dstack
 from pandas import read_csv
 from matplotlib import pyplot
+import pycwt as wavelet
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
@@ -290,7 +290,8 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
         print(ii, train_size)
         jj = 0
         signal = Xtrain[ii, :, jj]
-        coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        # coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
         coeff_ = coeff[:, :X_train_.shape[1]]
         train_data_cwt[ii, :, :, jj] = coeff_
 
@@ -299,7 +300,7 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
         print(ii, test_size)
         jj = 0
         signal = Xtest[ii, :, jj]
-        coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
         coeff_ = coeff[:, :X_train_.shape[1]]
         test_data_cwt[ii, :, :, jj] = coeff_
 

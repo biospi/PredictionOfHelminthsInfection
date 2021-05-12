@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 import sklearn
 from scipy.fftpack import fft
+import pycwt as wavelet
 from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import pycwt as wavelet
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
