@@ -1,6 +1,7 @@
 import os
 
 import matplotlib
+import pywt
 from matplotlib.ticker import ScalarFormatter
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import check_array
@@ -113,10 +114,14 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
 
 
 def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_masked, coi_line_array, freqs, scales,
-                   format_xaxis=True, avg=0):
+                   format_xaxis=True, avg=0, wavelet=None):
     wavelength = 1 / freqs
     plt.clf()
-    fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
+    if wavelet is not None:
+        fig, axs = plt.subplots(1, 3, figsize=(29.20, 7.20))
+    else:
+        fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+
     # fig.suptitle("Signal , CWT", fontsize=18)
     ticks = list(range(len(activity)))
     if format_xaxis:
@@ -157,6 +162,13 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
         labels_[:] = labels_[0]
         axs[1].set_xticklabels(labels_)
 
+    if wavelet is not None:
+        wavelet_func = [wavelet.psi(x) for x in np.arange(-10, 10, 0.1)]
+        axs[2].plot(wavelet_func, label='Real Component')
+        axs[2].legend(loc="upper right")
+        axs[2].set_title('%s wavelet function' % wavelet.name)
+        axs[2].set(xlabel="Time (unit of time)", ylabel="amplitude")
+
     # # n_y_ticks = axs[1].get_yticks().shape[0]-2
     # cwty = axs[1].get_yticks()
     # n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
@@ -185,6 +197,8 @@ def plot_cwt_power(step_slug, out_dir, i, activity, activity_centered, power_mas
 
 
 def mask_cwt(cwt, coi):
+    if coi is None:
+        return cwt
     mask = np.ones(cwt.shape)
     for i in range(cwt.shape[1]):
         mask[int(coi[i]):, i] = np.nan
@@ -250,27 +264,90 @@ def simple_example():
     plt.close(fig)
 
 
-def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1):
+def create_scale_array(size, m=2, last_scale=None):
+    scales = []
+    p = 1
+    for i in range(size):
+        p = p * m
+        scales.append(p)
+    if last_scale is not None:
+        scales[-1] = last_scale
+    return np.array(scales)
+
+
+def even_list(n):
+    result = [1]
+    for num in range(2, n * 2 + 1, 2):
+        result.append(num)
+    del result[-1]
+    return np.asarray(result, dtype=np.int32)
+
+
+def compute_cwt_paper(activity):
+    w = pywt.ContinuousWavelet('morl')
+    scales = even_list(40)
+    sampling_frequency = 1 / 60
+    sampling_period = 1 / sampling_frequency
+    coef, freqs = pywt.cwt(np.asarray(activity), scales, w, sampling_period=sampling_period)
+    return coef, freqs, scales
+
+
+def compute_cwt_paper_hd(activity):
+    print("compute_cwt...")
+    # t, activity = dummy_sin()
+    num_steps = len(activity)
+    x = np.arange(num_steps)
+    y = activity
+    delta_t = x[1] - x[0]
+    scales = np.arange(1, num_steps + 1) / 1
+    freqs = 1 / (wavelet.Morlet().flambda() * scales)
+    wavelet_type = 'morlet'
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
+    return coefs, freqs, scales
+
+
+def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1,
+              enable_graph_out=True, enable_coi=True):
     y = center_signal(activity, avg)
-    delta_t = 1
-    scales = np.arange(1, len(y) + 1, scale_spacing)
-    freqs = 1 / (scales)
-    f0 = 2*np.pi*freqs[-1]
-    w = wavelet.Morlet(f0)
-    coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
-    coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
+    # delta_t = 1
+    # #scales = np.arange(1, len(y) + 1, scale_spacing)
+    # #scales = create_scale_array(14, m=2, last_scale=len(y))
+    # scales = [2, 10, 20, 30]
+    # for k in range(1, 24*7):
+    #     scales.append(k*60)
+    # scales = np.array(scales)
+    # #print("number of scales is %d" % len(scales))
+    #
+    # freqs = 1 / (scales)
+    # #f0 = 2*np.pi*freqs[-1]
+    # w = wavelet.Morlet(3)
+
+    # coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
+    # coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
+    coefs, freqs, scales = compute_cwt_paper_hd(y)
+
+    coi = None
+    power_fft = np.array([])
 
     coefs_cc = np.conj(coefs)
+    # fft_cc = np.conj(fft)
+    # power_fft = np.real(np.multiply(fft, fft_cc))
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
         # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
         power_cwt = np.real(np.multiply(coefs, coefs_cc))
     # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
-    power_masked = mask_cwt(power_cwt.copy(), coi)
+    if enable_coi:
+        power_masked = mask_cwt(power_cwt.copy(), coi)
+    else:
+        power_masked = power_cwt.copy()
+
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
-    plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi, freqs, scales,
-                   format_xaxis=format_xaxis, avg=avg)
-    return power_masked, freqs, coi, shape
+    power_masked = coefs.real
+    if(enable_graph_out):
+        plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi, freqs, scales,
+                       format_xaxis=format_xaxis, avg=avg, wavelet=None)
+    return power_masked, freqs, coi, shape, scales
 
 
 def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
@@ -281,11 +358,13 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
     cwt_full = []
     i = 0
     for activity in tqdm(X):
-        power_masked, freqs, coi, shape = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
+        power_masked, freqs, coi, shape, scales = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten_masked = np.array(power_masked.flatten())
         cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
+        #power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten_masked)
+        #cwt.append(power_flatten_masked_fft)
         i += 1
     cwt = np.array(cwt)
     cwt_full = np.array(cwt_full)

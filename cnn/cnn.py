@@ -1,5 +1,6 @@
 import warnings
 import keras
+import pywt
 from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import Sequential
@@ -21,6 +22,7 @@ from keras import metrics
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_blobs
+from tqdm import tqdm
 
 from utils.Utils import create_rec_dir
 from utils._custom_split import StratifiedLeaveTwoOut
@@ -28,7 +30,9 @@ import sklearn
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, classification_report
 from sklearn.metrics import auc
-from sklearn.preprocessing import binarize
+from sklearn.preprocessing import binarize, MinMaxScaler
+
+from utils._cwt import cwt_power
 from utils.visualisation import mean_confidence_interval, plot_roc_range
 from keras.utils.vis_utils import plot_model
 import time
@@ -40,7 +44,7 @@ class Score:
     def __init__(self, y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
                  test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
                  test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
-                 cross_validation_method, start_time, output_dir, downsample_false_class):
+                 cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=None):
         report_rows_list = []
         scores = {}
         scores["fit_time"] = 0
@@ -67,7 +71,7 @@ class Score:
         scores["f1_score1_mean"] = np.mean(test_f1_score1)
         scores["sampling"] = sampling
         scores["classifier"] = "->CNN"
-        scores["classifier_details"] = "1DCNN"
+        scores["classifier_details"] = clf_detail
         scores["roc_auc_score_mean"] = mean_auc
         report_rows_list.append(scores)
 
@@ -76,8 +80,8 @@ class Score:
         df_report["class_1_label"] = label_series[class_unhealthy]
         df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
         df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))]
-        filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-            output_dir, farm_id, days, steps, downsample_false_class, sampling)
+        filename = "%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s_%s.csv" % (
+            output_dir, farm_id, days, steps, downsample_false_class, sampling, clf_detail)
         if not os.path.exists(output_dir):
             print("mkdir", output_dir)
             os.makedirs(output_dir)
@@ -265,8 +269,8 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
         test_recall_score1.append(r1)
         test_f1_score0.append(f0)
         test_f1_score1.append(f1)
-
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_CNN", fig)
+    clf_detail = "2DCNN"
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_"+clf_detail, fig)
     # fig.show()
     plt.close(fig)
     plt.clf()
@@ -274,49 +278,72 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     Score(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
                  test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
                  test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
-                 cross_validation_method, start_time, output_dir, downsample_false_class)
+                 cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=clf_detail)
 
 
 def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=0, epochs=1000, batch_size=8):
     Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
 
-    scales = range(1, X_train_.shape[1])
-    waveletname = 'morl'
+    # scales = [2, 10, 20, 30]
+    # for k in range(1, 24*7):
+    #     scales.append(k*60)
+    # scales = np.array(scales)
+    #
+    # waveletname = 'morl'
+
     train_size = Xtrain.shape[0]
     test_size = Xtest.shape[0]
-    train_data_cwt = np.ndarray(shape=(train_size, Xtrain.shape[1]-1, Xtrain.shape[1], 1))
 
-    for ii in range(0, train_size):
-        print(ii, train_size)
+    train_data_cwt = None
+
+    for ii in tqdm(range(0, train_size)):
+        # print("%d/%d" % (ii, train_size))
         jj = 0
         signal = Xtrain[ii, :, jj]
         # coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-        coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
+        # coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
+        coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TRAIN", enable_graph_out=False)
+
+        #coeff_2, freq = pywt.cwt(signal, scales, waveletname, 1)
+        #coeff, freq = pywt.cwt(y, scales, "db4", 1)
+
+        coeff[np.isnan(coeff)] = 0
+        coeff = MinMaxScaler().fit_transform(coeff)
         coeff_ = coeff[:, :X_train_.shape[1]]
+
+        if train_data_cwt is None:
+            train_data_cwt = np.ndarray(shape=(train_size, len(scales), Xtrain.shape[1], 1))
+
         train_data_cwt[ii, :, :, jj] = coeff_
 
-    test_data_cwt = np.ndarray(shape=(test_size, X_test_.shape[1]-1, X_test_.shape[1], 1))
-    for ii in range(0, test_size):
-        print(ii, test_size)
+    test_data_cwt = None
+
+    for ii in tqdm(range(0, test_size)):
+        # print("%d/%d" % (ii, test_size))
         jj = 0
         signal = Xtest[ii, :, jj]
-        coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
+        coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TEST", enable_graph_out=False)
+        ##coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
+        #coeff, freq = pywt.cwt(y, scales, "db4", 1)
+        coeff[np.isnan(coeff)] = 0
+        coeff = MinMaxScaler().fit_transform(coeff)
         coeff_ = coeff[:, :X_train_.shape[1]]
+        if test_data_cwt is None:
+            test_data_cwt = np.ndarray(shape=(test_size, len(scales), X_test_.shape[1], 1))
         test_data_cwt[ii, :, :, jj] = coeff_
 
+    print("calculated (%d) cwt in train fold." % train_size)
+    print("calculated (%d) cwt in test fold." % test_size)
 
-    ytrain = list(map(lambda x: int(x) - 1, ytrain))
-    ytest = list(map(lambda x: int(x) - 1, ytest))
+    ytrain = (np.array(ytrain) == 1).astype(int)
+    ytest = (np.array(ytest) == 1).astype(int)
 
     x_train = train_data_cwt
-    y_train = list(ytrain[:train_size])
+    y_train = list(ytrain)
     x_test = test_data_cwt
-    y_test = list(ytest[:test_size])
+    y_test = list(ytest)
 
-    img_x = coeff_.shape[0]
-    img_y = coeff_.shape[1]
-    img_z = 1
-    input_shape = (img_x, img_y, img_z)
+    input_shape = (train_data_cwt.shape[1], train_data_cwt.shape[2], train_data_cwt.shape[3])
 
     batch_size = 5
     num_classes = 2
@@ -330,14 +357,15 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
 
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
-                     activation='relu',
+                     activation='relu', padding='same',
                      input_shape=input_shape))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(10, 10)))
-    model.add(Conv2D(64, (5, 5), activation='relu'))
+    model.add(Conv2D(64, (5, 5), activation='relu', padding='same'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
     model.add(Dense(1000, activation='relu'))
     model.add(Dense(num_classes, activation='softmax'))
+
 
     METRICS = [
         keras.metrics.TruePositives(name='tp'),
@@ -360,31 +388,37 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
     # list all data in history
     print(history.history.keys())
     # summarize history for accuracy
-    plt.plot(history.history['auc'])
+
+    fig_fold, ax_fold = plt.subplots()
+    ax_fold.plot(history.history['auc'])
     ##plt.plot(history.history['val_auc'])
-    plt.title('model auc for fold %d' % i)
-    plt.ylabel('auc')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
+    ax_fold.set_title('model auc for fold %d' % i)
+    ax_fold.set_ylabel('auc')
+    ax_fold.set_xlabel('epoch')
+    ax_fold.legend(['train', 'test'], loc='upper left')
     path = "%s/model/" % out_dir
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
     print(final_path)
-    plt.savefig(final_path)
-    plt.clf()
+    fig_fold.savefig(final_path)
+    fig_fold.clear()
+    plt.close(fig_fold)
 
+    fig_fold, ax_fold = plt.subplots()
     # summarize history for loss
-    plt.plot(history.history['loss'])
+    ax_fold.plot(history.history['loss'])
     ##plt.plot(history.history['val_loss'])
-    plt.title('model loss for fold %d' % i)
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
+    ax_fold.set_title('model loss for fold %d' % i)
+    ax_fold.set_ylabel('loss')
+    ax_fold.set_xlabel('epoch')
+    ax_fold.legend(['train', 'test'], loc='upper left')
     path = "%s/model/" % out_dir
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
     print(final_path)
-    plt.savefig(final_path)
+    fig_fold.savefig(final_path)
+    fig_fold.clear()
+    plt.close(fig_fold)
 
     # evaluate model
     baseline_results = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)

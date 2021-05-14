@@ -282,10 +282,11 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     imshow_y_axis = []
     p0 = power_cwt_healthy.copy()
-    if step_slug == "QN_CWT_ANSCOMBE_LOG":
+    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
         p0 = np.log(anscombe(p0))
-    if step_slug == "QN_CWT_ANSCOMBE":
-        p0 = anscombe(p0)
+    if "QN_CWT_ANSCOMBE" in step_slug:
+        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
+            p0 = anscombe(p0)
 
     imshow_y_axis.append(np.nanmin(p0))
     imshow_y_axis.append(np.nanmax(p0))
@@ -314,10 +315,11 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
     p1 = power_cwt_unhealthy.copy()
-    if step_slug == "QN_CWT_ANSCOMBE_LOG":
+    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
         p1 = np.log(anscombe(p1))
-    if step_slug == "QN_CWT_ANSCOMBE":
-        p1 = anscombe(p1)
+    if "QN_CWT_ANSCOMBE" in step_slug:
+        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
+            p1 = anscombe(p1)
 
     imshow_y_axis.append(np.nanmin(p1))
     imshow_y_axis.append(np.nanmax(p1))

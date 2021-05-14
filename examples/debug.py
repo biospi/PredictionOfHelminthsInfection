@@ -123,50 +123,69 @@ def format(text):
 
 
 if __name__ == "__main__":
+    from scipy import signal
+    # from ssqueezepy import ssq_cwt, ssq_stft
+    #
+    # Twxo, Wxo, *_ = ssq_cwt(xo)
+    # import pycwt as wavelet
+    # import pywt
+    # # [r, psi, x] = pywt.Wavelet('db4').wavefun()
+    # # plt.plot(x, psi)
+    # # plt.show()
+    #
+    # scales = [1, 5, 10, 20, 30, 40, 50, 100]
+    # y = list(range(100))
+    # #coeff, freq = pywt.dwt2(y, scales, "db4", 1)
+    # #cwtmatr = signal.cwt(y, signal.daub(4), scales)
+    #
+    # wavelet_func = [wavelet.Morlet(2).psi(x) for x in np.arange(-10, 10, 0.1)]
+    # plt.plot(wavelet_func)
+    # plt.show()
+    # print("ok")
 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+    # import numpy as np
+    # import matplotlib.pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
+    #
+    # from sklearn import decomposition
+    # from sklearn import datasets
+    #
+    # np.random.seed(5)
+    #
+    # centers = [[1, 1], [-1, -1], [1, -1]]
+    # iris = datasets.load_iris()
+    # X = iris.data
+    # y = iris.target
+    #
+    # fig = plt.figure(1, figsize=(4, 3))
+    # plt.clf()
+    # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
+    #
+    # plt.cla()
+    # pca = decomposition.PCA(n_components=3)
+    # pca.fit(X)
+    # X = pca.transform(X)
+    #
+    # for name, label in [('Setosa', 0), ('Versicolour', 1), ('Virginica', 2)]:
+    #     ax.text3D(X[y == label, 0].mean(),
+    #               X[y == label, 1].mean() + 1.5,
+    #               X[y == label, 2].mean(), name,
+    #               horizontalalignment='center',
+    #               bbox=dict(alpha=.5, edgecolor='w', facecolor='w'))
+    # # Reorder the labels to have colors matching the cluster results
+    # y = np.choose(y, [1, 2, 0]).astype(float)
+    # ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.nipy_spectral,
+    #            edgecolor='k')
+    #
+    # ax.w_xaxis.set_ticklabels([])
+    # ax.w_yaxis.set_ticklabels([])
+    # ax.w_zaxis.set_ticklabels([])
+    #
+    # plt.show()
 
-    from sklearn import decomposition
-    from sklearn import datasets
-
-    np.random.seed(5)
-
-    centers = [[1, 1], [-1, -1], [1, -1]]
-    iris = datasets.load_iris()
-    X = iris.data
-    y = iris.target
-
-    fig = plt.figure(1, figsize=(4, 3))
-    plt.clf()
-    ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
-
-    plt.cla()
-    pca = decomposition.PCA(n_components=3)
-    pca.fit(X)
-    X = pca.transform(X)
-
-    for name, label in [('Setosa', 0), ('Versicolour', 1), ('Virginica', 2)]:
-        ax.text3D(X[y == label, 0].mean(),
-                  X[y == label, 1].mean() + 1.5,
-                  X[y == label, 2].mean(), name,
-                  horizontalalignment='center',
-                  bbox=dict(alpha=.5, edgecolor='w', facecolor='w'))
-    # Reorder the labels to have colors matching the cluster results
-    y = np.choose(y, [1, 2, 0]).astype(float)
-    ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.nipy_spectral,
-               edgecolor='k')
-
-    ax.w_xaxis.set_ticklabels([])
-    ax.w_yaxis.set_ticklabels([])
-    ax.w_zaxis.set_ticklabels([])
-
-    plt.show()
-
-    # path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report.csv"
-    # output_dir = "/".join(path.split("/")[:-1])
-    # plotMlReport(path, output_dir)
+    path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report.csv"
+    output_dir = "/".join(path.split("/")[:-1])
+    plotMlReport(path, output_dir)
 
     # df = pd.read_csv(str(path), index_col=None)
     # df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]

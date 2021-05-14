@@ -265,7 +265,7 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data(X_train_, X_test_, y_train_, y_test_ )
     # print(uci_har_labels_test)
 
-    scales = range(1, X_train_.shape[1])
+    scales = range(1, 171)
     waveletname = 'morl'
     train_size = uci_har_signals_train.shape[0]
     test_size = uci_har_signals_test.shape[0]
@@ -273,7 +273,7 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     # train_size = 3
     # test_size = 3
 
-    train_data_cwt = np.ndarray(shape=(train_size, uci_har_signals_train.shape[1]-1, uci_har_signals_train.shape[1], 1))
+    train_data_cwt = np.ndarray(shape=(train_size, len(scales), uci_har_signals_train.shape[1], 1))
 
     for ii in range(0, train_size):
         print(ii, train_size)
@@ -292,7 +292,7 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
         # plt.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]], interpolation='nearest',
         #            aspect='auto')
         # plt.show()
-    test_data_cwt = np.ndarray(shape=(test_size, X_test_.shape[1]-1, X_test_.shape[1], 1))
+    test_data_cwt = np.ndarray(shape=(test_size, len(scales), X_test_.shape[1], 1))
     for ii in range(0, test_size):
         print(ii, test_size)
         jj = 0
@@ -329,10 +329,10 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
 
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
-                     activation='relu',
+                     activation='relu', padding="same",
                      input_shape=input_shape))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(10, 10)))
-    model.add(Conv2D(64, (5, 5), activation='relu'))
+    model.add(Conv2D(64, (5, 5), activation='relu', padding="same"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
     model.add(Dense(1000, activation='relu'))
@@ -411,12 +411,16 @@ if __name__ == "__main__":
         data_frame = pd.concat([df_true, df_false], ignore_index=True, sort=False)
 
     data_frame = get_norm_l2(data_frame)
+    data_frame = data_frame.loc[[0, 1, 2, 3, 4, 5, 100, 101, 102, 103, 104, 105], :]
 
     y = data_frame['label'].values.flatten()
     y = y.astype(int)
     X = data_frame[data_frame.columns[1:data_frame.shape[1] - 1]]
-    test_size = 10
-    X_train_, X_test_, y_train_, y_test_ = train_test_split(X, y, random_state=0, stratify=y, test_size=int(test_size)/100)
+
+
+
+    test_size = 4
+    X_train_, X_test_, y_train_, y_test_ = train_test_split(X, y, random_state=0, stratify=y, test_size=test_size)
     cnn2d(X_train_, X_test_, y_train_, y_test_)
 
 
