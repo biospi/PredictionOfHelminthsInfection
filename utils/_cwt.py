@@ -300,6 +300,7 @@ def compute_cwt_paper_hd(activity):
     y = activity
     delta_t = x[1] - x[0]
     scales = np.arange(1, num_steps + 1) / 1
+    # scales = np.concatenate([scales[0:120], scales[100::5]])
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     wavelet_type = 'morlet'
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
@@ -355,23 +356,23 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
-    cwt_full = []
+    #cwt_full = []
     i = 0
     for activity in tqdm(X):
         power_masked, freqs, coi, shape, scales = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten_masked = np.array(power_masked.flatten())
-        cwt_full.append(power_flatten_masked)
+        #cwt_full.append(power_flatten_masked)
         power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         #power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten_masked)
         #cwt.append(power_flatten_masked_fft)
         i += 1
     cwt = np.array(cwt)
-    cwt_full = np.array(cwt_full)
+    #cwt_full = np.array(cwt_full)
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return cwt, cwt_full, freqs, coi, shape
+    return cwt, freqs, coi, shape
 
 
 class CWT(TransformerMixin, BaseEstimator):
@@ -401,11 +402,10 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, cwt_full, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.format_xaxis)
+        cwt, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.format_xaxis)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
-        self.cwt_full = cwt_full
         return cwt
 
 

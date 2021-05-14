@@ -148,10 +148,10 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             # prev_cwt_results = df.loc[(rdm_idxs), :].values[:, :-N_META]
             # assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
             #############################################################################################################
-            data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
-            data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
+            #data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
+            #data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
-                             data_frame_cwt_full, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                             data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
         if step == "PCA":
             df_before_reduction = df.iloc[:, :-N_META].values
             data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df_before_reduction))
