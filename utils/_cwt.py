@@ -210,6 +210,7 @@ def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
                      df_timedomain, df_cwt,
                      class_healthy_label, class_unhealthy_label,
                      class_healthy, class_unhealthy):
+    print("CWTVisualisation")
     idx_healthy = df_timedomain[df_timedomain["target"] == class_healthy].index.tolist()
     idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
     h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
@@ -300,7 +301,7 @@ def compute_cwt_paper_hd(activity):
     y = activity
     delta_t = x[1] - x[0]
     scales = np.arange(1, num_steps + 1) / 1
-    # scales = np.concatenate([scales[0:120], scales[100::5]])
+    scales = np.concatenate([scales[0:120], scales[100::2]])
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     wavelet_type = 'morlet'
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
