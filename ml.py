@@ -152,12 +152,14 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             #data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+            del data_frame_cwt
         if step == "PCA":
-            df_before_reduction = df.iloc[:, :-N_META].values
-            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df_before_reduction))
+            df = df.iloc[:, :-N_META].values
+            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df))
             data_frame_pca.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_pca, df_meta], axis=1)
+            del data_frame_pca
 
         print("AFTER STEP ->", df)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
