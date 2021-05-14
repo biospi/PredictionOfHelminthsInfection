@@ -367,7 +367,9 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
         cwt.append(power_flatten_masked)
         #cwt.append(power_flatten_masked_fft)
         i += 1
+    print("convert cwt list to np array...")
     cwt = np.array(cwt)
+    print("done.")
     #cwt_full = np.array(cwt_full)
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
