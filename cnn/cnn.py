@@ -34,10 +34,10 @@ from sklearn.preprocessing import binarize, MinMaxScaler
 
 from utils._cwt import cwt_power
 from utils.visualisation import mean_confidence_interval, plot_roc_range
-from keras.utils.vis_utils import plot_model
+#from keras.utils.vis_utils import plot_model
 import time
 import os
-os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+#os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 
 class Score:
@@ -153,7 +153,7 @@ def evaluate_model(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epoc
         metrics.Recall(name='recall'),
         metrics.AUC(name='auc'),
     ]
-    plot_model(model, show_shapes=True, to_file='multichannel.png')
+    #plot_model(model, show_shapes=True, to_file='multichannel.png')
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=METRICS)
     # fit network
     history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)

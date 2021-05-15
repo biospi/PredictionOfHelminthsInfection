@@ -396,7 +396,7 @@ if __name__ == "__main__":
     scale_spacing = args.scale_spacing
     hum_file = args.hum_file
     temp_file = args.temp_file
-    n_splits = args.n_splits
+    n_splits = args.n_splitsF
     n_repeats = args.n_repeats
     epochs = args.epochs
     n_process = args.n_process
