@@ -123,6 +123,10 @@ def format(text):
 
 
 if __name__ == "__main__":
+    from numpy import *
+    m = array([[1, 0], [2, 3]])
+    x = ma.log(m)
+    x.filled(0)
     from scipy import signal
     # from ssqueezepy import ssq_cwt, ssq_stft
     #

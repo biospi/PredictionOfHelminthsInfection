@@ -60,7 +60,10 @@ class Log(TransformerMixin, BaseEstimator):
 
     def transform(self, X, copy=None):
         X = check_array(X, accept_sparse='csr')
-        return np.log(X)
+        # X = np.log(X)
+        X = np.ma.log(X)
+        X.filled(0)
+        return X
 
     def inverse_transform(self, X):
         return np.exp(X)

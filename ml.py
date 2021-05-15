@@ -118,7 +118,7 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "STDS"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "STDS", "PCA"]:
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
