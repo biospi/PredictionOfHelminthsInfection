@@ -154,8 +154,8 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
                              data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
             del data_frame_cwt
         if step == "PCA":
-            df = df.iloc[:, :-N_META].values
-            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df))
+            df_before_reduction = df.iloc[:, :-N_META].values
+            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df_before_reduction))
             data_frame_pca.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_pca, df_meta], axis=1)
@@ -188,7 +188,33 @@ def loadActivityData(filepath):
     return data_frame, N_META
 
 
-def process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+                       downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
+                       cv="StratifiedLeaveTwoOut"):
+    print(label_series)
+    data_frame["id"] = animal_ids
+    data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
+    if downsample_false_class:
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+
+    sample_idxs = data_frame.index.tolist()
+
+    if cv == "StratifiedLeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify, verbose=True)
+
+    if cv == "RepeatedStratifiedKFold":
+        cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
+    data_frame = data_frame.drop("id", 1)
+
+    y = data_frame[y_col].values.flatten()
+    y = y.astype(int)
+    X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
+    run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
+             days, farm_id, sampling, label_series, downsample_false_class, output_dir)
+
+
+def process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
                        downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
                        cv="StratifiedLeaveTwoOut"):
     print(label_series)
@@ -212,6 +238,7 @@ def process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, data_frame,
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
     run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
              days, farm_id, sampling, label_series, downsample_false_class, output_dir)
+
 
 
 def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
@@ -503,12 +530,25 @@ if __name__ == "__main__":
         #CNN
         for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
+            step_slug = step_slug + "_2DCNN"
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="CNN")
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="2DCNN")
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
-            process_data_frame_cnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
+            process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
+                           enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+
+        for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
+                      ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+            step_slug = "_".join(steps)
+            step_slug = step_slug + "_1DCNN"
+            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                                   class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="1DCNN")
+            targets = df_processed["target"]
+            df_processed = df_processed.iloc[:, :-N_META]
+            df_processed["target"] = targets
+            process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
                            enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
 
