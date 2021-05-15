@@ -382,7 +382,7 @@ if __name__ == "__main__":
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--epochs', help='1d cnn epochs', default=30, type=int)
+    parser.add_argument('--epochs', help='1d cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -508,24 +508,24 @@ if __name__ == "__main__":
         #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
         #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
-                      ["QN"], ["QN", "PCA"],
-                      ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
-                      ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
-                      ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
-        # for steps in [["QN", "ANSCOMBE", "LOG", "PCA"], ["QN", "ANSCOMBE", "LOG"]]:
-            step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy,
-                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
-                                                   scale_spacing=scale_spacing)
-            targets = df_processed["target"]
-            df_processed = df_processed.iloc[:, :-N_META]
-            df_processed["target"] = targets
-            process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
-                                   n_splits, n_repeats,
-                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-                                   cv="StratifiedLeaveTwoOut")
+        # for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
+        #               ["QN"], ["QN", "PCA"],
+        #               ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
+        #               ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
+        #               ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
+        # # for steps in [["QN", "ANSCOMBE", "LOG", "PCA"], ["QN", "ANSCOMBE", "LOG"]]:
+        #     step_slug = "_".join(steps)
+        #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+        #                                            class_healthy_label, class_unhealthy_label, class_healthy,
+        #                                            class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
+        #                                            scale_spacing=scale_spacing)
+        #     targets = df_processed["target"]
+        #     df_processed = df_processed.iloc[:, :-N_META]
+        #     df_processed["target"] = targets
+        #     process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+        #                            n_splits, n_repeats,
+        #                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+        #                            cv="StratifiedLeaveTwoOut")
 
         #CNN
         for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:

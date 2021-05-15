@@ -281,7 +281,7 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
                  cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=clf_detail)
 
 
-def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=0, epochs=1000, batch_size=8):
+def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=0, epochs=100, batch_size=8):
     Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
 
     # scales = [2, 10, 20, 30]
@@ -347,7 +347,7 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
 
     batch_size = 5
     num_classes = 2
-    epochs = 10
+    # epochs = 30
 
     x_train = x_train.astype('float16')
     x_test = x_test.astype('float16')

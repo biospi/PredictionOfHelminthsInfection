@@ -302,7 +302,8 @@ def compute_cwt_paper_hd(activity):
     delta_t = x[1] - x[0]
     # scales = np.arange(1, num_steps + 1) / 1
     # scales = np.concatenate([scales[0:120], scales[100::10]])
-    scales = create_scale_array(14, m=2, last_scale=len(y))
+    # scales = create_scale_array(14, m=2, last_scale=len(y))
+    scales = np.arange(1, 150)
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     wavelet_type = 'morlet'
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=wavelet_type, freqs=freqs)
