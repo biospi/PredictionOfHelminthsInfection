@@ -324,7 +324,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, 
     #     scales.append(k*60)
     # scales = np.array(scales)
     #print("number of scales is %d" % len(scales))
-    scales = np.arange(1, 150)
+    scales = np.arange(1, len(y)+1)
     scales = np.concatenate([scales[0:120], scales[100::10]])
     freqs = 1 / (wavelet.Morlet().flambda() * scales)
     w = wavelet.Morlet()
