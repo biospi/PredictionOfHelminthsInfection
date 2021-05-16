@@ -206,13 +206,16 @@ def mask_cwt(cwt, coi):
     return cwt
 
 
-def CWTVisualisation(step_slug, graph_outputdir, shape, freqs, coi_line_array,
+def CWTVisualisation(step_slug, graph_outputdir, shape, coi_mask, freqs, coi_line_array,
                      df_timedomain, df_cwt,
                      class_healthy_label, class_unhealthy_label,
                      class_healthy, class_unhealthy):
     print("CWTVisualisation")
     idx_healthy = df_timedomain[df_timedomain["target"] == class_healthy].index.tolist()
     idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
+    # coi_mask_ = coi_mask.astype(int)
+    # idxs = np.where(coi_mask_ == 1)
+    # df_cwt.columns = [str(x) for x in list(df_cwt.columns)]
     h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
     uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
     plot_cwt_power_sidebyside(step_slug, True, class_healthy_label, class_unhealthy_label, class_healthy,
@@ -313,33 +316,30 @@ def compute_cwt_paper_hd(activity):
 def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1,
               enable_graph_out=True, enable_coi=True):
     y = center_signal(activity, avg)
-    # delta_t = 1
-    # #scales = np.arange(1, len(y) + 1, scale_spacing)
-    # #scales = create_scale_array(14, m=2, last_scale=len(y))
+    delta_t = 1
+    #scales = np.arange(1, len(y) + 1, scale_spacing)
+    #scales = create_scale_array(14, m=2, last_scale=len(y))
     # scales = [2, 10, 20, 30]
     # for k in range(1, 24*7):
     #     scales.append(k*60)
     # scales = np.array(scales)
-    # #print("number of scales is %d" % len(scales))
-    #
-    # freqs = 1 / (scales)
-    # #f0 = 2*np.pi*freqs[-1]
-    # w = wavelet.Morlet(3)
+    #print("number of scales is %d" % len(scales))
+    scales = np.arange(1, 150)
+    scales = np.concatenate([scales[0:120], scales[100::10]])
+    freqs = 1 / (wavelet.Morlet().flambda() * scales)
+    w = wavelet.Morlet()
 
-    # coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
-    # coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
-    coefs, freqs, scales = compute_cwt_paper_hd(y)
-
-    coi = None
-    power_fft = np.array([])
+    coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, delta_t, wavelet=w, freqs=freqs)
+    coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
 
     coefs_cc = np.conj(coefs)
     # fft_cc = np.conj(fft)
     # power_fft = np.real(np.multiply(fft, fft_cc))
     with np.errstate(divide='ignore'):  # ignore numpy divide by zero warning
-        # power_cwt = np.log(np.real(np.multiply(coefs, coefs_cc)))
         power_cwt = np.real(np.multiply(coefs, coefs_cc))
-    # power_cwt[power_cwt == -np.inf] = 0  # todo check why inf output
+
+    power_cwt = coefs.real
+
     if enable_coi:
         power_masked = mask_cwt(power_cwt.copy(), coi)
     else:
@@ -347,7 +347,7 @@ def cwt_power(activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, 
 
     shape = power_cwt.shape
     # power_masked, coi_line_array = power_cwt, []
-    power_masked = coefs.real
+    #power_masked = coefs.real
     if(enable_graph_out):
         plot_cwt_power(step_slug, out_dir, i, activity, y, power_masked.copy(), coi, freqs, scales,
                        format_xaxis=format_xaxis, avg=avg, wavelet=None)
@@ -365,7 +365,8 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
         power_masked, freqs, coi, shape, scales = cwt_power(activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten_masked = np.array(power_masked.flatten())
         #cwt_full.append(power_flatten_masked)
-        power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
+        coi_mask = np.isnan(power_flatten_masked)
+        #power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         #power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten_masked)
         #cwt.append(power_flatten_masked_fft)
@@ -377,7 +378,7 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, format_xaxis=None):
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return cwt, freqs, coi, shape
+    return cwt, freqs, coi, shape, coi_mask
 
 
 class CWT(TransformerMixin, BaseEstimator):
@@ -390,6 +391,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.scale_spacing = scale_spacing
         self.step_slug = step_slug
         self.format_xaxis = format_xaxis
+        self.coi_mask = None
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -407,10 +409,11 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, freqs, coi, shape = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.format_xaxis)
+        cwt, freqs, coi, shape, coi_mask = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.format_xaxis)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
+        self.coi_mask = coi_mask
         return cwt
 
 

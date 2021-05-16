@@ -37,10 +37,11 @@ from utils.visualisation import mean_confidence_interval, plot_roc_range
 #from keras.utils.vis_utils import plot_model
 import time
 import os
+import tensorflow as tf
 #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 
-class Score:
+class ScoreBuilder:
     def __init__(self, y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
                  test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
                  test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
@@ -132,7 +133,7 @@ def summarize_results(scores):
     print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-def evaluate_model(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
+def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
     X_train, X_test, y_train, y_test = format(trainX, trainy, testX, testy)
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
     model = Sequential()
@@ -156,44 +157,52 @@ def evaluate_model(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epoc
     #plot_model(model, show_shapes=True, to_file='multichannel.png')
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=METRICS)
     # fit network
-    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    history = model.fit(tf.convert_to_tensor(X_train, np.float32), tf.convert_to_tensor(y_train, np.float32),
+                        epochs=epochs, batch_size=batch_size, verbose=verbose)
     # list all data in history
     print(history.history.keys())
+
+    plotModelMetrics(history, out_dir, i, dir_name="model_1dcnn")
+
+    # evaluate model
+    model.evaluate(tf.convert_to_tensor(X_test, np.float32), tf.convert_to_tensor(y_test, np.float32),
+                                      batch_size=batch_size, verbose=0)
+    roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, X_test, y_test)
+    return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
+
+
+def plotModelMetrics(history, out_dir, i, dir_name="model_cnn"):
     # summarize history for accuracy
-    plt.plot(history.history['auc'])
+    fig_fold, ax_fold = plt.subplots()
+    ax_fold.plot(history.history['auc'])
     ##plt.plot(history.history['val_auc'])
-    plt.title('model auc for fold %d' % i)
-    plt.ylabel('auc')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    path = "%s/model/" % out_dir
+    ax_fold.set_title('model auc for fold %d' % i)
+    ax_fold.set_ylabel('auc')
+    ax_fold.set_xlabel('epoch')
+    ax_fold.legend(['train', 'test'], loc='upper left')
+    path = "%s/%s" % (out_dir, dir_name)
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
     print(final_path)
-    plt.savefig(final_path)
-    plt.clf()
+    fig_fold.savefig(final_path)
+    fig_fold.clear()
+    plt.close(fig_fold)
 
+    fig_fold, ax_fold = plt.subplots()
     # summarize history for loss
-    plt.plot(history.history['loss'])
+    ax_fold.plot(history.history['loss'])
     ##plt.plot(history.history['val_loss'])
-    plt.title('model loss for fold %d' % i)
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    path = "%s/model/" % out_dir
+    ax_fold.set_title('model loss for fold %d' % i)
+    ax_fold.set_ylabel('loss')
+    ax_fold.set_xlabel('epoch')
+    ax_fold.legend(['train', 'test'], loc='upper left')
+    path = "%s/%s" % (out_dir, dir_name)
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
     print(final_path)
-    plt.savefig(final_path)
-
-    # evaluate model
-    baseline_results = model.evaluate(X_test, y_test, batch_size=batch_size, verbose=0)
-    # for name, value in zip(model.metrics_names, baseline_results):
-    #     print(name, ': ', value)
-    # test_predictions_baseline = model.predict(X_test, batch_size=5)
-    # plot_roc("Test Baseline", y_test, test_predictions_baseline, linestyle='--')
-    roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, X_test, y_test)
-    return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
+    fig_fold.savefig(final_path)
+    fig_fold.clear()
+    plt.close(fig_fold)
 
 
 def formatDataForKeras(X):
@@ -250,9 +259,30 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     test_f1_score0 = []
     test_f1_score1 = []
     i = 0
-    for train_index, test_index in cross_validation_method.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+
+    X_, y_, _, _ = formatDataFor2DCnn(X, X, y, y)
+    size = X_.shape[0]
+
+    data_cwt = None
+    for ii in tqdm(range(0, size)):
+        # print("%d/%d" % (ii, train_size))
+        jj = 0
+        signal = X_[ii, :, jj]
+        coeff, _, _, _, scales = cwt_power(signal, output_dir, i=ii, avg=np.average(signal), step_slug="TRAIN",
+                                           enable_graph_out=False)
+        coeff[np.isnan(coeff)] = 0
+        coeff = MinMaxScaler().fit_transform(coeff)
+        coeff_ = coeff[:, :X_.shape[1]]
+        if data_cwt is None:
+            data_cwt = np.ndarray(shape=(size, len(scales), X_.shape[1], 1))
+        data_cwt[ii, :, :, jj] = coeff_
+
+    print("calculated (%d) cwt in X." % size)
+    y_ = np.array(y_)
+    for train_index, test_index in tqdm(cross_validation_method.split(X, y)):
+        print("processing fold %d/%d ..." % (i, cross_validation_method.nfold))
+        X_train, X_test = data_cwt[train_index], data_cwt[test_index]
+        y_train, y_test = y_[train_index], y_[test_index]
         roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate2DCnn(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
         i += 1
         if np.isnan(roc_auc):
@@ -269,74 +299,60 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
         test_recall_score1.append(r1)
         test_f1_score0.append(f0)
         test_f1_score1.append(f1)
+
     clf_detail = "2DCNN"
     mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_"+clf_detail, fig)
     # fig.show()
     plt.close(fig)
     plt.clf()
 
-    Score(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
+    ScoreBuilder(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
                  test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
                  test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
                  cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=clf_detail)
 
 
-def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=0, epochs=100, batch_size=8):
-    Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
-
-    # scales = [2, 10, 20, 30]
-    # for k in range(1, 24*7):
-    #     scales.append(k*60)
-    # scales = np.array(scales)
+def evaluate2DCnn(i, out_dir, ax, train_data_cwt, y_train, test_data_cwt, y_test, verbose=0, epochs=100, batch_size=5):
+    # Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
+    # train_size = Xtrain.shape[0]
+    # test_size = Xtest.shape[0]
     #
-    # waveletname = 'morl'
+    # train_data_cwt = None
+    # for ii in tqdm(range(0, train_size)):
+    #     # print("%d/%d" % (ii, train_size))
+    #     jj = 0
+    #     signal = Xtrain[ii, :, jj]
+    #     coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TRAIN", enable_graph_out=False)
+    #     coeff[np.isnan(coeff)] = 0
+    #     coeff = MinMaxScaler().fit_transform(coeff)
+    #     coeff_ = coeff[:, :X_train_.shape[1]]
+    #     if train_data_cwt is None:
+    #         train_data_cwt = np.ndarray(shape=(train_size, len(scales), Xtrain.shape[1], 1))
+    #     train_data_cwt[ii, :, :, jj] = coeff_
+    #
+    # test_data_cwt = None
+    # for ii in tqdm(range(0, test_size)):
+    #     # print("%d/%d" % (ii, test_size))
+    #     jj = 0
+    #     signal = Xtest[ii, :, jj]
+    #     coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TEST", enable_graph_out=False)
+    #     coeff[np.isnan(coeff)] = 0
+    #     coeff = MinMaxScaler().fit_transform(coeff)
+    #     coeff_ = coeff[:, :X_train_.shape[1]]
+    #     if test_data_cwt is None:
+    #         test_data_cwt = np.ndarray(shape=(test_size, len(scales), X_test_.shape[1], 1))
+    #     test_data_cwt[ii, :, :, jj] = coeff_
+    #
+    # print("calculated (%d) cwt in train fold." % train_size)
+    # print("calculated (%d) cwt in test fold." % test_size)
 
-    train_size = Xtrain.shape[0]
-    test_size = Xtest.shape[0]
+    # # x_train = X_train
+    # y_train = list((np.array(y_train) == 1).astype(int))
+    # # x_test = X_test
+    # y_test = list((np.array(y_test) == 1).astype(int))
 
-    train_data_cwt = None
-
-    for ii in tqdm(range(0, train_size)):
-        # print("%d/%d" % (ii, train_size))
-        jj = 0
-        signal = Xtrain[ii, :, jj]
-        # coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-        # coeff, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=wavelet.Morlet())
-        coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TRAIN", enable_graph_out=False)
-
-        #coeff_2, freq = pywt.cwt(signal, scales, waveletname, 1)
-        #coeff, freq = pywt.cwt(y, scales, "db4", 1)
-
-        coeff[np.isnan(coeff)] = 0
-        coeff = MinMaxScaler().fit_transform(coeff)
-        coeff_ = coeff[:, :X_train_.shape[1]]
-
-        if train_data_cwt is None:
-            train_data_cwt = np.ndarray(shape=(train_size, len(scales), Xtrain.shape[1], 1))
-
-        train_data_cwt[ii, :, :, jj] = coeff_
-
-    test_data_cwt = None
-
-    for ii in tqdm(range(0, test_size)):
-        # print("%d/%d" % (ii, test_size))
-        jj = 0
-        signal = Xtest[ii, :, jj]
-        coeff, _, _, _, scales = cwt_power(signal, out_dir, i=ii, avg=np.average(signal), step_slug="TEST", enable_graph_out=False)
-        ##coeff, freq = pywt.cwt(signal, scales, waveletname, 1)
-        #coeff, freq = pywt.cwt(y, scales, "db4", 1)
-        coeff[np.isnan(coeff)] = 0
-        coeff = MinMaxScaler().fit_transform(coeff)
-        coeff_ = coeff[:, :X_train_.shape[1]]
-        if test_data_cwt is None:
-            test_data_cwt = np.ndarray(shape=(test_size, len(scales), X_test_.shape[1], 1))
-        test_data_cwt[ii, :, :, jj] = coeff_
-
-    print("calculated (%d) cwt in train fold." % train_size)
-    print("calculated (%d) cwt in test fold." % test_size)
-
-    ytrain = (np.array(ytrain) == 1).astype(int)
-    ytest = (np.array(ytest) == 1).astype(int)
+    ytrain = (np.array(y_train) == 1).astype(int)
+    ytest = (np.array(y_test) == 1).astype(int)
 
     x_train = train_data_cwt
     y_train = list(ytrain)
@@ -345,9 +361,7 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
 
     input_shape = (train_data_cwt.shape[1], train_data_cwt.shape[2], train_data_cwt.shape[3])
 
-    batch_size = 5
     num_classes = 2
-    # epochs = 30
 
     x_train = x_train.astype('float16')
     x_test = x_test.astype('float16')
@@ -366,7 +380,6 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
     model.add(Dense(1000, activation='relu'))
     model.add(Dense(num_classes, activation='softmax'))
 
-
     METRICS = [
         keras.metrics.TruePositives(name='tp'),
         keras.metrics.FalsePositives(name='fp'),
@@ -381,7 +394,7 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
                   optimizer=keras.optimizers.Adam(),
                   metrics=METRICS)
 
-    history = model.fit(x_train, y_train,
+    history = model.fit(tf.convert_to_tensor(x_train, np.float32), tf.convert_to_tensor(y_train, np.float32),
               batch_size=batch_size,
               epochs=epochs,
               verbose=1)
@@ -389,39 +402,11 @@ def evaluate2DCnn(i, out_dir, ax, X_train_, y_train_, X_test_, y_test_, verbose=
     print(history.history.keys())
     # summarize history for accuracy
 
-    fig_fold, ax_fold = plt.subplots()
-    ax_fold.plot(history.history['auc'])
-    ##plt.plot(history.history['val_auc'])
-    ax_fold.set_title('model auc for fold %d' % i)
-    ax_fold.set_ylabel('auc')
-    ax_fold.set_xlabel('epoch')
-    ax_fold.legend(['train', 'test'], loc='upper left')
-    path = "%s/model/" % out_dir
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
-    print(final_path)
-    fig_fold.savefig(final_path)
-    fig_fold.clear()
-    plt.close(fig_fold)
-
-    fig_fold, ax_fold = plt.subplots()
-    # summarize history for loss
-    ax_fold.plot(history.history['loss'])
-    ##plt.plot(history.history['val_loss'])
-    ax_fold.set_title('model loss for fold %d' % i)
-    ax_fold.set_ylabel('loss')
-    ax_fold.set_xlabel('epoch')
-    ax_fold.legend(['train', 'test'], loc='upper left')
-    path = "%s/model/" % out_dir
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
-    print(final_path)
-    fig_fold.savefig(final_path)
-    fig_fold.clear()
-    plt.close(fig_fold)
+    plotModelMetrics(history, out_dir, i, dir_name="model_2dcnn")
 
     # evaluate model
-    baseline_results = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=0)
+    model.evaluate(tf.convert_to_tensor(x_test, np.float32), tf.convert_to_tensor(y_test, np.float32),
+                                      batch_size=batch_size, verbose=0)
     roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, x_test, y_test)
     return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
 
@@ -441,9 +426,10 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     test_f1_score1 = []
     i = 0
     for train_index, test_index in cross_validation_method.split(X, y):
+        print("processing fold %d/%d ..." % (i, cross_validation_method.nfold))
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate_model(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
+        roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate1DCNN(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
         i += 1
         if np.isnan(roc_auc):
             warnings.warn("classifier returned the same target for all testing samples.")
@@ -459,16 +445,16 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
         test_recall_score1.append(r1)
         test_f1_score0.append(f0)
         test_f1_score1.append(f1)
-
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_CNN", fig)
+    clf_detail = "1DCNN"
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_"+clf_detail, fig)
     # fig.show()
     plt.close(fig)
     plt.clf()
 
-    Score(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
+    ScoreBuilder(y, class_healthy, class_unhealthy, steps, days, farm_id, test_balanced_accuracy_score,
                  test_precision_score0, test_precision_score1, test_recall_score0, test_recall_score1,
                  test_f1_score0, test_f1_score1, sampling, mean_auc, label_series,
-                 cross_validation_method, start_time, output_dir, downsample_false_class)
+                 cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=clf_detail)
 
 
 if __name__ == "__main__":

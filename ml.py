@@ -50,7 +50,7 @@ from utils.visualisation import plot_time_pca, plot_groups, plot_time_lda, plot_
     plot_zeros_distrib, plot_roc_range, plotDistribution
 
 
-def make_roc_curve(out_dir, classifier, X, y, cv, steps):
+def makeRocCurve(out_dir, classifier, X, y, cv, steps):
     print("make_roc_curve")
     if isinstance(X, pd.DataFrame):
         X = X.values
@@ -79,7 +79,7 @@ def make_roc_curve(out_dir, classifier, X, y, cv, steps):
     return mean_auc
 
 
-def downsample_df(data_frame, class_healthy, class_unhealthy):
+def downsampleDf(data_frame, class_healthy, class_unhealthy):
     df_true = data_frame[data_frame['target'] == class_unhealthy]
     df_false = data_frame[data_frame['target'] == class_healthy]
     try:
@@ -150,8 +150,10 @@ def applyPreprocessingSteps(df, N_META, output_dir, steps, class_healthy_label, 
             #############################################################################################################
             #data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
             #data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
-            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
+
+            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+            df = df.dropna(axis=1, how='all') #removes nan from coi
             del data_frame_cwt
         if step == "PCA":
             df_before_reduction = df.iloc[:, :-N_META].values
@@ -195,7 +197,7 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
-        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+        data_frame = downsampleDf(data_frame, class_healthy, class_unhealthy)
 
     sample_idxs = data_frame.index.tolist()
 
@@ -221,7 +223,7 @@ def process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
-        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+        data_frame = downsampleDf(data_frame, class_healthy, class_unhealthy)
 
     sample_idxs = data_frame.index.tolist()
 
@@ -240,7 +242,6 @@ def process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, data_fram
              days, farm_id, sampling, label_series, downsample_false_class, output_dir)
 
 
-
 def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
                            downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
                            cv="l2out"):
@@ -250,7 +251,7 @@ def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
-        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
+        data_frame = downsampleDf(data_frame, class_healthy, class_unhealthy)
 
     #animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
@@ -331,7 +332,7 @@ def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm
     scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = make_roc_curve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps)
+    aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
@@ -382,7 +383,7 @@ if __name__ == "__main__":
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--epochs', help='1d cnn epochs', default=20, type=int)
+    parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
     args = parser.parse_args()
 
@@ -455,6 +456,7 @@ if __name__ == "__main__":
         days, farm_id, option, sampling = parse_param_from_filename(file)
         print("loading dataset file %s ..." % file)
         data_frame, N_META = loadActivityData(file)
+
         data_frame_o = data_frame.copy()
         print(data_frame)
 
@@ -508,26 +510,26 @@ if __name__ == "__main__":
         #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
         #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
-        # for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
-        #               ["QN"], ["QN", "PCA"],
-        #               ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
-        #               ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
-        #               ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
-        # # for steps in [["QN", "ANSCOMBE", "LOG", "PCA"], ["QN", "ANSCOMBE", "LOG"]]:
-        #     step_slug = "_".join(steps)
-        #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-        #                                            class_healthy_label, class_unhealthy_label, class_healthy,
-        #                                            class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
-        #                                            scale_spacing=scale_spacing)
-        #     targets = df_processed["target"]
-        #     df_processed = df_processed.iloc[:, :-N_META]
-        #     df_processed["target"] = targets
-        #     process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
-        #                            n_splits, n_repeats,
-        #                            sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-        #                            cv="StratifiedLeaveTwoOut")
+        for steps in [["QN", "CWT", "PCA"], ["QN", "CWT"],
+                      ["QN"], ["QN", "PCA"],
+                      ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
+                      ["QN", "ANSCOMBE", "LOG", "CWT"], ["QN", "CWT", "ANSCOMBE", "LOG"],
+                      ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"]]:
+        # for steps in [["QN", "ANSCOMBE", "LOG", "PCA"], ["QN", "ANSCOMBE", "LOG"]]:
+            step_slug = "_".join(steps)
+            df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
+                                                   class_healthy_label, class_unhealthy_label, class_healthy,
+                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
+                                                   scale_spacing=scale_spacing)
+            targets = df_processed["target"]
+            df_processed = df_processed.iloc[:, :-N_META]
+            df_processed["target"] = targets
+            process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+                                   n_splits, n_repeats,
+                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                                   cv="StratifiedLeaveTwoOut")
 
-        #CNN
+        # #CNN
         for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             step_slug = step_slug + "_2DCNN"
@@ -539,8 +541,7 @@ if __name__ == "__main__":
             process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
                            enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
-        for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "PCA"],
-                      ["QN", "CWT", "ANSCOMBE", "LOG", "PCA"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
+        for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "CWT", "ANSCOMBE", "LOG"]]:
             step_slug = "_".join(steps)
             step_slug = step_slug + "_1DCNN"
             df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
