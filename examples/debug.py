@@ -61,6 +61,7 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
     fig.show()
     return mean_auc
 
+
 def make_roc_curve(out_dir, classifier, X, y, cv, param_str):
     print("make_roc_curve")
 
@@ -123,10 +124,34 @@ def format(text):
 
 
 if __name__ == "__main__":
-    from numpy import *
-    m = array([[1, 0], [2, 3]])
-    x = ma.log(m)
-    x.filled(0)
+    import matlab.engine
+    matlab = matlab.engine.start_matlab()
+    t = np.linspace(0, 5, 5000)
+    x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
+    # plt.plot(x)
+    # plt.show()
+
+    Fs = matlab.double(1/60)
+    scales = np.arange(1, 150)
+    mat_scales = matlab.double(matlab.cell2mat(scales.astype(np.float).tolist()))
+    mat_a = matlab.double(matlab.cell2mat(x.tolist()))
+    #wt, freqs = matlab.cwt(mat_a, mat_scales, 'sym4', Fs, nargout=2)
+    wt, freqs, _ = matlab.spectrogram(mat_a, nargout=3)
+    coefs = np.asarray(wt)
+    coefs_cc = np.conj(coefs)
+    power = np.real(np.multiply(coefs, coefs_cc))
+
+    fig, ax = plt.subplots()
+    pos = ax.imshow(power, extent=[0, power.shape[1], 0, scales.size])
+    fig.colorbar(pos, ax=ax)
+    #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
+    ax.set_aspect('auto')
+    ax.set_title("CWT")
+    ax.set_xlabel("Time in minute")
+    ax.set_ylabel("Wave length of wavelet (in minute)")
+    fig.show()
+
+
     from scipy import signal
     # from ssqueezepy import ssq_cwt, ssq_stft
     #
@@ -187,9 +212,9 @@ if __name__ == "__main__":
     #
     # plt.show()
 
-    path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report.csv"
-    output_dir = "/".join(path.split("/")[:-1])
-    plotMlReport(path, output_dir)
+    # path = "F:/Data2/biospi_last/ml_gain_1_4_7day/final_classification_report.csv"
+    # output_dir = "/".join(path.split("/")[:-1])
+    # plotMlReport(path, output_dir)
 
     # df = pd.read_csv(str(path), index_col=None)
     # df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]

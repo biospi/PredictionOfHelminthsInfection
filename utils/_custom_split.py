@@ -25,7 +25,7 @@ class StratifiedLeaveTwoOut:
         self.sample_idx = np.array(sample_idx).flatten()
         self.animal_ids = np.array(animal_ids).flatten()
 
-    def split(self, X, y, group=None):
+    def split(self, X, y, group=None, leaven=1):
         df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1), self.sample_idx.reshape(self.sample_idx.size, 1))))
 
         #df.to_csv("F:/Data2/test.csv")
@@ -51,7 +51,7 @@ class StratifiedLeaveTwoOut:
         comb = []
         for i in range(0, len(a) + 1):
             for subset in itertools.combinations(a, i):
-                if len(subset) != 2:
+                if len(subset) != leaven:
                     continue
                 if subset not in comb:
                     comb.append(subset)
@@ -77,13 +77,13 @@ class StratifiedLeaveTwoOut:
 
                 s1 = np.unique(np.array(temp[0]))
 
-                if len(temp) == 2:
+                if len(temp) == leaven:
                     s2 = np.unique(np.array(temp[1]))
                     if s1.size != 1 and s2.size != 1:
                         #samples for the 2 left out animals are not the same target
                         continue
                     s = np.array([s1[0], s2[0]])
-                    if np.unique(s).size != 2: #need 1 healthy and 1 unhealthy
+                    if np.unique(s).size != leaven: #need 1 healthy and 1 unhealthy
                         continue
                 else:
                     if s1.size != 1:
@@ -105,7 +105,7 @@ class StratifiedLeaveTwoOut:
                       np.unique(self.animal_ids[all_train_idx]))
 
         len_check = np.array(len_check)
-        if len_check[len_check > 2].size > 0:
+        if len_check[len_check > leaven].size > 0:
             raise ValueError("fold contains more than 2 testing sample!")
 
         self.nfold = len(training_idx)

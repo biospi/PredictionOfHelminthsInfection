@@ -194,11 +194,10 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     # Rounding
     # imputed_data = rounding(imputed_data, data_x)
 
-
     if (i % 100 == 0) | (i == 0) | (i == range_iter[-1]):
     #if True:
       rmse_iter.append(i)
-      i_d = imputed_data[:, :-N_TRANSPOND - 1]
+      i_d = imputed_data[:, :-N_TRANSPOND - 1 - 1] #epoch and id
       fig = go.Figure(data=go.Heatmap(
         z=i_d,
         x=xaxix_label,
@@ -214,29 +213,38 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
       print(filename)
       fig.write_html(filename)
 
-      df_ = pd.DataFrame(i_d)
-      start = 0
-      for n, item in enumerate(t_idx):
-          end = start + item
-          df_t_i = df_[start: end]
-          start = end
-          id = ids[n]
-          _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
-                                                         days_in_col=df_t_i.shape[0])
-          fig = go.Figure(data=go.Heatmap(
-            z=df_t_i.values,
-            x=xaxix_label,
-            y=yaxis_label,
-            colorscale='Viridis'))
-          fig.update_xaxes(tickformat="%H:%M")
-          fig.update_yaxes(tickformat="%d %b %Y")
-          fig.update_layout(
-            title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
-            xaxis_title="Time (1 min bins)",
-            yaxis_title="Days")
-          filename = out + "/" + "%d_imputed_reshaped_%d_%d.html" % (id, thresh, i)
-          print(filename)
-          fig.write_html(filename)
+      df_ = pd.DataFrame(imputed_data)
+      header = [str(x) for x in range(imputed_data.shape[1])]
+      for v in range(1, N_TRANSPOND + 1):
+        header[-v] = "t_%d" % (N_TRANSPOND - v)
+      header[-N_TRANSPOND - 1] = "id"
+      header[-N_TRANSPOND - 2] = "epoch"
+      df_.columns = header
+      dfs_transponder = [g for _, g in df_.groupby(['id'])]
+
+      for i in range(len(dfs_transponder)):
+        df_t_i = dfs_transponder[i].iloc[:, :-N_TRANSPOND - 2]
+        valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
+        # if valid <= 0:
+        #     continue
+        id = int(dfs_transponder[i]["id"].values[0])
+
+        _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+                                                       days_in_col=df_t_i.shape[0])
+        fig = go.Figure(data=go.Heatmap(
+          z=df_t_i.values,
+          x=xaxix_label,
+          y=yaxis_label,
+          colorscale='Viridis'))
+        fig.update_xaxes(tickformat="%H:%M")
+        fig.update_yaxes(tickformat="%d %b %Y")
+        fig.update_layout(
+          title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+          xaxis_title="Time (1 min bins)",
+          yaxis_title="Days")
+        filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
+        print(filename)
+        fig.write_html(filename)
 
 
       '''
@@ -252,9 +260,9 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         raise ValueError("Error while imputing data, all value NaN!")
 
       if RESHAPE:
-        imputed_data = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out, shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+        imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out, shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
       else:
-        imputed_data = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+        imputed_data_restored = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 
 
       if miss_rate > 0:
@@ -286,4 +294,4 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     print(filename)
     plt.savefig(filename)
 
-  return imputed_data, rmse_iter, rm_row_idx
+  return imputed_data_restored, rmse_iter, rm_row_idx

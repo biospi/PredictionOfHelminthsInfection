@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from sklearn.metrics import auc
 
+from cwt._cwt import CWT
 from utils.Utils import create_rec_dir, anscombe
 import random
 import matplotlib.dates as mdates
@@ -15,6 +16,8 @@ from plotly.subplots import make_subplots
 import plotly.graph_objs as go
 import plotly.express as px
 from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
+from tqdm import tqdm
+
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -241,138 +244,6 @@ def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="la
     plot_2d_space(X, y, filepath, label_series, title=title)
 
 
-def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
-                              class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                              graph_outputdir, power_cwt_healthy, power_cwt_unhealthy, freqs, ntraces=3,
-                              title="cwt_power_by_target", stepid=10, meta_size=4, format_xaxis=False):
-    total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
-    total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
-    plt.clf()
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.20, 7.20))
-    # fig.suptitle(title, fontsize=18)
-    #wavelength = 1 / freqs
-
-    df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-meta_size].values
-    df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-meta_size].values
-
-    ymin = 0
-    ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
-
-    ticks = get_time_ticks(df_healthy.shape[1])
-
-    for row in df_healthy:
-        ax1.plot(ticks, row)
-        ax1.set(xlabel="", ylabel="activity")
-        ax1.set_title("Healthy(%s) animals %d / displaying %d" % (class_healthy_label, total_healthy, df_healthy.shape[0]))
-        ax1.set_ylim([ymin, ymax])
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-        ax1.xaxis.set_major_locator(mdates.DayLocator())
-
-    for row in df_unhealthy:
-        ax2.plot(ticks, row)
-        ax2.set(xlabel="", ylabel="activity")
-        ax2.set_yticks(ax2.get_yticks().tolist())
-        ax2.set_xticklabels(ticks, fontsize=12)
-        ax2.set_title(
-            "Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, total_unhealthy, df_unhealthy.shape[0]))
-        ax2.set_ylim([ymin, ymax])
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-        ax2.xaxis.set_major_locator(mdates.DayLocator())
-
-    #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
-    imshow_y_axis = []
-    p0 = power_cwt_healthy.copy()
-    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
-        p0 = np.log(anscombe(p0))
-    if "QN_CWT_ANSCOMBE" in step_slug:
-        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
-            p0 = anscombe(p0)
-
-    imshow_y_axis.append(np.nanmin(p0))
-    imshow_y_axis.append(np.nanmax(p0))
-
-
-    # ax3.set_yscale('log')
-    #n_y_ticks = ax3.get_yticks().shape[0] - 2
-    # labels = ["%.f" % item for item in wavelength]
-    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    # ax3.set_yticklabels(labels_)
-    #cwty = ax3.get_yticks()
-    #n_y_ticks = cwty.shape[0] - len([x for x in cwty if x < 0])
-    #labels = ["%.2f" % item for item in wavelength]
-    # print(labels)
-    #labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
-    #new_lab = []
-    #for ii, l in enumerate(labels_):
-    #    new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
-    #ax3.set_yticklabels(new_lab)
-
-    n_x_ticks = ax3.get_xticks().shape[0]
-    labels_ = [item.strftime("%H:00") for item in ticks]
-    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
-    labels_[:] = labels_[0]
-    ax3.set_xticklabels(labels_)
-
-    #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
-    p1 = power_cwt_unhealthy.copy()
-    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
-        p1 = np.log(anscombe(p1))
-    if "QN_CWT_ANSCOMBE" in step_slug:
-        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
-            p1 = anscombe(p1)
-
-    imshow_y_axis.append(np.nanmin(p1))
-    imshow_y_axis.append(np.nanmax(p1))
-
-    vmin, vmax = min(imshow_y_axis), max(imshow_y_axis)
-
-    pos0 = ax3.imshow(p0, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
-    fig.colorbar(pos0, ax=ax3)
-
-    pos1 = ax4.imshow(p1, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
-    fig.colorbar(pos1, ax=ax4)
-
-    # ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
-    # ax4.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
-
-    ax3.set_aspect('auto')
-    ax3.set_title("Healthy(%s) animals elem wise average of %d cwts" % (class_healthy_label, df_healthy.shape[0]))
-    ax3.set_xlabel("Time")
-    ax3.set_ylabel("Wave length of wavelet (in minute)")
-    ax3.set_yscale('log')
-
-    ax4.set_aspect('auto')
-    ax4.set_title("Unhealthy(%s) animals elem wise average of %d cwts" % (class_unhealthy_label, df_unhealthy.shape[0]))
-    ax4.set_xlabel("Time")
-    ax4.set_ylabel("Wave length of wavelet (in minute)")
-    ax4.set_yscale('log')
-
-    #n_y_ticks = ax4.get_yticks().shape[0] - 1
-    #labels = ["%.2f" % item for item in wavelength]
-    # print(labels)
-    #labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))][1:]
-    #new_lab = []
-    #for ii, l in enumerate(labels_):
-    #    new_lab.append(matplotlib.text.Text(cwty[ii], float(l), l))
-    #ax4.set_yticklabels(new_lab)
-
-    n_x_ticks = ax4.get_xticks().shape[0]
-    labels_ = [item.strftime("%H:00") for item in ticks]
-    labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
-    labels_[:] = labels_[0]
-    ax4.set_xticklabels(labels_)
-
-    # plt.show()
-    filename = "%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"))
-    filepath = "%s/%s" % (graph_outputdir, filename)
-    # print('saving fig...')
-    print(filepath)
-    fig.savefig(filepath)
-    # print("saved!")
-    fig.clear()
-    plt.close(fig)
-
-
 def format(text):
     return text.replace("activity_no_norm", "TimeDom->")\
         .replace("activity_quotient_norm", "TimeDom->QN->")\
@@ -532,7 +403,7 @@ def mean_confidence_interval(x):
     return lo_x_boot, hi_x_boot
 
 
-def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
 
@@ -546,23 +417,23 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
         label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
     ax.plot(mean_fpr, mean_tpr, color='tab:blue',
             label=label,
-            lw=2, alpha=.8)
+            lw=4, alpha=1)
 
     ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
            title="Receiver operating characteristic iteration")
     ax.legend(loc="lower right")
     # fig.show()
-    path = "%s/roc_curve/png/" % out_dir
+    path = "%s/roc_curve/%s/" % (out_dir, cv_name)
     create_rec_dir(path)
     final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
     print(final_path)
     fig.savefig(final_path)
 
-    path = "%s/roc_curve/svg/" % out_dir
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
-    print(final_path)
-    fig.savefig(final_path)
+    # path = "%s/roc_curve/svg/" % out_dir
+    # create_rec_dir(path)
+    # final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
+    # print(final_path)
+    # fig.savefig(final_path)
     return mean_auc
 
 
@@ -575,3 +446,67 @@ def plotDistribution(X, output_dir, filename):
     filename = output_dir + "/" + "%s.html" % filename
     create_rec_dir(filename)
     fig.write_html(filename)
+
+
+def figures_to_html(figs, filename="dashboard.html"):
+    dashboard = open(filename, 'w')
+    dashboard.write("<html><head></head><body>" + "\n")
+    for fig in figs:
+        inner_html = fig.to_html().split('<body>')[1].split('</body>')[0]
+        dashboard.write(inner_html)
+    dashboard.write("</body></html>" + "\n")
+
+
+def plotMeanGroups(df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
+    print("plot mean group...")
+    traces = []
+    fig_group_means = go.Figure()
+    fig_group_median = go.Figure()
+    for key in tqdm(label_series.keys()):
+        df_ = df[df["target"] == key]
+        fig_group = go.Figure()
+        n = df_.shape[0]
+        for index, row in df_.iterrows():
+            x = np.arange(row.shape[0]-N_META)
+            y = row.iloc[:-N_META].values
+            id = str(int(float(row.iloc[-4])))
+            date = row.iloc[-2]
+            label = label_series[key]
+            name = "%s %s %s" % (id, date, label)
+            fig_group.add_trace(go.Scatter(x=x, y=y, mode='lines', name=name))
+        mean = np.mean(df_.iloc[:, :-N_META], axis=0)
+        median = np.median(df_.iloc[:, :-N_META], axis=0)
+
+        CWT(out_dir=out_dir+"/", step_slug=label, animal_ids=[], targets=[], dates=[]).transform([mean.values])
+
+        fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
+        fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
+        fig_group_median.add_trace(go.Scatter(x=x, y=median, mode='lines', name="Median (%d) %s" % (n, label)))
+        fig_group.update_layout(
+            title="%d samples in category %s" % (n, label),
+            xaxis_title="Time in minute",
+            yaxis_title="Activity (count)"
+        )
+        fig_group_means.update_layout(
+            title="Mean of samples for each category",
+            xaxis_title="Time in minute",
+            yaxis_title="Activity (count)"
+        )
+        fig_group_median.update_layout(
+            title="Median of samples for each category",
+            xaxis_title="Time in minute",
+            yaxis_title="Activity (count)"
+        )
+        traces.append(fig_group)
+        #fig_group.show()
+
+    traces.append(fig_group_means)
+    traces.append(fig_group_median)
+    traces = traces[::-1] #put the median grapth first
+
+    create_rec_dir(out_dir)
+    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    print(file_path)
+    figures_to_html(traces, filename=file_path)
+
+

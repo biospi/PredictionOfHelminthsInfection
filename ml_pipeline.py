@@ -4,17 +4,14 @@ import argparse
 import gc
 import math
 import shutil
-from sys import platform as _platform
 
 import glob2
 import matplotlib
 # import pywt
 import matplotlib.pyplot as plt
-from sklearn.neural_network import MLPClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from utils._anscombe import Anscombe, Log
 from utils._custom_split import StratifiedLeaveTwoOut
-from utils._cwt import CWT
+from cwt._cwt import CWT
 from utils._normalisation import QuotientNormalizer
 
 import pandas as pd
@@ -30,8 +27,6 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
-from sys import exit
-import sys
 from sklearn import datasets
 import os
 from sklearn.utils import shuffle
@@ -57,7 +52,6 @@ from sklearn.feature_selection import SelectKBest
 
 from plotnine import *
 from numpy import inf
-from sklearn.metrics import roc_curve
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 

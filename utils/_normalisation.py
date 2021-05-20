@@ -7,7 +7,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 from utils.Utils import create_rec_dir, anscombe
-from utils._cwt import cwt_power
+from cwt._cwt import cwt_power
 
 np.random.seed(0)
 
@@ -24,7 +24,7 @@ def normalize(X, out_dir):
     #step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
     traces.append(plotLine([median_array], out_dir_, "STEP 1 | find pointwise median sample [median of col1, .... median of col n]", "1_median_array.html"))
-    cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
+    #cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
 
     #step 2 divide each sample by median array keep div by 0 as NaN!!
     X_median = []

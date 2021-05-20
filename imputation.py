@@ -39,6 +39,7 @@ import plotly.express as px
 import json
 import plotly.graph_objects as go
 from sys import exit
+from tqdm import tqdm
 
 
 def entropy_(to_resample):
@@ -53,8 +54,8 @@ def parse_animal_id(file):
     return animal_id
 
 
-def process_activity_data(file, i, nfiles, window):
-    print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
+def read_activity_data(file, i, nfiles, window):
+    print("reading files %d/%d  ..." % (i, nfiles))
     animal_id = parse_animal_id(file)
     df_activity = pd.read_csv(file, sep=",")
     if window:
@@ -185,14 +186,14 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
 
     for i in range(idata.shape[1]):
         print("progress %d/%d ..." % (i, len(ids)))
+        id = str(int(idata[-1, i]))
         df = pd.DataFrame()
         df["timestamp"] = timestamp.values
         df["date_str"] = date_str.values
         df["first_sensor_value"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ori_data_x[:, i]), 0)])
-        df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(idata[:, i]), 0)])
+        df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(idata[:-1, i]), 0)])
         df["first_sensor_value_li"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata[:, i]), 0)])
-        df["imputed"] = (idata[:, i] > 0).astype(int)
-        id = str(ids[i])
+        df["imputed"] = (idata[:-1, i] > 0).astype(int)
         filename = id + ".csv"
         filepath = out + "/" + filename
         df.to_csv(filepath, sep=',', index=False)
@@ -209,7 +210,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     pool = Pool(processes=n_job)
     results = []
     for i, file in enumerate(files):
-        results.append(pool.apply_async(process_activity_data, (file, i, len(files), window)))
+        results.append(pool.apply_async(read_activity_data, (file, i, len(files), window)))
     pool.close()
     pool.join()
     pool.terminate()
@@ -221,7 +222,8 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     # data_second_sensor_max = pd.DataFrame()
     timestamp = None
     date_str = None
-    for result in results:
+    print("preparing data for imputation...")
+    for result in tqdm(results):
         a_data = result.get()
         activity = a_data[1]["first_sensor_value"]
         signal_strength = a_data[1]["signal_strength"]
@@ -251,8 +253,6 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         power2_o = power2
 
         if enable_anscombe:
-            # activity = anscombe_m(np.log(activity, out=np.zeros_like(activity), where=(activity != 0)))
-            # activity = np.log(activity, out=np.zeros_like(activity), where=(activity != 0))
             activity = anscombe(activity)
 
         if enable_log_anscombe:
@@ -341,7 +341,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         slice_item = slice(i, i + 7, 1)
         week_slice.append(x[slice_item])
     n_week = len([x for x in week_slice if len(x) == 7])
-    crop = n_week*7*1440
+    crop = n_week*7*1440 #crop into 7 days chunck!
 
     return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop], data_ss[:crop]
     # return data_x_raw, data_x, ids, timestamp, date_str
@@ -395,47 +395,71 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     - rmse: Root Mean Squared Error
   '''
   
-  # data_name = args.data_name
-  # miss_rate = args.miss_rate
-  
-  gain_parameters = {'batch_size': args.batch_size,
-                     'hint_rate': args.hint_rate,
-                     'alpha': args.alpha,
-                     'iterations': args.iterations}
-  RESHAPE = args.reshape.lower() in ["yes", 'y', 't', 'true']
-  ADD_TRANSP_COL = args.add_t_col.lower() in ["yes", 'y', 't', 'true']
-  N_TRANSPOND = int(args.n_top_traces)
+  batch_size = args.batch_size
+  hint_rate = args.hint_rate
+  alpha = args.alpha
+  iterations = args.iterations
+  miss_rate = args.miss_rate
+  output_dir = args.output_dir
+  enable_anscombe = args.enable_anscombe
+  n_top_traces = args.n_top_traces
+  reshape = args.reshape
+  add_t_col = args.add_t_col
+  thresh_daytime = args.thresh_daytime
+  thresh_nan_ratio = args.thresh_nan_ratio
+  export_csv = args.export_csv
+  export_traces = args.export_traces
 
-  THRESH_DT = int(args.thresh_daytime)
-  THRESH_NAN_R = int(args.thresh_nan_ratio)
+  gain_parameters = {'batch_size': batch_size,
+                     'hint_rate': hint_rate,
+                     'alpha': alpha,
+                     'iterations': iterations}
+  RESHAPE = reshape.lower() in ["yes", 'y', 't', 'true']
+  ADD_TRANSP_COL = add_t_col.lower() in ["yes", 'y', 't', 'true']
+  N_TRANSPOND = int(n_top_traces)
+  THRESH_DT = int(thresh_daytime)
+  THRESH_NAN_R = int(thresh_nan_ratio)
 
   # Load data and introduce missingness
   data_x = original_data_x.copy()
 
-  miss_data_x, data_m_x = process(data_x.copy(), args.miss_rate)
+  miss_data_x, data_m_x = process(data_x.copy(), miss_rate)
   imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-  out = args.output_dir + "/miss_rate_" + str(np.round(args.miss_rate, 4)).replace(".", "_") + "_iteration_" +\
-        '%04d' % int(args.iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(args.enable_anscombe) + "_n_top_traces_" + str(args.n_top_traces)
+  out = output_dir + "/miss_rate_" + str(np.round(miss_rate, 4)).replace(".", "_") + "_iteration_" +\
+        '%04d' % int(iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped, signal_s_reshaped, rm_row_idx, shape_o, transp_idx = reshape_matrix_andy(THRESH_NAN_R, ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=THRESH_DT)
+    miss_data_x_reshaped_thresh, ss_reshaped_thresh, rm_row_idx, shape_o, transp_idx, activity_reshaped, ss_reshaped = reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=THRESH_DT)
   else:
-    miss_data_x_reshaped = reshape_matrix_ranjeet(miss_data_x)
+    miss_data_x_reshaped_thresh = reshape_matrix_ranjeet(miss_data_x)
 
-  print(miss_data_x_reshaped)
-  start = 0
-  for i, k in enumerate(transp_idx):
-      d = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
-      end = start+k
-      d_t = d[start: end]
-      ss = signal_s_reshaped[:, :-N_TRANSPOND - 1]
-      ss_t = ss[start: end]
+  print(miss_data_x_reshaped_thresh)
+  df = pd.DataFrame(activity_reshaped)
+  header = [str(x) for x in range(activity_reshaped.shape[1])]
+  for v in range(1, n_top_traces+1):
+      header[-v] = "t_%d" % (n_top_traces - v)
+  header[-n_top_traces - 1] = "id"
+  header[-n_top_traces - 2] = "epoch"
+  df.columns = header
+  dfs_transponder = [g for _, g in df.groupby(['id'])]
 
-      start = end
+  header = [str(x) for x in range(ss_reshaped.shape[1])]
+  header[-1] = "id"
+  df_ss = pd.DataFrame(ss_reshaped)
+  df_ss.columns = header
+  dfs_ss = [g for _, g in df_ss.groupby(['id'])]
 
-      id = ids[i]
+  for i in range(len(dfs_transponder)):
+      d_t = dfs_transponder[i].iloc[:, :-n_top_traces-2]
+      valid = np.sum((~np.isnan(d_t.values)).astype(int))
+      # if valid <= 0:
+      #     continue
+      # ss = ss_reshaped[:, :-N_TRANSPOND - 1]
+      ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
+
+      id = int(dfs_transponder[i]["id"].values[0])
       xaxix_label, yaxis_label = build_formated_axis(timestamp[0], min_in_row=d_t.shape[1], days_in_col=d_t.shape[0])
       fig = go.Figure(data=go.Heatmap(
           z=d_t,
@@ -447,7 +471,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       fig.update_layout(
           title="%d thresh=%d" % (id, THRESH_DT),
           xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_reshaped_%d.html" % (id, THRESH_DT)
+      filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
       print(filename)
       fig.write_html(filename)
 
@@ -461,13 +485,13 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       fig.update_layout(
           title="%d Signal Strength thresh=%d" % (id, THRESH_DT),
           xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_signal_strength_reshaped_%d.html" % (id, THRESH_DT)
+      filename = out + "/" + "%d_signal_strength_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
       print(filename)
       fig.write_html(filename)
 
       if THRESH_DT > 0:
           fig = go.Figure(data=go.Heatmap(
-              z=linear_interpolation_h(ss_t),
+              z=linear_interpolation_h(ss_t.values),
               x=xaxix_label,
               y=yaxis_label,
               colorscale='Viridis'))
@@ -476,11 +500,11 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
           fig.update_layout(
               title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, THRESH_DT),
               xaxis_title="Time (1 min bins)")
-          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d.html" % (id, THRESH_DT)
+          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d_%d.html" % (id, THRESH_DT, valid)
           print(filename)
           fig.write_html(filename)
 
-  m = miss_data_x_reshaped[:, :-N_TRANSPOND-1]
+  m = miss_data_x_reshaped_thresh[:, :-N_TRANSPOND-1-1]
   fig = go.Figure(data=go.Heatmap(
       z=m,
       x=xaxix_label,
@@ -494,24 +518,28 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   filename = out + "/" + "input_reshaped_%d.html" % THRESH_DT
   fig.write_html(filename)
 
-  imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], args.miss_rate, out, THRESH_DT, ids, transp_idx, args.output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(), data_x.copy(), miss_data_x_reshaped.copy(), gain_parameters, out, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+  imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], miss_rate, out, THRESH_DT, ids, transp_idx,
+                                               output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(),
+                                               data_x.copy(), miss_data_x_reshaped_thresh.copy(), gain_parameters, out,
+                                               RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
 
   # fig = go.Figure(data=go.Heatmap(
   #     z=imputed_data_x.T,
   #     x=np.array(list(range(imputed_data_x.shape[1]))),
   #     y=np.array(list(range(imputed_data_x.shape[0]))),
   #     colorscale='Viridis'))
-  # filename = args.output_dir + "/" + "herd_gain_restored_%d.html" % 0
+  # filename = output_dir + "/" + "herd_gain_restored_%d.html" % 0
   # fig.write_html(filename)
 
-  if args.export_csv:
-    export_imputed_data(out, data_m_x, data_x, imputed_data_x, imputed_data_x_li, timestamp, date_str, ids, args.alpha, args.hint_rate)
+  if export_csv:
+    export_imputed_data(out, data_m_x, data_x, imputed_data_x, imputed_data_x_li, timestamp, date_str, ids, alpha, hint_rate)
 
-  # if args.export_traces:
+  # if export_traces:
   #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
 
 
 def mrnn_imputation(data, N_TRANSPOND, output_dir):
+    print()
     # Inputs for the main function
     # parser = argparse.ArgumentParser()
     # parser.add_argument(
@@ -552,35 +580,45 @@ def mrnn_imputation(data, N_TRANSPOND, output_dir):
     #
     # args = parser.parse_args()
 
-    print("mrnn_imputation....")
-    ## Load data
-    x, m, t, ori_x = data_loader(data)
-    # mrnn model parameters
-    model_parameters = {'h_dim': 10,
-                        'batch_size': 128,
-                        'iteration': 2000,
-                        'learning_rate': 0.01}
-    # Fit mrnn_model
-    mrnn_model = mrnn(x, model_parameters)
-    print("fitting....")
-    mrnn_model.fit(x, m, t)
+    # print("mrnn_imputation....")
+    # ## Load data
+    # x, m, t, ori_x = data_loader(data)
+    # # mrnn model parameters
+    # model_parameters = {'h_dim': 10,
+    #                     'batch_size': 128,
+    #                     'iteration': 2000,
+    #                     'learning_rate': 0.01}
+    # # Fit mrnn_model
+    # mrnn_model = mrnn(x, model_parameters)
+    # print("fitting....")
+    # mrnn_model.fit(x, m, t)
+    #
+    # # Impute missing data
+    # imputed_x = mrnn_model.transform(x, m, t)
+    #
+    # fig = go.Figure(data=go.Heatmap(
+    #     z=imputed_data[:, :-N_TRANSPOND - 1],
+    #     x=np.array(list(range(imputed_data.shape[1]))[:-N_TRANSPOND - 1]),
+    #     y=np.array(list(range(imputed_data.shape[0]))),
+    #     colorscale='Viridis'))
+    # filename = output_dir + "/" + "imputed_%d.html" % 0
+    # fig.write_html(filename)
+    #
+    # # Evaluate the data_imputation performance
+    # performance = imputation_performance(ori_x, imputed_x, m, 'rmse')
+    #
+    # # Report the result
+    # print('rmse: ' + str(np.round(performance, 4)))
 
-    # Impute missing data
-    imputed_x = mrnn_model.transform(x, m, t)
 
-    fig = go.Figure(data=go.Heatmap(
-        z=imputed_data[:, :-N_TRANSPOND - 1],
-        x=np.array(list(range(imputed_data.shape[1]))[:-N_TRANSPOND - 1]),
-        y=np.array(list(range(imputed_data.shape[0]))),
-        colorscale='Viridis'))
-    filename = output_dir + "/" + "imputed_%d.html" % 0
-    fig.write_html(filename)
-
-    # Evaluate the data_imputation performance
-    performance = imputation_performance(ori_x, imputed_x, m, 'rmse')
-
-    # Report the result
-    print('rmse: ' + str(np.round(performance, 4)))
+def start(args):
+    data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job,
+                                                                             args.n_top_traces,
+                                                                             enable_anscombe=args.enable_anscombe,
+                                                                             enable_remove_zeros=args.enable_remove_zeros,
+                                                                             enable_log_anscombe=args.enable_log_anscombe,
+                                                                             window=args.window)
+    main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
 
 
 if __name__ == '__main__':
@@ -628,13 +666,7 @@ if __name__ == '__main__':
   parser.add_argument('--thresh_daytime', type=str)
   parser.add_argument('--thresh_nan_ratio', type=str)
 
-  args = parser.parse_args() 
+  args = parser.parse_args()
   
-  # Calls main function
-  data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job, args.n_top_traces,
-                                                        enable_anscombe=args.enable_anscombe,
-                                                        enable_remove_zeros=args.enable_remove_zeros,
-                                                        enable_log_anscombe=args.enable_log_anscombe,
-                                                                  window=args.window)
-  imputed_data, rmse, rmse_li, rmse_per_id, rmse_per_id_li = main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
-  print(imputed_data)
+  start(args)
+

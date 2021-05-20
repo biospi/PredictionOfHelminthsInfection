@@ -1,16 +1,9 @@
 import warnings
 import keras
-import pywt
-from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, MaxPooling2D
-from keras.models import Sequential
-from keras.callbacks import History
 from numpy import mean
 from numpy import std
 from numpy import dstack
-from pandas import read_csv
-from matplotlib import pyplot
-import pycwt as wavelet
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
@@ -26,14 +19,13 @@ from tqdm import tqdm
 
 from utils.Utils import create_rec_dir
 from utils._custom_split import StratifiedLeaveTwoOut
-import sklearn
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, classification_report
 from sklearn.metrics import auc
-from sklearn.preprocessing import binarize, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 
-from utils._cwt import cwt_power
-from utils.visualisation import mean_confidence_interval, plot_roc_range
+from cwt._cwt import cwt_power
+from utils.visualisation import plot_roc_range
 #from keras.utils.vis_utils import plot_model
 import time
 import os
