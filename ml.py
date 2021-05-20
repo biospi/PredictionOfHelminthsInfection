@@ -32,8 +32,8 @@ import pandas as pd
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
-    plot_roc_curve
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate
+    plot_roc_curve, auc, roc_curve, precision_recall_curve, plot_precision_recall_curve
+from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
@@ -45,63 +45,161 @@ from utils._custom_split import StratifiedLeaveTwoOut
 from cwt._cwt import CWT, CWTVisualisation
 from utils._normalisation import QuotientNormalizer
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
-    plot_zeros_distrib
+    plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range
+
+
+def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv):
+    all_y = []
+    all_probs = []
+    i = 0
+    y_binary = (y.copy() != 1).astype(int)
+    n = cv.get_n_splits(X, y_binary)
+    for train, test in cv.split(X, y_binary):
+        animal_ids = np.array(animal_ids)
+        print("make_roc_curve fold %d/%d" % (i, n))
+        print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, train, "\nSAMPLE TEST IDX:",
+              test, "\nTEST TARGET:",
+              np.unique(y_binary[test]), "\nTRAIN TARGET:",
+              np.unique(y_binary[train]), "\nTEST ANIMAL ID:", np.unique(animal_ids[test]),
+              "\nTRAIN ANIMAL ID:",
+              np.unique(animal_ids[train]))
+        i += 1
+        all_y.append(y_binary[test])
+
+        y_predict_proba = clf.fit(X[train], y_binary[train]).predict_proba(X[test])[:, 1]
+        all_probs.append(y_predict_proba)
+
+    all_y = np.array(all_y)
+    all_probs = np.array(all_probs)
+
+    fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+    roc_auc = auc(fpr, tpr)
+    fig, ax = plt.subplots(figsize=(12.80, 7.20))
+    ax.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+    ax.set_xlim([-0.05, 1.05])
+    ax.set_ylim([-0.05, 1.05])
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+    ax.set_title('Receiver operating characteristic LOOCV (at sample level)')
+    ax.legend(loc="lower right")
+    ax.grid()
+    path = "%s/roc_curve/%s/" % (out_dir, cv_name)
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+    plt.close(fig)
+    plt.clf()
+
+    precision, recall, thresholds = precision_recall_curve(all_y, all_probs)
+    pr_auc = auc(recall, precision)
+    fig, ax = plt.subplots(figsize=(12.80, 7.20))
+    ax.plot(recall, precision, lw=2, alpha=0.5, label='LOOCV PR (AUC = %0.2f)' % (pr_auc))
+    #ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+    ax.set_xlim([-0.05, 1.05])
+    ax.set_ylim([-0.05, 1.05])
+    ax.set_xlabel('Recall')
+    ax.set_ylabel('Precision')
+    ax.set_title('Precision Recall LOOCV (at sample level)')
+    ax.legend(loc="lower right")
+    ax.grid()
+    path = "%s/pr_curve/%s/" % (out_dir, cv_name)
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'pr_%s.png' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+    plt.close(fig)
+    plt.clf()
+
+    return roc_auc
 
 
 def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids):
     print("make_roc_curve %s" % cv_name)
     if isinstance(X, pd.DataFrame):
         X = X.values
-    tprs = []
-    aucs = []
-    mean_fpr = np.linspace(0, 1, 100)
-    plt.clf()
-    fig, ax = plt.subplots(figsize=(19.20, 10.80))
-    for i, (train, test) in enumerate(cv.split(X, y)):
-        classifier.fit(X[train], y[train])
-        if isinstance(cv, StratifiedLeaveTwoOut):
-            print("make_roc_curve fold %d/%d" % (i, cv.nfold))
-            viz = plot_roc_curve(classifier, X[test], y[test])
-            label = "%d auc=%d idx=%d" % (int(float(np.unique(cv.animal_ids[test])[0])), viz.roc_auc*100, test[0])
-            if viz.roc_auc > 0.95:
-                viz = plot_roc_curve(classifier, X[test], y[test],
-                                     label=label,
-                                     alpha=1, lw=1.5, ax=ax)
-            elif viz.roc_auc < 0.2:
-                viz = plot_roc_curve(classifier, X[test], y[test],
-                                     label=label,
-                                     alpha=1, lw=1.5, ax=ax)
+
+    if isinstance(cv, LeaveOneOut):
+        roc_auc = LeaveOnOutRoc(classifier, X, y, out_dir, cv_name, steps, animal_ids, cv)
+        return roc_auc
+    else:
+        y_ground_truth_pr = []
+        y_proba_pr = []
+        tprs = []
+        aucs_roc = []
+        aucs_pr = []
+        precisions = []
+        recalls = []
+        mean_fpr = np.linspace(0, 1, 100)
+        plt.clf()
+        fig_roc, ax_roc = plt.subplots(figsize=(12.80, 7.20))
+        fig_pr, ax_pr = plt.subplots(figsize=(12.80, 7.20))
+        y_binary = (y.copy() != 1).astype(int)
+        for i, (train, test) in enumerate(cv.split(X, y)):
+            classifier.fit(X[train], y[train])
+            if isinstance(cv, StratifiedLeaveTwoOut):
+                print("make_roc_curve fold %d/%d" % (i, cv.nfold))
+                viz_roc = plot_roc_curve(classifier, X[test], y[test])
+                #viz_pr = plot_precision_recall_curve(classifier, X[test], y_binary[test])
+
+                label = "%d auc=%d idx=%d" % (int(float(np.unique(cv.animal_ids[test])[0])), viz_roc.roc_auc*100, test[0])
+                if viz_roc.roc_auc > 0.95:
+                    viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                         label=label,
+                                         alpha=1, lw=1.5, ax=ax_roc)
+                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    ax_pr.step(recall, precision, label=label, lw=1.5)
+                elif viz_roc.roc_auc < 0.2:
+                    viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                         label=label,
+                                         alpha=1, lw=1.5, ax=ax_roc)
+                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    ax_pr.step(recall, precision, label=label, lw=1.5)
+                else:
+                    viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                         label=None,
+                                         alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
+                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    ax_pr.step(recall, precision, label=None)
             else:
-                viz = plot_roc_curve(classifier, X[test], y[test],
+                print("make_roc_curve fold %d/%d" % (i, cv.n_repeats * cv.cvargs['n_splits']))
+                animal_ids = np.array(animal_ids)
+                print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, train, "\nSAMPLE TEST IDX:",
+                      test, "\nTEST TARGET:",
+                      np.unique(y[test]), "\nTRAIN TARGET:",
+                      np.unique(y[train]), "\nTEST ANIMAL ID:", np.unique(animal_ids[test]),
+                      "\nTRAIN ANIMAL ID:",
+                      np.unique(animal_ids[train]))
+                viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                      label=None,
-                                     alpha=0.3, lw=1, ax=ax, c="tab:blue")
-        else:
-            print("make_roc_curve fold %d/%d" % (i, cv.n_repeats * cv.cvargs['n_splits']))
-            animal_ids = np.array(animal_ids)
-            print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, train, "\nSAMPLE TEST IDX:",
-                  test, "\nTEST TARGET:",
-                  np.unique(y[test]), "\nTRAIN TARGET:",
-                  np.unique(y[train]), "\nTEST ANIMAL ID:", np.unique(animal_ids[test]),
-                  "\nTRAIN ANIMAL ID:",
-                  np.unique(animal_ids[train]))
-            viz = plot_roc_curve(classifier, X[test], y[test],
-                                 label=None,
-                                 alpha=0.3, lw=1, ax=ax, c="tab:blue")
+                                     alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
+                precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                ax_pr.step(recall, precision, label=None, lw=1, c="tab:blue")
 
-        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-        interp_tpr[0] = 0.0
-        print("auc=", viz.roc_auc)
-        if np.isnan(viz.roc_auc):
-            continue
-        tprs.append(interp_tpr)
-        aucs.append(viz.roc_auc)
+            interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+            interp_tpr[0] = 0.0
+            print("auc=", viz_roc.roc_auc)
+            if np.isnan(viz_roc.roc_auc):
+                continue
+            tprs.append(interp_tpr)
+            aucs_roc.append(viz_roc.roc_auc)
+            aucs_pr.append(auc(recall, precision))
+            precisions.append(precision)
+            recalls.append(recall)
 
-        # ax.plot(viz.fpr, viz.tpr, c="tab:green")
-    print("make_roc_curve done!")
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, steps, fig, cv_name)
-    plt.close(fig)
-    plt.clf()
-    return mean_auc
+            y_ground_truth_pr.append(y_binary[test])
+            y_proba_pr.append(classifier.predict_proba(X[test])[:, 1])
+
+            # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+        print("make_roc_curve done!")
+        mean_auc = plot_roc_range(ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name)
+        mean_auc_pr = plot_pr_range(ax_pr, y_ground_truth_pr, y_proba_pr, aucs_pr, out_dir, steps, fig_pr, cv_name)
+
+        plt.close(fig_roc)
+        plt.close(fig_pr)
+        plt.clf()
+        return mean_auc
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -196,7 +294,7 @@ def applyPreprocessingSteps(animal_ids, df, N_META, output_dir, steps, class_hea
     return df
 
 
-def loadActivityData(filepath):
+def loadActivityData(filepath, day):
     print("load activity from datasets...", filepath)
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -232,6 +330,9 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
+    if cv == "LeaveOneOut":
+        cross_validation_method = LeaveOneOut()
+
     data_frame = data_frame.drop("id", 1)
 
     y = data_frame[y_col].values.flatten()
@@ -258,6 +359,9 @@ def process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
+    if cv == "LeaveOneOut":
+        cross_validation_method = LeaveOneOut()
+
     data_frame = data_frame.drop("id", 1)
 
     y = data_frame[y_col].values.flatten()
@@ -267,9 +371,9 @@ def process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, data_fram
              days, farm_id, sampling, label_series, downsample_false_class, output_dir)
 
 
-def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
+def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
                            downsample_false_class, label_series, class_healthy, class_unhealthy, y_col='target',
-                           cv="l2out"):
+                           cv=None):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
     print(label_series)
@@ -286,6 +390,9 @@ def process_data_frame_svm(stratify, animal_ids, out_dir, data_frame, days, farm
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
+
+    if cv == "LeaveOneOut":
+        cross_validation_method = LeaveOneOut()
 
     data_frame = data_frame.drop("id", 1)
 
@@ -389,47 +496,8 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-if __name__ == "__main__":
-    print("********************************************************************")
-    print("*                          ML PIPELINE                             *")
-    print("********************************************************************")
-    parser = argparse.ArgumentParser()
-    parser.add_argument('output_dir', help='output directory', type=str)
-    parser.add_argument('dataset_folder', help='dataset input directory', type=str)
-    parser.add_argument('--class_healthy', help='target for healthy class', default=1, type=int)
-    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=2, type=int)
-    parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
-    parser.add_argument('--s_output', help='output sample files', default='y', type=str)
-    parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
-    parser.add_argument('--scale_spacing', help='cwt scale spacing', default=10, type=int)
-    parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
-    parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
-    parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=5, type=int)
-    parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
-    parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
-    args = parser.parse_args()
-
-    output_dir = args.output_dir
-    dataset_folder = args.dataset_folder
-    class_healthy = args.class_healthy
-    class_unhealthy = args.class_unhealthy
-    stratify = args.stratify
-    s_output = args.s_output
-    cwt = args.cwt
-    scale_spacing = args.scale_spacing
-    hum_file = args.hum_file
-    temp_file = args.temp_file
-    n_splits = args.n_splits
-    n_repeats = args.n_repeats
-    epochs = args.epochs
-    n_process = args.n_process
-
-
-    stratify = "y" in stratify.lower()
-    output_samples = "y" in s_output.lower()
-    output_cwt = "y" in cwt.lower()
-
+def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
+         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv):
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
     print("class_healthy=", class_healthy)
@@ -478,7 +546,7 @@ if __name__ == "__main__":
     for file in files:
         days, farm_id, option, sampling = parse_param_from_filename(file)
         print("loading dataset file %s ..." % file)
-        data_frame, N_META = loadActivityData(file)
+        data_frame, N_META = loadActivityData(file, day)
 
         data_frame_o = data_frame.copy()
         print(data_frame)
@@ -501,8 +569,8 @@ if __name__ == "__main__":
         # drop label column stored previously, just keep target for ml
         data_frame = data_frame.drop('label', 1)
         print(data_frame)
-        # keep only two class of samples
-        plotMeanGroups(data_frame, label_series, N_META, output_dir+"/before_qn/")
+
+        #plotMeanGroups(data_frame, label_series, N_META, output_dir + "/before_qn/")
         ################################################################################################################
         ##VISUALISATION
         ################################################################################################################
@@ -514,30 +582,30 @@ if __name__ == "__main__":
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
                            title='Percentage of zeros in activity per sample before normalisation')
-        plotMeanGroups(df_norm, label_series, N_META, output_dir+"/after_qn/")
+        #plotMeanGroups(df_norm, label_series, N_META, output_dir + "/after_qn/")
 
-        # plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
-        # plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
-        #
-        # plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
-        # plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
-        #
+        plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
+        plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
 
-        # ntraces = 2
-        # idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
-        #                                          class_healthy,
-        #                                          class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
-        #                                          xlabel="Time",
-        #                                          ylabel="activity", ntraces=ntraces)
-        # plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-        #             output_dir,
-        #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
-        #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
+        plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
+
+        ntraces = 2
+        idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
+                                                 class_healthy,
+                                                 class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
+                                                 xlabel="Time",
+                                                 ylabel="activity", ntraces=ntraces)
+        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+                    output_dir,
+                    df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+                    idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
+        # keep only two class of samples
         data_frame = data_frame[data_frame["target"].isin([class_healthy, class_unhealthy])]
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
-        cv = "RepeatedStratifiedKFold"
+
         for steps in [[""]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(animal_ids, data_frame.copy(), N_META, output_dir, steps,
@@ -547,7 +615,7 @@ if __name__ == "__main__":
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
-            process_data_frame_svm(stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
+            process_data_frame_svm(output_dir, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
                                    n_splits, n_repeats,
                                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                    cv=cv)
@@ -575,8 +643,7 @@ if __name__ == "__main__":
         #     process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
         #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
 
-
-        #todo add preprocessing step for exogeneous. concat with activity
+        # todo add preprocessing step for exogeneous. concat with activity
         # steps = ["HUMIDITY", "STDS"]
         # step_slug = "_".join(steps)
         # df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
@@ -618,3 +685,53 @@ if __name__ == "__main__":
     df_final.to_csv(filename, sep=',', index=False)
     print(df_final)
     plotMlReport(filename, output_dir)
+
+
+if __name__ == "__main__":
+    print("********************************************************************")
+    print("*                          ML PIPELINE                             *")
+    print("********************************************************************")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output_dir', help='output directory', type=str)
+    parser.add_argument('dataset_folder', help='dataset input directory', type=str)
+    parser.add_argument('--class_healthy', help='target for healthy class', default=1, type=int)
+    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=2, type=int)
+    parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
+    parser.add_argument('--s_output', help='output sample files', default='y', type=str)
+    parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
+    parser.add_argument('--scale_spacing', help='cwt scale spacing', default=10, type=int)
+    parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
+    parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
+    parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=5, type=int)
+    parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
+    parser.add_argument('--cv', help='cross validation method (StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
+                        default="RepeatedStratifiedKFold", type=str)
+    parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
+    parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
+
+
+
+    args = parser.parse_args()
+
+    output_dir = args.output_dir
+    dataset_folder = args.dataset_folder
+    class_healthy = args.class_healthy
+    class_unhealthy = args.class_unhealthy
+    stratify = args.stratify
+    s_output = args.s_output
+    cwt = args.cwt
+    scale_spacing = args.scale_spacing
+    hum_file = args.hum_file
+    temp_file = args.temp_file
+    n_splits = args.n_splits
+    n_repeats = args.n_repeats
+    epochs = args.epochs
+    n_process = args.n_process
+    cv = args.cv
+
+    stratify = "y" in stratify.lower()
+    output_samples = "y" in s_output.lower()
+    output_cwt = "y" in cwt.lower()
+
+    main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
+         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv)

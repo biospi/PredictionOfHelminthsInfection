@@ -25,7 +25,7 @@ class StratifiedLeaveTwoOut:
         self.sample_idx = np.array(sample_idx).flatten()
         self.animal_ids = np.array(animal_ids).flatten()
 
-    def split(self, X, y, group=None, leaven=1):
+    def split(self, X, y, group=None, leaven=2):
         df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1), self.sample_idx.reshape(self.sample_idx.size, 1))))
 
         #df.to_csv("F:/Data2/test.csv")

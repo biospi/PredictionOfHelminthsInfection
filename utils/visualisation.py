@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta
 
-from sklearn.metrics import auc
+from sklearn.metrics import auc, precision_recall_curve
 
 from cwt._cwt import CWT
 from utils.Utils import create_rec_dir, anscombe
@@ -403,6 +403,39 @@ def mean_confidence_interval(x):
     return lo_x_boot, hi_x_boot
 
 
+def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name):
+    y_ground_truth = np.concatenate(y_ground_truth)
+    y_proba = np.concatenate(y_proba)
+    mean_precision, mean_recall, _ = precision_recall_curve(y_ground_truth, y_proba)
+
+    mean_auc = auc(mean_recall, mean_precision)
+    lo, hi = mean_confidence_interval(aucs)
+    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    if len(aucs) <= 2:
+        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
+    ax_pr.step(mean_recall, mean_precision, label=label, lw=2, color='black')
+    ax_pr.set_xlabel('Recall')
+    ax_pr.set_ylabel('Precision')
+    ax_pr.legend(loc='lower left', fontsize='small')
+
+    ax_pr.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+              title="Receiver operating characteristic iteration")
+    ax_pr.legend(loc="lower right")
+    # fig.show()
+    path = "%s/pr_curve/%s/" % (out_dir, cv_name)
+    create_rec_dir(path)
+    final_path = '%s/%s' % (path, 'pr_%s.png' % classifier_name)
+    print(final_path)
+    fig.savefig(final_path)
+
+    # path = "%s/roc_curve/svg/" % out_dir
+    # create_rec_dir(path)
+    # final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
+    # print(final_path)
+    # fig.savefig(final_path)
+    return mean_auc
+
+
 def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
@@ -415,9 +448,9 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_n
     label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
     if len(aucs) <= 2:
         label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
-    ax.plot(mean_fpr, mean_tpr, color='tab:blue',
+    ax.plot(mean_fpr, mean_tpr, color='black',
             label=label,
-            lw=4, alpha=1)
+            lw=2, alpha=1)
 
     ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
            title="Receiver operating characteristic iteration")
