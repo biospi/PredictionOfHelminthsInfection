@@ -536,6 +536,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
 
   # if export_traces:
   #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
+  return out
 
 
 def mrnn_imputation(data, N_TRANSPOND, output_dir):
@@ -618,7 +619,8 @@ def start(args):
                                                                              enable_remove_zeros=args.enable_remove_zeros,
                                                                              enable_log_anscombe=args.enable_log_anscombe,
                                                                              window=args.window)
-    main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
+    out_dir = main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
+    return out_dir
 
 
 if __name__ == '__main__':

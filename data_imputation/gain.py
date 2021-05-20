@@ -30,7 +30,8 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
-def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x, imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
+         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -222,12 +223,12 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
       df_.columns = header
       dfs_transponder = [g for _, g in df_.groupby(['id'])]
 
-      for i in range(len(dfs_transponder)):
-        df_t_i = dfs_transponder[i].iloc[:, :-N_TRANSPOND - 2]
+      for ii in range(len(dfs_transponder)):
+        df_t_i = dfs_transponder[ii].iloc[:, :-N_TRANSPOND - 2]
         valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
         # if valid <= 0:
         #     continue
-        id = int(dfs_transponder[i]["id"].values[0])
+        id = int(dfs_transponder[ii]["id"].values[0])
 
         _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
                                                        days_in_col=df_t_i.shape[0])
@@ -260,7 +261,8 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         raise ValueError("Error while imputing data, all value NaN!")
 
       if RESHAPE:
-        imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out, shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+        imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
+                                                    shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
       else:
         imputed_data_restored = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 

@@ -68,6 +68,11 @@ class AnimalData:
 class HerdData:
     herd = []
     missing = 0
+
+    def __init__(self):
+        self.herd = []
+        self.missing = 0
+
     def addHerd(self, _herd):
         self.herd = _herd
 
@@ -96,6 +101,7 @@ class HerdData:
 
 class HerdFile:
     herdFile = []
+
     def __init__(self, fileName):
         self.herdFile = Path(fileName)
 

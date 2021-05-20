@@ -225,6 +225,17 @@ class SampleSet:
     valid = 0
     df = 0
 
+    def __init__(self):
+        self.set = []
+        self.rawA = []
+        self.rawT = []
+        self.rawID = []
+        self.N = 0
+        self.iT = 0
+        self.iA = 0
+        self.valid = 0
+        self.df = 0
+
     def generateSet(self, famData, actFile, deltaFamachaTime):
         N = len(famData.herd)
         deltaTime = deltaFamachaTime * TimeConst.utc1day

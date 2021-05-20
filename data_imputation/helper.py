@@ -374,7 +374,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
 
     if thresh >= 0:
         filtered_row, filtered_row_ss, rm_idx = remove_rows(THRESH_NAN_R, vstack_ss, vstack, thresh, n_transponder)
-        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh)
+        #t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh)
     else:
         filtered_row = vstack
         filtered_row_ss = vstack_ss
@@ -430,12 +430,12 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
         positive_count = np.nansum(window)
         nan_count = np.sum(np.isnan(row).astype(int))
         ratio = nan_count/row.shape[0]
-
+        print(ratio, float(thresh_nan / 100))
         if ratio > float(thresh_nan / 100):
             continue
         if positive_count < thresh_pos:
             continue
-        print(positive_count)
+
 
         idx.append(i)
         filtered_row.append(row)
@@ -445,7 +445,8 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
     return filtered_row, filtered_row_ss, idx
 
 
-def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
+def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
+                        n_transpond, add_t_col=None):
     if thresh >= 0:
         imputed = add_nan_rows(shape_o, imputed, row_idx)
 
