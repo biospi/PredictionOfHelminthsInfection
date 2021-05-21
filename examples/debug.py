@@ -124,8 +124,9 @@ def format(text):
 
 
 if __name__ == "__main__":
-    import matlab.engine
-    matlab = matlab.engine.start_matlab()
+    # import matlab.engine
+    # matlab = matlab.engine.start_matlab()
+    matlab=None
     t = np.linspace(0, 5, 5000)
     x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
     # plt.plot(x)

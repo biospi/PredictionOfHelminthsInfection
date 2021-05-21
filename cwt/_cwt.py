@@ -28,9 +28,10 @@ from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 
 from utils.Utils import create_rec_dir, anscombe
-import matlab.engine
-
-matlab = matlab.engine.start_matlab()
+# import matlab.engine
+#
+# matlab = matlab.engine.start_matlab()
+matlab=None
 
 
 def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
@@ -438,21 +439,8 @@ def compute_cwt_paper_hd(activity, scales):
     return coefs, coi, scales, freqs
 
 
-def compute_cwt_new(y, scales):
-    # scales = np.arange(1, len(y)+1)
-    # scales = np.concatenate([scales[0:120], scales[100::10]])
-    #scales = np.arange(1, len(y) + 1, scale_spacing)
-    #scales = create_scale_array(14, m=2, last_scale=len(y))
-    # for k in range(1, 24*7):
-    #     scales.append(k*60)
-    # scales = np.array(scales)
-    # scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 4), np.arange(60, 60 * 2, 6),
-    #                          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
-    # print("number of scales is %d" % len(scales))
-    #freqs = 1 / (wavelet.Morlet().flambda() * scales)
-    freqs = 1 / scales
-    w = wavelet.Morlet()
-    coefs, _, _, coi, fft, fftfreqs = wavelet.cwt(y, 1, wavelet=w, freqs=freqs)
+def compute_cwt_new(y):
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, J=300)
     coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
     return coefs, coi, scales, freqs
 
@@ -492,9 +480,9 @@ def compute_cwt_matlab_2(activity, wavelet_name):
 def cwt_power(epoch, date, animal_id, target, activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1,
               enable_graph_out=True, enable_coi=False):
     # y = center_signal(activity, avg)
-    # scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
-    #                          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
-    scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
+    scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+                             np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
+    #scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
     #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
     #scales = np.arange(2, len(activity))
     #print(scales.tolist())
@@ -505,12 +493,12 @@ def cwt_power(epoch, date, animal_id, target, activity, out_dir, i=0, step_slug=
     #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "haar", scales)
     #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "morl", scales)
     # coefs, coi, scales, freqs = compute_cwt_matlab(activity, "shan0.5-1", scales)
-    coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "morse")
+    #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "morse")
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "bump")
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "amor")
 
 
-    #coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales)
+    coefs, coi, scales, freqs = compute_cwt_new(activity)
 
     print("number of scales is %d" % len(scales))
     #conver cwt coefs to power
