@@ -606,7 +606,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [[""], ["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CENTER"], ["QN", "ANSCOMBE", "LOG", "CWT"]]:
+        for steps in [[""], ["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CENTER"], ["QN", "ANSCOMBE", "LOG", "CWT", "PCA"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
