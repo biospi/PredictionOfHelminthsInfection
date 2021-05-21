@@ -1,3 +1,6 @@
+import glob
+import os
+
 import matplotlib
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -17,6 +20,7 @@ import plotly.graph_objs as go
 import plotly.express as px
 from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
 from tqdm import tqdm
+from pathlib import Path
 
 
 def get_time_ticks(nticks):
@@ -255,6 +259,7 @@ def format(text):
         .replace("_humidity", "Humidity->") \
         .replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->").replace("_","->")
 
+
 def plotMlReport(path, output_dir):
     print("building report visualisation...")
     df = pd.read_csv(str(path), index_col=None)
@@ -403,7 +408,7 @@ def mean_confidence_interval(x):
     return lo_x_boot, hi_x_boot
 
 
-def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name):
+def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name, days):
     y_ground_truth = np.concatenate(y_ground_truth)
     y_proba = np.concatenate(y_proba)
     mean_precision, mean_recall, _ = precision_recall_curve(y_ground_truth, y_proba)
@@ -419,7 +424,7 @@ def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name
     ax_pr.legend(loc='lower left', fontsize='small')
 
     ax_pr.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-              title="Receiver operating characteristic iteration")
+              title="Precision Recall curve days=%d cv=%s" % (days, cv_name))
     ax_pr.legend(loc="lower right")
     # fig.show()
     path = "%s/pr_curve/%s/" % (out_dir, cv_name)
@@ -436,7 +441,7 @@ def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name
     return mean_auc
 
 
-def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name):
+def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days):
     ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
             label='Chance', alpha=1)
 
@@ -453,7 +458,7 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_n
             lw=2, alpha=1)
 
     ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-           title="Receiver operating characteristic iteration")
+           title="Receiver operating characteristic days=%d cv=%s" % (days, cv_name))
     ax.legend(loc="lower right")
     # fig.show()
     path = "%s/roc_curve/%s/" % (out_dir, cv_name)
@@ -543,3 +548,59 @@ def plotMeanGroups(df, label_series, N_META, out_dir, filename="mean_of_groups.h
     figures_to_html(traces, filename=file_path)
 
 
+def plot_mosaic(directory, filename="mosaic.png"):
+    images = []
+    for i, item in enumerate(directory):
+        file_roc = [str(x) for x in Path(item).rglob('*.png')][0]
+        file_pr = [str(x) for x in Path(item.replace("roc_curve", "pr_curve")).rglob('*.png')][0]
+        images.append(file_roc)
+        images.append(file_pr)
+
+    fig = plt.figure(figsize=(30.0, 35.0))
+    columns = 2
+    rows = int(np.ceil(len(images)/2))
+    for i, path in enumerate(images):
+        img = plt.imread(path)
+        fig.add_subplot(rows, columns, i + 1)
+        plt.imshow(img)
+        plt.axis('off')
+    fig.tight_layout()
+    filepath = "%s/%s" % (output_dir, filename)
+    print(filepath)
+    fig.savefig(filepath)
+
+
+def build_roc_mosaic(input_dir, output_dir):
+    print("input_dir=", input_dir)
+    dir_list = ["%s/%s" % (input_dir, name) for name in os.listdir(input_dir) if "ml_" in name]
+    dir_list_1to2 = []
+    dir_list_2to2 = []
+    for path in dir_list:
+        if "1to2" in path.lower():
+            dir_list_1to2.append(path)
+        if "2to2" in path.lower():
+            dir_list_2to2.append(path)
+
+
+    l1out = []
+    kfold = []
+    l2out = []
+
+    for item in dir_list_1to2:
+        roc_dir_path = "%s/roc_curve" % item
+        if "kfold" in item:
+            kfold.append(roc_dir_path)
+        if "l1aout" in item:
+            l1out.append(roc_dir_path)
+        if "l2aout" in item:
+            l2out.append(roc_dir_path)
+
+    plot_mosaic(kfold, "roc_pr_curves_kfold.png")
+    plot_mosaic(l2out, "roc_pr_curves_l2outd.png")
+    plot_mosaic(l1out, "roc_pr_curves_l1out.png")
+
+
+if __name__ == "__main__":
+    dir_path = "F:/Data2/job_debug"
+    output_dir = "F:/Data2/job_debug"
+    build_roc_mosaic(dir_path, output_dir)

@@ -48,7 +48,7 @@ from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plo
     plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range
 
 
-def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv):
+def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
     all_y = []
     all_probs = []
     i = 0
@@ -81,7 +81,7 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv):
     ax.set_ylim([-0.05, 1.05])
     ax.set_xlabel('False Positive Rate')
     ax.set_ylabel('True Positive Rate')
-    ax.set_title('Receiver operating characteristic LOOCV (at sample level)')
+    ax.set_title('Receiver operating characteristic LOOCV (at sample level) days=%d' % days)
     ax.legend(loc="lower right")
     ax.grid()
     path = "%s/roc_curve/%s/" % (out_dir, cv_name)
@@ -115,13 +115,13 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv):
     return roc_auc
 
 
-def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids):
+def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days):
     print("make_roc_curve %s" % cv_name)
     if isinstance(X, pd.DataFrame):
         X = X.values
 
     if isinstance(cv, LeaveOneOut):
-        roc_auc = LeaveOnOutRoc(classifier, X, y, out_dir, cv_name, steps, animal_ids, cv)
+        roc_auc = LeaveOnOutRoc(classifier, X, y, out_dir, cv_name, steps, animal_ids, cv, days)
         return roc_auc
     else:
         y_ground_truth_pr = []
@@ -193,8 +193,8 @@ def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids):
 
             # ax.plot(viz.fpr, viz.tpr, c="tab:green")
         print("make_roc_curve done!")
-        mean_auc = plot_roc_range(ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name)
-        mean_auc_pr = plot_pr_range(ax_pr, y_ground_truth_pr, y_proba_pr, aucs_pr, out_dir, steps, fig_pr, cv_name)
+        mean_auc = plot_roc_range(ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days)
+        mean_auc_pr = plot_pr_range(ax_pr, y_ground_truth_pr, y_proba_pr, aucs_pr, out_dir, steps, fig_pr, cv_name, days)
 
         plt.close(fig_roc)
         plt.close(fig_pr)
@@ -464,7 +464,7 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
     clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids)
+    aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids, days)
     scores["roc_auc_score_mean"] = aucs
     report_rows_list.append(scores)
     del scores
@@ -570,7 +570,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         data_frame = data_frame.drop('label', 1)
         print(data_frame)
 
-        #plotMeanGroups(data_frame, label_series, N_META, output_dir + "/before_qn/")
+        plotMeanGroups(data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
         ################################################################################################################
         ##VISUALISATION
         ################################################################################################################
@@ -582,7 +582,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
                            title='Percentage of zeros in activity per sample before normalisation')
-        #plotMeanGroups(df_norm, label_series, N_META, output_dir + "/after_qn/")
+        plotMeanGroups(df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
 
         plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
         plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
@@ -606,7 +606,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [[""]]:
+        for steps in [[""], ["QN"], ["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CENTER"], ["QN", "ANSCOMBE", "LOG", "CWT"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
