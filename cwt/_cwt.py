@@ -515,7 +515,7 @@ def cwt_power(epoch, date, animal_id, target, activity, out_dir, i=0, step_slug=
     return power_masked, freqs, coi, power_masked.shape, scales
 
 
-def parse_param(animals_id, dates, i):
+def parse_param(animals_id, dates, i, targets):
     if len(animals_id) > 0:
         animal_id = str(int(float(animals_id[i])))
         target = targets[i]
@@ -535,7 +535,7 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, animals_id, targets, dates
     i = 0
     for activity in tqdm(X):
 
-        animal_id, target, date, epoch = parse_param(animals_id, dates, i)
+        animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets)
 
         power, freqs, coi, shape, scales = cwt_power(epoch, date, animal_id, target, activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten = np.array(power.flatten())
