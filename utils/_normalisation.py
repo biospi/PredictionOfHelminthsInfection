@@ -6,7 +6,7 @@ from sklearn.utils import check_array
 import numpy as np
 from datetime import datetime, timedelta
 
-from utils.Utils import create_rec_dir, anscombe
+from utils.Utils import create_rec_dir, anscombe, center_signal
 from cwt._cwt import cwt_power
 
 np.random.seed(0)
@@ -68,6 +68,42 @@ def normalize(X, out_dir):
     return df_norm
 
 
+class CenterScaler(TransformerMixin, BaseEstimator):
+    def __init__(self, norm='q', *, out_dir=None, copy=True):
+        self.out_dir = out_dir
+        self.norm = norm
+        self.copy = copy
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse='csr')
+        return self
+
+    def transform(self, X, copy=None):
+        """Center data
+
+        Parameters
+        ----------
+        X : {array-like, sparse matrix}, shape [n_samples, n_features]
+            The data to normalize, row by row. scipy.sparse matrices should be
+            in CSR format to avoid an un-necessary copy.
+        copy : bool, optional (default: None)
+            Copy the input X or not.
+        """
+        #copy = copy if copy is not None else self.copy
+        #X = check_array(X, accept_sparse='csr')
+        X_centered = X - np.average(X)
+        return X_centered
+
+
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
     def __init__(self, norm='q', *, out_dir=None, copy=True):
         self.out_dir = out_dir
@@ -88,7 +124,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         return self
 
     def transform(self, X, copy=None):
-        """Scale each non zero row of X to unit norm
+        """QN
 
         Parameters
         ----------
@@ -218,6 +254,7 @@ if __name__ == "__main__":
          [1, 6, 5, 4], [1, 2, 0, 4]])
     X = df.values
     print("X=", X)
+    X_centered = CenterScaler().transform(X)
 
     out_dir = "F:/Data2/_normalisation_1"
     X_normalized = QuotientNormalizer(out_dir=out_dir).transform(X)

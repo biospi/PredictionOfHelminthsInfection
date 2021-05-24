@@ -237,7 +237,7 @@ def formatDataFor2DCnn(X_train, X_test, y_train, y_test):
     return train_signals, train_labels, test_signals, test_labels
 
 
-def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
+def run2DCnn(wavelet_f0, epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
     start_time = time.time()
     fig, ax = plt.subplots()
     mean_fpr = np.linspace(0, 1, 100)
@@ -260,7 +260,7 @@ def run2DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
         # print("%d/%d" % (ii, train_size))
         jj = 0
         signal = X_[ii, :, jj]
-        coeff, _, _, _, scales = cwt_power(signal, output_dir, i=ii, avg=np.average(signal), step_slug="TRAIN",
+        coeff, _, _, _, scales = cwt_power(wavelet_f0, signal, output_dir, i=ii, avg=np.average(signal), step_slug="TRAIN",
                                            enable_graph_out=False)
         coeff[np.isnan(coeff)] = 0
         coeff = MinMaxScaler().fit_transform(coeff)

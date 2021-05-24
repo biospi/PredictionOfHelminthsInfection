@@ -28,10 +28,10 @@ from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 
 from utils.Utils import create_rec_dir, anscombe
-# import matlab.engine
-#
-# matlab = matlab.engine.start_matlab()
-matlab=None
+import matlab.engine
+
+matlab = matlab.engine.start_matlab()
+#matlab=None
 
 
 def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
@@ -75,11 +75,11 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     imshow_y_axis = []
     p0 = power_cwt_healthy.copy()
-    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
-        p0 = np.log(anscombe(p0))
-    if "QN_CWT_ANSCOMBE" in step_slug:
-        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
+    if "anscombe" in step_slug.lower():
             p0 = anscombe(p0)
+    if "log" in step_slug.lower():
+        p0 = np.log(p0)
+
 
     imshow_y_axis.append(np.nanmin(p0))
     imshow_y_axis.append(np.nanmax(p0))
@@ -108,11 +108,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
     p1 = power_cwt_unhealthy.copy()
-    if "QN_CWT_ANSCOMBE_LOG" in step_slug:
-        p1 = np.log(anscombe(p1))
-    if "QN_CWT_ANSCOMBE" in step_slug:
-        if "QN_CWT_ANSCOMBE_LOG" not in step_slug:
+    if "anscombe" in step_slug.lower():
             p1 = anscombe(p1)
+    if "log" in step_slug.lower():
+        p1 = np.log(p1)
 
     imshow_y_axis.append(np.nanmin(p1))
     imshow_y_axis.append(np.nanmax(p1))
@@ -276,8 +275,14 @@ def plot_cwt_power(epoch, date, animal_id, target, step_slug, out_dir, i, activi
         axs[0].xaxis.set_major_locator(mdates.DayLocator())
 
     with np.errstate(invalid='ignore'):  # ignore numpy divide by zero warning
-        pos = axs[1].imshow(np.log(power_masked), extent=[0, len(activity), len(scales), 1])
-        #pos = axs[1].imshow(anscombe(power_masked), extent=[0, len(activity), len(scales), 1])
+        #pos = axs[1].imshow(np.log(power_masked), extent=[0, len(activity), len(scales), 1])
+        p = power_masked.copy()
+        # if "anscombe" in step_slug.lower():
+        #     p = anscombe(p)
+        # if "log" in step_slug.lower():
+        #     p = np.log(p)
+
+        pos = axs[1].imshow(p, extent=[0, len(activity), len(scales), 1])
         fig.colorbar(pos, ax=axs[1])
 
     #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
@@ -367,10 +372,6 @@ def check_scale_spacing(scales):
     return np.mean(spaces)
 
 
-def center_signal(y, avg):
-    y_centered = y - avg
-    return y_centered
-
 
 def simple_example():
     num_steps = 512
@@ -431,16 +432,16 @@ def compute_cwt_paper_sd(activity, scales):
     return coefs, None, scales, freqs
 
 
-def compute_cwt_paper_hd(activity, scales):
+def compute_cwt_paper_hd(activity, scales, wavelet_f0):
     print("compute_cwt...")
-    freqs = 1 / (wavelet.Morlet().flambda() * scales)
-    wavelet_type = 'morlet'
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(activity, 1, wavelet=wavelet_type, freqs=freqs)
+    w = wavelet.Morlet(wavelet_f0)
+    freqs = 1 / (w.flambda() * scales)
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(activity, 1, wavelet=w, freqs=freqs)
     return coefs, coi, scales, freqs
 
 
 def compute_cwt_new(y):
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1, J=300)
+    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(y, 1)
     coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
     return coefs, coi, scales, freqs
 
@@ -477,12 +478,12 @@ def compute_cwt_matlab_2(activity, wavelet_name):
     return coefs, coi, scales, freqs
 
 
-def cwt_power(epoch, date, animal_id, target, activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1,
+def cwt_power(wavelet_f0, epoch, date, animal_id, target, activity, out_dir, i=0, step_slug="CWT_POWER", format_xaxis=None, avg=0, scale_spacing=1,
               enable_graph_out=True, enable_coi=False):
     # y = center_signal(activity, avg)
-    scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
-                             np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
-    #scales = np.concatenate([np.arange(1, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
+    # scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+    #                          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
+    scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
     #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
     #scales = np.arange(2, len(activity))
     #print(scales.tolist())
@@ -497,8 +498,7 @@ def cwt_power(epoch, date, animal_id, target, activity, out_dir, i=0, step_slug=
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "bump")
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "amor")
 
-
-    coefs, coi, scales, freqs = compute_cwt_new(activity)
+    coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales, wavelet_f0)
 
     print("number of scales is %d" % len(scales))
     #conver cwt coefs to power
@@ -526,7 +526,7 @@ def parse_param(animals_id, dates, i, targets):
         return "animal_id", 0, "date", "epoch"
 
 
-def compute_cwt(X, out_dir, step_slug, scale_spacing, animals_id, targets, dates, format_xaxis=None):
+def compute_cwt(wavelet_f0, X, out_dir, step_slug, scale_spacing, animals_id, targets, dates, format_xaxis=None):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
     plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
@@ -537,7 +537,7 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, animals_id, targets, dates
 
         animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets)
 
-        power, freqs, coi, shape, scales = cwt_power(epoch, date, animal_id, target, activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
+        power, freqs, coi, shape, scales = cwt_power(wavelet_f0, epoch, date, animal_id, target, activity, out_dir, i, step_slug, format_xaxis, avg=np.average(X), scale_spacing=scale_spacing)
         power_flatten = np.array(power.flatten())
         #cwt_full.append(power_flatten_masked)
         coi_mask = np.isnan(power_flatten)
@@ -557,9 +557,10 @@ def compute_cwt(X, out_dir, step_slug, scale_spacing, animals_id, targets, dates
 
 
 class CWT(TransformerMixin, BaseEstimator):
-    def __init__(self, *, out_dir=None, copy=True, step_slug=None, format_xaxis=False, scale_spacing=None, targets=None, animal_ids=None, dates=None):
+    def __init__(self, *, wavelet_f0=None, out_dir=None, copy=True, step_slug=None, format_xaxis=False, scale_spacing=None, targets=None, animal_ids=None, dates=None):
         self.out_dir = out_dir
         self.copy = copy
+        self.wavelet_f0 = wavelet_f0
         self.freqs = None
         self.coi = None
         self.shape = None
@@ -587,7 +588,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse='csr')
-        cwt, freqs, coi, shape, coi_mask = compute_cwt(X, self.out_dir, self.step_slug, self.scale_spacing, self.animal_ids, self.targets, self.dates, self.format_xaxis)
+        cwt, freqs, coi, shape, coi_mask = compute_cwt(self.wavelet_f0, X, self.out_dir, self.step_slug, self.scale_spacing, self.animal_ids, self.targets, self.dates, self.format_xaxis)
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
@@ -737,7 +738,7 @@ if __name__ == "__main__":
         X.append(creatSin(i, 1440))
     X = np.array(X)
     X = np.array(createSyntheticActivityData())
-    X_CWT = CWT(out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False).transform(X)
+    X_CWT = CWT(wavelet_f0=1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False).transform(X)
     exit()
 
     for d in [(60 * 60 * 24 * 1) / 60, (60 * 60 * 24 * 7) / 60]:
@@ -763,7 +764,7 @@ if __name__ == "__main__":
             # X.columns = list(range(X.shape[1]))
             # plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
-            X_CWT = CWT(out_dir=out_dir, format_xaxis=False).transform(X)
+            X_CWT = CWT(wavelet_f0=1, out_dir=out_dir, format_xaxis=False).transform(X)
 
             # plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
             print("********************")

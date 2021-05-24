@@ -126,38 +126,38 @@ def format(text):
 if __name__ == "__main__":
     # import matlab.engine
     # matlab = matlab.engine.start_matlab()
-    matlab=None
-    t = np.linspace(0, 5, 5000)
-    x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
-    # plt.plot(x)
-    # plt.show()
-
-    Fs = matlab.double(1/60)
-    scales = np.arange(1, 150)
-    mat_scales = matlab.double(matlab.cell2mat(scales.astype(np.float).tolist()))
-    mat_a = matlab.double(matlab.cell2mat(x.tolist()))
-    #wt, freqs = matlab.cwt(mat_a, mat_scales, 'sym4', Fs, nargout=2)
-    wt, freqs, _ = matlab.spectrogram(mat_a, nargout=3)
-    coefs = np.asarray(wt)
-    coefs_cc = np.conj(coefs)
-    power = np.real(np.multiply(coefs, coefs_cc))
-
-    fig, ax = plt.subplots()
-    pos = ax.imshow(power, extent=[0, power.shape[1], 0, scales.size])
-    fig.colorbar(pos, ax=ax)
-    #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
-    ax.set_aspect('auto')
-    ax.set_title("CWT")
-    ax.set_xlabel("Time in minute")
-    ax.set_ylabel("Wave length of wavelet (in minute)")
-    fig.show()
+    # matlab=None
+    # t = np.linspace(0, 5, 5000)
+    # x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
+    # # plt.plot(x)
+    # # plt.show()
+    #
+    # Fs = matlab.double(1/60)
+    # scales = np.arange(1, 150)
+    # mat_scales = matlab.double(matlab.cell2mat(scales.astype(np.float).tolist()))
+    # mat_a = matlab.double(matlab.cell2mat(x.tolist()))
+    # #wt, freqs = matlab.cwt(mat_a, mat_scales, 'sym4', Fs, nargout=2)
+    # wt, freqs, _ = matlab.spectrogram(mat_a, nargout=3)
+    # coefs = np.asarray(wt)
+    # coefs_cc = np.conj(coefs)
+    # power = np.real(np.multiply(coefs, coefs_cc))
+    #
+    # fig, ax = plt.subplots()
+    # pos = ax.imshow(power, extent=[0, power.shape[1], 0, scales.size])
+    # fig.colorbar(pos, ax=ax)
+    # #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
+    # ax.set_aspect('auto')
+    # ax.set_title("CWT")
+    # ax.set_xlabel("Time in minute")
+    # ax.set_ylabel("Wave length of wavelet (in minute)")
+    # fig.show()
 
 
     from scipy import signal
     # from ssqueezepy import ssq_cwt, ssq_stft
     #
     # Twxo, Wxo, *_ = ssq_cwt(xo)
-    # import pycwt as wavelet
+    import pycwt as wavelet
     # import pywt
     # # [r, psi, x] = pywt.Wavelet('db4').wavefun()
     # # plt.plot(x, psi)
@@ -168,10 +168,10 @@ if __name__ == "__main__":
     # #coeff, freq = pywt.dwt2(y, scales, "db4", 1)
     # #cwtmatr = signal.cwt(y, signal.daub(4), scales)
     #
-    # wavelet_func = [wavelet.Morlet(2).psi(x) for x in np.arange(-10, 10, 0.1)]
-    # plt.plot(wavelet_func)
-    # plt.show()
-    # print("ok")
+    wavelet_func = [wavelet.Morlet(0.001).psi(x) for x in np.arange(-10, 10, 0.1)]
+    plt.plot(wavelet_func)
+    plt.show()
+    print("ok")
 
     # import numpy as np
     # import matplotlib.pyplot as plt

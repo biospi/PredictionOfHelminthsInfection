@@ -22,6 +22,8 @@ from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
 from tqdm import tqdm
 from pathlib import Path
 
+from utils._normalisation import CenterScaler
+
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -495,7 +497,7 @@ def figures_to_html(figs, filename="dashboard.html"):
     dashboard.write("</body></html>" + "\n")
 
 
-def plotMeanGroups(df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
+def plotMeanGroups(wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
     print("plot mean group...")
     traces = []
     fig_group_means = go.Figure()
@@ -515,7 +517,11 @@ def plotMeanGroups(df, label_series, N_META, out_dir, filename="mean_of_groups.h
         mean = np.mean(df_.iloc[:, :-N_META], axis=0)
         median = np.median(df_.iloc[:, :-N_META], axis=0)
 
-        CWT(out_dir=out_dir+"/", step_slug=label, animal_ids=[], targets=[], dates=[]).transform([mean.values])
+        s = mean.values
+        s = anscombe(s)
+        s = np.log(s)
+        s = CenterScaler().transform(s)
+        CWT(wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label, animal_ids=[], targets=[], dates=[]).transform([s])
 
         fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
         fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
@@ -548,26 +554,54 @@ def plotMeanGroups(df, label_series, N_META, out_dir, filename="mean_of_groups.h
     figures_to_html(traces, filename=file_path)
 
 
-def plot_mosaic(directory, filename="mosaic.png"):
-    images = []
-    for i, item in enumerate(directory):
-        file_roc = [str(x) for x in Path(item).rglob('*.png')][0]
-        file_pr = [str(x) for x in Path(item.replace("roc_curve", "pr_curve")).rglob('*.png')][0]
-        images.append(file_roc)
-        images.append(file_pr)
+def plot_mosaic(cv_name, directory_t, filename, subdir):
 
-    fig = plt.figure(figsize=(30.0, 35.0))
-    columns = 2
-    rows = int(np.ceil(len(images)/2))
-    for i, path in enumerate(images):
-        img = plt.imread(path)
-        fig.add_subplot(rows, columns, i + 1)
-        plt.imshow(img)
-        plt.axis('off')
-    fig.tight_layout()
-    filepath = "%s/%s" % (output_dir, filename)
-    print(filepath)
-    fig.savefig(filepath)
+    cv_dir = []
+    for item in directory_t:
+        roc_dir_path = "%s/roc_curve" % item
+        if cv_name in item:
+            cv_dir.append(roc_dir_path)
+
+    images = []
+    for i, item in enumerate(cv_dir):
+        files_roc = [str(x) for x in Path(item).rglob('*.png')]
+        files_pr = [str(x) for x in Path(item.replace("roc_curve", "pr_curve")).rglob('*.png')]
+        for j in range(len(files_roc)):
+            images.append(files_roc[j])
+            images.append(files_pr[j])
+
+    steps = []
+    for image in images:
+        steps.append("_".join(image.split("\\")[-1].replace(".png", "").split("_")[1:]))
+
+    df = pd.DataFrame()
+    df["file"] = images
+    df["step"] = steps
+    list_of_df = [g for _, g in df.groupby(['step'])]
+
+    for group in list_of_df:
+        images = group["file"].values
+        step_name = group["step"].values[0]
+        if step_name == "":
+            step_name = "None"
+        cv_name = group["file"].values[0].split("\\")[-2]
+
+        fig = plt.figure(figsize=(30.0, 35.0))
+        fig.suptitle('SVM performances for activity dataset (1day ... 7days)\nCross validation=%s | Preprocessing steps=%s' % (cv_name, step_name), fontsize=30)
+
+        columns = 2
+        rows = int(np.ceil(len(images)/2))
+        for i, path in enumerate(images):
+            img = plt.imread(path)
+            fig.add_subplot(rows, columns, i + 1)
+            plt.imshow(img)
+            plt.title = path
+            plt.axis('off')
+        fig.tight_layout()
+        filepath = "%s/roc_pr_curves_%s/%s" % (output_dir, subdir, step_name + "_" + filename)
+        create_rec_dir(filepath)
+        print(filepath)
+        fig.savefig(filepath)
 
 
 def build_roc_mosaic(input_dir, output_dir):
@@ -582,25 +616,16 @@ def build_roc_mosaic(input_dir, output_dir):
             dir_list_2to2.append(path)
 
 
-    l1out = []
-    kfold = []
-    l2out = []
+    plot_mosaic("kfold", dir_list_1to2, "1to2_roc_pr_curves_kfold.png", "1to2")
+    plot_mosaic("l2out", dir_list_1to2, "1to2_roc_pr_curves_l2outd.png", "1to2")
+    plot_mosaic("l1out",dir_list_1to2,  "1to2_roc_pr_curves_l1out.png", "1to2")
 
-    for item in dir_list_1to2:
-        roc_dir_path = "%s/roc_curve" % item
-        if "kfold" in item:
-            kfold.append(roc_dir_path)
-        if "l1aout" in item:
-            l1out.append(roc_dir_path)
-        if "l2aout" in item:
-            l2out.append(roc_dir_path)
-
-    plot_mosaic(kfold, "roc_pr_curves_kfold.png")
-    plot_mosaic(l2out, "roc_pr_curves_l2outd.png")
-    plot_mosaic(l1out, "roc_pr_curves_l1out.png")
+    plot_mosaic("kfold", dir_list_2to2, "2to2_roc_pr_curves_kfold.png", "2to2")
+    plot_mosaic("l2out", dir_list_2to2, "2to2_roc_pr_curves_l2outd.png", "2to2")
+    plot_mosaic("l1out",dir_list_2to2,  "2to2_roc_pr_curves_l1out.png", "2to2")
 
 
 if __name__ == "__main__":
-    dir_path = "F:/Data2/job_debug"
-    output_dir = "F:/Data2/job_debug"
+    dir_path = "F:/Data2/job_debug/ml"
+    output_dir = "F:/Data2/job_debug/ml"
     build_roc_mosaic(dir_path, output_dir)

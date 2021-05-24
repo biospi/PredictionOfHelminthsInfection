@@ -86,6 +86,11 @@ def inverse_anscombe(arr, sigma_sq=0, m=0, alpha=1, method='closed-form'):
     return inverse
 
 
+def center_signal(y, avg):
+    y_centered = y - avg
+    return y_centered
+
+
 def create_rec_dir(path):
     dir_path = ""
     sub_dirs = path.split("/")

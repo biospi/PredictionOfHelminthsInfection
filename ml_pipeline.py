@@ -1121,8 +1121,11 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
 
+    if cv == "LeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=False, verbose=True)
+
     if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=stratify, verbose=True)
+        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=True, verbose=True)
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=100, random_state=0)
