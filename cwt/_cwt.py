@@ -28,10 +28,10 @@ from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 
 from utils.Utils import create_rec_dir, anscombe
-import matlab.engine
-
-matlab = matlab.engine.start_matlab()
-#matlab=None
+# import matlab.engine
+#
+# matlab = matlab.engine.start_matlab()
+matlab=None
 
 
 def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
