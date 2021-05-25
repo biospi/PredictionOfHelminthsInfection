@@ -597,7 +597,6 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
                            title='Percentage of zeros in activity per sample before normalisation')
         plotMeanGroups(wavelet_f0, df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
 
-
         plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
         plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
 
@@ -620,7 +619,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [["QN", "CENTER", "CWT"], ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "PCA"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
@@ -720,7 +719,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
                         default="RepeatedStratifiedKFold", type=str)
-    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=1, type=int)
+    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=100, type=int)
     parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
 
