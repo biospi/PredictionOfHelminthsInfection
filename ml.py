@@ -43,7 +43,7 @@ from utils.Utils import create_rec_dir
 from utils._anscombe import Anscombe, Log
 from utils._custom_split import StratifiedLeaveTwoOut
 from cwt._cwt import CWT, CWTVisualisation
-from utils._normalisation import QuotientNormalizer, CenterScaler
+from utils._normalisation import QuotientNormalizer, CenterScaler, BaseLineScaler
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
     plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range
 
@@ -241,12 +241,14 @@ def applyPreprocessingSteps(wavelet_f0, animal_ids, df, N_META, output_dir, step
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM"]:
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
+        if step == "BASELINERM":
+            df.iloc[:, :-N_META] = BaseLineScaler().fit_transform(df.iloc[:, :-N_META].values)
         if step == "CENTER":
-            df.iloc[:, :-N_META] = CenterScaler().fit_transform(df.iloc[:, :-N_META].values)
+            df.iloc[:, :-N_META] = CenterScaler(center_by_sample=False).fit_transform(df.iloc[:, :-N_META].values)
         if step == "MINMAX":
             df.iloc[:, :-N_META] = MinMaxScaler().fit_transform(df.iloc[:, :-N_META].values)
         if step == "ANSCOMBE":
@@ -583,7 +585,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         data_frame = data_frame.drop('label', 1)
         print(data_frame)
 
-        plotMeanGroups(wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
+        #plotMeanGroups(wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
         ################################################################################################################
         ##VISUALISATION
         ################################################################################################################
@@ -619,7 +621,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER"], ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"], ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "PCA"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
@@ -719,7 +721,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
                         default="RepeatedStratifiedKFold", type=str)
-    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=6, type=int)
+    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=30, type=int)
     parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
 

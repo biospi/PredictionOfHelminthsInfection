@@ -1,4 +1,5 @@
 import pandas as pd
+from BaselineRemoval import BaselineRemoval
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from sklearn.base import TransformerMixin, BaseEstimator
@@ -67,12 +68,12 @@ def normalize(X, out_dir):
     df_norm = np.array(qnorm_samples)
     return df_norm
 
-
-class CenterScaler(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, out_dir=None, copy=True):
+class BaseLineScaler(TransformerMixin, BaseEstimator):
+    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
+        self.center_by_sample = center_by_sample
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -100,7 +101,55 @@ class CenterScaler(TransformerMixin, BaseEstimator):
         """
         #copy = copy if copy is not None else self.copy
         #X = check_array(X, accept_sparse='csr')
-        X_centered = X - np.average(X)
+        X_br = np.ones(X.shape)
+        X_br[:] = np.nan
+        for i in range(X.shape[0]):
+            X_br[i, :] = BaselineRemoval(X[i, :]).ZhangFit()
+            #X_br[i, :] = BaselineRemoval(X[i, :]).ModPoly(6)
+        return X_br
+
+
+class CenterScaler(TransformerMixin, BaseEstimator):
+    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False):
+        self.out_dir = out_dir
+        self.norm = norm
+        self.copy = copy
+        self.center_by_sample = center_by_sample
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse='csr')
+        return self
+
+    def transform(self, X, copy=None):
+        """Center data
+
+        Parameters
+        ----------
+        X : {array-like, sparse matrix}, shape [n_samples, n_features]
+            The data to normalize, row by row. scipy.sparse matrices should be
+            in CSR format to avoid an un-necessary copy.
+        copy : bool, optional (default: None)
+            Copy the input X or not.
+        """
+        #copy = copy if copy is not None else self.copy
+        #X = check_array(X, accept_sparse='csr')
+        if self.center_by_sample:
+            X_centered = np.ones(X.shape)
+            X_centered[:] = np.nan
+            for i in range(X.shape[0]):
+                X_centered[i, :] = X[i, :] - np.average(X[i, :])
+        else:
+            X_centered = X - np.average(X)
+
         return X_centered
 
 

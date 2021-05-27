@@ -10,8 +10,9 @@ import numpy as np
 from datetime import datetime, timedelta
 
 from sklearn.metrics import auc, precision_recall_curve
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from cwt._cwt import CWT
+from cwt._cwt import CWT, plotLine
 from utils.Utils import create_rec_dir, anscombe
 import random
 import matplotlib.dates as mdates
@@ -21,6 +22,7 @@ import plotly.express as px
 from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
 from tqdm import tqdm
 from pathlib import Path
+from BaselineRemoval import BaselineRemoval
 
 from utils._normalisation import CenterScaler
 
@@ -520,8 +522,24 @@ def plotMeanGroups(wavelet_f0, df, label_series, N_META, out_dir, filename="mean
         s = mean.values
         s = anscombe(s)
         s = np.log(s)
+        #s = StandardScaler().fit_transform(s.reshape(-1, 1)).flatten()
+        #s = MinMaxScaler(feature_range=(0, 1)).fit_transform(s.reshape(-1, 1)).flatten()
+        #s = BaselineRemoval(s).ZhangFit()
+        #s = BaselineRemoval(s).ModPoly(2)
         s = CenterScaler().transform(s)
-        CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]), animal_ids=[], targets=[], dates=[], vmin=0, vmax=200).transform([s])
+
+        # stop = s.copy()
+        # stop[stop >= 0] = 0
+        # stop = CenterScaler().transform(stop)
+        #
+        # sbottom = s.copy()
+        # sbottom[sbottom < 0] = 0
+        # sbottom = CenterScaler().transform(sbottom)
+
+        plotLine(np.array([s]), out_dir+"/", label + "_" + str(df_.shape[0]), label + "_" + str(df_.shape[0])+".html")
+
+        CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]),
+            animal_ids=[], targets=[], dates=[]).transform([s])
 
         fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
         fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
@@ -632,6 +650,6 @@ def build_roc_mosaic(input_dir, output_dir):
 
 
 if __name__ == "__main__":
-    dir_path = "F:/Data2/job_debug/ml"
-    output_dir = "F:/Data2/job_debug/ml"
+    dir_path = "F:/Data2/job_debug_sfft/ml"
+    output_dir = "F:/Data2/job_debug_sfft/ml"
     build_roc_mosaic(dir_path, output_dir)

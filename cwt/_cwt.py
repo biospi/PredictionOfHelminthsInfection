@@ -26,12 +26,15 @@ from sklearn.metrics import recall_score, balanced_accuracy_score, precision_sco
 from sklearn.metrics import auc
 from sklearn.metrics import plot_roc_curve
 import plotly.express as px
+from scipy import signal
 
 from utils.Utils import create_rec_dir, anscombe
 # import matlab.engine
-#
+
+
 # matlab = matlab.engine.start_matlab()
-matlab=None
+
+#matlab=None
 
 
 def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
@@ -41,15 +44,15 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.20, 7.20))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(29.20, 19.20))
     # fig.suptitle(title, fontsize=18)
     #wavelength = 1 / freqs
 
     df_healthy = df_timedomain[df_timedomain["target"] == class_healthy].iloc[:, :-meta_size].values
     df_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].iloc[:, :-meta_size].values
 
-    ymin = 0
-    ymax = max([np.max(df_healthy), np.max(df_unhealthy)])
+    ymin = min([np.nanmax(df_healthy), np.nanmin(df_unhealthy)])
+    ymax = max([np.nanmax(df_healthy), np.nanmax(df_unhealthy)])
 
     ticks = get_time_ticks(df_healthy.shape[1])
 
@@ -75,10 +78,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     #ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     imshow_y_axis = []
     p0 = power_cwt_healthy.copy()
-    if "anscombe" in step_slug.lower():
-            p0 = anscombe(p0)
-    if "log" in step_slug.lower():
-        p0 = np.log(p0)
+    # if "anscombe" in step_slug.lower():
+    #         p0 = anscombe(p0)
+    # if "log" in step_slug.lower():
+    #     p0 = np.log(p0)
 
 
     imshow_y_axis.append(np.nanmin(p0))
@@ -108,10 +111,10 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     #ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
     p1 = power_cwt_unhealthy.copy()
-    if "anscombe" in step_slug.lower():
-            p1 = anscombe(p1)
-    if "log" in step_slug.lower():
-        p1 = np.log(p1)
+    # if "anscombe" in step_slug.lower():
+    #         p1 = anscombe(p1)
+    # if "log" in step_slug.lower():
+    #     p1 = np.log(p1)
 
     imshow_y_axis.append(np.nanmin(p1))
     imshow_y_axis.append(np.nanmax(p1))
@@ -247,8 +250,8 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str, animal):
     return mean_auc
 
 
-def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs, scales,
-                   format_xaxis=True, avg=0, wavelet=None):
+def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs,
+                   format_xaxis=True, avg=0, wavelet=None, log_yaxis=False):
     wavelength = 1 / freqs
     plt.clf()
     if wavelet is not None:
@@ -282,9 +285,9 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
         # if "log" in step_slug.lower():
         #     p = np.log(p)
         if vmax is not None:
-            pos = axs[1].imshow(p, extent=[0, len(activity), len(scales), 1], vmin=vmin, vmax=vmax)
+            pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1], vmin=vmin, vmax=vmax)
         else:
-            pos = axs[1].imshow(p, extent=[0, len(activity), len(scales), 1])
+            pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1])
 
         fig.colorbar(pos, ax=axs[1])
 
@@ -295,7 +298,8 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
     if format_xaxis:
         axs[1].set_xlabel("Time")
     axs[1].set_ylabel("Wave length of wavelet (in minute)")
-    axs[1].set_yscale('log')
+    if log_yaxis:
+        axs[1].set_yscale('log')
 
     if format_xaxis:
         n_x_ticks = axs[1].get_xticks().shape[0]
@@ -437,7 +441,7 @@ def compute_cwt_paper_sd(activity, scales):
 
 def compute_cwt_paper_hd(activity, scales, wavelet_f0):
     print("compute_cwt...")
-    w = wavelet.Morlet(wavelet_f0)
+    w = wavelet.MexicanHat()
     freqs = 1 / (w.flambda() * scales)
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(activity, 1, wavelet=w, freqs=freqs)
     return coefs, coi, scales, freqs
@@ -488,18 +492,25 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
     #                          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
     #scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
     #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
+    # scales = np.concatenate(
+    #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+    #      np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
     if hd:
-        scales = np.arange(2, len(activity))
+        scales = np.arange(1, len(activity))
     else:
-        scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
+        scales = np.concatenate(
+            [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+             np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
+        #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
         # scales = np.concatenate([np.arange(2, 60, 5), np.arange(61, len(activity), 30)])
     #print(scales.tolist())
 
-    # coefs, coi, scales, freqs = compute_cwt_matlab(activity, "db5", scales)
+    #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "db6", scales)
     #coefs, coi, scales, freqs = compute_spectogram_matlab(activity, scales)
     #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "sym4", scales)
     #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "haar", scales)
     #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "morl", scales)
+    #coefs, coi, scales, freqs = compute_cwt_matlab(activity, "mexh", scales)
     # coefs, coi, scales, freqs = compute_cwt_matlab(activity, "shan0.5-1", scales)
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "morse")
     #coefs, coi, scales, freqs = compute_cwt_matlab_2(activity, "bump")
@@ -507,7 +518,12 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
 
     coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales, wavelet_f0)
 
-    print("number of scales is %d" % len(scales))
+    # freqs, _, coefs = signal.stft(activity, fs=1, nperseg=wavelet_f0)
+    # coefs = coefs[::-1]
+    # scales = None
+    # coi = None
+
+    #print("number of scales is %d" % len(scales))
     #conver cwt coefs to power
     coefs_cc = np.conj(coefs)
     power_cwt = np.real(np.multiply(coefs, coefs_cc))
@@ -515,10 +531,10 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
         power_masked = mask_cwt(power_cwt.copy(), coi)
     else:
         power_masked = power_cwt.copy()
-    #power_masked = coefs.real
+    power_masked = coefs.real
     if(enable_graph_out):
-        plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked.copy(), coi, freqs, scales,
-                       format_xaxis=format_xaxis, avg=avg, wavelet=None)
+        plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked.copy(), coi, freqs,
+                       format_xaxis=format_xaxis, avg=avg, wavelet=None, log_yaxis=True)
     return power_masked, freqs, coi, power_masked.shape, scales
 
 
@@ -536,14 +552,12 @@ def parse_param(animals_id, dates, i, targets, step_slug):
 def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, scale_spacing, animals_id, targets, dates, format_xaxis, vmin, vmax):
     print("compute_cwt...")
     out_dir = out_dir + "_cwt"
-    plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
+    #plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
     #cwt_full = []
     i = 0
     for activity in tqdm(X):
-
         animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets, step_slug)
-
         power, freqs, coi, shape, scales = cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity,
                                                      out_dir, i, step_slug, format_xaxis, avg=np.average(X),
                                                      scale_spacing=scale_spacing)
@@ -747,12 +761,13 @@ if __name__ == "__main__":
     # simple_example()
 
 
-    X = []
-    for i in np.arange(5, 100, 5):
-        X.append(creatSin(i, 1440))
-    X = np.array(X)
+    # X = []
+    # for i in np.arange(5, 100, 5):
+    #     X.append(creatSin(i, 1440))
+
     X = np.array(createSyntheticActivityData())
-    X_CWT = CWT(wavelet_f0=1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False).transform(X)
+    X = np.array(X) - np.average(np.array(X))
+    X_CWT = CWT(wavelet_f0=0.1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False, step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[]).transform(X)
     exit()
 
     for d in [(60 * 60 * 24 * 1) / 60, (60 * 60 * 24 * 7) / 60]:
