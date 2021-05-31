@@ -3,7 +3,7 @@ import os
 import matplotlib
 import pywt
 from matplotlib.ticker import ScalarFormatter
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.utils import check_array
 from sklearn.base import TransformerMixin, BaseEstimator
 import pycwt as wavelet
@@ -29,11 +29,8 @@ import plotly.express as px
 from scipy import signal
 
 from utils.Utils import create_rec_dir, anscombe
-# import matlab.engine
-
-
-# matlab = matlab.engine.start_matlab()
-
+import matlab.engine
+matlab = matlab.engine.start_matlab()
 #matlab=None
 
 
@@ -44,7 +41,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
     plt.clf()
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(29.20, 19.20))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.20, 7.20))
     # fig.suptitle(title, fontsize=18)
     #wavelength = 1 / freqs
 
@@ -252,7 +249,6 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str, animal):
 
 def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked, coi_line_array, freqs,
                    format_xaxis=True, avg=0, wavelet=None, log_yaxis=False):
-    wavelength = 1 / freqs
     plt.clf()
     if wavelet is not None:
         fig, axs = plt.subplots(1, 3, figsize=(29.20, 7.20))
@@ -287,6 +283,7 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
         if vmax is not None:
             pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1], vmin=vmin, vmax=vmax)
         else:
+            #p = StandardScaler(with_mean=False, with_std=True).fit_transform(p)
             pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1])
 
         fig.colorbar(pos, ax=axs[1])
@@ -441,7 +438,7 @@ def compute_cwt_paper_sd(activity, scales):
 
 def compute_cwt_paper_hd(activity, scales, wavelet_f0):
     print("compute_cwt...")
-    w = wavelet.MexicanHat()
+    w = wavelet.Morlet(wavelet_f0)
     freqs = 1 / (w.flambda() * scales)
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(activity, 1, wavelet=w, freqs=freqs)
     return coefs, coi, scales, freqs
@@ -485,22 +482,104 @@ def compute_cwt_matlab_2(activity, wavelet_name):
     return coefs, coi, scales, freqs
 
 
+def plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_sfft, freqs, format_xaxis=False
+                    , vmin=None, vmax=None):
+    plt.clf()
+    fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+    ticks = list(range(len(activity)))
+    if format_xaxis:
+        ticks = get_time_ticks(len(activity))
+    axs[0].plot(ticks, activity, label='activity')
+    # axs[0].plot(ticks, activity_centered,
+    #             label='activity centered (signal - average of all sample (=%.2f))' % avg)
+    axs[0].legend(loc="upper right")
+    axs[0].set_title("Time domain signal %s %s %s" % (date.replace("_", "/"), animal_id, str(target)))
+
+    axs[0].set(xlabel="Time in minute", ylabel="activity")
+    if format_xaxis:
+        axs[0].set(xlabel="Time", ylabel="activity")
+
+    if format_xaxis:
+        axs[0].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        axs[0].xaxis.set_major_locator(mdates.DayLocator())
+
+    p = power_sfft.copy()
+    # if "ANSCOMBE" in step_slug:
+    #     p = anscombe(p)
+
+    #pos = axs[1].pcolormesh(stft_time, freqs, p, shading='gouraud', vmin=p.min(), vmax=p.max())
+    pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1])
+    fig.colorbar(pos, ax=axs[1])
+
+    #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
+    axs[1].set_aspect('auto')
+    if sfft_window is None:
+        sfft_window = 256 #default value
+    axs[1].set_title("STFT Power | window size=%d %s %s %s" % (sfft_window, date.replace("_", "/"), animal_id, str(target)))
+    axs[1].set_xlabel("Time in minute")
+    if format_xaxis:
+        axs[1].set_xlabel("Time")
+    axs[1].set_ylabel("Frequency (Hz)")
+    #axs[1].set_yscale('log')
+
+    if format_xaxis:
+        n_x_ticks = axs[1].get_xticks().shape[0]
+        labels_ = [item.strftime("%H:00") for item in ticks]
+        labels_ = np.array(labels_)[list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))]
+        labels_[:] = labels_[0]
+        axs[1].set_xticklabels(labels_)
+
+    filename = "%s_%s_%s_%s_idx_%d_%s_sfft.png" % (animal_id, str(target), epoch, date, i, step_slug)
+    filepath = "%s/%s" % (out_dir, filename)
+    create_rec_dir(filepath)
+    print(filepath)
+    fig.tight_layout()
+    fig.savefig(filepath)
+    fig.clear()
+    plt.close(fig)
+
+
+def stft_power(activity, animal_id, target, date, epoch, sfft_window, enable_graph_out, step_slug, i, out_dir):
+    freqs, stft_time, coefs = signal.stft(activity, fs=1/60, nperseg=sfft_window)
+    coefs = coefs[::-1]
+    # coefs_cc = np.conj(coefs)
+    # power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    # scales = np.concatenate(
+    #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 12, 6)])
+    # coefs, coi, scales, freqs = compute_spectogram_matlab(activity, scales)
+    # stft_time = np.arange(0, coefs.shape[1])
+
+    power_cwt = coefs.real
+
+    if(enable_graph_out):
+        plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_cwt.copy(), freqs)
+    return power_cwt
+
+
 def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity, out_dir, i=0, step_slug="CWT_POWER",
               format_xaxis=None, avg=0, scale_spacing=1, enable_graph_out=True, enable_coi=False):
     # y = center_signal(activity, avg)
     # scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
     #                          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
     #scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 10), np.arange(30, 60, 20), np.arange(60, 60 * 2, 30), np.arange(120, 60 * 24, 40), np.arange(60 * 24, 60 * 24 * 7, 60)])
-    #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
+    # scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
     # scales = np.concatenate(
     #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
     #      np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
-    if hd:
-        scales = np.arange(1, len(activity))
-    else:
-        scales = np.concatenate(
-            [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
-             np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
+    scales = np.concatenate(
+        [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 12, 6)])
+    # if hd:
+    #     #scales = np.arange(1, len(activity))
+    #     scales = np.concatenate(
+    #         [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6)])
+    # else:
+    #     #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
+    #     scales = np.concatenate(
+    #         [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+    #          np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
+        # scales = np.concatenate(
+        #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
+        #      np.arange(120, 60 * 24, 20), np.arange(60 * 24, 60 * 24 * 7, 60)])
         #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
         # scales = np.concatenate([np.arange(2, 60, 5), np.arange(61, len(activity), 30)])
     #print(scales.tolist())
@@ -518,20 +597,16 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
 
     coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales, wavelet_f0)
 
-    # freqs, _, coefs = signal.stft(activity, fs=1, nperseg=wavelet_f0)
-    # coefs = coefs[::-1]
-    # scales = None
-    # coi = None
-
-    #print("number of scales is %d" % len(scales))
+    print("number of scales is %d" % len(scales))
     #conver cwt coefs to power
-    coefs_cc = np.conj(coefs)
-    power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    # coefs_cc = np.conj(coefs)
+    # power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    power_cwt = coefs.real
     if enable_coi:
         power_masked = mask_cwt(power_cwt.copy(), coi)
     else:
         power_masked = power_cwt.copy()
-    power_masked = coefs.real
+
     if(enable_graph_out):
         plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked.copy(), coi, freqs,
                        format_xaxis=format_xaxis, avg=avg, wavelet=None, log_yaxis=True)
@@ -546,7 +621,7 @@ def parse_param(animals_id, dates, i, targets, step_slug):
         epoch = str(int(datetime.strptime(dates[i], '%d/%m/%Y').timestamp()))
         return animal_id, target, date, epoch
     else:
-        return "Mean animal", step_slug, "", ""
+        return "Mean sample", step_slug, "", ""
 
 
 def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, scale_spacing, animals_id, targets, dates, format_xaxis, vmin, vmax):
@@ -577,6 +652,21 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, scale_spacing, animals_id
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
     return cwt, freqs, coi, shape, coi_mask
+
+
+def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
+    print("compute_sfft...")
+    out_dir = out_dir + "_stft"
+    sffts = []
+    i = 0
+    for activity in tqdm(X):
+        animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets, step_slug)
+        sfft = stft_power(activity, animal_id, target, date, epoch, sfft_window, True, step_slug, i, out_dir)
+        sffts.append(sfft.flatten())
+        i += 1
+    sffts = np.array(sffts)
+
+    return sffts
 
 
 class CWT(TransformerMixin, BaseEstimator):
@@ -613,7 +703,7 @@ class CWT(TransformerMixin, BaseEstimator):
 
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
-        X = check_array(X, accept_sparse='csr')
+        #X = check_array(X, accept_sparse='csr')
         cwt, freqs, coi, shape, coi_mask = compute_cwt(self.hd, self.wavelet_f0, X, self.out_dir, self.step_slug,
                                                        self.scale_spacing, self.animal_ids, self.targets, self.dates,
                                                        self.format_xaxis, self.vmin, self.vmax)
@@ -622,6 +712,37 @@ class CWT(TransformerMixin, BaseEstimator):
         self.shape = shape
         self.coi_mask = coi_mask
         return cwt
+
+
+class STFT(TransformerMixin, BaseEstimator):
+    def __init__(self, *, out_dir=None, copy=True, step_slug=None, animal_ids=None, dates=None, sfft_window=None, targets=None):
+        self.out_dir = out_dir
+        self.copy = copy
+        self.step_slug = step_slug
+        self.animal_ids = animal_ids
+        self.dates = dates
+        self.step_slug = step_slug
+        self.sfft_window = sfft_window
+        self.targets = targets
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse='csr')
+        return self
+
+    def transform(self, X, copy=None):
+        # copy = copy if copy is not None else self.copy
+        #X = check_array(X, accept_sparse='csr')
+        X = compute_sfft(X, self.animal_ids, self.dates, self.step_slug, self.sfft_window, self.targets, self.out_dir)
+        return X
 
 
 def createSynthetic(activity):
@@ -768,6 +889,7 @@ if __name__ == "__main__":
     X = np.array(createSyntheticActivityData())
     X = np.array(X) - np.average(np.array(X))
     X_CWT = CWT(wavelet_f0=0.1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False, step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[]).transform(X)
+    #X_SFFT = STFT(out_dir="F:/Data2/_cwt_unit_before", step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[]).transform(X)
     exit()
 
     for d in [(60 * 60 * 24 * 1) / 60, (60 * 60 * 24 * 7) / 60]:

@@ -29,6 +29,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import sklearn
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
@@ -40,9 +41,9 @@ from sklearn.svm import SVC
 
 from cnn.cnn import run1DCnn, run2DCnn
 from utils.Utils import create_rec_dir
-from utils._anscombe import Anscombe, Log
+from utils._anscombe import Anscombe, Log, Sqrt
 from utils._custom_split import StratifiedLeaveTwoOut
-from cwt._cwt import CWT, CWTVisualisation
+from cwt._cwt import CWT, CWTVisualisation, STFT
 from utils._normalisation import QuotientNormalizer, CenterScaler, BaseLineScaler
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
     plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range
@@ -230,7 +231,7 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
+def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
                             class_healthy, class_unhealthy, clf_name="", output_dim=2, scale_spacing=1):
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
@@ -241,22 +242,38 @@ def applyPreprocessingSteps(wavelet_f0, animal_ids, df, N_META, output_dir, step
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM", "STFT", "STANDARDSCALER"]:
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
         if step == "BASELINERM":
             df.iloc[:, :-N_META] = BaseLineScaler().fit_transform(df.iloc[:, :-N_META].values)
+        if step == "STANDARDSCALER":
+            df.iloc[:, :-N_META] = StandardScaler(with_mean=False, with_std=True).fit_transform(df.iloc[:, :-N_META].values)
         if step == "CENTER":
             df.iloc[:, :-N_META] = CenterScaler(center_by_sample=False).fit_transform(df.iloc[:, :-N_META].values)
+        if step == "CENTER_STD":
+            df.iloc[:, :-N_META] = CenterScaler(center_by_sample=True, divide_by_std=True).fit_transform(df.iloc[:, :-N_META].values)
         if step == "MINMAX":
             df.iloc[:, :-N_META] = MinMaxScaler().fit_transform(df.iloc[:, :-N_META].values)
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
+        if step == "SQRT":
+            df.iloc[:, :-N_META] = Sqrt().transform(df.iloc[:, :-N_META].values)
         if step == "LOG":
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
             df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir + "/" +step).transform(df.iloc[:, :-N_META].values)
+        if step == "STFT":
+            STFT_Transform = STFT(sfft_window=sfft_window, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
+                                  animal_ids=animal_ids, targets=df["target"].tolist(),
+                                dates=df["date"].tolist())
+            d = STFT_Transform.transform(df.copy().iloc[:, :-N_META].values)
+            data_frame_stft = pd.DataFrame(d)
+            data_frame_stft.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_stft, df_meta], axis=1)
+            del data_frame_stft
         if step == "CWT":
             df_o = df.copy()
             CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug, scale_spacing=scale_spacing, animal_ids=animal_ids, targets=df["target"].tolist(), dates=df["date"].tolist())
@@ -289,10 +306,10 @@ def applyPreprocessingSteps(wavelet_f0, animal_ids, df, N_META, output_dir, step
             del data_frame_pca
 
         print("AFTER STEP ->", df)
-        #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
+        # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
 
-    if "PCA" in step_slug:
-        plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
+    # if "PCA" in step_slug:
+    #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
     return df
 
 
@@ -508,7 +525,7 @@ def parse_param_from_filename(file):
 
 
 def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
-         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0):
+         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window):
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
     print("class_healthy=", class_healthy)
@@ -524,6 +541,7 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
     print("output_cwt=", output_cwt)
     print("cv=", cv)
     print("wavelet_f0=", wavelet_f0)
+    print("sfft_window=", sfft_window)
     print("loading dataset...")
     enable_downsample_df = False
     day = int(dataset_folder.split('_')[-1][0])
@@ -590,14 +608,14 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         ##VISUALISATION
         ################################################################################################################
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
-        df_norm = applyPreprocessingSteps(wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
+        df_norm = applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
                                           class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
                                           clf_name="SVM_QN_VISU")
         plot_zeros_distrib(label_series, df_norm, output_dir,
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
                            title='Percentage of zeros in activity per sample before normalisation')
-        plotMeanGroups(wavelet_f0, df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
+        plotMeanGroups(sfft_window, wavelet_f0, df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
 
         plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
         plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
@@ -621,9 +639,9 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
+        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER", "STFT"]]:
             step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
+            df_processed = applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
                                                    class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
                                                    scale_spacing=scale_spacing)
@@ -721,7 +739,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
                         default="RepeatedStratifiedKFold", type=str)
-    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=30, type=int)
+    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=2, type=int)
+    parser.add_argument('--sfft_window', help='STFT window size', default=2, type=int)
     parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
 
@@ -743,10 +762,11 @@ if __name__ == "__main__":
     n_process = args.n_process
     cv = args.cv
     wavelet_f0 = args.wavelet_f0
+    sfft_window = args.sfft_window
 
     stratify = "y" in stratify.lower()
     output_samples = "y" in s_output.lower()
     output_cwt = "y" in cwt.lower()
 
     main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
-         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0)
+         hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window)

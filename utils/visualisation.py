@@ -3,6 +3,7 @@ import os
 
 import matplotlib
 import pandas as pd
+import sklearn
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ from datetime import datetime, timedelta
 from sklearn.metrics import auc, precision_recall_curve
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from cwt._cwt import CWT, plotLine
+from cwt._cwt import CWT, plotLine, STFT
 from utils.Utils import create_rec_dir, anscombe
 import random
 import matplotlib.dates as mdates
@@ -498,8 +499,14 @@ def figures_to_html(figs, filename="dashboard.html"):
         dashboard.write(inner_html)
     dashboard.write("</body></html>" + "\n")
 
+def rolling_window(array, window_size,freq):
+    shape = (array.shape[0] - window_size + 1, window_size)
+    strides = (array.strides[0],) + array.strides
+    rolled = np.lib.stride_tricks.as_strided(array, shape=shape, strides=strides)
+    return rolled[np.arange(0,shape[0],freq)]
 
-def plotMeanGroups(wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
+
+def plotMeanGroups(sfft_window, wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
     print("plot mean group...")
     traces = []
     fig_group_means = go.Figure()
@@ -525,8 +532,9 @@ def plotMeanGroups(wavelet_f0, df, label_series, N_META, out_dir, filename="mean
         #s = StandardScaler().fit_transform(s.reshape(-1, 1)).flatten()
         #s = MinMaxScaler(feature_range=(0, 1)).fit_transform(s.reshape(-1, 1)).flatten()
         #s = BaselineRemoval(s).ZhangFit()
+        #s = sklearn.preprocessing.normalize(s)
         #s = BaselineRemoval(s).ModPoly(2)
-        s = CenterScaler().transform(s)
+
 
         # stop = s.copy()
         # stop[stop >= 0] = 0
@@ -537,9 +545,16 @@ def plotMeanGroups(wavelet_f0, df, label_series, N_META, out_dir, filename="mean
         # sbottom = CenterScaler().transform(sbottom)
 
         plotLine(np.array([s]), out_dir+"/", label + "_" + str(df_.shape[0]), label + "_" + str(df_.shape[0])+".html")
-
-        CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]),
+        #
+        # slices = rolling_window(s, 400, 400)
+        # for i, s in enumerate(slices):
+        s = CenterScaler(divide_by_std=False).transform(s)
+        i = 0
+        CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]) +"_"+str(i),
             animal_ids=[], targets=[], dates=[]).transform([s])
+
+        # STFT(sfft_window=sfft_window, out_dir=out_dir+"/", step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
+        #     animal_ids=[], targets=[], dates=[]).transform([s])
 
         fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
         fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
@@ -650,6 +665,6 @@ def build_roc_mosaic(input_dir, output_dir):
 
 
 if __name__ == "__main__":
-    dir_path = "F:/Data2/job_debug_sfft/ml"
-    output_dir = "F:/Data2/job_debug_sfft/ml"
+    dir_path = "F:/Data2/job_debug/ml"
+    output_dir = "F:/Data2/job_debug/ml"
     build_roc_mosaic(dir_path, output_dir)

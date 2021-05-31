@@ -133,13 +133,22 @@ if __name__ == "__main__":
     print("dataset creation done.")
 
     # ml 1To1 2To2
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_7day", dataset_files[0], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_6day", dataset_files[1], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_5day", dataset_files[2], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_4day", dataset_files[3], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_3day", dataset_files[4], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_2day", dataset_files[5], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
-    ml.main(args.output_dir + "/ml/ml_kfold_2to2_1day", dataset_files[6], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_7day", dataset_files[0], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_6day", dataset_files[1], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_5day", dataset_files[2], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_4day", dataset_files[3], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_3day", dataset_files[4], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_2day", dataset_files[5], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_2to2_1day", dataset_files[6], 1, 4, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+
+    # ml 1To1 1To2
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_7day", dataset_files[0], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_6day", dataset_files[1], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_5day", dataset_files[2], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_4day", dataset_files[3], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_3day", dataset_files[4], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_2day", dataset_files[5], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
+    ml.main(args.output_dir + "/ml/ml_kfold_1to2_1day", dataset_files[6], 1, 2, False, 1, None, None, 5, 10, 20, 6, True, True, "RepeatedStratifiedKFold", 6, 60)
 
     # for f0 in [256, 500, 600, 1440]:
     #     f0_str = str(f0).replace(".", "_")

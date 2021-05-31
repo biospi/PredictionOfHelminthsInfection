@@ -32,6 +32,38 @@ def anscombe(arr, sigma_sq=0, alpha=1):
     return f
 
 
+class Sqrt(TransformerMixin, BaseEstimator):
+    def __init__(self, *, copy=True):
+        self.copy = copy
+
+    def _reset(self):
+        """Reset internal data-dependent state of the scaler, if necessary.
+
+        __init__ parameters are not touched.
+        """
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse='csr')
+        return self
+
+    def partial_fit(self, X, y=None):
+        return self
+
+    def transform(self, X, copy=None):
+        X = check_array(X, accept_sparse='csr')
+        X = np.sqrt(X)
+        return X
+
+
 class Log(TransformerMixin, BaseEstimator):
     def __init__(self, *, copy=True):
         self.copy = copy

@@ -110,11 +110,12 @@ class BaseLineScaler(TransformerMixin, BaseEstimator):
 
 
 class CenterScaler(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False):
+    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False, divide_by_std=False):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
         self.center_by_sample = center_by_sample
+        self.divide_by_std = divide_by_std
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -143,12 +144,20 @@ class CenterScaler(TransformerMixin, BaseEstimator):
         #copy = copy if copy is not None else self.copy
         #X = check_array(X, accept_sparse='csr')
         if self.center_by_sample:
+            if not isinstance(X, np.ndarray):
+                X = np.array(X)
+
             X_centered = np.ones(X.shape)
             X_centered[:] = np.nan
             for i in range(X.shape[0]):
-                X_centered[i, :] = X[i, :] - np.average(X[i, :])
+                a = X[i, :]
+                X_centered[i, :] = a - np.average(a)
+                if self.divide_by_std:
+                    X_centered[i, :] = X_centered[i, :] / np.std(X_centered[i, :])
         else:
             X_centered = X - np.average(X)
+            if self.divide_by_std:
+                X_centered = X_centered / np.std(X_centered)
 
         return X_centered
 
