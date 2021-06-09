@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from sklearn.metrics import auc, precision_recall_curve
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from cwt._cwt import CWT, plotLine, STFT
+from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
 from utils.Utils import create_rec_dir, anscombe
 import random
 import matplotlib.dates as mdates
@@ -265,11 +265,50 @@ def format(text):
         .replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->").replace("_","->")
 
 
+def stringArrayToArray(string):
+    return [float(x) for x in string.replace("\n", "").replace("[", "").replace("]", "").replace(",", "").split(" ") if
+     len(x) > 0]
+
+
+def formatForBoxPlot(df):
+    print("formatForBoxPlot...")
+    dfs = []
+    for index, row in df.iterrows():
+        data = pd.DataFrame()
+        test_balanced_accuracy_score = stringArrayToArray(row["test_balanced_accuracy_score"])
+        test_precision_score0 = stringArrayToArray(row["test_precision_score0"])
+        test_precision_score1 = stringArrayToArray(row["test_precision_score1"])
+        test_recall_score0 = stringArrayToArray(row["test_recall_score0"])
+        test_recall_score1 = stringArrayToArray(row["test_recall_score1"])
+        test_f1_score0 = stringArrayToArray(row["test_f1_score0"])
+        test_f1_score1 = stringArrayToArray(row["test_f1_score1"])
+        roc_auc_scores = stringArrayToArray(row["roc_auc_scores"])
+        config = [row["config"] for _ in range(len(test_balanced_accuracy_score))]
+        data["test_balanced_accuracy_score"] = test_balanced_accuracy_score
+        data["test_precision_score0"] = test_precision_score0
+        data["test_precision_score1"] = test_precision_score1
+        data["test_recall_score0"] = test_recall_score0
+        data["test_recall_score1"] = test_recall_score1
+        data["test_f1_score0"] = test_f1_score0
+        data["test_f1_score1"] = test_f1_score1
+        data["roc_auc_scores"] = roc_auc_scores
+        data["config"] = config
+        dfs.append(data)
+    formated = pd.concat(dfs, axis=0)
+    return formated
+
+
 def plotMlReport(path, output_dir):
     print("building report visualisation...")
     df = pd.read_csv(str(path), index_col=None)
+    medians = []
+    for value in df["roc_auc_scores"].values:
+        v = stringArrayToArray(value)
+        medians.append(np.median(v))
+    df["median_auc"] = medians
+
     df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
-    df = df.sort_values('roc_auc_score_mean')
+    df = df.sort_values('median_auc')
     df = df.drop_duplicates(subset=['config'], keep='first')
     print(df)
     t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
@@ -290,15 +329,17 @@ def plotMlReport(path, output_dir):
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
-    fig.append_trace(px.bar(df, x='config', y='precision_score0_mean').data[0], row=1, col=1)
-    fig.append_trace(px.bar(df, x='config', y='precision_score1_mean').data[0], row=2, col=1)
-    fig.append_trace(px.bar(df, x='config', y='balanced_accuracy_score_mean').data[0], row=3, col=1)
-    fig.append_trace(px.bar(df, x='config', y='roc_auc_score_mean').data[0], row=4, col=1)
+    df = formatForBoxPlot(df)
 
-    fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
-    fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
-    fig.update_yaxes(range=[df["balanced_accuracy_score_mean"].min()/1.1, 1], row=3, col=1)
-    fig.update_yaxes(range=[df["roc_auc_score_mean"].min()/1.1, 1], row=4, col=1)
+    fig.append_trace(px.box(df, x='config', y='test_precision_score0').data[0], row=1, col=1)
+    fig.append_trace(px.box(df, x='config', y='test_precision_score1').data[0], row=2, col=1)
+    fig.append_trace(px.box(df, x='config', y='test_balanced_accuracy_score').data[0], row=3, col=1)
+    fig.append_trace(px.box(df, x='config', y='roc_auc_scores').data[0], row=4, col=1)
+
+    # fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
+    # fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
+    # fig.update_yaxes(range=[df["balanced_accuracy_score_mean"].min()/1.1, 1], row=3, col=1)
+    # fig.update_yaxes(range=[df["roc_auc_score_mean"].min()/1.1, 1], row=4, col=1)
 
     # fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
     #
@@ -382,7 +423,7 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title=
     plt.close(fig)
 
 
-def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
+def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False, yaxis="", xaxis="Time in minutes"):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = list(range(X.shape[1]))
     fig = make_subplots(rows=1, cols=1)
@@ -395,7 +436,8 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=F
             colorscale='Viridis')
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
-    fig.update_layout(xaxis_title="Time in minutes")
+    fig.update_layout(xaxis_title=xaxis)
+    fig.update_layout(yaxis_title=yaxis)
     #fig.show()
     create_rec_dir(out_dir)
     file_path = out_dir + "/" + filename.replace("=", "_").lower()
@@ -506,7 +548,7 @@ def rolling_window(array, window_size,freq):
     return rolled[np.arange(0,shape[0],freq)]
 
 
-def plotMeanGroups(sfft_window, wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
+def plotMeanGroups(n_scales, sfft_window, wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
     print("plot mean group...")
     traces = []
     fig_group_means = go.Figure()
@@ -535,7 +577,6 @@ def plotMeanGroups(sfft_window, wavelet_f0, df, label_series, N_META, out_dir, f
         #s = sklearn.preprocessing.normalize(s)
         #s = BaselineRemoval(s).ModPoly(2)
 
-
         # stop = s.copy()
         # stop[stop >= 0] = 0
         # stop = CenterScaler().transform(stop)
@@ -550,11 +591,13 @@ def plotMeanGroups(sfft_window, wavelet_f0, df, label_series, N_META, out_dir, f
         # for i, s in enumerate(slices):
         s = CenterScaler(divide_by_std=False).transform(s)
         i = 0
-        CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]) +"_"+str(i),
-            animal_ids=[], targets=[], dates=[]).transform([s])
+        if wavelet_f0 is not None:
+            CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]) +"_"+str(i),
+                animal_ids=[], targets=[], dates=[], n_scales=n_scales).transform([s])
 
-        # STFT(sfft_window=sfft_window, out_dir=out_dir+"/", step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
-        #     animal_ids=[], targets=[], dates=[]).transform([s])
+        if sfft_window is not None:
+            STFT(sfft_window=sfft_window, out_dir=out_dir+"/", step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
+                animal_ids=[], targets=[], dates=[]).transform([s])
 
         fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
         fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
@@ -605,43 +648,48 @@ def plot_mosaic(cv_name, directory_t, filename, subdir):
 
     steps = []
     cwt_meta = []
+    stft_meta = []
     for image in images:
         steps.append("_".join(image.split("\\")[-1].replace(".png", "").split("_")[1:]))
         cwt_meta.append("wf0"+image.split("\\")[-4].split("wf0")[-1] if "wf0" in image else "")
+        stft_meta.append("window" + image.split("\\")[-4].split("window")[-1] if "window" in image else "")
 
     df = pd.DataFrame()
     df["file"] = images
     df["step"] = steps
     df["wf0"] = cwt_meta
+    df["window"] = stft_meta
     list_of_df = [g for _, g in df.groupby(['step'])]
 
     for dfs_g in list_of_df:
-        for group in [g for _, g in dfs_g.groupby(['wf0'])]:
-            if group.shape[0] != 14:
-                continue
-            images = group["file"].values
-            step_name = group["step"].values[0]
-            if step_name == "":
-                step_name = "None"
-            cv_name = group["file"].values[0].split("\\")[-2]
-            wavelet_meta = group["wf0"].values[0]
+        for t in ['wf0', 'window']:
+            for group in [g for _, g in dfs_g.groupby(t)]:
+                if group.shape[0] != 14:
+                    continue
+                images = group["file"].values
+                step_name = group["step"].values[0]
+                if step_name == "":
+                    step_name = "None"
+                cv_name = group["file"].values[0].split("\\")[-2]
+                wavelet_meta = group["wf0"].values[0]
+                stft_meta = group["window"].values[0]
 
-            fig = plt.figure(figsize=(30.0, 35.0))
-            fig.suptitle('SVM performances for activity dataset (1day ... 7days)\nCross validation=%s | Preprocessing steps=%s' % (cv_name, step_name), fontsize=30)
+                fig = plt.figure(figsize=(30.0, 35.0))
+                fig.suptitle('SVM performances for activity dataset (1day ... 7days)\nCross validation=%s | Preprocessing steps=%s' % (cv_name, step_name), fontsize=30)
 
-            columns = 2
-            rows = int(np.ceil(len(images)/2))
-            for i, path in enumerate(images):
-                img = plt.imread(path)
-                fig.add_subplot(rows, columns, i + 1)
-                plt.imshow(img)
-                plt.title = path
-                plt.axis('off')
-            fig.tight_layout()
-            filepath = "%s/roc_pr_curves_%s/%s" % (output_dir, subdir, step_name + "_" + wavelet_meta + "_" + filename)
-            create_rec_dir(filepath)
-            print(filepath)
-            fig.savefig(filepath)
+                columns = 2
+                rows = int(np.ceil(len(images)/2))
+                for i, path in enumerate(images):
+                    img = plt.imread(path)
+                    fig.add_subplot(rows, columns, i + 1)
+                    plt.imshow(img)
+                    plt.title = path
+                    plt.axis('off')
+                fig.tight_layout()
+                filepath = "%s/roc_pr_curves_%s/%s" % (output_dir, subdir, step_name + "_" + wavelet_meta + "_" + stft_meta + "_" + filename)
+                create_rec_dir(filepath)
+                print(filepath)
+                fig.savefig(filepath)
 
 
 def build_roc_mosaic(input_dir, output_dir):
@@ -661,7 +709,30 @@ def build_roc_mosaic(input_dir, output_dir):
 
     plot_mosaic("kfold", dir_list_2to2, "2to2_roc_pr_curves_kfold.png", "2to2")
     plot_mosaic("l2out", dir_list_2to2, "2to2_roc_pr_curves_l2outd.png", "2to2")
-    plot_mosaic("l1out",dir_list_2to2,  "2to2_roc_pr_curves_l1out.png", "2to2")
+    plot_mosaic("l1out", dir_list_2to2,  "2to2_roc_pr_curves_l1out.png", "2to2")
+
+
+def SampleVisualisation(df, shape, N_META, out_dir, step_slug, sfft_window, stft_time, scales):
+    print("sample visualisation...")
+    for i, row in df.iterrows():
+        activity = row[:-N_META]
+        target = row["target"]
+
+        date = datetime.strptime(row["date"], '%d/%m/%Y').strftime('%d_%m_%Y')
+        epoch = str(int(datetime.strptime(row["date"], '%d/%m/%Y').timestamp()))
+
+        imputed_days = row["imputed_days"]
+        animal_id = row["id"]
+
+        if "CWT" in step_slug:
+            cwt = activity.values.reshape(shape).astype(np.float)
+            plot_cwt_power(None, None, epoch, date, animal_id, target, step_slug, out_dir, i, activity, cwt.copy(), None, scales, log_yaxis=False, standard_scale=True, format_xaxis=False)
+
+        if "STFT" in step_slug:
+            power_sfft = activity.values.reshape(shape).astype(np.float)
+            plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step_slug, out_dir, i, activity,
+                            power_sfft, scales, format_xaxis=False
+                            , vmin=None, vmax=None, standard_scale=True)
 
 
 if __name__ == "__main__":

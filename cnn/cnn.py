@@ -25,7 +25,7 @@ from sklearn.metrics import auc
 from sklearn.preprocessing import MinMaxScaler
 
 from cwt._cwt import cwt_power
-from utils.visualisation import plot_roc_range
+from utils.visualisation import plot_roc_range, plot_pr_range
 #from keras.utils.vis_utils import plot_model
 import time
 import os
@@ -125,11 +125,20 @@ def summarize_results(scores):
     print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epochs=1000, batch_size=8):
+def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epochs=10, batch_size=8):
     X_train, X_test, y_train, y_test = format(trainX, trainy, testX, testy)
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
     model = Sequential()
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(n_timesteps, n_features)))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
     model.add(Dropout(0.5))
     model.add(MaxPooling1D(pool_size=2))
@@ -403,7 +412,7 @@ def evaluate2DCnn(i, out_dir, ax, train_data_cwt, y_train, test_data_cwt, y_test
     return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
 
 
-def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir):
+def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps, days, farm_id, sampling, label_series, downsample_false_class, output_dir, cv_name):
     start_time = time.time()
     fig, ax = plt.subplots()
     mean_fpr = np.linspace(0, 1, 100)
@@ -418,7 +427,10 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     test_f1_score1 = []
     i = 0
     for train_index, test_index in cross_validation_method.split(X, y):
-        print("processing fold %d/%d ..." % (i, cross_validation_method.nfold))
+        if isinstance(cross_validation_method, StratifiedLeaveTwoOut):
+            print("processing fold %d/%d ..." % (i, cross_validation_method.nfold))
+        else:
+            print("processing fold %d/%d ..." % (i, cross_validation_method.n_repeats * cross_validation_method.cvargs['n_splits']))
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1 = evaluate1DCNN(i, output_dir, ax, X_train, y_train, X_test, y_test, epochs=epochs)
@@ -438,7 +450,7 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
         test_f1_score0.append(f0)
         test_f1_score1.append(f1)
     clf_detail = "1DCNN"
-    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_"+clf_detail, fig)
+    mean_auc = plot_roc_range(ax, tprs, mean_fpr, aucs, output_dir, steps+"_"+clf_detail, fig, cv_name, days)
     # fig.show()
     plt.close(fig)
     plt.clf()

@@ -42,16 +42,10 @@ def get_temp(d_dates, weather_file_path, metric="temp_c"):
     return data_exo
 
 
-if __name__ == "__main__":
-
-    if len(sys.argv) != 4:
-        print("Usage: "
-              "add_exogenous <Dataset> <Output Directory> <Weather File>")
-        exit(1)
-
-    dataset = Path(sys.argv[1])
-    out_dir = Path(sys.argv[2])
-    weather_file = Path(sys.argv[3])
+def main(dataset, out_dir, weather_file):
+    dataset = Path(dataset)
+    out_dir = Path(out_dir)
+    weather_file = Path(weather_file)
 
     print("dataset=", dataset)
     print("outDir=", out_dir)
@@ -102,4 +96,17 @@ if __name__ == "__main__":
     print(filename)
     df_concat_temp_humidity_df.to_csv(filename, index=False)
 
+
+if __name__ == "__main__":
+
+    if len(sys.argv) != 4:
+        print("Usage: "
+              "add_exogenous <Dataset> <Output Directory> <Weather File>")
+        exit(1)
+
+    dataset = sys.argv[1]
+    out_dir = sys.argv[2]
+    weather_file = sys.argv[3]
+
+    main(dataset, out_dir, weather_file)
 

@@ -125,99 +125,118 @@ def format(text):
 
 
 if __name__ == "__main__":
-    # import the libraries
-    from scipy import signal
-    import matplotlib.pyplot as plot
-    import numpy as np
+    scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10080])
 
-    # Define the list of frequencies
-    frequencies = np.arange(5, 105, 5)
-    # Sampling Frequency
-    samplingFrequency = 400
-    # Create two ndarrays
-    s1 = np.empty([0])  # For samples
-    s2 = np.empty([0])  # For signal
-    # Start Value of the sample
-    start = 1
-    # Stop Value of the sample
-    stop = samplingFrequency + 1
-    for frequency in frequencies:
-        sub1 = np.arange(start, stop, 1)
-        # Signal - Sine wave with varying frequency + Noise
-        sub2 = np.sin(2 * np.pi * sub1 * frequency * 1 / samplingFrequency) + np.random.randn(len(sub1))
-        s1 = np.append(s1, sub1)
-        s2 = np.append(s2, sub2)
-        start = stop + 1
-        stop = start + samplingFrequency
-    # Plot the signal
-    plot.subplot(211)
-    plot.plot(s1, s2)
-    plt.show()
+    scales = [np.power(2, n) for n in np.arange(2, 10)]
 
-    freqs, _, coefs = signal.stft(s2, fs=1, nperseg=256)
+    import pycwt as wavelet
+    # f0s = [6,10]
+    # fig, axs = plt.subplots(len(f0s), 1, figsize=(7.20, 12.80))
+    # for i, f0 in enumerate(f0s):
+    #     wavelet_func = [wavelet.Morlet(f0).psi(x) for x in np.arange(-10, 10, 0.1)]
+    #     axs[i].plot(wavelet_func)
+    #     axs[i].title.set_text("Morlet wavelet with wave number= %s" % str(f0))
+    # fig.show()
 
-    # import matlab.engine
-    # matlab = matlab.engine.start_matlab()
-    # matlab=None
-    # t = np.linspace(0, 5, 5000)
-    # x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
-    # plt.plot(x)
-    # plt.show()
-    # scales = np.arange(1, 150)
-    # coefs, _, scales, freqs = compute_spectogram_matlab(x, scales)
-    #
-    # # Fs = matlab.double(1/60)
-    # # scales = np.arange(1, 150)
-    # # mat_scales = matlab.double(matlab.cell2mat(scales.astype(np.float).tolist()))
-    # # mat_a = matlab.double(matlab.cell2mat(x.tolist()))
-    # # #wt, freqs = matlab.cwt(mat_a, mat_scales, 'sym4', Fs, nargout=2)
-    # # wt, freqs, _ = matlab.spectrogram(mat_a, nargout=3)
-    #
-    #coefs = np.asarray(wt)
-    coefs_cc = np.conj(coefs)
-    power = np.real(np.multiply(coefs, coefs_cc))
-
-    fig, ax = plt.subplots()
-    pos = ax.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]])
-    fig.colorbar(pos, ax=ax)
-    #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
-    ax.set_aspect('auto')
-    #ax.set_title("CWT")
-    ax.set_xlabel("Time in minute")
-    #ax.set_ylabel("Wave length of wavelet (in minute)")
+    f0 = 6
+    fig, ax = plt.subplots(figsize=(7.20, 7.20))
+    wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
+    ax.plot(wavelet_func)
+    ax.title.set_text("Mexican hat wavelet")
     fig.show()
 
+    f0 = 6
+    fig, ax = plt.subplots(figsize=(7.20, 7.20))
+    wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
+    ax.plot(wavelet_func)
+    ax.title.set_text("Morlet wavelet with wave number= %s" % str(f0))
+    fig.show()
     exit()
-
-
-    from scipy import signal
-    # from ssqueezepy import ssq_cwt, ssq_stft
+    # path = "F:/Data2/ml_delmas_box/RepeatedStratifiedKFold/final_classification_report.csv"
+    # output_dir = "/".join(path.split("/")[:-1])
+    # plotMlReport(path, output_dir)
+    # exit()
+    # # import the libraries
+    # from scipy import signal
+    # import matplotlib.pyplot as plot
+    # import numpy as np
     #
-    # Twxo, Wxo, *_ = ssq_cwt(xo)
-    import pycwt as wavelet
-    # import pywt
-    # # [r, psi, x] = pywt.Wavelet('db4').wavefun()
-    # # plt.plot(x, psi)
+    # # Define the list of frequencies
+    # frequencies = np.arange(5, 105, 5)
+    # # Sampling Frequency
+    # samplingFrequency = 400
+    # # Create two ndarrays
+    # s1 = np.empty([0])  # For samples
+    # s2 = np.empty([0])  # For signal
+    # # Start Value of the sample
+    # start = 1
+    # # Stop Value of the sample
+    # stop = samplingFrequency + 1
+    # for frequency in frequencies:
+    #     sub1 = np.arange(start, stop, 1)
+    #     # Signal - Sine wave with varying frequency + Noise
+    #     sub2 = np.sin(2 * np.pi * sub1 * frequency * 1 / samplingFrequency) + np.random.randn(len(sub1))
+    #     s1 = np.append(s1, sub1)
+    #     s2 = np.append(s2, sub2)
+    #     start = stop + 1
+    #     stop = start + samplingFrequency
+    # # Plot the signal
+    # plot.subplot(211)
+    # plot.plot(s1, s2)
+    # plt.show()
+    #
+    # freqs, _, coefs = signal.stft(s2, fs=1, nperseg=256)
+    #
+    # # import matlab.engine
+    # # matlab = matlab.engine.start_matlab()
+    # # matlab=None
+    # # t = np.linspace(0, 5, 5000)
+    # # x = 2 * np.cos(2 * np.pi * 100 * t) * (t < 1) + np.cos(2 * np.pi * 50 * t) * (3 < t) + 0.3 * np.random.rand(np.size(t))
+    # # plt.plot(x)
     # # plt.show()
+    # # scales = np.arange(1, 150)
+    # # coefs, _, scales, freqs = compute_spectogram_matlab(x, scales)
+    # #
+    # # # Fs = matlab.double(1/60)
+    # # # scales = np.arange(1, 150)
+    # # # mat_scales = matlab.double(matlab.cell2mat(scales.astype(np.float).tolist()))
+    # # # mat_a = matlab.double(matlab.cell2mat(x.tolist()))
+    # # # #wt, freqs = matlab.cwt(mat_a, mat_scales, 'sym4', Fs, nargout=2)
+    # # # wt, freqs, _ = matlab.spectrogram(mat_a, nargout=3)
+    # #
+    # #coefs = np.asarray(wt)
+    # coefs_cc = np.conj(coefs)
+    # power = np.real(np.multiply(coefs, coefs_cc))
+    #
+    # fig, ax = plt.subplots()
+    # pos = ax.imshow(power, extent=[0, power.shape[1], 0, power.shape[0]])
+    # fig.colorbar(pos, ax=ax)
+    # #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
+    # ax.set_aspect('auto')
+    # #ax.set_title("CWT")
+    # ax.set_xlabel("Time in minute")
+    # #ax.set_ylabel("Wave length of wavelet (in minute)")
+    # fig.show()
+    #
+    # exit()
+    #
+    #
+    # from scipy import signal
+    # # from ssqueezepy import ssq_cwt, ssq_stft
+    # #
+    # # Twxo, Wxo, *_ = ssq_cwt(xo)
+    # import pycwt as wavelet
+    # import pywt
+    # [r, psi, x] = pywt.Wavelet('db4').wavefun()
+    # plt.plot(x, psi)
+    # plt.show()
     #
     # scales = [1, 5, 10, 20, 30, 40, 50, 100]
     # y = list(range(100))
     # #coeff, freq = pywt.dwt2(y, scales, "db4", 1)
     # #cwtmatr = signal.cwt(y, signal.daub(4), scales)
     #
-    f0s = [0.5, 3, 3.5, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 10]
-    fig, axs = plt.subplots(len(f0s), 1, figsize=(7.20, 12.80))
-    for i, f0 in enumerate(f0s):
-        wavelet_func = [wavelet.Morlet(f0).psi(x) for x in np.arange(-10, 10, 0.1)]
-        axs[i].plot(wavelet_func)
-        axs[i].title.set_text("Morlet wavelet with wave number= %s" % str(f0))
-    fig.show()
 
-    fig, ax = plt.subplots(figsize=(7.20, 12.80))
-    wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
-    ax.plot(wavelet_func)
-    ax.title.set_text("Morlet wavelet with wave number= %s" % str(f0))
-    fig.show()
 
     # import numpy as np
     # import matplotlib.pyplot as plt

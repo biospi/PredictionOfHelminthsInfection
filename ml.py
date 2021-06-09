@@ -34,7 +34,7 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
     plot_roc_curve, auc, roc_curve, precision_recall_curve, plot_precision_recall_curve
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut
+from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut, GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
@@ -46,7 +46,7 @@ from utils._custom_split import StratifiedLeaveTwoOut
 from cwt._cwt import CWT, CWTVisualisation, STFT
 from utils._normalisation import QuotientNormalizer, CenterScaler, BaseLineScaler
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
-    plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range
+    plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range, SampleVisualisation, plotHeatmap
 
 
 def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
@@ -200,7 +200,7 @@ def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days
         plt.close(fig_roc)
         plt.close(fig_pr)
         plt.clf()
-        return mean_auc
+        return mean_auc, aucs_roc
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -231,8 +231,8 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
-                            class_healthy, class_unhealthy, clf_name="", output_dim=2, scale_spacing=1):
+def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
+                            class_healthy, class_unhealthy, clf_name="", output_dim=2, n_scales=None):
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
 
@@ -246,10 +246,56 @@ def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, out
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
+        if step == "TEMPERATUREAPPEND":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_temp = df_temp.loc[df.index]
+            df = pd.concat([df_activity, df_temp, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
+            df.columns = new_header
+
+        if step == "HUMIDITYAPPEND":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_hum = df_hum.loc[df.index]
+            df = pd.concat([df_activity, df_hum, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
+            df.columns = new_header
+
+        if step == "TEMPERATURE":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_temp = df_temp.loc[df.index]
+            df = pd.concat([df_temp, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
+            df.columns = new_header
+
+        if step == "HUMIDITY":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_hum = df_hum.loc[df.index]
+            df = pd.concat([df_hum, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
+            df.columns = new_header
+
         if step == "BASELINERM":
             df.iloc[:, :-N_META] = BaseLineScaler().fit_transform(df.iloc[:, :-N_META].values)
         if step == "STANDARDSCALER":
-            df.iloc[:, :-N_META] = StandardScaler(with_mean=False, with_std=True).fit_transform(df.iloc[:, :-N_META].values)
+            df.iloc[:, :-N_META] = StandardScaler(with_mean=False, with_std=True).fit_transform(
+                df.iloc[:, :-N_META].values)
+
+            if "TEMPERATURE" not in step_slug and "HUMIDITY" not in step_slug:
+                if "CWT" in step_slug:
+                    SampleVisualisation(df, CWT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug, None, None, CWT_Transform.scales)
+
+                if "STFT" in step_slug:
+                    SampleVisualisation(df, STFT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug,
+                                        STFT_Transform.sfft_window, STFT_Transform.stft_time, STFT_Transform.freqs)
+
         if step == "CENTER":
             df.iloc[:, :-N_META] = CenterScaler(center_by_sample=False).fit_transform(df.iloc[:, :-N_META].values)
         if step == "CENTER_STD":
@@ -264,7 +310,7 @@ def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, out
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
             df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir + "/" +step).transform(df.iloc[:, :-N_META].values)
-        if step == "STFT":
+        if "STFT" in step:
             STFT_Transform = STFT(sfft_window=sfft_window, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
                                   animal_ids=animal_ids, targets=df["target"].tolist(),
                                 dates=df["date"].tolist())
@@ -274,9 +320,9 @@ def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, out
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_stft, df_meta], axis=1)
             del data_frame_stft
-        if step == "CWT":
+        if "CWT" in step:
             df_o = df.copy()
-            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug, scale_spacing=scale_spacing, animal_ids=animal_ids, targets=df["target"].tolist(), dates=df["date"].tolist())
+            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug, n_scales=n_scales, animal_ids=animal_ids, targets=df["target"].tolist(), dates=df["date"].tolist())
             data_frame_cwt = pd.DataFrame(
                 CWT_Transform.transform(df.copy().iloc[:, :-N_META].values))
             data_frame_cwt.index = df.index  # need to keep original sample index!!!!
@@ -306,7 +352,8 @@ def applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, df, N_META, out
             del data_frame_pca
 
         print("AFTER STEP ->", df)
-        # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
+        if "CWT" not in step_slug:
+            plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
 
     # if "PCA" in step_slug:
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
@@ -361,7 +408,7 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     y = y.astype(int)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
     run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealthy, steps,
-             days, farm_id, sampling, label_series, downsample_false_class, output_dir)
+             days, farm_id, sampling, label_series, downsample_false_class, output_dir, cv)
 
 
 def process_data_frame_2dcnn(wavelet_f0, epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
@@ -428,6 +475,7 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     y = y.astype(int)
     X = data_frame[data_frame.columns[0:data_frame.shape[1] - 1]].values
 
+
     print("release data_frame memory...")
     del data_frame
     gc.collect()
@@ -436,6 +484,8 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     if not os.path.exists(output_dir):
         print("mkdir", output_dir)
         os.makedirs(output_dir)
+
+    plotHeatmap(X, output_dir, "CLF_INPUT_%s" % steps, "CLF_INPUT_%s.html" % steps, xaxis="features", yaxis="value")
 
     filename_2d_scatter = "%s/PLS/%s_2DPLS_days_%d_option_%s_downsampled_%s_sampling_%s.png" % (
         output_dir, farm_id, days, steps, downsample_false_class, sampling)
@@ -468,12 +518,23 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
         'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
     }
 
+
+
     # param_str = "option_%s_downsample_%s_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (
     #     steps, str(downsample_false_class), days, farm_id, n_repeats, n_splits, class0_count,
     #     class1_count, sampling)
     report_rows_list = []
     print('->SVC')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    clf_svc = SVC(probability=True, class_weight='balanced')
+
+    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': ['scale', 1e-1, 1e-3, 1e-4], 'class_weight': [None, 'balanced'],
+    #                      'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]},
+    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+    # clf = GridSearchCV(clf_svc, tuned_parameters, cv=cross_validation_method, scoring='roc_auc', n_jobs=-1)
+    # clf.fit(X.copy(), y.copy())
+    # clf_best = clf.best_estimator_
+    # print("Best estimator from gridsearch=")
+    # print(clf_best)
     scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
     scores["downsample"] = downsample_false_class
     scores["class0"] = y[y == class_healthy].size
@@ -491,9 +552,10 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     scores["sampling"] = sampling
     scores["classifier"] = "->SVC"
     scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids, days)
-    scores["roc_auc_score_mean"] = aucs
+    #clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    auc_m, aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids, days)
+    scores["roc_auc_score_mean"] = auc_m
+    scores["roc_auc_scores"] = aucs
     report_rows_list.append(scores)
     del scores
 
@@ -524,7 +586,7 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
+def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,
          hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window):
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
@@ -551,30 +613,30 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
     print("found %d files." % len(files))
     print(files)
 
-    # has_humidity_data = False
-    # if hum_file is not None:
-    #     has_humidity_data = True
-    #     print("humidity file detected!", hum_file)
-    #     df_hum = pd.read_csv(hum_file)
-    #     print(df_hum.shape)
-    #     plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
-    #
-    # has_temperature_data = True
-    # if temp_file is not None:
-    #     has_temperature_data = True
-    #     print("temperature file detected!", temp_file)
-    #     df_temp = pd.read_csv(temp_file)
-    #     plotHeatmap(df_temp.values, output_dir, "Samples temperature", "temperature.html")
-    #     print(df_temp.shape)
-    #
-    # has_humidity_and_temp = False
-    # if temp_file is not None and hum_file is not None:
-    #     has_humidity_and_temp = True
-    #     print("temperature file detected!", temp_file)
-    #     print("humidity file detected!", hum_file)
-    #     df_hum_temp = pd.concat([df_temp, df_hum], axis=1)
-    #     plotHeatmap(df_hum_temp.values, output_dir, "Samples temperature and Humidity", "temperature_humidity.html")
-    #     print(df_hum_temp.shape)
+    has_humidity_data = False
+    if hum_file is not None:
+        has_humidity_data = True
+        print("humidity file detected!", hum_file)
+        df_hum = pd.read_csv(hum_file)
+        print(df_hum.shape)
+        plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
+
+    has_temperature_data = True
+    if temp_file is not None:
+        has_temperature_data = True
+        print("temperature file detected!", temp_file)
+        df_temp = pd.read_csv(temp_file)
+        plotHeatmap(df_temp.values, output_dir, "Samples temperature", "temperature.html")
+        print(df_temp.shape)
+
+    has_humidity_and_temp = False
+    if temp_file is not None and hum_file is not None:
+        has_humidity_and_temp = True
+        print("temperature file detected!", temp_file)
+        print("humidity file detected!", hum_file)
+        df_hum_temp = pd.concat([df_temp, df_hum], axis=1)
+        plotHeatmap(df_hum_temp.values, output_dir, "Samples temperature and Humidity", "temperature_humidity.html")
+        print(df_hum_temp.shape)
 
     for file in files:
         days, farm_id, option, sampling = parse_param_from_filename(file)
@@ -603,19 +665,19 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         data_frame = data_frame.drop('label', 1)
         print(data_frame)
 
-        #plotMeanGroups(wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
+        #plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
         ################################################################################################################
         ##VISUALISATION
         ################################################################################################################
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
-        df_norm = applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
+        df_norm = applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
                                           class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-                                          clf_name="SVM_QN_VISU")
+                                          clf_name="SVM_QN_VISU", n_scales=n_scales)
         plot_zeros_distrib(label_series, df_norm, output_dir,
                            title='Percentage of zeros in activity per sample after normalisation')
         plot_zeros_distrib(label_series, data_frame.copy(), output_dir,
                            title='Percentage of zeros in activity per sample before normalisation')
-        plotMeanGroups(sfft_window, wavelet_f0, df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
+        plotMeanGroups(n_scales, sfft_window, wavelet_f0, df_norm, label_series, N_META, output_dir + "/raw_after_qn/")
 
         plot_time_pca(N_META, data_frame.copy(), output_dir, label_series, title="PCA time domain before normalisation")
         plot_time_pca(N_META, df_norm, output_dir, label_series, title="PCA time domain after normalisation")
@@ -623,28 +685,28 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
         plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
 
-        ntraces = 2
-        idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
-                                                 class_healthy,
-                                                 class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
-                                                 xlabel="Time",
-                                                 ylabel="activity", ntraces=ntraces)
-        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-                    output_dir,
-                    df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
-                    idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+        # ntraces = 2
+        # idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
+        #                                          class_healthy,
+        #                                          class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
+        #                                          xlabel="Time",
+        #                                          ylabel="activity", ntraces=ntraces)
+        # plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+        #             output_dir,
+        #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+        #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
         # keep only two class of samples
         data_frame = data_frame[data_frame["target"].isin([class_healthy, class_unhealthy])]
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        for steps in [["QN", "ANSCOMBE", "LOG", "CENTER", "STFT"]]:
+        for steps in preprocessing_steps:
             step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
+            df_processed = applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
                                                    class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
-                                                   scale_spacing=scale_spacing)
+                                                   n_scales=n_scales)
             targets = df_processed["target"]
             df_processed = df_processed.iloc[:, :-N_META]
             df_processed["target"] = targets
@@ -653,7 +715,8 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
                                    sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
                                    cv=cv)
 
-        # #CNN
+
+        #2DCNN
         # for steps in [["QN", "ANSCOMBE", "LOG"]]:
         #     step_slug = "_".join(steps)
         #     step_slug = step_slug + "_2DCNN"
@@ -664,48 +727,20 @@ def main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, s
         #     df_processed["target"] = targets
         #     process_data_frame_2dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
         #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
-        #
-        # for steps in [["QN", "CWT", "ANSCOMBE"]]:
+
+        #1DCNN
+        # for steps in [["QN"], ["QN", "ANSCOMBE", "LOG"]]:
         #     step_slug = "_".join(steps)
         #     step_slug = step_slug + "_1DCNN"
-        #     df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-        #                                            class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="1DCNN")
+        #     df_processed = applyPreprocessingSteps(sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
+        #                                            class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="1DCNN", output_dim=data_frame.shape[0])
         #     targets = df_processed["target"]
         #     df_processed = df_processed.iloc[:, :-N_META]
         #     df_processed["target"] = targets
         #     process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
-        #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv="StratifiedLeaveTwoOut")
+        #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv=cv)
 
-        # todo add preprocessing step for exogeneous. concat with activity
-        # steps = ["HUMIDITY", "STDS"]
-        # step_slug = "_".join(steps)
-        # df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-        #                                        class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
-        # targets = df_processed["target"]
-        # df_processed = df_processed.iloc[:, :-N_META]
-        # df_processed["target"] = targets
-        # days, _, _, _ = parse_param_from_filename(file)
-        # df_hum = df_hum.loc[df_processed.index]
-        # df_hum["target"] = targets
-        # process_data_frame_svm(stratify, animal_ids, output_dir, df_hum, days, farm_id, step_slug,
-        #                        n_splits, n_repeats,
-        #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-        #                        cv="StratifiedLeaveTwoOut")
-        #
-        # steps = ["TEMPERATURE", "STDS"]
-        # step_slug = "_".join(steps)
-        # df_processed = applyPreprocessingSteps(data_frame.copy(), N_META, output_dir, steps,
-        #                                        class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, clf_name="SVM")
-        # targets = df_processed["target"]
-        # df_processed = df_processed.iloc[:, :-N_META]
-        # df_processed["target"] = targets
-        # days, _, _, _ = parse_param_from_filename(file)
-        # df_temp = df_temp.loc[df_processed.index]
-        # df_temp["target"] = targets
-        # process_data_frame_svm(stratify, animal_ids, output_dir, df_temp, days, farm_id, step_slug,
-        #                        n_splits, n_repeats,
-        #                        sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
-        #                        cv="StratifiedLeaveTwoOut")
+
 
     output_dir = "%s/%s" % (output_dir, cv)
     files = [output_dir + "/" + file for file in os.listdir(output_dir) if file.endswith(".csv")]
@@ -728,19 +763,19 @@ if __name__ == "__main__":
     parser.add_argument('output_dir', help='output directory', type=str)
     parser.add_argument('dataset_folder', help='dataset input directory', type=str)
     parser.add_argument('--class_healthy', help='target for healthy class', default=1, type=int)
-    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=2, type=int)
+    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=7, type=int)
     parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
     parser.add_argument('--s_output', help='output sample files', default='y', type=str)
     parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
-    parser.add_argument('--scale_spacing', help='cwt scale spacing', default=10, type=int)
+    parser.add_argument('--n_scales', help='n scales in dyadic array [2^2....2^n].', default=15, type=int)
     parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=5, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
     parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
                         default="RepeatedStratifiedKFold", type=str)
-    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=2, type=int)
-    parser.add_argument('--sfft_window', help='STFT window size', default=2, type=int)
+    parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=6, type=int)
+    parser.add_argument('--sfft_window', help='STFT window size', default=60, type=int)
     parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)
     parser.add_argument('--n_process', help='number of threads to use.', default=6, type=int)
 
@@ -753,7 +788,7 @@ if __name__ == "__main__":
     stratify = args.stratify
     s_output = args.s_output
     cwt = args.cwt
-    scale_spacing = args.scale_spacing
+    n_scales = args.n_scales
     hum_file = args.hum_file
     temp_file = args.temp_file
     n_splits = args.n_splits
@@ -768,5 +803,40 @@ if __name__ == "__main__":
     output_samples = "y" in s_output.lower()
     output_cwt = "y" in cwt.lower()
 
-    main(output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, scale_spacing,
+    steps = [["TEMPERATURE", "STANDARDSCALER"],
+             ["HUMIDITY", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE"],
+             ["QN", "ANSCOMBE", "LOG"],
+
+             ["QN", "ANSCOMBE", "LOG", "CENTER"],
+             ["QN", "ANSCOMBE", "LOG", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "CENTER"],
+             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "CENTER"],
+
+             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "CENTER", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "CENTER", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "CENTER", "STFT", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
+             ]
+
+    # steps = [
+    #          ["QN", "ANSCOMBE", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+    #          ]
+
+
+    main(steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,
          hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window)

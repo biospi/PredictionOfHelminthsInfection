@@ -232,20 +232,20 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
 
         _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
                                                        days_in_col=df_t_i.shape[0])
-        fig = go.Figure(data=go.Heatmap(
-          z=df_t_i.values,
-          x=xaxix_label,
-          y=yaxis_label,
-          colorscale='Viridis'))
-        fig.update_xaxes(tickformat="%H:%M")
-        fig.update_yaxes(tickformat="%d %b %Y")
-        fig.update_layout(
-          title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
-          xaxis_title="Time (1 min bins)",
-          yaxis_title="Days")
-        filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
-        print(filename)
-        fig.write_html(filename)
+        # fig = go.Figure(data=go.Heatmap(
+        #   z=df_t_i.values,
+        #   x=xaxix_label,
+        #   y=yaxis_label,
+        #   colorscale='Viridis'))
+        # fig.update_xaxes(tickformat="%H:%M")
+        # fig.update_yaxes(tickformat="%d %b %Y")
+        # fig.update_layout(
+        #   title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+        #   xaxis_title="Time (1 min bins)",
+        #   yaxis_title="Days")
+        # filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
+        # print(filename)
+        # fig.write_html(filename)
 
 
       '''

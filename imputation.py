@@ -179,7 +179,7 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
         # plt.close(fig)
 
 
-def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, date_str, ids, alpha, hint):
+def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, date_str, ids, alpha, hint, enable_anscombe, enable_log_anscombe):
     print("exporting imputed data...")
     print(ids)
     data_m_x[np.isnan(data_m_x)] = 1
@@ -190,9 +190,15 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
         df = pd.DataFrame()
         df["timestamp"] = timestamp.values
         df["date_str"] = date_str.values
-        df["first_sensor_value"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ori_data_x[:, i]), 0)])
-        df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(idata[:-1, i]), 0)])
-        df["first_sensor_value_li"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata[:, i]), 0)])
+        if enable_log_anscombe:
+            df["first_sensor_value"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ori_data_x[:, i]), 0)])
+            df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(idata[:-1, i]), 0)])
+            df["first_sensor_value_li"] = np.array([x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata[:, i]), 0)])
+        else:
+            df["first_sensor_value"] = np.array([x if np.isnan(x) else int(x) for x in ori_data_x[:, i]])
+            df["first_sensor_value_gain"] = np.array([x if np.isnan(x) else int(x) for x in idata[:-1, i]])
+            df["first_sensor_value_li"] = np.array([x if np.isnan(x) else int(x) for x in ildata[:, i]])
+
         df["imputed"] = (idata[:-1, i] > 0).astype(int)
         filename = id + ".csv"
         filepath = out + "/" + filename
@@ -204,7 +210,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     print("load_farm_data...")
     files = glob.glob(fname+"/*.csv")
     if len(files) == 0:
-        raise IOError("missing activity files .csv!")
+        raise IOError("missing activity files .csv! in path=%s" % fname)
     files = [file.replace("\\", '/') for file in files]#prevent Unix issues
     print(files)
     pool = Pool(processes=n_job)
@@ -226,19 +232,32 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     for result in tqdm(results):
         a_data = result.get()
         activity = a_data[1]["first_sensor_value"]
-        signal_strength = a_data[1]["signal_strength"]
+        signal_strength = activity
+        if "signal_strength" in a_data[1]:
+            signal_strength = a_data[1]["signal_strength"]
 
-        x1 = a_data[1]["xmin"]
-        y1 = a_data[1]["xmax"]
-        z1 = a_data[1]["ymin"]
-        x2 = a_data[1]["ymax"]
-        y2 = a_data[1]["zmin"]
-        z2 = a_data[1]["zmax"]
+        if "xmin" in a_data[1]:
+            x1 = a_data[1]["xmin"]
+            y1 = a_data[1]["xmax"]
+            z1 = a_data[1]["ymin"]
+            x2 = a_data[1]["ymax"]
+            y2 = a_data[1]["zmin"]
+            z2 = a_data[1]["zmax"]
+        else:
+            x1 = activity
+            y1 = activity
+            z1 = activity
+            x2 = activity
+            y2 = activity
+            z2 = activity
 
         power1 = np.sqrt(x1 * x1 + y1 * y1 + z1 * z1)
         power2 = np.sqrt(x2 * x2 + y2 * y2 + z2 * z2)
 
+        activity = power2
+
         nan_count = np.count_nonzero(np.isnan(activity.values))
+
         if abs(activity.size - nan_count) < 100:
             continue
 
@@ -251,6 +270,8 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         activity_o = activity.values
         power1_o = power1
         power2_o = power2
+
+        activity_o = power2
 
         if enable_anscombe:
             activity = anscombe(activity)
@@ -402,6 +423,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   miss_rate = args.miss_rate
   output_dir = args.output_dir
   enable_anscombe = args.enable_anscombe
+  enable_log_anscombe = args.enable_log_anscombe
   n_top_traces = args.n_top_traces
   reshape = args.reshape
   add_t_col = args.add_t_col
@@ -457,52 +479,52 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       # if valid <= 0:
       #     continue
       # ss = ss_reshaped[:, :-N_TRANSPOND - 1]
-      ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
+      #ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
 
       id = int(dfs_transponder[i]["id"].values[0])
       xaxix_label, yaxis_label = build_formated_axis(timestamp[0], min_in_row=d_t.shape[1], days_in_col=d_t.shape[0])
-      fig = go.Figure(data=go.Heatmap(
-          z=d_t,
-          x=xaxix_label,
-          y=yaxis_label,
-          colorscale='Viridis'))
-      fig.update_xaxes(tickformat="%H:%M")
-      fig.update_yaxes(tickformat="%d %b %Y")
-      fig.update_layout(
-          title="%d thresh=%d" % (id, THRESH_DT),
-          xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
-      print(filename)
-      fig.write_html(filename)
+      # fig = go.Figure(data=go.Heatmap(
+      #     z=d_t,
+      #     x=xaxix_label,
+      #     y=yaxis_label,
+      #     colorscale='Viridis'))
+      # fig.update_xaxes(tickformat="%H:%M")
+      # fig.update_yaxes(tickformat="%d %b %Y")
+      # fig.update_layout(
+      #     title="%d thresh=%d" % (id, THRESH_DT),
+      #     xaxis_title="Time (1 min bins)")
+      # filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
+      # print(filename)
+      # fig.write_html(filename)
 
-      fig = go.Figure(data=go.Heatmap(
-          z=ss_t,
-          x=xaxix_label,
-          y=yaxis_label,
-          colorscale='Viridis'))
-      fig.update_xaxes(tickformat="%H:%M")
-      fig.update_yaxes(tickformat="%d %b %Y")
-      fig.update_layout(
-          title="%d Signal Strength thresh=%d" % (id, THRESH_DT),
-          xaxis_title="Time (1 min bins)")
-      filename = out + "/" + "%d_signal_strength_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
-      print(filename)
-      fig.write_html(filename)
+      # fig = go.Figure(data=go.Heatmap(
+      #     z=ss_t,
+      #     x=xaxix_label,
+      #     y=yaxis_label,
+      #     colorscale='Viridis'))
+      # fig.update_xaxes(tickformat="%H:%M")
+      # fig.update_yaxes(tickformat="%d %b %Y")
+      # fig.update_layout(
+      #     title="%d Signal Strength thresh=%d" % (id, THRESH_DT),
+      #     xaxis_title="Time (1 min bins)")
+      # filename = out + "/" + "%d_signal_strength_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
+      # print(filename)
+      # fig.write_html(filename)
 
-      if THRESH_DT > 0:
-          fig = go.Figure(data=go.Heatmap(
-              z=linear_interpolation_h(ss_t.values),
-              x=xaxix_label,
-              y=yaxis_label,
-              colorscale='Viridis'))
-          fig.update_xaxes(tickformat="%H:%M")
-          fig.update_yaxes(tickformat="%d %b %Y")
-          fig.update_layout(
-              title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, THRESH_DT),
-              xaxis_title="Time (1 min bins)")
-          filename = out + "/" + "%d_signal_strength_reshaped_ll_%d_%d.html" % (id, THRESH_DT, valid)
-          print(filename)
-          fig.write_html(filename)
+      # if THRESH_DT > 0:
+      #     fig = go.Figure(data=go.Heatmap(
+      #         z=linear_interpolation_h(ss_t.values),
+      #         x=xaxix_label,
+      #         y=yaxis_label,
+      #         colorscale='Viridis'))
+      #     fig.update_xaxes(tickformat="%H:%M")
+      #     fig.update_yaxes(tickformat="%d %b %Y")
+      #     fig.update_layout(
+      #         title="%d Signal Strength linear interpolated (row) thresh=%d" % (id, THRESH_DT),
+      #         xaxis_title="Time (1 min bins)")
+      #     filename = out + "/" + "%d_signal_strength_reshaped_ll_%d_%d.html" % (id, THRESH_DT, valid)
+      #     print(filename)
+      #     fig.write_html(filename)
 
   m = miss_data_x_reshaped_thresh[:, :-N_TRANSPOND-1-1]
   fig = go.Figure(data=go.Heatmap(
@@ -532,7 +554,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   # fig.write_html(filename)
 
   if export_csv:
-    export_imputed_data(out, data_m_x, data_x, imputed_data_x, imputed_data_x_li, timestamp, date_str, ids, alpha, hint_rate)
+    export_imputed_data(out, data_m_x, data_x, imputed_data_x, imputed_data_x_li, timestamp, date_str, ids, alpha, hint_rate, enable_anscombe, enable_log_anscombe)
 
   # if export_traces:
   #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
