@@ -254,10 +254,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         power1 = np.sqrt(x1 * x1 + y1 * y1 + z1 * z1)
         power2 = np.sqrt(x2 * x2 + y2 * y2 + z2 * z2)
 
-        activity = power2
-
         nan_count = np.count_nonzero(np.isnan(activity.values))
-
         if abs(activity.size - nan_count) < 100:
             continue
 
@@ -270,8 +267,6 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
         activity_o = activity.values
         power1_o = power1
         power2_o = power2
-
-        activity_o = power2
 
         if enable_anscombe:
             activity = anscombe(activity)
@@ -364,7 +359,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     n_week = len([x for x in week_slice if len(x) == 7])
     crop = n_week*7*1440 #crop into 7 days chunck!
 
-    return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop], data_ss[:crop]
+    return data_x_raw[:crop, :], data_x[:crop, :], ids, timestamp[:crop], date_str[:crop], data_ss[:crop], data_x.shape[1]
     # return data_x_raw, data_x, ids, timestamp, date_str
 
 
@@ -400,7 +395,7 @@ def process(data_x, miss_rate):
     # return miss_data_x, data_m
 
 
-def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
+def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data, tt):
   '''Main function for UCI letter and spam datasets.
   
   Args:
@@ -438,7 +433,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
                      'iterations': iterations}
   RESHAPE = reshape.lower() in ["yes", 'y', 't', 'true']
   ADD_TRANSP_COL = add_t_col.lower() in ["yes", 'y', 't', 'true']
-  N_TRANSPOND = int(n_top_traces)
+
+  if n_top_traces != tt:
+      n_top_traces = tt
   THRESH_DT = int(thresh_daytime)
   THRESH_NAN_R = int(thresh_nan_ratio)
 
@@ -449,11 +446,11 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
   out = output_dir + "/miss_rate_" + str(np.round(miss_rate, 4)).replace(".", "_") + "_iteration_" +\
-        '%04d' % int(iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
+        '%04d' % int(iterations) + "_threshpos_" + str(THRESH_DT).replace(".", "_")+ "_threshnan_" + str(thresh_nan_ratio).replace(".", "_") + "_anscombe_" + str(enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
   create_rec_dir(out)
 
   if RESHAPE:
-    miss_data_x_reshaped_thresh, ss_reshaped_thresh, rm_row_idx, shape_o, transp_idx, activity_reshaped, ss_reshaped = reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, miss_data_x, timestamp, N_TRANSPOND, add_t_col=ADD_TRANSP_COL, thresh=THRESH_DT)
+    miss_data_x_reshaped_thresh, ss_reshaped_thresh, rm_row_idx, shape_o, transp_idx, activity_reshaped, ss_reshaped = reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, miss_data_x, timestamp, n_top_traces, add_t_col=ADD_TRANSP_COL, thresh=THRESH_DT)
   else:
     miss_data_x_reshaped_thresh = reshape_matrix_ranjeet(miss_data_x)
 
@@ -476,26 +473,26 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   for i in range(len(dfs_transponder)):
       d_t = dfs_transponder[i].iloc[:, :-n_top_traces-2]
       valid = np.sum((~np.isnan(d_t.values)).astype(int))
-      # if valid <= 0:
-      #     continue
-      # ss = ss_reshaped[:, :-N_TRANSPOND - 1]
+      if valid <= 0:
+          continue
+      # ss = ss_reshaped[:, :-n_top_traces - 1]
       #ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
 
       id = int(dfs_transponder[i]["id"].values[0])
       xaxix_label, yaxis_label = build_formated_axis(timestamp[0], min_in_row=d_t.shape[1], days_in_col=d_t.shape[0])
-      # fig = go.Figure(data=go.Heatmap(
-      #     z=d_t,
-      #     x=xaxix_label,
-      #     y=yaxis_label,
-      #     colorscale='Viridis'))
-      # fig.update_xaxes(tickformat="%H:%M")
-      # fig.update_yaxes(tickformat="%d %b %Y")
-      # fig.update_layout(
-      #     title="%d thresh=%d" % (id, THRESH_DT),
-      #     xaxis_title="Time (1 min bins)")
-      # filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
-      # print(filename)
-      # fig.write_html(filename)
+      fig = go.Figure(data=go.Heatmap(
+          z=d_t,
+          x=xaxix_label,
+          y=yaxis_label,
+          colorscale='Viridis'))
+      fig.update_xaxes(tickformat="%H:%M")
+      fig.update_yaxes(tickformat="%d %b %Y")
+      fig.update_layout(
+          title="%d thresh=%d" % (id, THRESH_DT),
+          xaxis_title="Time (1 min bins)")
+      filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
+      print(filename)
+      fig.write_html(filename)
 
       # fig = go.Figure(data=go.Heatmap(
       #     z=ss_t,
@@ -526,7 +523,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
       #     print(filename)
       #     fig.write_html(filename)
 
-  m = miss_data_x_reshaped_thresh[:, :-N_TRANSPOND-1-1]
+  m = miss_data_x_reshaped_thresh[:, :-n_top_traces-1-1]
   fig = go.Figure(data=go.Heatmap(
       z=m,
       x=xaxix_label,
@@ -543,7 +540,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
   imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], miss_rate, out, THRESH_DT, ids, transp_idx,
                                                output_dir, shape_o, rm_row_idx, data_m_x.copy(), imputed_data_x_li.copy(),
                                                data_x.copy(), miss_data_x_reshaped_thresh.copy(), gain_parameters, out,
-                                               RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+                                               RESHAPE, ADD_TRANSP_COL, n_top_traces)
 
   # fig = go.Figure(data=go.Heatmap(
   #     z=imputed_data_x.T,
@@ -635,13 +632,13 @@ def mrnn_imputation(data, N_TRANSPOND, output_dir):
 
 
 def start(args):
-    data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job,
+    data_x_o, ori_data_x, ids, timestamp, date_str, ss_data, tt = load_farm_data(args.data_dir, args.n_job,
                                                                              args.n_top_traces,
                                                                              enable_anscombe=args.enable_anscombe,
                                                                              enable_remove_zeros=args.enable_remove_zeros,
                                                                              enable_log_anscombe=args.enable_log_anscombe,
                                                                              window=args.window)
-    out_dir = main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
+    out_dir = main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data, tt)
     return out_dir
 
 

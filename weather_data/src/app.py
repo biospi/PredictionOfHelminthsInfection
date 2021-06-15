@@ -159,7 +159,7 @@ def get_humidity_date(path, name):
 if __name__ == '__main__':
     print(sys.argv)
     #connect_to_sql_database()
-    #get_historical_weather_data(farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
+    get_historical_weather_data(farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
     # get_humidity_date('delmas_weather_raw.json', 'delmas')
     #get_historical_weather_data(farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
     get_humidity_date('delmas_weather_raw.json', 'delmas')

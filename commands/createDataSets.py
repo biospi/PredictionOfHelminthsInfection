@@ -213,7 +213,7 @@ if __name__ == "__main__":
     parser.add_argument('dataDir', help='Directory with activity data', type=str)
     parser.add_argument('outDir', help='Output Directory', type=str)
     parser.add_argument('--dataCol', help="Name of data column in imputed file (first_sensor_value_gain | first_sensor_value | first_sensor_value_li)", type=str, default='first_sensor_value_gain')
-    parser.add_argument('--ndays', help="Number of days in samples", default=7, type=int)
+    parser.add_argument('--ndays', help="Number of days in samples", default=6, type=int)
 
     args = parser.parse_args()
     famFile = Path(args.famFile)

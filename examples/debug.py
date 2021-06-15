@@ -1,3 +1,5 @@
+import os
+
 from sklearn import datasets, linear_model
 from sklearn.model_selection import cross_validate, cross_val_predict
 from sklearn.metrics import make_scorer
@@ -19,7 +21,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from cwt._cwt import compute_spectogram_matlab
-from utils.visualisation import plotMlReport
+from utils.visualisation import plotMlReport, plotMlReportFinal
 
 
 def mean_confidence_interval(x):
@@ -125,37 +127,45 @@ def format(text):
 
 
 if __name__ == "__main__":
-    scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10080])
-
-    scales = [np.power(2, n) for n in np.arange(2, 10)]
-
-    import pycwt as wavelet
-    # f0s = [6,10]
-    # fig, axs = plt.subplots(len(f0s), 1, figsize=(7.20, 12.80))
-    # for i, f0 in enumerate(f0s):
-    #     wavelet_func = [wavelet.Morlet(f0).psi(x) for x in np.arange(-10, 10, 0.1)]
-    #     axs[i].plot(wavelet_func)
-    #     axs[i].title.set_text("Morlet wavelet with wave number= %s" % str(f0))
+    # scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10080])
+    #
+    # scales = [np.power(2, n) for n in np.arange(2, 10)]
+    #
+    # import pycwt as wavelet
+    # # f0s = [6,10]
+    # # fig, axs = plt.subplots(len(f0s), 1, figsize=(7.20, 12.80))
+    # # for i, f0 in enumerate(f0s):
+    # #     wavelet_func = [wavelet.Morlet(f0).psi(x) for x in np.arange(-10, 10, 0.1)]
+    # #     axs[i].plot(wavelet_func)
+    # #     axs[i].title.set_text("Morlet wavelet with wave number= %s" % str(f0))
+    # # fig.show()
+    #
+    # f0 = 6
+    # fig, ax = plt.subplots(figsize=(7.20, 7.20))
+    # wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
+    # ax.plot(wavelet_func)
+    # ax.title.set_text("Mexican hat wavelet")
     # fig.show()
-
-    f0 = 6
-    fig, ax = plt.subplots(figsize=(7.20, 7.20))
-    wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
-    ax.plot(wavelet_func)
-    ax.title.set_text("Mexican hat wavelet")
-    fig.show()
-
-    f0 = 6
-    fig, ax = plt.subplots(figsize=(7.20, 7.20))
-    wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
-    ax.plot(wavelet_func)
-    ax.title.set_text("Morlet wavelet with wave number= %s" % str(f0))
-    fig.show()
-    exit()
-    # path = "F:/Data2/ml_delmas_box/RepeatedStratifiedKFold/final_classification_report.csv"
-    # output_dir = "/".join(path.split("/")[:-1])
-    # plotMlReport(path, output_dir)
+    #
+    # f0 = 6
+    # fig, ax = plt.subplots(figsize=(7.20, 7.20))
+    # wavelet_func = [wavelet.MexicanHat().psi(x) for x in np.arange(-10, 10, 0.1)]
+    # ax.plot(wavelet_func)
+    # ax.title.set_text("Morlet wavelet with wave number= %s" % str(f0))
+    # fig.show()
     # exit()
+
+    path = "F:/Data2/job_cedara_debug/ml/ml_kfold_2to3_3day/RepeatedKFold/final_classification_report.csv"
+    output_dir = "/".join(path.split("/")[:-1])
+    plotMlReport(path, output_dir)
+    exit()
+    # directory = "F:/Data2/job_delmas_debug/ml"
+    # output_dir = "/".join(directory.split("/")[:-1])
+    # all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
+    # all_csv_files = [x for x in all_csv_files if "final" in x]
+    # plotMlReportFinal(all_csv_files, output_dir)
+    # exit()
+
     # # import the libraries
     # from scipy import signal
     # import matplotlib.pyplot as plot

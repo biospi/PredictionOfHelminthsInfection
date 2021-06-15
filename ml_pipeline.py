@@ -1130,6 +1130,9 @@ def process_data_frame(stratify, animal_ids, out_dir, data_frame, days, farm_id,
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=10, n_repeats=100, random_state=0)
 
+    if cv == "RepeatedKFold":
+        cross_validation_method = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
     data_frame = data_frame.drop("id", 1)
     report_rows_list = []
     y = data_frame[y_col].values.flatten()
@@ -1632,7 +1635,7 @@ def plot_cwt_pca(output_samples, df_cwt, title, graph_outputdir, stepid=5, xlabe
 
 def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                               class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                              graph_outputdir, power_masked_healthy, power_masked_unhealthy, freqs, ntraces=3,
+                              graph_outputdir, power_masked_healthy, power_masked_unhealthy, scales, ntraces=3,
                               title="title", stepid=10):
     if not output_samples:
         # print("sample output disabled!")
@@ -1702,11 +1705,12 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
     labels_[-2:] = labels[0]
     ax3.set_xticklabels(labels_)
 
-    n_y_ticks = ax3.get_yticks().shape[0]
-    labels = ["%.4f" % item for item in freqs]
-    # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    ax3.set_yticklabels(labels_)
+    # n_y_ticks = ax3.get_yticks().shape[0]
+    # labels = ["%.4f" % item for item in freqs]
+    # # print(labels)
+    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
+    # ax3.set_yticklabels(labels_)
+    ax3.set_yticklabels(["%.1f" % x if i % 2 == 0 else "" for i, x in enumerate(scales)])
 
     # ax4.set_title("Unhealthy animals elem wise average of %d cwts" % df_healthy.shape[0])
     # ax4.pcolormesh(ticks, y, power_masked_unhealthy, shading='auto')
@@ -1731,11 +1735,12 @@ def plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealt
     labels_[-2:] = labels[0]
     ax4.set_xticklabels(labels_)
 
-    n_y_ticks = ax4.get_yticks().shape[0]
-    labels = ["%.4f" % item for item in freqs]
-    # print(labels)
-    labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
-    ax4.set_yticklabels(labels_)
+    # n_y_ticks = ax4.get_yticks().shape[0]
+    # labels = ["%.4f" % item for item in freqs]
+    # # print(labels)
+    # labels_ = np.array(labels)[list(range(1, len(labels), int(len(labels) / n_y_ticks)))]
+    # ax4.set_yticklabels(labels_)
+    ax4.set_yticklabels(["%.1f" % x if i % 2 == 0 else "" for i, x in enumerate(scales)])
 
     # plt.show()
     filename = "%d_%s.png" % (stepid, title.replace(" ", "_"))
@@ -1931,11 +1936,11 @@ def create_cwt_df(output_samples, class_healthy_label, class_unhealthy_label, cl
         uh_ma = get_anscombe(pd.DataFrame(uh_m)).values
         plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                                   class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                                  graph_outputdir, h_ma, uh_ma, freqs, title=title, stepid=stepid, ntraces=ntraces)
+                                  graph_outputdir, h_ma, uh_ma, scales, title=title, stepid=stepid, ntraces=ntraces)
     else:
         plot_cwt_power_sidebyside(output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                                   class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                                  graph_outputdir, h_m, uh_m, freqs, title=title, stepid=stepid, ntraces=ntraces)
+                                  graph_outputdir, h_m, uh_m, scales, title=title, stepid=stepid, ntraces=ntraces)
 
     df_cwt = pd.DataFrame(features_flatten_sample_list, dtype=float)
 

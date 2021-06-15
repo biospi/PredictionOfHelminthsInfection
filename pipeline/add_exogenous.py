@@ -83,18 +83,21 @@ def main(dataset, out_dir, weather_file):
     filename = "%s/temp_%s" % (out_dir_temp, dataset.name)
     print(filename)
     df_concat_temp_df.to_csv(filename, index=False)
+    t_f = filename
 
     out_dir_humidity = out_dir_base+"/humidity"
     create_rec_dir(out_dir_humidity)
     filename = "%s/humidity_%s" % (out_dir_humidity, dataset.name)
     print(filename)
     df_concat_humidity_df.to_csv(filename, index=False)
+    h_f = filename
 
     out_dir_temp_humidity = out_dir_base+"/temp_humidity"
     create_rec_dir(out_dir_temp_humidity)
     filename = "%s/temp_humidity_%s" % (out_dir_temp_humidity, dataset.name)
     print(filename)
     df_concat_temp_humidity_df.to_csv(filename, index=False)
+    return t_f, h_f
 
 
 if __name__ == "__main__":

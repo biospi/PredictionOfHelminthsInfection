@@ -26,7 +26,7 @@ if __name__ == '__main__':
         os.makedirs(out_dir)
 
     print("start...")
-    # raw_famacha_csv_filename = "E:\\SouthAfrica\\Metadata\\CEDARA data\\Grafieke\\Cedara grafieke.xls"
+    # raw_famacha_csv_filename = "E:/SouthAfrica/Metadata/CEDARA data/Grafieke/Cedara grafieke.xls"
     print("raw_famacha_csv_filename", raw_famacha_csv_filename)
 
     row_to_skip = list(range(93))

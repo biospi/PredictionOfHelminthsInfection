@@ -34,9 +34,9 @@ matlab = matlab.engine.start_matlab()
 #matlab=None
 
 
-def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
+def plot_cwt_power_sidebyside(filename_sub, step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
                               class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                              graph_outputdir, power_cwt_healthy, power_cwt_unhealthy, freqs, ntraces=3,
+                              graph_outputdir, power_cwt_healthy, power_cwt_unhealthy, scales, ntraces=3,
                               title="cwt_power_by_target", stepid=10, meta_size=4, format_xaxis=False):
     total_healthy = df_timedomain[df_timedomain["target"] == class_healthy].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].shape[0]
@@ -118,11 +118,17 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
 
     vmin, vmax = min(imshow_y_axis), max(imshow_y_axis)
 
-    pos0 = ax3.imshow(p0, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
+    pos0 = ax3.imshow(p0, extent=[0, p0.shape[1], p0.shape[0], 1], vmin=vmin, vmax=vmax, interpolation="nearest")
     fig.colorbar(pos0, ax=ax3)
 
-    pos1 = ax4.imshow(p1, extent=[0, row.size, row.size, 1], vmin=vmin, vmax=vmax)
+    pos1 = ax4.imshow(p1, extent=[0, p1.shape[1], p1.shape[0], 1], vmin=vmin, vmax=vmax, interpolation="nearest")
     fig.colorbar(pos1, ax=ax4)
+
+    # ax3.set_yticks(np.arange(1, len(scales)+1))
+    # ax3.set_yticklabels(scales)
+    #
+    # ax4.set_yticks(np.arange(1, len(scales)+1))
+    # ax4.set_yticklabels(scales)
 
     # ax3.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
     # ax4.set_ylim([min(imshow_y_axis), max(imshow_y_axis)])
@@ -138,6 +144,12 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     ax4.set_xlabel("Time")
     ax4.set_ylabel("Wave length of wavelet (in minute)")
     # ax4.set_yscale('log')
+
+    ax3.set_yticks(np.arange(1, len(scales) + 1))
+    ax3.set_yticklabels(["%.1f" % x if i % 2 == 0 else "" for i, x in enumerate(scales)])
+
+    ax4.set_yticks(np.arange(1, len(scales) + 1))
+    ax4.set_yticklabels(["%.1f" % x if i % 2 == 0 else "" for i, x in enumerate(scales)])
 
     #n_y_ticks = ax4.get_yticks().shape[0] - 1
     #labels = ["%.2f" % item for item in wavelength]
@@ -155,7 +167,7 @@ def plot_cwt_power_sidebyside(step_slug, output_samples, class_healthy_label, cl
     # ax4.set_xticklabels(labels_)
 
     # plt.show()
-    filename = "%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"))
+    filename = "%s_%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"), filename_sub)
     filepath = "%s/%s" % (graph_outputdir, filename)
     # print('saving fig...')
     print(filepath)
@@ -314,7 +326,7 @@ def plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step
 
 
 def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked, coi_line_array, scales,
-                   format_xaxis=True, standard_scale=False, wavelet=None, log_yaxis=False):
+                   format_xaxis=True, standard_scale=False, wavelet=None, log_yaxis=False, filename_sub="power"):
     plt.clf()
     if wavelet is not None:
         fig, axs = plt.subplots(1, 3, figsize=(29.20, 19.20))
@@ -362,18 +374,16 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
     # if "log" in step_slug.lower():
     #     p = np.log(p)
     if vmax is not None:
-        pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1], vmin=vmin, vmax=vmax)
+        pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1], vmin=vmin, vmax=vmax, interpolation="nearest")
     else:
         #p = StandardScaler(with_mean=False, with_std=True).fit_transform(p)
-        pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1])
+        pos = axs[1].imshow(p, extent=[0, p.shape[1], p.shape[0], 1], interpolation="nearest")
 
     fig.colorbar(pos, ax=axs[1])
 
     axs[1].set_yticks(np.arange(1, len(scales)+1))
 
-    a = axs[1].get_yticks().tolist()
-    a[1] = 'change'
-    axs[1].set_yticklabels(scales)
+    axs[1].set_yticklabels(["%.1f" % x if i % 2 == 0 else "" for i, x in enumerate(scales)])
 
     # axs[1].set_yticks(scales)
     #axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
@@ -420,7 +430,7 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
 
 
 
-    filename = "%s_%s_%s_%s_idx_%d_%s_cwt.png" % (animal_id, str(target), epoch, date, i, step_slug)
+    filename = "%s_%s_%s_%s_idx_%d_%s_cwt_%s.png" % (animal_id, str(target), epoch, date, i, step_slug, filename_sub)
     filepath = "%s/%s" % (out_dir, filename)
     create_rec_dir(filepath)
     print(filepath)
@@ -440,10 +450,10 @@ def mask_cwt(cwt, coi):
     return cwt
 
 
-def CWTVisualisation(step_slug, graph_outputdir, shape, coi_mask, freqs, coi_line_array,
+def CWTVisualisation(step_slug, graph_outputdir, shape, coi_mask, scales, coi_line_array,
                      df_timedomain, df_cwt,
                      class_healthy_label, class_unhealthy_label,
-                     class_healthy, class_unhealthy):
+                     class_healthy, class_unhealthy, filename_sub="power"):
     print("CWTVisualisation")
     idx_healthy = df_timedomain[df_timedomain["target"] == class_healthy].index.tolist()
     idx_unhealthy = df_timedomain[df_timedomain["target"] == class_unhealthy].index.tolist()
@@ -452,9 +462,9 @@ def CWTVisualisation(step_slug, graph_outputdir, shape, coi_mask, freqs, coi_lin
     # df_cwt.columns = [str(x) for x in list(df_cwt.columns)]
     h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
     uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
-    plot_cwt_power_sidebyside(step_slug, True, class_healthy_label, class_unhealthy_label, class_healthy,
+    plot_cwt_power_sidebyside(filename_sub, step_slug, True, class_healthy_label, class_unhealthy_label, class_healthy,
                               class_unhealthy, idx_healthy, idx_unhealthy, coi_line_array, df_timedomain,
-                              graph_outputdir, h_m, uh_m, freqs, ntraces=2)
+                              graph_outputdir, h_m, uh_m, scales, ntraces=2)
 
 
 def check_scale_spacing(scales):
@@ -487,7 +497,7 @@ def simple_example():
     axs[0].plot(y, label='signal')
     axs[0].set(xlabel="Time", ylabel="amplitude")
 
-    pos = axs[1].imshow(power_cwt)
+    pos = axs[1].imshow(power_cwt, interpolation="nearest")
     fig.colorbar(pos, ax=axs[1])
     axs[1].set_aspect('auto')
     axs[1].set_title("CWT")
@@ -587,7 +597,7 @@ def compute_multi_res(activity, animal_id, target, epoch, date, i, step_slug, ou
         coefs_cc = np.conj(coefs)
         power_cwt = np.real(np.multiply(coefs, coefs_cc))
 
-        pos = axs[i, 1].imshow(power_cwt, extent=[0, power_cwt.shape[1], power_cwt.shape[0], 1])
+        pos = axs[i, 1].imshow(power_cwt, extent=[0, power_cwt.shape[1], power_cwt.shape[0], 1], interpolation="nearest")
         fig.colorbar(pos, ax=axs[i, 1])
         axs[i, 1].set_aspect('auto')
         axs[i, 1].set_title("CWT %i" % i)
@@ -645,7 +655,7 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
     #     # scales = np.concatenate(
     #     #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6)])
     # else:
-    scales = np.array([int(np.power(2, n)) for n in np.arange(1, nscales+1)])
+    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales+1, 0.2)])
     print(scales)
 
         #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
@@ -678,6 +688,10 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
     coi = np.log(coi)
     coi = np.interp(coi, (coi.min(), coi.max()), (0, len(scales))) #todo fix weird hack
 
+    if(enable_graph_out):
+        plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, coefs.copy().real, coi, scales,
+                       format_xaxis=format_xaxis, wavelet=None, log_yaxis=False, filename_sub="real")
+
 
     print("number of scales is %d" % len(scales))
     print(scales)
@@ -693,7 +707,8 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
     if(enable_graph_out):
         plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked.copy(), coi, scales,
                        format_xaxis=format_xaxis, wavelet=None, log_yaxis=False)
-    return power_masked, freqs, coi, power_masked.shape, scales
+    #return coefs.copy().real, freqs, coi, power_masked.shape, scales
+    return power_cwt, coefs.copy().real, freqs, coi, power_masked.shape, scales
 
 
 def parse_param(animals_id, dates, i, targets, step_slug):
@@ -712,11 +727,12 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
     out_dir = out_dir + "_cwt"
     #plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
+    cwt_real = []
     #cwt_full = []
     i = 0
     for activity in tqdm(X):
         animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets, step_slug)
-        power, freqs, coi, shape, scales = cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity,
+        power, real, freqs, coi, shape, scales = cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity,
                                                      out_dir, i, step_slug, format_xaxis, avg=np.average(X),
                                                      nscales=n_scales)
         power_flatten = np.array(power.flatten())
@@ -725,6 +741,7 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
         #power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         #power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten)
+        cwt_real.append(np.array(real.flatten()))
         #cwt.append(power_flatten_masked_fft)
         i += 1
     print("convert cwt list to np array...")
@@ -734,7 +751,7 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return cwt, freqs, coi, shape, coi_mask, scales
+    return cwt, cwt_real, freqs, coi, shape, coi_mask, scales
 
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
@@ -788,7 +805,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         #X = check_array(X, accept_sparse='csr')
-        cwt, freqs, coi, shape, coi_mask, scales = compute_cwt(self.hd, self.wavelet_f0, X, self.out_dir, self.step_slug,
+        cwt, cwt_real, freqs, coi, shape, coi_mask, scales = compute_cwt(self.hd, self.wavelet_f0, X, self.out_dir, self.step_slug,
                                                                self.n_scales, self.animal_ids, self.targets, self.dates,
                                                                self.format_xaxis, self.vmin, self.vmax)
         self.freqs = freqs
@@ -796,7 +813,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.shape = shape
         self.coi_mask = coi_mask
         self.scales = scales
-        return cwt
+        return cwt, cwt_real
 
 
 class STFT(TransformerMixin, BaseEstimator):
@@ -979,7 +996,7 @@ if __name__ == "__main__":
 
     # X = np.array(createSyntheticActivityData())
     # X = np.array(X) - np.average(np.array(X))
-    X_CWT = CWT(wavelet_f0=0.1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False, step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[], n_scales=5).transform(X)
+    X_CWT, X_REAL = CWT(wavelet_f0=0.1, out_dir="F:/Data2/_cwt_unit_before", format_xaxis=False, step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[], n_scales=10).transform(X)
     #X_SFFT = STFT(out_dir="F:/Data2/_cwt_unit_before", step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[]).transform(X)
     exit()
 
@@ -1006,7 +1023,7 @@ if __name__ == "__main__":
             # X.columns = list(range(X.shape[1]))
             # plotLine(X, out_dir=out_dir, title="Activity samples", filename="X.html")
 
-            X_CWT = CWT(wavelet_f0=1, out_dir=out_dir, format_xaxis=False).transform(X)
+            X_CWT, X_REAL = CWT(wavelet_f0=1, out_dir=out_dir, format_xaxis=False).transform(X)
 
             # plotLine(X_CWT, out_dir=out_dir, title="CWT samples", filename="CWT.html")
             print("********************")

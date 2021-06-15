@@ -34,7 +34,7 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
     plot_roc_curve, auc, roc_curve, precision_recall_curve, plot_precision_recall_curve
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut, GridSearchCV
+from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut, GridSearchCV, RepeatedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
@@ -321,13 +321,18 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             df = pd.concat([data_frame_stft, df_meta], axis=1)
             del data_frame_stft
         if "CWT" in step:
-            df_o = df.copy()
-            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug, n_scales=n_scales, animal_ids=animal_ids, targets=df["target"].tolist(), dates=df["date"].tolist())
-            data_frame_cwt = pd.DataFrame(
-                CWT_Transform.transform(df.copy().iloc[:, :-N_META].values))
-            data_frame_cwt.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df = pd.concat([data_frame_cwt, df_meta], axis=1)
+            df_o = df.copy()
+            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
+                                n_scales=n_scales, animal_ids=animal_ids, targets=df["target"].tolist(),
+                                dates=df["date"].tolist())
+            data_frame_cwt, data_frame_cwt_real = CWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
+            data_frame_cwt = pd.DataFrame(data_frame_cwt)
+            data_frame_cwt_real = pd.DataFrame(data_frame_cwt_real)
+
+            # data_frame_cwt.index = df.index  # need to keep original sample index!!!!
+            # df_meta = df.iloc[:, -N_META:]
+            # df = pd.concat([data_frame_cwt, df_meta], axis=1)
             # sanity check#################################################################################################
             #wont work sincce using avg of sample!
             # rdm_idxs = random.choices(df.index.tolist(), k=1)
@@ -336,11 +341,16 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             # prev_cwt_results = df.loc[(rdm_idxs), :].values[:, :-N_META]
             # assert False not in (cwt_to_check.values == prev_cwt_results), "missmatch in cwt sample!"
             #############################################################################################################
-            #data_frame_cwt_full = pd.DataFrame(CWT_Transform.cwt_full)
-            #data_frame_cwt_full.index = df.index# need to keep original sample index!!!!
 
-            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.freqs, CWT_Transform.coi, df_o.copy(),
+            data_frame_cwt.index = df.index# need to keep original sample index!!!!
+            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+
+            data_frame_cwt_real.index = df.index  # need to keep original sample index!!!!
+            df = pd.concat([data_frame_cwt_real, df_meta], axis=1)
+            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
+                             data_frame_cwt_real, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, filename_sub="real")
+
             df = df.dropna(axis=1, how='all') #removes nan from coi
             del data_frame_cwt
         if step == "PCA":
@@ -399,6 +409,9 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
+    if cv == "RepeatedKFold":
+        cross_validation_method = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
     if cv == "LeaveOneOut":
         cross_validation_method = LeaveOneOut()
 
@@ -430,6 +443,9 @@ def process_data_frame_2dcnn(wavelet_f0, epochs, stratify, animal_ids, output_di
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
+
+    if cv == "RepeatedKFold":
+        cross_validation_method = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
     if cv == "LeaveOneOut":
         cross_validation_method = LeaveOneOut()
@@ -465,6 +481,9 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=None)
+
+    if cv == "RepeatedKFold":
+        cross_validation_method = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
 
     if cv == "LeaveOneOut":
         cross_validation_method = LeaveOneOut()
@@ -655,6 +674,9 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
             data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
         class_count = {}
         label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
+        label_series_inverse = dict((v, k) for k, v in label_series.items())
+        class_healthy = label_series_inverse[class_healthy]
+        class_unhealthy = label_series_inverse[class_unhealthy]
         print(label_series)
         class_healthy_label = label_series[class_healthy]
         class_unhealthy_label = label_series[class_unhealthy]
@@ -685,16 +707,16 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
         plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain before normalisation")
         plot_time_lda(N_META, data_frame.copy(), output_dir, label_series, title="LDA time domain after normalisation")
 
-        # ntraces = 2
-        # idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
-        #                                          class_healthy,
-        #                                          class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
-        #                                          xlabel="Time",
-        #                                          ylabel="activity", ntraces=ntraces)
-        # plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
-        #             output_dir,
-        #             df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
-        #             idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
+        ntraces = 2
+        idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
+                                                 class_healthy,
+                                                 class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
+                                                 xlabel="Time",
+                                                 ylabel="activity", ntraces=ntraces)
+        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+                    output_dir,
+                    df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
+                    idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
         # keep only two class of samples
         data_frame = data_frame[data_frame["target"].isin([class_healthy, class_unhealthy])]
@@ -767,13 +789,13 @@ if __name__ == "__main__":
     parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
     parser.add_argument('--s_output', help='output sample files', default='y', type=str)
     parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
-    parser.add_argument('--n_scales', help='n scales in dyadic array [2^2....2^n].', default=15, type=int)
+    parser.add_argument('--n_scales', help='n scales in dyadic array [2^2....2^n].', default=10, type=int)
     parser.add_argument('--temp_file', help='temperature features.', default=None, type=str)
     parser.add_argument('--hum_file', help='humidity features.', default=None, type=str)
     parser.add_argument('--n_splits', help='number of splits for repeatedkfold cv', default=5, type=int)
     parser.add_argument('--n_repeats', help='number of repeats for repeatedkfold cv', default=10, type=int)
-    parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold|LeaveOneOut)',
-                        default="RepeatedStratifiedKFold", type=str)
+    parser.add_argument('--cv', help='cross validation method (LeaveTwoOut|StratifiedLeaveTwoOut|RepeatedStratifiedKFold| RepeatedKFold|LeaveOneOut)',
+                        default="RepeatedKFold", type=str)
     parser.add_argument('--wavelet_f0', help='Mother Wavelet frequency for CWT', default=6, type=int)
     parser.add_argument('--sfft_window', help='STFT window size', default=60, type=int)
     parser.add_argument('--epochs', help='cnn epochs', default=20, type=int)

@@ -291,11 +291,89 @@ def formatForBoxPlot(df):
         data["test_recall_score1"] = test_recall_score1
         data["test_f1_score0"] = test_f1_score0
         data["test_f1_score1"] = test_f1_score1
+        roc_auc_scores.extend([0] * (len(test_balanced_accuracy_score) - len(roc_auc_scores))) #in case auc could not be computed for fold
         data["roc_auc_scores"] = roc_auc_scores
         data["config"] = config
         dfs.append(data)
     formated = pd.concat(dfs, axis=0)
     return formated
+
+
+def plotMlReportFinal(paths, output_dir):
+    print("building report visualisation...")
+    dfs = []
+    label_dict = {}
+    for path in paths:
+        path = path.replace("\\", "/")
+        target_label = path.split("/")[4].split("_")[-2]
+        print(target_label)
+        df = pd.read_csv(str(path), index_col=None)
+        medians = []
+        for value in df["roc_auc_scores"].values:
+            v = stringArrayToArray(value)
+            medians.append(np.median(v))
+        df["median_auc"] = medians
+
+        df["config"] = ["%s->" % target_label.upper() + "%dDAYS->" % df["days"].values[0] + format(str(x)) for x in list(zip(df.steps, df.classifier))]
+        df = df.sort_values('median_auc')
+        df = df.drop_duplicates(subset=['config'], keep='first')
+        label_dict[target_label] = df["class1"].values[0]
+        label_dict[df["class_0_label"].values[0]] = df["class0"].values[0]
+        dfs.append(df)
+
+    df = pd.concat(dfs, axis=0)
+    df = df.sort_values('median_auc')
+
+    t4 = "AUC performance of different inputs<br>%s" % str(label_dict)
+
+    t3 = "Accuracy performance of different inputs<br>%s" % str(label_dict)
+
+    t1 = "Precision class0 performance of different inputs<br>%s" % str(label_dict)
+
+    t2 = "Precision class1 performance of different inputs<br>%s" % str(label_dict)
+
+    fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+
+    df = formatForBoxPlot(df)
+
+    fig.append_trace(px.box(df, x='config', y='test_precision_score0').data[0], row=1, col=1)
+    fig.append_trace(px.box(df, x='config', y='test_precision_score1').data[0], row=2, col=1)
+    fig.append_trace(px.box(df, x='config', y='test_balanced_accuracy_score').data[0], row=3, col=1)
+    fig.append_trace(px.box(df, x='config', y='roc_auc_scores').data[0], row=4, col=1)
+
+    # fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
+    # fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
+    # fig.update_yaxes(range=[df["balanced_accuracy_score_mean"].min()/1.1, 1], row=3, col=1)
+    # fig.update_yaxes(range=[df["roc_auc_score_mean"].min()/1.1, 1], row=4, col=1)
+
+    # fig.add_shape(type="line", x0=-0.0, y0=0.920, x1=1.0, y1=0.920, line=dict(color="LightSeaGreen", width=4, dash="dot",))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.640, x1=1.0, y1=0.640,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.357, x1=1.0, y1=0.357,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+    #
+    # fig.add_shape(type="line", x0=-0.0, y0=0.078, x1=1.0, y1=0.078,
+    #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
+
+    fig.update_xaxes(showticklabels=False)  # hide all the xticks
+    fig.update_xaxes(showticklabels=True, row=4, col=1)
+
+    # fig.update_layout(shapes=[
+    #     dict(
+    #         type='line',
+    #         color="MediumPurple",
+    #         yref='paper', y0=0.945, y1=0.945,
+    #         xref='x', x0=-0.5, x1=7.5
+    #     )
+    # ])
+    fig.update_yaxes(showgrid=True, gridwidth=1)
+    fig.update_xaxes(showgrid=True, gridwidth=1)
+    filepath = output_dir + "/" + "ML_performance_final.html"
+    print(filepath)
+    fig.write_html(filepath)
+    # fig.show()
 
 
 def plotMlReport(path, output_dir):
