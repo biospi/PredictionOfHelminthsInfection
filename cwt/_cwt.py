@@ -29,9 +29,9 @@ import plotly.express as px
 from scipy import signal
 
 from utils.Utils import create_rec_dir, anscombe
-import matlab.engine
-matlab = matlab.engine.start_matlab()
-#matlab=None
+# import matlab.engine
+# matlab = matlab.engine.start_matlab()
+matlab=None
 
 
 def plot_cwt_power_sidebyside(filename_sub, step_slug, output_samples, class_healthy_label, class_unhealthy_label, class_healthy,
@@ -708,7 +708,8 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
         plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, power_masked.copy(), coi, scales,
                        format_xaxis=format_xaxis, wavelet=None, log_yaxis=False)
     #return coefs.copy().real, freqs, coi, power_masked.shape, scales
-    return power_cwt, coefs.copy().real, freqs, coi, power_masked.shape, scales
+    cwt_raw = np.concatenate([coefs.copy().real, coefs.copy().imag])
+    return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales
 
 
 def parse_param(animals_id, dates, i, targets, step_slug):
@@ -727,12 +728,12 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
     out_dir = out_dir + "_cwt"
     #plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
-    cwt_real = []
+    cwt_raw = []
     #cwt_full = []
     i = 0
     for activity in tqdm(X):
         animal_id, target, date, epoch = parse_param(animals_id, dates, i, targets, step_slug)
-        power, real, freqs, coi, shape, scales = cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity,
+        power, raw, freqs, coi, shape, scales = cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activity,
                                                      out_dir, i, step_slug, format_xaxis, avg=np.average(X),
                                                      nscales=n_scales)
         power_flatten = np.array(power.flatten())
@@ -741,7 +742,7 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
         #power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         #power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten)
-        cwt_real.append(np.array(real.flatten()))
+        cwt_raw.append(np.array(raw.flatten()))
         #cwt.append(power_flatten_masked_fft)
         i += 1
     print("convert cwt list to np array...")
@@ -751,7 +752,7 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     #plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return cwt, cwt_real, freqs, coi, shape, coi_mask, scales
+    return cwt, cwt_raw, freqs, coi, shape, coi_mask, scales
 
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
@@ -805,7 +806,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         #X = check_array(X, accept_sparse='csr')
-        cwt, cwt_real, freqs, coi, shape, coi_mask, scales = compute_cwt(self.hd, self.wavelet_f0, X, self.out_dir, self.step_slug,
+        cwt, cwt_raw, freqs, coi, shape, coi_mask, scales = compute_cwt(self.hd, self.wavelet_f0, X, self.out_dir, self.step_slug,
                                                                self.n_scales, self.animal_ids, self.targets, self.dates,
                                                                self.format_xaxis, self.vmin, self.vmax)
         self.freqs = freqs
@@ -813,7 +814,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.shape = shape
         self.coi_mask = coi_mask
         self.scales = scales
-        return cwt, cwt_real
+        return cwt, cwt_raw
 
 
 class STFT(TransformerMixin, BaseEstimator):

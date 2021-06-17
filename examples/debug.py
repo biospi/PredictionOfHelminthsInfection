@@ -127,6 +127,18 @@ def format(text):
 
 
 if __name__ == "__main__":
+    clf = SVC(kernel="linear", probability=True)
+    X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
+    y = np.array([1, 1, 2, 2])
+    clf.fit(X, y)
+
+    gamma = clf._gamma
+    coef0 = clf.coef0
+    cost = clf.C
+    tolerance = clf.tol
+    probability_ = clf.probability
+
+    exit()
     # scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10080])
     #
     # scales = [np.power(2, n) for n in np.arange(2, 10)]
@@ -155,16 +167,16 @@ if __name__ == "__main__":
     # fig.show()
     # exit()
 
-    path = "F:/Data2/job_cedara_debug/ml/ml_kfold_2to3_3day/RepeatedKFold/final_classification_report.csv"
-    output_dir = "/".join(path.split("/")[:-1])
-    plotMlReport(path, output_dir)
-    exit()
-    # directory = "F:/Data2/job_delmas_debug/ml"
-    # output_dir = "/".join(directory.split("/")[:-1])
-    # all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
-    # all_csv_files = [x for x in all_csv_files if "final" in x]
-    # plotMlReportFinal(all_csv_files, output_dir)
+    # path = "F:/Data2/job_cedara_debug/ml/ml_kfold_2to3_3day/RepeatedKFold/final_classification_report.csv"
+    # output_dir = "/".join(path.split("/")[:-1])
+    # plotMlReport(path, output_dir)
     # exit()
+    directory = "F:/Data2/job_cedara_debug/ml"
+    output_dir = "/".join(directory.split("/")[:-1])
+    all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
+    all_csv_files = [x for x in all_csv_files if "final" in x]
+    plotMlReportFinal(all_csv_files, output_dir)
+    exit()
 
     # # import the libraries
     # from scipy import signal

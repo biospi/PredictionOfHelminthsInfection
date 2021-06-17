@@ -81,8 +81,8 @@ if __name__ == "__main__":
     parser.add_argument('--w', type=str, default='n')
     parser.add_argument('--add_t_col', help="for imputation, add time column in reshape", type=str, default='y')
     parser.add_argument('--thresh_daytime', help="for imputation, minimum number of positive count in 1 day.",
-                        default=20, type=int)
-    parser.add_argument('--thresh_nan_ratio', help="for imputation, max percent of nan allowed in 1 day.", default=95,
+                        default=50, type=int)
+    parser.add_argument('--thresh_nan_ratio', help="for imputation, max percent of nan allowed in 1 day.", default=90,
                         type=int)
 
     parser.add_argument('--ndays', help="Number of days in samples", default=7, type=int)
@@ -182,13 +182,22 @@ if __name__ == "__main__":
              ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
              ]
 
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_7day", dataset_files_gain[0], "1To1", "2To3", False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_6day", dataset_files_gain[1], "1To1", "2To3", False, 12, humidity_files[1], temperature_files[1], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_5day", dataset_files_gain[2], "1To1", "2To3", False, 12, humidity_files[2], temperature_files[2], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_4day", dataset_files_gain[3], "1To1", "2To3", False, 12, humidity_files[3], temperature_files[3], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_3day", dataset_files_gain[4], "1To1", "2To3", False, 12, humidity_files[4], temperature_files[4], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_2day", dataset_files_gain[5], "1To1", "2To3", False, 12, humidity_files[5], temperature_files[5], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
-    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_1day", dataset_files_gain[6], "1To1", "2To3", False, 12, humidity_files[6], temperature_files[6], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_7day", dataset_files_gain[0], "1To1", "2To2", False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_6day", dataset_files_gain[1], "1To1", "2To2", False, 12, humidity_files[1], temperature_files[1], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_5day", dataset_files_gain[2], "1To1", "2To2", False, 12, humidity_files[2], temperature_files[2], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_4day", dataset_files_gain[3], "1To1", "2To2", False, 12, humidity_files[3], temperature_files[3], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_3day", dataset_files_gain[4], "1To1", "2To2", False, 12, humidity_files[4], temperature_files[4], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_2day", dataset_files_gain[5], "1To1", "2To2", False, 12, humidity_files[5], temperature_files[5], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_1day", dataset_files_gain[6], "1To1", "2To2", False, 12, humidity_files[6], temperature_files[6], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+
+
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_7day", dataset_files_gain[0], "1To1", "2To3", False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_6day", dataset_files_gain[1], "1To1", "2To3", False, 12, humidity_files[1], temperature_files[1], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_5day", dataset_files_gain[2], "1To1", "2To3", False, 12, humidity_files[2], temperature_files[2], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_4day", dataset_files_gain[3], "1To1", "2To3", False, 12, humidity_files[3], temperature_files[3], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_3day", dataset_files_gain[4], "1To1", "2To3", False, 12, humidity_files[4], temperature_files[4], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_2day", dataset_files_gain[5], "1To1", "2To3", False, 12, humidity_files[5], temperature_files[5], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    # ml.main(steps, args.output_dir + "/ml/ml_kfold_2to3_1day", dataset_files_gain[6], "1To1", "2To3", False, 12, humidity_files[6], temperature_files[6], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
 
     # ml 1To1 1To2
     # ml.main(steps, args.output_dir + "/ml/ml_kfold_1to2_7day", dataset_files_gain[0], 1, 2, False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)

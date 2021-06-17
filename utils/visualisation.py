@@ -1,9 +1,12 @@
 import glob
 import os
+import pathlib
 
 import matplotlib
 import pandas as pd
 import sklearn
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 import matplotlib.pyplot as plt
@@ -26,6 +29,50 @@ from pathlib import Path
 from BaselineRemoval import BaselineRemoval
 
 from utils._normalisation import CenterScaler
+
+
+
+# os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1'  # path to your R installation
+# os.environ[
+#     'R_USER'] = 'C:\\Users\\fo18103\\AppData\\Local\Continuum\\anaconda3\Lib\site-packages\\rpy2'  # path depends on where you installed Python. Mine is the Anaconda distribution
+#
+# import rpy2
+# import rpy2.robjects as robjects
+# from rpy2.robjects.packages import importr, isinstalled
+#
+# utils = importr('utils')
+# R = robjects.r
+#
+# # need to be installed from Rstudio or other package installer
+# print('e1071', isinstalled('e1071'))
+# print('rgl', isinstalled('rgl'))
+# print('misc3d', isinstalled('misc3d'))
+# print('plot3D', isinstalled('plot3D'))
+# print('plot3Drgl', isinstalled('plot3Drgl'))
+#
+# if not isinstalled('e1071'):
+#     utils.install_packages('e1071')
+# if not isinstalled('rgl'):
+#     utils.install_packages('rgl')
+# if not isinstalled('misc3d'):
+#     utils.install_packages('misc3d')
+# if not isinstalled('plot3D'):
+#     utils.install_packages('plot3D')
+# if not isinstalled('plot3Drgl'):
+#     utils.install_packages('plot3Drgl')
+#
+# e1071 = importr('e1071')
+# rgl = importr('rgl')
+# misc3d = importr('misc3d')
+# plot3D = importr('plot3D')
+# plot3Drgl = importr('plot3Drgl')
+#
+# print(rpy2.__version__)
+from sklearn.svm import SVC
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn import svm, datasets
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def get_time_ticks(nticks):
@@ -811,6 +858,295 @@ def SampleVisualisation(df, shape, N_META, out_dir, step_slug, sfft_window, stft
             plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step_slug, out_dir, i, activity,
                             power_sfft, scales, format_xaxis=False
                             , vmin=None, vmax=None, standard_scale=True)
+
+
+def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, clf, i, folder, sub_dir_name, auc):
+    Y = (Y != 1).astype(int)
+    test_y = (test_y != 1).astype(int)
+    train_y = (train_y != 1).astype(int)
+    X = X[:, :3]  # we only take the first three features.
+
+    # The equation of the separating plane is given by all x so that np.dot(svc.coef_[0], x) + b = 0.
+    # Solve for w3 (z)
+    z = lambda x, y: (-clf.intercept_[0] - clf.coef_[0][0] * x - clf.coef_[0][1] * y) / clf.coef_[0][2]
+
+    s = max([np.abs(X.max()), np.abs(X.min())])
+    tmp = np.linspace(-s, s, 30)
+    x, y = np.meshgrid(tmp, tmp)
+
+    fig = plt.figure(figsize=(12.20, 7.20))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(X[Y == 0, 0], X[Y == 0, 1], X[Y == 0, 2], marker='o', color='tab:blue', label='Class0 (Healthy)')
+    ax.scatter(X[Y == 1, 0], X[Y == 1, 1], X[Y == 1, 2], marker='s', color='tab:red', label='Class1 (Unhealthy)')
+
+    ax.scatter(test_x[test_y == 0, 0], test_x[test_y == 0, 1], test_x[test_y == 0, 2],  marker='o', color="none", edgecolor="black", label='Test data Class0 (Healthy)')
+    ax.scatter(test_x[test_y == 1, 0], test_x[test_y == 1, 1], test_x[test_y == 1, 2],  marker='s', color="none", edgecolor="black", label='Test data Class1 (Unhealthy)')
+
+    handles, labels = ax.get_legend_handles_labels()
+    # db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
+    # handles.append(db_line)
+    plt.legend(loc=4, fancybox=True, framealpha=0.4, handles=handles)
+    plt.title(title+" AUC=%.2f" % auc)
+    ttl = ax.title
+    ttl.set_position([.57, 0.97])
+
+    ax.plot_surface(x, y, z(x, y), alpha=0.2)
+    ax.view_init(30, 60)
+    #plt.show()
+
+    path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    filename = "3DPCAfold_%d.png" % (i)
+    final_path = '%s/%s' % (path, filename)
+    print(final_path)
+    try:
+        fig.savefig(final_path, bbox_inches='tight')
+    except FileNotFoundError as e:
+        print(e)
+
+    plt.close()
+    # fig.show()
+    plt.close()
+    fig.clear()
+
+# def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i, filename):
+#     train_y = (train_y != 1).astype(int)
+#     test_y = (test_y != 1).astype(int)
+#
+#     R('r3dDefaults$windowRect <- c(0,50, 1000, 1000) ')
+#     R('open3d()')
+#     plot3ddb = R('''
+#     plot3ddb<-function(nnew, group, dat, kernel_, gamma_, coef_, cost_, tolerance_, probability_, test_x_, fitted_, title_, filepath){
+#             set.seed(12345)
+#             fit = svm(group ~ ., data=dat, kernel=kernel_, gamma=gamma_, coef0=coef_, cost=cost_, tolerance=tolerance_, fitted= fitted_, probability= probability_)
+#             x = dat[,-1]$X1
+#             y = dat[,-1]$X2
+#             z = dat[,-1]$X3
+#             x_test = test_x_[,-1]$X1
+#             y_test = test_x_[,-1]$X2
+#             z_test = test_x_[,-1]$X3
+#             i <- 1
+#             g = dat$group
+#             x_1 <- list()
+#             y_1 <- list()
+#             z_1 <- list()
+#             x_2 <- list()
+#             y_2 <- list()
+#             z_2 <- list()
+#             for(var in g){
+#                 if(!(x[i] %in% x_test) & !(y[i] %in% y_test)){
+#                     if (var == 1){
+#                         x_1 <- append(x_1, x[i])
+#                         y_1 <- append(y_1, y[i])
+#                         z_1 <- append(z_1, z[i])
+#                     }else{
+#                         x_2 <- append(x_2, x[i])
+#                         y_2 <- append(y_2, y[i])
+#                         z_2 <- append(z_2, z[i])
+#                       }
+#                 }
+#               i <- i + 1
+#             }
+#
+#             x_1 = as.numeric(x_1)
+#             y_1 = as.numeric(y_1)
+#             z_1 = as.numeric(z_1)
+#
+#             x_2 = as.numeric(x_2)
+#             y_2 = as.numeric(y_2)
+#             z_2 = as.numeric(z_2)
+#
+#
+#             j <- 1
+#             g_test = test_x_$class
+#             x_1_test <- list()
+#             y_1_test <- list()
+#             z_1_test <- list()
+#             x_2_test <- list()
+#             y_2_test <- list()
+#             z_2_test <- list()
+#             for(var_test in g_test){
+#               if (var_test == 1){
+#                 x_1_test <- append(x_1_test, x_test[j])
+#                 y_1_test <- append(y_1_test, y_test[j])
+#                 z_1_test <- append(z_1_test, z_test[j])
+#               }else{
+#                 x_2_test <- append(x_2_test, x_test[j])
+#                 y_2_test <- append(y_2_test, y_test[j])
+#                 z_2_test <- append(z_2_test, z_test[j])
+#               }
+#
+#               j <- j + 1
+#             }
+#
+#             x_1_test = as.numeric(x_1_test)
+#             y_1_test = as.numeric(y_1_test)
+#             z_1_test = as.numeric(z_1_test)
+#
+#             x_2_test = as.numeric(x_2_test)
+#             y_2_test = as.numeric(y_2_test)
+#             z_2_test = as.numeric(z_2_test)
+#
+#             pch3d(x_2, y_2, z_2, pch = 24, bg = "#f19c51", color = "#f19c51", radius=0.4, alpha = 0.8)
+#             pch3d(x_1, y_1, z_1, pch = 22, bg = "#6297bb", color = '#6297bb', radius=0.4, alpha = 1)
+#
+#             pch3d(x_1_test, y_1_test, z_1_test, pch = 22, bg = "#6297bb", color = 'red', radius=0.4, alpha = 0.8)
+#             pch3d(x_2_test, y_2_test, z_2_test, pch = 24, bg = "#f19c51", color = "red", radius=0.4, alpha = 1)
+#
+#             newdat.list = lapply(test_x_[,-1], function(x) seq(min(x), max(x), len=nnew))
+#             newdat      = expand.grid(newdat.list)
+#             newdat.pred = predict(fit, newdata=newdat, decision.values=T)
+#             newdat.dv   = attr(newdat.pred, 'decision.values')
+#             newdat.dv   = array(newdat.dv, dim=rep(nnew, 3))
+#             grid3d(c("x", "y+", "z"))
+#             view3d(userMatrix = structure(c(0.850334823131561, -0.102673642337322,
+#                                     0.516127586364746, 0, 0.526208400726318, 0.17674557864666,
+#                                     -0.831783592700958, 0, -0.00582099659368396, 0.978886127471924,
+#                                     0.20432074368, 0, 0, 0, 0, 1)))
+#
+#             decorate3d(box=F, axes = T, xlab = '', ylab='', zlab='', aspect = FALSE, expand = 1.03)
+#             light3d(diffuse = "gray", specular = "gray")
+#             contour3d(newdat.dv, level=0, x=newdat.list$X1, y=newdat.list$X2, z=newdat.list$X3, add=T, alpha=0.8, plot=T, smooth = 200, color='#28b99d', color2='#28b99d')
+#             bgplot3d({
+#                       plot.new()
+#                       title(main = title_, line = -8, outer=F)
+#                       #mtext(side = 1, 'This is a subtitle', line = 4)
+#                       legend("bottomleft", inset=.1,
+#                                pt.cex = 2,
+#                                cex = 1,
+#                                bty = "n",
+#                                legend = c("Decision boundary", "Class 0", "Class 1", "Test data"),
+#                                col = c("#28b99d", "#6297bb", "#f19c51", "red"),
+#                                pch = c(15, 15,17, 1))
+#             })
+#             rgl.snapshot(filepath, fmt="png", top=TRUE)
+#     }''')
+#
+#     nnew = test_x.shape[0]
+#     gamma = clf._gamma
+#     coef0 = clf.coef0
+#     cost = clf.C
+#     tolerance = clf.tol
+#     probability_ = clf.probability
+#
+#     df = pd.DataFrame(train_x)
+#     df.insert(loc=0, column='group', value=train_y + 1)
+#     df.columns = ['group', 'X1', 'X2', 'X3']
+#     from rpy2.robjects import pandas2ri
+#     pandas2ri.activate()
+#     r_dataframe = pandas2ri.conversion.py2rpy(df)
+#
+#     df_test = pd.DataFrame(test_x)
+#     df_test.insert(loc=0, column='class', value=test_y + 1)
+#     df_test.columns = ['class', 'X1', 'X2', 'X3']
+#     r_dataframe_test = pandas2ri.conversion.py2rpy(df_test)
+#
+#     plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
+#              r_dataframe_test, True, title, filename)
+#
+#     # input('hello')
+
+
+def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train, title, clf, folder, sub_dir_name, n_bin=8, save=True):
+    y_ = (y_ != 1).astype(int)
+    y_test = (y_test != 1).astype(int)
+    #print('graph...')
+    # plt.subplots_adjust(top=0.75)
+    # fig = plt.figure(figsize=(7, 6), dpi=100)
+    fig, ax = plt.subplots(figsize=(7., 4.8))
+    # plt.subplots_adjust(top=0.75)
+    min = abs(X_.min()) + 1
+    max = abs(X_.max()) + 1
+    # print(X_lda.shape)
+    # print(min, max)
+    if np.max([min, max]) > 100:
+        return
+    xx, yy = np.mgrid[-min:max:.01, -min:max:.01]
+    grid = np.c_[xx.ravel(), yy.ravel()]
+    probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
+    offset_r = 0
+    offset_g = 0
+    offset_b = 0
+    colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
+              (1, 1, 1),
+              ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
+    cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
+
+    for _ in range(0, 1):
+        contour = ax.contourf(xx, yy, probs, n_bin, cmap=cm, antialiased=False, vmin=0, vmax=1, alpha=0.3, linewidth=0,
+                              linestyles='dashed', zorder=-1)
+        ax.contour(contour, cmap=cm, linewidth=1, linestyles='dashed', zorder=-1, alpha=1)
+
+    ax_c = fig.colorbar(contour)
+
+    ax_c.set_alpha(1)
+    ax_c.draw_all()
+
+    ax_c.set_label("$P(y = 1)$")
+
+    X_lda_0 = X_[y_ == 0]
+    X_lda_1 = X_[y_ == 1]
+
+    X_lda_0_t = X_test[y_test == 0]
+    X_lda_1_t = X_test[y_test == 1]
+    marker_size = 150
+    ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
+               , zorder=1)
+
+    ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
+               edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
+               , zorder=1)
+
+    ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none', label='Test data', zorder=1)
+
+    ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+               edgecolor="black", facecolors='none', zorder=1)
+
+
+    # X_lda_0_train = X_train[y_train == 0]
+    # X_lda_1_train = X_train[y_train == 1]
+    # ax.scatter(X_lda_0_train[:, 0], X_lda_0_train[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+    #            edgecolor="green", facecolors='none', label='Train data', zorder=1)
+    #
+    # ax.scatter(X_lda_1_train[:, 0], X_lda_1_train[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
+    #            edgecolor="green", facecolors='none', zorder=1)
+
+    ax.set(xlabel="$X_1$", ylabel="$X_2$")
+
+    ax.contour(xx, yy, probs, levels=[.5], cmap="Reds", vmin=0, vmax=.6, linewidth=0.1)
+
+    for spine in ax.spines.values():
+        spine.set_edgecolor('white')
+
+    handles, labels = ax.get_legend_handles_labels()
+    db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
+    handles.append(db_line)
+
+    plt.legend(loc=4, fancybox=True, framealpha=0.4, handles=handles)
+    plt.title(title+" AUC=%.2f" % auc)
+    ttl = ax.title
+    ttl.set_position([.57, 0.97])
+
+    if save:
+        path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        filename = "fold_%d.png" % (i)
+        final_path = '%s/%s' % (path, filename)
+        print(final_path)
+        try:
+            plt.savefig(final_path, bbox_inches='tight')
+        except FileNotFoundError as e:
+            print(e)
+            exit()
+
+        plt.close()
+        # fig.show()
+        plt.close()
+        fig.clear()
+    else:
+        fig.show()
 
 
 if __name__ == "__main__":

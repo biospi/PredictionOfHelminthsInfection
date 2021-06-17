@@ -314,139 +314,139 @@ def plot_2D_decision_boundaries_(X, y, X_test, title, clf, i=0, filename="", day
     plt.close()
 
 
-def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0, filename=""):
-    R('r3dDefaults$windowRect <- c(0,50, 1000, 1000) ')
-    R('open3d()')
-    plot3ddb = R('''
-    plot3ddb<-function(nnew, group, dat, kernel_, gamma_, coef_, cost_, tolerance_, probability_, test_x_, fitted_, title_, filepath){
-            set.seed(12345)
-            fit = svm(group ~ ., data=dat, kernel=kernel_, gamma=gamma_, coef0=coef_, cost=cost_, tolerance=tolerance_, fitted= fitted_, probability= probability_)
-            x = dat[,-1]$X1
-            y = dat[,-1]$X2
-            z = dat[,-1]$X3
-            x_test = test_x_[,-1]$X1
-            y_test = test_x_[,-1]$X2
-            z_test = test_x_[,-1]$X3
-            i <- 1
-            g = dat$group
-            x_1 <- list()
-            y_1 <- list()
-            z_1 <- list()
-            x_2 <- list()
-            y_2 <- list()
-            z_2 <- list()
-            for(var in g){
-                if(!(x[i] %in% x_test) & !(y[i] %in% y_test)){
-                    if (var == 1){
-                        x_1 <- append(x_1, x[i])
-                        y_1 <- append(y_1, y[i])
-                        z_1 <- append(z_1, z[i])
-                    }else{
-                        x_2 <- append(x_2, x[i])
-                        y_2 <- append(y_2, y[i])
-                        z_2 <- append(z_2, z[i])
-                      }
-                }
-              i <- i + 1
-            }
-
-            x_1 = as.numeric(x_1)
-            y_1 = as.numeric(y_1)
-            z_1 = as.numeric(z_1)
-
-            x_2 = as.numeric(x_2)
-            y_2 = as.numeric(y_2)
-            z_2 = as.numeric(z_2)
-
-
-            j <- 1
-            g_test = test_x_$class
-            x_1_test <- list()
-            y_1_test <- list()
-            z_1_test <- list()
-            x_2_test <- list()
-            y_2_test <- list()
-            z_2_test <- list()
-            for(var_test in g_test){
-              if (var_test == 1){
-                x_1_test <- append(x_1_test, x_test[j])
-                y_1_test <- append(y_1_test, y_test[j])
-                z_1_test <- append(z_1_test, z_test[j])
-              }else{
-                x_2_test <- append(x_2_test, x_test[j])
-                y_2_test <- append(y_2_test, y_test[j])
-                z_2_test <- append(z_2_test, z_test[j])
-              }
-
-              j <- j + 1
-            }
-
-            x_1_test = as.numeric(x_1_test)
-            y_1_test = as.numeric(y_1_test)
-            z_1_test = as.numeric(z_1_test)
-
-            x_2_test = as.numeric(x_2_test)
-            y_2_test = as.numeric(y_2_test)
-            z_2_test = as.numeric(z_2_test)
-
-            pch3d(x_2, y_2, z_2, pch = 24, bg = "#f19c51", color = "#f19c51", radius=0.4, alpha = 0.8)
-            pch3d(x_1, y_1, z_1, pch = 22, bg = "#6297bb", color = '#6297bb', radius=0.4, alpha = 1)
-
-            pch3d(x_1_test, y_1_test, z_1_test, pch = 22, bg = "#6297bb", color = 'red', radius=0.4, alpha = 0.8)
-            pch3d(x_2_test, y_2_test, z_2_test, pch = 24, bg = "#f19c51", color = "red", radius=0.4, alpha = 1)
-
-            newdat.list = lapply(test_x_[,-1], function(x) seq(min(x), max(x), len=nnew))
-            newdat      = expand.grid(newdat.list)
-            newdat.pred = predict(fit, newdata=newdat, decision.values=T)
-            newdat.dv   = attr(newdat.pred, 'decision.values')
-            newdat.dv   = array(newdat.dv, dim=rep(nnew, 3))
-            grid3d(c("x", "y+", "z"))
-            view3d(userMatrix = structure(c(0.850334823131561, -0.102673642337322, 
-                                    0.516127586364746, 0, 0.526208400726318, 0.17674557864666, 
-                                    -0.831783592700958, 0, -0.00582099659368396, 0.978886127471924, 
-                                    0.20432074368, 0, 0, 0, 0, 1)))
-
-            decorate3d(box=F, axes = T, xlab = '', ylab='', zlab='', aspect = FALSE, expand = 1.03)
-            light3d(diffuse = "gray", specular = "gray")
-            contour3d(newdat.dv, level=0, x=newdat.list$X1, y=newdat.list$X2, z=newdat.list$X3, add=T, alpha=0.8, plot=T, smooth = 200, color='#28b99d', color2='#28b99d')
-            bgplot3d({
-                      plot.new()
-                      title(main = title_, line = -8, outer=F)
-                      #mtext(side = 1, 'This is a subtitle', line = 4)
-                      legend("bottomleft", inset=.1,
-                               pt.cex = 2,
-                               cex = 1, 
-                               bty = "n", 
-                               legend = c("Decision boundary", "Class 0", "Class 1", "Test data"), 
-                               col = c("#28b99d", "#6297bb", "#f19c51", "red"), 
-                               pch = c(15, 15,17, 1))
-            })
-            rgl.snapshot(filepath, fmt="png", top=TRUE)
-    }''')
-
-    nnew = test_x.shape[0]
-    gamma = clf.best_params_['gamma']
-    coef0 = clf.estimator.coef0
-    cost = clf.best_params_['C']
-    tolerance = clf.estimator.tol
-    probability_ = clf.estimator.probability
-
-    df = pd.DataFrame(train_x)
-    df.insert(loc=0, column='group', value=train_y + 1)
-    df.columns = ['group', 'X1', 'X2', 'X3']
-    from rpy2.robjects import pandas2ri
-    pandas2ri.activate()
-    r_dataframe = pandas2ri.py2ri(df)
-
-    df_test = pd.DataFrame(test_x)
-    df_test.insert(loc=0, column='class', value=test_y + 1)
-    df_test.columns = ['class', 'X1', 'X2', 'X3']
-    r_dataframe_test = pandas2ri.py2ri(df_test)
-
-    plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
-             r_dataframe_test, True, title, "3d%s.png" % filename)
-
-    # input('hello')
+# def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i=0, filename=""):
+#     R('r3dDefaults$windowRect <- c(0,50, 1000, 1000) ')
+#     R('open3d()')
+#     plot3ddb = R('''
+#     plot3ddb<-function(nnew, group, dat, kernel_, gamma_, coef_, cost_, tolerance_, probability_, test_x_, fitted_, title_, filepath){
+#             set.seed(12345)
+#             fit = svm(group ~ ., data=dat, kernel=kernel_, gamma=gamma_, coef0=coef_, cost=cost_, tolerance=tolerance_, fitted= fitted_, probability= probability_)
+#             x = dat[,-1]$X1
+#             y = dat[,-1]$X2
+#             z = dat[,-1]$X3
+#             x_test = test_x_[,-1]$X1
+#             y_test = test_x_[,-1]$X2
+#             z_test = test_x_[,-1]$X3
+#             i <- 1
+#             g = dat$group
+#             x_1 <- list()
+#             y_1 <- list()
+#             z_1 <- list()
+#             x_2 <- list()
+#             y_2 <- list()
+#             z_2 <- list()
+#             for(var in g){
+#                 if(!(x[i] %in% x_test) & !(y[i] %in% y_test)){
+#                     if (var == 1){
+#                         x_1 <- append(x_1, x[i])
+#                         y_1 <- append(y_1, y[i])
+#                         z_1 <- append(z_1, z[i])
+#                     }else{
+#                         x_2 <- append(x_2, x[i])
+#                         y_2 <- append(y_2, y[i])
+#                         z_2 <- append(z_2, z[i])
+#                       }
+#                 }
+#               i <- i + 1
+#             }
+#
+#             x_1 = as.numeric(x_1)
+#             y_1 = as.numeric(y_1)
+#             z_1 = as.numeric(z_1)
+#
+#             x_2 = as.numeric(x_2)
+#             y_2 = as.numeric(y_2)
+#             z_2 = as.numeric(z_2)
+#
+#
+#             j <- 1
+#             g_test = test_x_$class
+#             x_1_test <- list()
+#             y_1_test <- list()
+#             z_1_test <- list()
+#             x_2_test <- list()
+#             y_2_test <- list()
+#             z_2_test <- list()
+#             for(var_test in g_test){
+#               if (var_test == 1){
+#                 x_1_test <- append(x_1_test, x_test[j])
+#                 y_1_test <- append(y_1_test, y_test[j])
+#                 z_1_test <- append(z_1_test, z_test[j])
+#               }else{
+#                 x_2_test <- append(x_2_test, x_test[j])
+#                 y_2_test <- append(y_2_test, y_test[j])
+#                 z_2_test <- append(z_2_test, z_test[j])
+#               }
+#
+#               j <- j + 1
+#             }
+#
+#             x_1_test = as.numeric(x_1_test)
+#             y_1_test = as.numeric(y_1_test)
+#             z_1_test = as.numeric(z_1_test)
+#
+#             x_2_test = as.numeric(x_2_test)
+#             y_2_test = as.numeric(y_2_test)
+#             z_2_test = as.numeric(z_2_test)
+#
+#             pch3d(x_2, y_2, z_2, pch = 24, bg = "#f19c51", color = "#f19c51", radius=0.4, alpha = 0.8)
+#             pch3d(x_1, y_1, z_1, pch = 22, bg = "#6297bb", color = '#6297bb', radius=0.4, alpha = 1)
+#
+#             pch3d(x_1_test, y_1_test, z_1_test, pch = 22, bg = "#6297bb", color = 'red', radius=0.4, alpha = 0.8)
+#             pch3d(x_2_test, y_2_test, z_2_test, pch = 24, bg = "#f19c51", color = "red", radius=0.4, alpha = 1)
+#
+#             newdat.list = lapply(test_x_[,-1], function(x) seq(min(x), max(x), len=nnew))
+#             newdat      = expand.grid(newdat.list)
+#             newdat.pred = predict(fit, newdata=newdat, decision.values=T)
+#             newdat.dv   = attr(newdat.pred, 'decision.values')
+#             newdat.dv   = array(newdat.dv, dim=rep(nnew, 3))
+#             grid3d(c("x", "y+", "z"))
+#             view3d(userMatrix = structure(c(0.850334823131561, -0.102673642337322,
+#                                     0.516127586364746, 0, 0.526208400726318, 0.17674557864666,
+#                                     -0.831783592700958, 0, -0.00582099659368396, 0.978886127471924,
+#                                     0.20432074368, 0, 0, 0, 0, 1)))
+#
+#             decorate3d(box=F, axes = T, xlab = '', ylab='', zlab='', aspect = FALSE, expand = 1.03)
+#             light3d(diffuse = "gray", specular = "gray")
+#             contour3d(newdat.dv, level=0, x=newdat.list$X1, y=newdat.list$X2, z=newdat.list$X3, add=T, alpha=0.8, plot=T, smooth = 200, color='#28b99d', color2='#28b99d')
+#             bgplot3d({
+#                       plot.new()
+#                       title(main = title_, line = -8, outer=F)
+#                       #mtext(side = 1, 'This is a subtitle', line = 4)
+#                       legend("bottomleft", inset=.1,
+#                                pt.cex = 2,
+#                                cex = 1,
+#                                bty = "n",
+#                                legend = c("Decision boundary", "Class 0", "Class 1", "Test data"),
+#                                col = c("#28b99d", "#6297bb", "#f19c51", "red"),
+#                                pch = c(15, 15,17, 1))
+#             })
+#             rgl.snapshot(filepath, fmt="png", top=TRUE)
+#     }''')
+#
+#     nnew = test_x.shape[0]
+#     gamma = clf.best_params_['gamma']
+#     coef0 = clf.estimator.coef0
+#     cost = clf.best_params_['C']
+#     tolerance = clf.estimator.tol
+#     probability_ = clf.estimator.probability
+#
+#     df = pd.DataFrame(train_x)
+#     df.insert(loc=0, column='group', value=train_y + 1)
+#     df.columns = ['group', 'X1', 'X2', 'X3']
+#     from rpy2.robjects import pandas2ri
+#     pandas2ri.activate()
+#     r_dataframe = pandas2ri.py2ri(df)
+#
+#     df_test = pd.DataFrame(test_x)
+#     df_test.insert(loc=0, column='class', value=test_y + 1)
+#     df_test.columns = ['class', 'X1', 'X2', 'X3']
+#     r_dataframe_test = pandas2ri.py2ri(df_test)
+#
+#     plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
+#              r_dataframe_test, True, title, "3d%s.png" % filename)
+#
+#     # input('hello')
 
 
 #     SPACE_SAMPLING_POINTS = train_x.shape[0]/3

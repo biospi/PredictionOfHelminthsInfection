@@ -24,12 +24,15 @@ import argparse
 import gc
 import glob
 import os
+import pathlib
 import time
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
@@ -46,7 +49,8 @@ from utils._custom_split import StratifiedLeaveTwoOut
 from cwt._cwt import CWT, CWTVisualisation, STFT
 from utils._normalisation import QuotientNormalizer, CenterScaler, BaseLineScaler
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
-    plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range, SampleVisualisation, plotHeatmap
+    plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range, SampleVisualisation, plotHeatmap, \
+    plot_2D_decision_boundaries, plot_3D_decision_boundaries
 
 
 def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
@@ -116,7 +120,8 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
     return roc_auc
 
 
-def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days):
+def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days):
+    steps = clf_name +"_"+ steps
     print("make_roc_curve %s" % cv_name)
     if isinstance(X, pd.DataFrame):
         X = X.values
@@ -181,6 +186,10 @@ def makeRocCurve(out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days
             interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
             interp_tpr[0] = 0.0
             print("auc=", viz_roc.roc_auc)
+            # if "PCA(2)" in steps:
+            #     plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps)
+            if "PCA(3)" in steps:
+                plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc)
             if np.isnan(viz_roc.roc_auc):
                 continue
             tprs.append(interp_tpr)
@@ -288,13 +297,13 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             df.iloc[:, :-N_META] = StandardScaler(with_mean=False, with_std=True).fit_transform(
                 df.iloc[:, :-N_META].values)
 
-            if "TEMPERATURE" not in step_slug and "HUMIDITY" not in step_slug:
-                if "CWT" in step_slug:
-                    SampleVisualisation(df, CWT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug, None, None, CWT_Transform.scales)
-
-                if "STFT" in step_slug:
-                    SampleVisualisation(df, STFT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug,
-                                        STFT_Transform.sfft_window, STFT_Transform.stft_time, STFT_Transform.freqs)
+            # if "TEMPERATURE" not in step_slug and "HUMIDITY" not in step_slug and "PCA" not in step_slug:
+            #     if "CWT" in step_slug:
+            #         SampleVisualisation(df, CWT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug, None, None, CWT_Transform.scales)
+            #
+            #     if "STFT" in step_slug and "PCA" not in step_slug:
+            #         SampleVisualisation(df, STFT_Transform.shape, N_META, graph_outputdir + "/" + step, step_slug,
+            #                             STFT_Transform.sfft_window, STFT_Transform.stft_time, STFT_Transform.freqs)
 
         if step == "CENTER":
             df.iloc[:, :-N_META] = CenterScaler(center_by_sample=False).fit_transform(df.iloc[:, :-N_META].values)
@@ -326,9 +335,9 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
                                 n_scales=n_scales, animal_ids=animal_ids, targets=df["target"].tolist(),
                                 dates=df["date"].tolist())
-            data_frame_cwt, data_frame_cwt_real = CWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
+            data_frame_cwt, data_frame_cwt_raw = CWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
             data_frame_cwt = pd.DataFrame(data_frame_cwt)
-            data_frame_cwt_real = pd.DataFrame(data_frame_cwt_real)
+            data_frame_cwt_raw = pd.DataFrame(data_frame_cwt_raw)
 
             # data_frame_cwt.index = df.index  # need to keep original sample index!!!!
             # df_meta = df.iloc[:, -N_META:]
@@ -346,16 +355,19 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
                              data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
 
-            data_frame_cwt_real.index = df.index  # need to keep original sample index!!!!
-            df = pd.concat([data_frame_cwt_real, df_meta], axis=1)
-            CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
-                             data_frame_cwt_real, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, filename_sub="real")
+            data_frame_cwt_raw.index = df.index  # need to keep original sample index!!!!
+            df = pd.concat([data_frame_cwt_raw, df_meta], axis=1)
+            # CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
+            #                  data_frame_cwt_raw, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, filename_sub="real")
 
             df = df.dropna(axis=1, how='all') #removes nan from coi
             del data_frame_cwt
-        if step == "PCA":
+            del data_frame_cwt_raw
+        if "PCA" in step:
+            pca_dim = int(step[step.find("(")+1:step.find(")")])
+            print("pca_dim", pca_dim)
             df_before_reduction = df.iloc[:, :-N_META].values
-            data_frame_pca = pd.DataFrame(PCA(n_components=output_dim).fit_transform(df_before_reduction))
+            data_frame_pca = pd.DataFrame(PCA(n_components=pca_dim).fit_transform(df_before_reduction))
             data_frame_pca.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_pca, df_meta], axis=1)
@@ -386,6 +398,20 @@ def loadActivityData(filepath, day):
     data_frame = data_frame.fillna(-1)
     # filter with imputed_days count
     data_frame = data_frame[data_frame["imputed_days"] >= day]
+
+    #1To1 1To2 2To2 2To1
+    new_label = []
+    for v in data_frame["label"].values:
+        if v in ["1To1"]:
+            new_label.append("1To1")
+            continue
+        if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
+            new_label.append("1To2")
+            continue
+        new_label.append(v)
+
+    data_frame["label"] = new_label
+
     return data_frame, N_META
 
 
@@ -543,56 +569,55 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     #     steps, str(downsample_false_class), days, farm_id, n_repeats, n_splits, class0_count,
     #     class1_count, sampling)
     report_rows_list = []
-    print('->SVC')
-    clf_svc = SVC(probability=True, class_weight='balanced')
 
-    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': ['scale', 1e-1, 1e-3, 1e-4], 'class_weight': [None, 'balanced'],
-    #                      'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]},
-    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    # clf = GridSearchCV(clf_svc, tuned_parameters, cv=cross_validation_method, scoring='roc_auc', n_jobs=-1)
-    # clf.fit(X.copy(), y.copy())
-    # clf_best = clf.best_estimator_
-    # print("Best estimator from gridsearch=")
-    # print(clf_best)
-    scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
-    scores["downsample"] = downsample_false_class
-    scores["class0"] = y[y == class_healthy].size
-    scores["class1"] = y[y == class_unhealthy].size
-    scores["steps"] = steps
-    scores["days"] = days
-    scores["farm_id"] = farm_id
-    scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
-    scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    scores["sampling"] = sampling
-    scores["classifier"] = "->SVC"
-    scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
-    #clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    auc_m, aucs = makeRocCurve(out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids, days)
-    scores["roc_auc_score_mean"] = auc_m
-    scores["roc_auc_scores"] = aucs
-    report_rows_list.append(scores)
-    del scores
+    for clf_svc in [SVC(kernel="linear", probability=True, class_weight='balanced')]:
+        # tuned_parameters = [{'kernel': ['rbf'], 'gamma': ['scale', 1e-1, 1e-3, 1e-4], 'class_weight': [None, 'balanced'],
+        #                      'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]},
+        #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+        # clf = GridSearchCV(clf_svc, tuned_parameters, cv=cross_validation_method, scoring='roc_auc', n_jobs=-1)
+        # clf.fit(X.copy(), y.copy())
+        # clf_best = clf.best_estimator_
+        # print("Best estimator from gridsearch=")
+        # print(clf_best)
+        scores = cross_validate(clf_svc, X.copy(), y.copy(), cv=cross_validation_method, scoring=scoring, n_jobs=-1)
+        scores["downsample"] = downsample_false_class
+        scores["class0"] = y[y == class_healthy].size
+        scores["class1"] = y[y == class_unhealthy].size
+        scores["steps"] = steps
+        scores["days"] = days
+        scores["farm_id"] = farm_id
+        scores["balanced_accuracy_score_mean"] = np.mean(scores["test_balanced_accuracy_score"])
+        scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
+        scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
+        scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
+        scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
+        scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
+        scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
+        scores["sampling"] = sampling
+        scores["classifier"] = "->SVC(%s)" % clf_svc.kernel
+        scores["classifier_details"] = str(clf_svc).replace('\n', '').replace(" ", '')
+        #clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+        auc_m, aucs = makeRocCurve(scores["classifier"].replace("->", ""), out_dir, clf_svc, X.copy(), y.copy(), cross_validation_method, steps, cv, animal_ids, days)
+        scores["roc_auc_score_mean"] = auc_m
+        scores["roc_auc_scores"] = aucs
+        report_rows_list.append(scores)
 
-    df_report = pd.DataFrame(report_rows_list)
-    df_report["class_0_label"] = label_series[class_healthy]
-    df_report["class_1_label"] = label_series[class_unhealthy]
-    df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
-    # df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
-    #                                                                               'cvargs') else np.nan
-    # df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
-    #                                                                       'n_repeats') else np.nan
-    df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in
-                                   df_report["fit_time"].values]
-    filename = "%s/%s/%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-        output_dir, cv, farm_id, days, steps, downsample_false_class, sampling)
-    create_rec_dir(filename)
-    df_report.to_csv(filename, sep=',', index=False)
-    print("filename=", filename)
+        df_report = pd.DataFrame(report_rows_list)
+        df_report["class_0_label"] = label_series[class_healthy]
+        df_report["class_1_label"] = label_series[class_unhealthy]
+        df_report["nfold"] = cross_validation_method.nfold if hasattr(cross_validation_method, 'nfold') else np.nan
+        # df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
+        #                                                                               'cvargs') else np.nan
+        # df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
+        #                                                                       'n_repeats') else np.nan
+        df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in
+                                       df_report["fit_time"].values]
+        filename = "%s/%s/%s_%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+            output_dir, cv, scores["classifier"].replace("->", ""), farm_id, days, steps, downsample_false_class, sampling)
+        create_rec_dir(filename)
+        df_report.to_csv(filename, sep=',', index=False)
+        print("filename=", filename)
+        del scores
 
 
 def parse_param_from_filename(file):
@@ -633,6 +658,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
     print(files)
 
     has_humidity_data = False
+    df_hum = None
     if hum_file is not None:
         has_humidity_data = True
         print("humidity file detected!", hum_file)
@@ -641,6 +667,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
         plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
 
     has_temperature_data = True
+    df_temp = None
     if temp_file is not None:
         has_temperature_data = True
         print("temperature file detected!", temp_file)
@@ -649,6 +676,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
         print(df_temp.shape)
 
     has_humidity_and_temp = False
+    df_hum_temp = None
     if temp_file is not None and hum_file is not None:
         has_humidity_and_temp = True
         print("temperature file detected!", temp_file)
@@ -784,8 +812,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', help='output directory', type=str)
     parser.add_argument('dataset_folder', help='dataset input directory', type=str)
-    parser.add_argument('--class_healthy', help='target for healthy class', default=1, type=int)
-    parser.add_argument('--class_unhealthy', help='target for unhealthy class', default=7, type=int)
+    parser.add_argument('--class_healthy', help='label for healthy class', default="1To1", type=str)
+    parser.add_argument('--class_unhealthy', help='label for unhealthy class', default="1To2", type=str)
     parser.add_argument('--stratify', help='enable stratiy for cross validation', default='n', type=str)
     parser.add_argument('--s_output', help='output sample files', default='y', type=str)
     parser.add_argument('--cwt', help='enable freq domain (cwt)', default='y', type=str)
@@ -824,40 +852,22 @@ if __name__ == "__main__":
     stratify = "y" in stratify.lower()
     output_samples = "y" in s_output.lower()
     output_cwt = "y" in cwt.lower()
-
-    steps = [["TEMPERATURE", "STANDARDSCALER"],
-             ["HUMIDITY", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE"],
-             ["QN", "ANSCOMBE", "LOG"],
-
-             ["QN", "ANSCOMBE", "LOG", "CENTER"],
-             ["QN", "ANSCOMBE", "LOG", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "CENTER"],
-             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "CENTER"],
-
-             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "CENTER", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "CENTER", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "CENTER", "STFT", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
-             ]
-
+    #
     # steps = [
-    #          ["QN", "ANSCOMBE", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-    #          ["QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+    #          ["QN", "ANSCOMBE", "LOG"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER", "PCA(2)"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(2)"],
     #          ]
+
+    steps = [
+             ["QN", "ANSCOMBE", "LOG", "PCA(2)"],
+             ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(2)"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
+             ]
 
 
     main(steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,
