@@ -908,11 +908,11 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
     path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "3DPCAfold_%d.png" % (i)
-    final_path = '%s/%s' % (path, filename)
+    final_path = '%s%s' % (path, filename)
     print(final_path)
     try:
         fig.savefig(final_path, bbox_inches='tight')
-    except FileNotFoundError | ValueError as e:
+    except Exception as e:
         print(e)
 
     plt.close()
