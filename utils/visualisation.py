@@ -912,7 +912,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
     print(final_path)
     try:
         fig.savefig(final_path, bbox_inches='tight')
-    except FileNotFoundError as e:
+    except FileNotFoundError | ValueError as e:
         print(e)
 
     plt.close()
