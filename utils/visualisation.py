@@ -352,7 +352,10 @@ def plotMlReportFinal(paths, output_dir):
     label_dict = {}
     for path in paths:
         path = path.replace("\\", "/")
-        target_label = path.split("/")[4].split("_")[-2]
+        target_label = [x for x in path.split("/")[4].split("_") if "to" in x.lower()][0]
+        meta = path.split("/")[4].split("_")[-1]+"->"
+        if "night" not in meta:
+            meta = "entireday->"
         print(target_label)
         df = pd.read_csv(str(path), index_col=None)
         medians = []
@@ -361,11 +364,11 @@ def plotMlReportFinal(paths, output_dir):
             medians.append(np.median(v))
         df["median_auc"] = medians
 
-        df["config"] = ["%s->" % target_label.upper() + "%dDAYS->" % df["days"].values[0] + format(str(x)) for x in list(zip(df.steps, df.classifier))]
+        df["config"] = [("%s" % meta +"%s->" % target_label.upper() + "%dDAYS->" % df["days"].values[0] + format(str(x))).replace("STANDARDSCALER", "STSC").replace("ANSCOMBE", "ANS") for x in list(zip(df.steps, df.classifier))]
         df = df.sort_values('median_auc')
         df = df.drop_duplicates(subset=['config'], keep='first')
-        label_dict[target_label] = df["class1"].values[0]
-        label_dict[df["class_0_label"].values[0]] = df["class0"].values[0]
+        label_dict[target_label.replace("1To1", "Healthy").replace("1To2", "Unhealthy").replace("2to2", "Unhealthy")] = df["class1"].values[0]
+        label_dict[df["class_0_label"].values[0].replace("1To1", "Healthy").replace("1To2", "Unhealthy").replace("2to2", "Unhealthy")] = df["class0"].values[0]
         dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
@@ -380,6 +383,7 @@ def plotMlReportFinal(paths, output_dir):
     t2 = "Precision class1 performance of different inputs<br>%s" % str(label_dict)
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+    fig_auc_only = make_subplots(rows=1, cols=1)
 
     df = formatForBoxPlot(df)
 
@@ -387,6 +391,8 @@ def plotMlReportFinal(paths, output_dir):
     fig.append_trace(px.box(df, x='config', y='test_precision_score1').data[0], row=2, col=1)
     fig.append_trace(px.box(df, x='config', y='test_balanced_accuracy_score').data[0], row=3, col=1)
     fig.append_trace(px.box(df, x='config', y='roc_auc_scores').data[0], row=4, col=1)
+
+    fig_auc_only.append_trace(px.box(df, x='config', y='roc_auc_scores', title=t4).data[0], row=1, col=1)
 
     # fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
     # fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
@@ -405,7 +411,7 @@ def plotMlReportFinal(paths, output_dir):
     #               line=dict(color="LightSeaGreen", width=4, dash="dot", ))
 
     fig.update_xaxes(showticklabels=False)  # hide all the xticks
-    fig.update_xaxes(showticklabels=True, row=4, col=1)
+    fig.update_xaxes(showticklabels=True, row=4, col=1, automargin=True)
 
     # fig.update_layout(shapes=[
     #     dict(
@@ -415,11 +421,16 @@ def plotMlReportFinal(paths, output_dir):
     #         xref='x', x0=-0.5, x1=7.5
     #     )
     # ])
-    fig.update_yaxes(showgrid=True, gridwidth=1)
-    fig.update_xaxes(showgrid=True, gridwidth=1)
+    fig.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
+    fig.update_xaxes(showgrid=True, gridwidth=1, automargin=True)
+    fig.update_layout(margin=dict(l=20, r=20, t=20, b=500))
+    fig_auc_only.update_layout(margin=dict(l=20, r=20, t=20, b=500))
     filepath = output_dir + "/" + "ML_performance_final.html"
     print(filepath)
     fig.write_html(filepath)
+    filepath = output_dir + "/" + "ML_performance_final_auc.html"
+    print(filepath)
+    fig_auc_only.write_html(filepath)
     # fig.show()
 
 
@@ -490,7 +501,7 @@ def plotMlReport(path, output_dir):
     # ])
     fig.update_yaxes(showgrid=True, gridwidth=1)
     fig.update_xaxes(showgrid=True, gridwidth=1)
-    filepath = output_dir + "/" + "ML_performance.html"
+    filepath = output_dir + "/" + "ML_performance_2.html"
     print(filepath)
     fig.write_html(filepath)
     # fig.show()
@@ -881,7 +892,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 
     ax.scatter(test_x[test_y == 0, 0], test_x[test_y == 0, 1], test_x[test_y == 0, 2],  marker='o', color="none", edgecolor="black", label='Test data Class0 (Healthy)')
     ax.scatter(test_x[test_y == 1, 0], test_x[test_y == 1, 1], test_x[test_y == 1, 2],  marker='s', color="none", edgecolor="black", label='Test data Class1 (Unhealthy)')
-
+    ax.set(xlabel="PCA component 1", ylabel="PCA component 2", zlabel="PCA component 3")
     handles, labels = ax.get_legend_handles_labels()
     # db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
     # handles.append(db_line)

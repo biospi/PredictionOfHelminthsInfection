@@ -122,7 +122,7 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
 
 def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days):
     steps = clf_name +"_"+ steps
-    print("make_roc_curve %s" % cv_name)
+    print("make_roc_curve %s" % cv_name, steps)
     if isinstance(X, pd.DataFrame):
         X = X.values
 
@@ -188,7 +188,7 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
             print("auc=", viz_roc.roc_auc)
             # if "PCA(2)" in steps:
             #     plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps)
-            if "PCA(3)" in steps:
+            if "PCA(3)" in steps and "linear" in steps.lower():
                 plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc)
             if np.isnan(viz_roc.roc_auc):
                 continue
@@ -240,7 +240,7 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
+def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
                             class_healthy, class_unhealthy, clf_name="", output_dim=2, n_scales=None):
     step_slug = "_".join(steps)
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
@@ -251,7 +251,7 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM", "STFT", "STANDARDSCALER"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM", "STFT", "STANDARDSCALER", "DIFFAPPEND", "DIFFLASTD", "DIFF", "DIFFLASTDAPPEND"]:
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
@@ -272,6 +272,58 @@ def applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids
             df = pd.concat([df_activity, df_hum, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
             df.columns = new_header
+
+        if step == "DIFFAPPEND":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_meta = df.iloc[:, -N_META:]
+            df_diff = pd.DataFrame(df_activity.copy().iloc[:, 1440:].values - df_activity.copy().iloc[:, :-1440].values)
+            df = pd.concat([df_activity.reset_index(drop=True), df_diff.reset_index(drop=True), df_meta.reset_index(drop=True)], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1]-N_META)] + df.columns[df.shape[1]-N_META:].tolist()
+            df.columns = new_header
+            df.index = df_activity.index
+
+        if step == "DIFF":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_meta = df.iloc[:, -N_META:]
+            df_diff = pd.DataFrame(
+                df_activity.copy().iloc[:, 1440:].values - df_activity.copy().iloc[:, :-1440].values)
+            df = pd.concat([df_diff.reset_index(drop=True), df_meta.reset_index(drop=True)], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
+                                                                             df.shape[1] - N_META:].tolist()
+            df.columns = new_header
+            df.index = df_activity.index
+
+        if step == "DIFFLASTD":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_meta = df.iloc[:, -N_META:]
+
+            df_last_day = df_activity.copy().iloc[:, -1440:]
+            df_last_day = pd.concat([df_last_day]*(days-1), axis=1)
+
+            df_to_sub = df_activity.copy().iloc[:, :-1441]
+
+            df_diff = pd.DataFrame(df_to_sub.values - df_last_day.values)
+            df = pd.concat([df_diff.reset_index(drop=True), df_meta.reset_index(drop=True)], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
+                                                                             df.shape[1] - N_META:].tolist()
+            df.columns = new_header
+            df.index = df_activity.index
+
+        if step == "DIFFLASTDAPPEND":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_meta = df.iloc[:, -N_META:]
+
+            df_last_day = df_activity.copy().iloc[:, -1440:]
+            df_last_day = pd.concat([df_last_day] * (days - 1), axis=1)
+
+            df_to_sub = df_activity.copy().iloc[:, :-1441]
+
+            df_diff = pd.DataFrame(df_to_sub.values - df_last_day.values)
+            df = pd.concat([df_activity.reset_index(drop=True), df_diff.reset_index(drop=True), df_meta.reset_index(drop=True)], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
+                                                                             df.shape[1] - N_META:].tolist()
+            df.columns = new_header
+            df.index = df_activity.index
 
         if step == "TEMPERATURE":
             df_activity = df.copy().iloc[:, :-N_META]
@@ -400,17 +452,37 @@ def loadActivityData(filepath, day):
     data_frame = data_frame[data_frame["imputed_days"] >= day]
 
     #1To1 1To2 2To2 2To1
-    new_label = []
-    for v in data_frame["label"].values:
-        if v in ["1To1"]:
-            new_label.append("1To1")
-            continue
-        if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
-            new_label.append("1To2")
-            continue
-        new_label.append(v)
+    if "cedara" in filepath:
+        new_label = []
+        for v in data_frame["label"].values:
+            if v in ["1To1"]:
+                new_label.append("1To1")
+                continue
+            if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
+                new_label.append("2To2")
+                continue
+            new_label.append(v)
 
-    data_frame["label"] = new_label
+        data_frame["label"] = new_label
+    # up_down = False
+    # if up_down:
+    #     new_label = []
+    #     for v in data_frame["label"].values:
+    #
+    #         split = v.split("To")
+    #         a = int(split[0])
+    #         b = int(split[1])
+    #
+    #         if a > b:
+    #             new_label.append("1To1")
+    #             continue
+    #         if a < b:
+    #             new_label.append("2To2")
+    #             continue
+    #
+    #         new_label.append("other")
+    #
+    #     data_frame["label"] = new_label
 
     return data_frame, N_META
 
@@ -570,7 +642,7 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
     #     class1_count, sampling)
     report_rows_list = []
 
-    for clf_svc in [SVC(kernel="linear", probability=True, class_weight='balanced')]:
+    for clf_svc in [SVC(kernel="linear", probability=True, class_weight='balanced'), SVC(kernel="rbf", probability=True, class_weight='balanced')]:
         # tuned_parameters = [{'kernel': ['rbf'], 'gamma': ['scale', 1e-1, 1e-3, 1e-4], 'class_weight': [None, 'balanced'],
         #                      'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]},
         #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
@@ -650,7 +722,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
     print("sfft_window=", sfft_window)
     print("loading dataset...")
     enable_downsample_df = False
-    day = int(dataset_folder.split('_')[-1][0])
+    day = int([a for a in dataset_folder.split('_') if "day" in a][0][0])
 
     files = glob.glob(dataset_folder + "/*.csv")  # find datset files
     files = [file.replace("\\", '/') for file in files]
@@ -720,7 +792,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
         ##VISUALISATION
         ################################################################################################################
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
-        df_norm = applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
+        df_norm = applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
                                           class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
                                           clf_name="SVM_QN_VISU", n_scales=n_scales)
         plot_zeros_distrib(label_series, df_norm, output_dir,
@@ -753,7 +825,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
 
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
+            df_processed = applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
                                                    class_healthy_label, class_unhealthy_label, class_healthy,
                                                    class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
                                                    n_scales=n_scales)
@@ -861,13 +933,57 @@ if __name__ == "__main__":
     #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER", "PCA(2)"],
     #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(2)"],
     #          ]
-
+    #
+    # steps = [
+    #          ["QN", "ANSCOMBE", "LOG"],
+    #          ["QN", "ANSCOMBE", "LOG", "PCA(2)"],
+    #          ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(2)"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
+    #          ]
+    #
     steps = [
-             ["QN", "ANSCOMBE", "LOG", "PCA(2)"],
+             # ["TEMPERATURE", "STANDARDSCALER"],
+             # ["HUMIDITY", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG"],
              ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(2)"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFF"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "PCA(3)"],
+
+             # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
+             # # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
+             # ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
+             # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER", "PCA(3)"],
+             # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
              ]
+
+    if "night" in output_dir:
+        steps = [
+                 ["QN", "ANSCOMBE", "LOG"],
+                 ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+                 ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+                 ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+                 ]
+
+
 
 
     main(steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,

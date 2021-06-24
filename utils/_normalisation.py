@@ -24,6 +24,7 @@ def normalize(X, out_dir):
 
     #step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
+    median_array[median_array == 0] = 1
     traces.append(plotLine([median_array], out_dir_, "STEP 1 | find pointwise median sample [median of col1, .... median of col n]", "1_median_array.html"))
     #cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
 

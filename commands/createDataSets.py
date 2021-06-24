@@ -30,7 +30,7 @@ from commands.cmdsextra import bc
 from utils.Utils import create_rec_dir
 
 
-def main(famFile, dataDir, outDir, data_col, ndays):
+def main(night, famFile, dataDir, outDir, data_col, ndays):
 
     print("Commanline argument: ", famFile)
 
@@ -134,7 +134,12 @@ def main(famFile, dataDir, outDir, data_col, ndays):
         # meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
         # meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
         # meta[3] = samples.set[idx].ID
-        sample = samples.iA[idx].tolist() + [samples.df[idx]] + [samples.set[idx].ID, samples.set[idx].missRate,
+        dayTime = np.array(["Day" if x.hour >= 6 and x.hour <= 18 else "Night" for x in pd.to_datetime(samples.iT[idx], unit='s')])
+        if night:
+            sample_activity = samples.iA[idx][dayTime == 'Night'].tolist()
+        else:
+            sample_activity = samples.iA[idx].tolist()
+        sample = sample_activity + [samples.df[idx]] + [samples.set[idx].ID, samples.set[idx].missRate,
                                                                  datetime.datetime.fromtimestamp(
                                                                      samples.iT[idx][-1]).strftime('%d/%m/%Y')]
         s.append(sample)
@@ -214,6 +219,7 @@ if __name__ == "__main__":
     parser.add_argument('outDir', help='Output Directory', type=str)
     parser.add_argument('--dataCol', help="Name of data column in imputed file (first_sensor_value_gain | first_sensor_value | first_sensor_value_li)", type=str, default='first_sensor_value_gain')
     parser.add_argument('--ndays', help="Number of days in samples", default=6, type=int)
+    parser.add_argument('--night', help="Use night data", default=False, type=bool)
 
     args = parser.parse_args()
     famFile = Path(args.famFile)
@@ -221,5 +227,6 @@ if __name__ == "__main__":
     outDir = Path(args.outDir)
     dataCol = args.dataCol
     ndays = args.ndays
+    night = args.night
 
-    main(famFile, dataDir, outDir, dataCol, ndays)
+    main(night, famFile, dataDir, outDir, dataCol, ndays)

@@ -37,7 +37,7 @@ def imputed_data_exists(path):
 
 def famacha_dataset_exists(path):
     folders = [x[0] for x in os.walk(path) if len(x) > 0 and "dataset" in x[0] and "temp" not in x[0]and "hum" not in x[0] and "temp_humidity" not in x[0]]
-    return len(folders) > 0, [x for x in folders if "gain" in x][::-1], [x for x in folders if "li" in x][::-1]
+    return len(folders) > 0, [x for x in folders if "gain" in x and "entireday" in x][::-1], [x for x in folders if "li" in x and "entireday" in x][::-1], [x for x in folders if "gain" in x and "nightonly" in x][::-1], [x for x in folders if "li" in x and "nightonly" in x][::-1]
 
 
 def weather_files_exist(path):
@@ -81,8 +81,8 @@ if __name__ == "__main__":
     parser.add_argument('--w', type=str, default='n')
     parser.add_argument('--add_t_col', help="for imputation, add time column in reshape", type=str, default='y')
     parser.add_argument('--thresh_daytime', help="for imputation, minimum number of positive count in 1 day.",
-                        default=50, type=int)
-    parser.add_argument('--thresh_nan_ratio', help="for imputation, max percent of nan allowed in 1 day.", default=90,
+                        default=100, type=int)
+    parser.add_argument('--thresh_nan_ratio', help="for imputation, max percent of nan allowed in 1 day.", default=80,
                         type=int)
 
     parser.add_argument('--ndays', help="Number of days in samples", default=7, type=int)
@@ -98,58 +98,135 @@ if __name__ == "__main__":
     # imputed_data_dir = "F:\Data2\job_debug\miss_rate_0_0_iteration_0600_thresh_100_anscombe_False_n_top_traces_17"
     print("imputation done.")
 
-    dataset_exist, dataset_files_gain, dataset_files_li = famacha_dataset_exists(args.output_dir)
+    dataset_exist, dataset_files_gain, dataset_files_li, dataset_files_gain_night, dataset_files_li_night = famacha_dataset_exists(args.output_dir)
 
     if not dataset_exist:
         famFile = Path(args.fam_file)
         dataDir = Path(imputed_data_dir)
         dataset_files_gain = []
         dataset_files_li = []
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_7day"), "first_sensor_value_gain",
-                                7))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_6day"), "first_sensor_value_gain",
-                                6))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_5day"), "first_sensor_value_gain",
-                                5))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_4day"), "first_sensor_value_gain",
-                                4))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_3day"), "first_sensor_value_gain",
-                                3))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_2day"), "first_sensor_value_gain",
-                                2))
-        dataset_files_gain.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_gain_1day"), "first_sensor_value_gain",
-                                1))
+        dataset_files_gain_night = []
+        dataset_files_li_night = []
+        for night in [True, False]:
 
+            night_label = "nightonly" if night else "entireday"
 
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_7day"), "first_sensor_value_li",
-                                7))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_6day"), "first_sensor_value_li",
-                                6))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_5day"), "first_sensor_value_li",
-                                5))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_4day"), "first_sensor_value_li",
-                                4))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_3day"), "first_sensor_value_li",
-                                3))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_2day"), "first_sensor_value_li",
-                                2))
-        dataset_files_li.append(
-            createDataSets.main(famFile, dataDir, Path(args.output_dir + "/dataset_li_1day"), "first_sensor_value_li",
-                                1))
+            if night:
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_7day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        7))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_6day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        6))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_5day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        5))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_4day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        4))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_3day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        3))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_2day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        2))
+                dataset_files_gain_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_gain_1day_" + night_label),
+                                        "first_sensor_value_gain",
+                                        1))
 
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_7day_" + night_label),
+                                        "first_sensor_value_li",
+                                        7))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_6day_" + night_label),
+                                        "first_sensor_value_li",
+                                        6))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_5day_" + night_label),
+                                        "first_sensor_value_li",
+                                        5))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_4day_" + night_label),
+                                        "first_sensor_value_li",
+                                        4))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_3day_" + night_label),
+                                        "first_sensor_value_li",
+                                        3))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_2day_" + night_label),
+                                        "first_sensor_value_li",
+                                        2))
+                dataset_files_li_night.append(
+                    createDataSets.main(night, famFile, dataDir,
+                                        Path(args.output_dir + "/dataset_li_1day_" + night_label),
+                                        "first_sensor_value_li",
+                                        1))
+            else:
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_7day_" + night_label), "first_sensor_value_gain",
+                                        7))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_6day_" + night_label), "first_sensor_value_gain",
+                                        6))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_5day_" + night_label), "first_sensor_value_gain",
+                                        5))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_4day_" + night_label), "first_sensor_value_gain",
+                                        4))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_3day_" + night_label), "first_sensor_value_gain",
+                                        3))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_2day_" + night_label), "first_sensor_value_gain",
+                                        2))
+                dataset_files_gain.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_gain_1day_" + night_label), "first_sensor_value_gain",
+                                        1))
+
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_7day_" + night_label), "first_sensor_value_li",
+                                        7))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_6day_" + night_label), "first_sensor_value_li",
+                                        6))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_5day_" + night_label), "first_sensor_value_li",
+                                        5))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_4day_" + night_label), "first_sensor_value_li",
+                                        4))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_3day_" + night_label), "first_sensor_value_li",
+                                        3))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_2day_" + night_label), "first_sensor_value_li",
+                                        2))
+                dataset_files_li.append(
+                    createDataSets.main(night, famFile, dataDir, Path(args.output_dir + "/dataset_li_1day_" + night_label), "first_sensor_value_li",
+                                        1))
 
     # dataset_files = ['F:\\Data2\\job_debug\\dataset_gain_7day', 'F:\\Data2\\job_debug\\dataset_gain_6day',
     #                  'F:\\Data2\\job_debug\\dataset_gain_5day', 'F:\\Data2\\job_debug\\dataset_gain_4day',
@@ -157,30 +234,66 @@ if __name__ == "__main__":
     #                  'F:\\Data2\\job_debug\\dataset_gain_1day']
 
     print(dataset_files_gain, dataset_files_li)
+    print(dataset_files_gain_night, dataset_files_li_night)
     print("dataset creation done.")
 
-    dataset_exist, temperature_files, humidity_files = weather_files_exist(args.output_dir)
-    if not dataset_exist:
-        print("create weather data.")
-        humidity_files = []
-        temperature_files = []
-        for d_f in dataset_files_gain:
-            files = glob.glob(d_f + "/*.csv")
-            t_f, h_f = add_exogenous.main(files[0], d_f, args.weather_file)
-            temperature_files.append(t_f)
-            humidity_files.append(h_f)
-    print("weather data creation done.")
+    # dataset_exist, temperature_files, humidity_files = weather_files_exist(args.output_dir)
+    # if not dataset_exist:
+    #     print("create weather data.")
+    #     humidity_files = []
+    #     temperature_files = []
+    #     for d_f in dataset_files_gain:
+    #         files = glob.glob(d_f + "/*.csv")
+    #         t_f, h_f = add_exogenous.main(files[0], d_f, args.weather_file)
+    #         temperature_files.append(t_f)
+    #         humidity_files.append(h_f)
+    # print("weather data creation done.")
+    humidity_files = [None, None, None, None, None, None, None]
+    temperature_files = [None, None, None, None, None, None, None]
 
     steps = [
              # ["TEMPERATURE", "STANDARDSCALER"],
              # ["HUMIDITY", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD", "PCA(3)"],
+
              ["QN", "ANSCOMBE", "LOG"],
-             # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
-             # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER", "PCA(3)"],
+
+             ["QN", "ANSCOMBE", "LOG", "DIFF"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "PCA(3)"],
+
              ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
              ]
+
+
+    steps_night = [
+             ["QN", "ANSCOMBE", "LOG"],
+             ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+             ]
+
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_7day_night", dataset_files_gain_night[0], "1To1", "2To2", False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_6day_night", dataset_files_gain_night[1], "1To1", "2To2", False, 12, humidity_files[1], temperature_files[1], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_5day_night", dataset_files_gain_night[2], "1To1", "2To2", False, 12, humidity_files[2], temperature_files[2], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_4day_night", dataset_files_gain_night[3], "1To1", "2To2", False, 12, humidity_files[3], temperature_files[3], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_3day_night", dataset_files_gain_night[4], "1To1", "2To2", False, 12, humidity_files[4], temperature_files[4], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_2day_night", dataset_files_gain_night[5], "1To1", "2To2", False, 12, humidity_files[5], temperature_files[5], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
+    ml.main(steps_night, args.output_dir + "/ml/ml_kfold_2to2_1day_night", dataset_files_gain_night[6], "1To1", "2To2", False, 12, humidity_files[6], temperature_files[6], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
 
     ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_7day", dataset_files_gain[0], "1To1", "2To2", False, 12, humidity_files[0], temperature_files[0], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
     ml.main(steps, args.output_dir + "/ml/ml_kfold_2to2_6day", dataset_files_gain[1], "1To1", "2To2", False, 12, humidity_files[1], temperature_files[1], 5, 10, 20, 6, True, True, "RepeatedKFold", 6, 60)
