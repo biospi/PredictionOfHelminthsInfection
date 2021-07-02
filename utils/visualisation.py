@@ -559,6 +559,29 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title=
     plt.close(fig)
 
 
+def plotAllFeatures(X, y, out_dir, title="Features visualisation", filename="heatmap.html", yaxis="value", xaxis="features"):
+    dfs = []
+    for i in range(X.shape[0]):
+        x = X[i, :]
+        target = y[i]
+        df = pd.DataFrame({"X": x, "y": target})
+        dfs.append(df)
+    df_data = pd.concat(dfs, axis=0)
+    df_data = df_data.sort_index().reset_index()
+
+    fig = px.line(df_data, x="index", y="X", color='y', line_dash="y")
+
+    fig.update_layout(title_text=title)
+    fig.update_layout(xaxis_title=xaxis)
+    fig.update_layout(yaxis_title=yaxis)
+
+    #fig.show()
+    create_rec_dir(out_dir)
+    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    print(file_path)
+    fig.write_html(file_path)
+
+
 def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False, yaxis="", xaxis="Time in minutes"):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = list(range(X.shape[1]))
@@ -871,7 +894,7 @@ def SampleVisualisation(df, shape, N_META, out_dir, step_slug, sfft_window, stft
                             , vmin=None, vmax=None, standard_scale=True)
 
 
-def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, clf, i, folder, sub_dir_name, auc):
+def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, clf, i, folder, sub_dir_name, auc, DR="PCA"):
     Y = (Y != 1).astype(int)
     test_y = (test_y != 1).astype(int)
     train_y = (train_y != 1).astype(int)
@@ -892,7 +915,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 
     ax.scatter(test_x[test_y == 0, 0], test_x[test_y == 0, 1], test_x[test_y == 0, 2],  marker='o', color="none", edgecolor="black", label='Test data Class0 (Healthy)')
     ax.scatter(test_x[test_y == 1, 0], test_x[test_y == 1, 1], test_x[test_y == 1, 2],  marker='s', color="none", edgecolor="black", label='Test data Class1 (Unhealthy)')
-    ax.set(xlabel="PCA component 1", ylabel="PCA component 2", zlabel="PCA component 3")
+    ax.set(xlabel="%s component 1" % DR, ylabel="%s component 2" % DR, zlabel="%s component 3" % DR)
     handles, labels = ax.get_legend_handles_labels()
     # db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
     # handles.append(db_line)
@@ -907,7 +930,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 
     path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    filename = "3DPCAfold_%d.png" % (i)
+    filename = "3D%sfold_%d.png" % (DR, i)
     final_path = '%s%s' % (path, filename)
     print(final_path)
     try:
@@ -1058,7 +1081,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 #     # input('hello')
 
 
-def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train, title, clf, folder, sub_dir_name, n_bin=8, save=True):
+def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train, title, clf, folder, sub_dir_name, n_bin=8, save=True, DR="PCA"):
     y_ = (y_ != 1).astype(int)
     y_test = (y_test != 1).astype(int)
     #print('graph...')
@@ -1143,7 +1166,7 @@ def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train
     if save:
         path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        filename = "fold_%d.png" % (i)
+        filename = "%s_fold_%d.png" % (DR, i)
         final_path = '%s/%s' % (path, filename)
         print(final_path)
         try:

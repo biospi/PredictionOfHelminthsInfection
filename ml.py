@@ -35,6 +35,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_score, recall_score, f1_score, \
     plot_roc_curve, auc, roc_curve, precision_recall_curve, plot_precision_recall_curve
 from sklearn.model_selection import RepeatedStratifiedKFold, cross_validate, LeaveOneOut, GridSearchCV, RepeatedKFold
@@ -50,8 +51,8 @@ from cwt._cwt import CWT, CWTVisualisation, STFT
 from utils._normalisation import QuotientNormalizer, CenterScaler, BaseLineScaler
 from utils.visualisation import plot_2d_space, plotMlReport, plot_roc_range, plotDistribution, plotMeanGroups, \
     plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plot_pr_range, SampleVisualisation, plotHeatmap, \
-    plot_2D_decision_boundaries, plot_3D_decision_boundaries
-
+    plot_2D_decision_boundaries, plot_3D_decision_boundaries, plotAllFeatures
+import umap
 
 def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
     all_y = []
@@ -116,8 +117,22 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
     fig.savefig(final_path)
     plt.close(fig)
     plt.clf()
-
     return roc_auc
+
+
+def makeYHist(data0, data1, out_dir, cv_name, steps, auc):
+    plt.figure(figsize=(8, 6))
+    plt.hist(data0, bins=100, alpha=0.5, label="healthy (y=0)")
+    plt.hist(data1, bins=100, alpha=0.5, label="unhealthy (y=1)")
+    plt.xlabel("Y probability", size=14)
+    plt.ylabel("Count", size=14)
+    plt.title("Histograms of prediction probabilities (ROC Mean AUC = %0.2f)" % auc)
+    plt.legend(loc='upper right')
+    filename = "%s/overlapping_histograms_y_%s_%s.png" % (out_dir, cv_name, steps)
+    print(filename)
+    plt.savefig(filename)
+    plt.clf()
+    #plt.show()
 
 
 def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days):
@@ -142,8 +157,17 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
         fig_roc, ax_roc = plt.subplots(figsize=(12.80, 7.20))
         fig_pr, ax_pr = plt.subplots(figsize=(12.80, 7.20))
         y_binary = (y.copy() != 1).astype(int)
+
+        data0 = []
+        data1 = []
         for i, (train, test) in enumerate(cv.split(X, y)):
             classifier.fit(X[train], y[train])
+            y_proba_test = classifier.predict_proba(X[test])[:, 1]
+            y_bin_test = y_binary[test]
+            h_0 = y_proba_test[y_bin_test == 0]
+            h_1 = y_proba_test[y_bin_test == 1]
+            data0.extend(h_0)
+            data1.extend(h_1)
             if isinstance(cv, StratifiedLeaveTwoOut):
                 print("make_roc_curve fold %d/%d" % (i, cv.nfold))
                 viz_roc = plot_roc_curve(classifier, X[test], y[test])
@@ -154,19 +178,19 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
                     viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                          label=label,
                                          alpha=1, lw=1.5, ax=ax_roc)
-                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
                     ax_pr.step(recall, precision, label=label, lw=1.5)
                 elif viz_roc.roc_auc < 0.2:
                     viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                          label=label,
                                          alpha=1, lw=1.5, ax=ax_roc)
-                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
                     ax_pr.step(recall, precision, label=label, lw=1.5)
                 else:
                     viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                          label=None,
                                          alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
-                    precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                    precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
                     ax_pr.step(recall, precision, label=None)
             else:
                 print("make_roc_curve fold %d/%d" % (i, cv.n_repeats * cv.cvargs['n_splits']))
@@ -180,16 +204,19 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
                 viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                      label=None,
                                      alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
-                precision, recall, _ = precision_recall_curve(y_binary[test], classifier.predict_proba(X[test])[:, 1])
+                precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
                 ax_pr.step(recall, precision, label=None, lw=1, c="tab:blue")
 
             interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
             interp_tpr[0] = 0.0
             print("auc=", viz_roc.roc_auc)
-            # if "PCA(2)" in steps:
-            #     plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps)
+            if "TSNE(2)" in steps or "UMAP" in steps:
+                plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps, DR="TSNE")
             if "PCA(3)" in steps and "linear" in steps.lower():
                 plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc)
+            if "TSNE(3)" in steps and "linear" in steps.lower():
+                plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc, DR="TSNE")
+
             if np.isnan(viz_roc.roc_auc):
                 continue
             tprs.append(interp_tpr)
@@ -209,6 +236,7 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
         plt.close(fig_roc)
         plt.close(fig_pr)
         plt.clf()
+        makeYHist(data0, data1, output_dir, cv_name, steps, mean_auc)
         return mean_auc, aucs_roc
 
 
@@ -251,7 +279,7 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:
-        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM", "STFT", "STANDARDSCALER", "DIFFAPPEND", "DIFFLASTD", "DIFF", "DIFFLASTDAPPEND"]:
+        if step not in ["ANSCOMBE", "LOG", "QN", "CWT", "CENTER", "MINMAX", "PCA", "BASELINERM", "STFT", "STANDARDSCALER", "DIFFAPPEND", "DIFFLASTD", "DIFF", "DIFFLASTDAPPEND", "TSNE"]:
             warnings.warn("processing step %s does not exist!" % step)
         #plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step)
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
@@ -415,6 +443,16 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
             df = df.dropna(axis=1, how='all') #removes nan from coi
             del data_frame_cwt
             del data_frame_cwt_raw
+        if "TSNE" in step:
+            tsne_dim = int(step[step.find("(") + 1:step.find(")")])
+            print("tsne_dim", tsne_dim)
+            df_before_reduction = df.iloc[:, :-N_META].values
+            data_frame_tsne = pd.DataFrame(TSNE(n_components=tsne_dim).fit_transform(df_before_reduction))
+            data_frame_tsne.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_tsne, df_meta], axis=1)
+            del data_frame_tsne
+
         if "PCA" in step:
             pca_dim = int(step[step.find("(")+1:step.find(")")])
             print("pca_dim", pca_dim)
@@ -424,6 +462,14 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_pca, df_meta], axis=1)
             del data_frame_pca
+
+        if "UMAP" in step:
+            df_before_reduction = df.iloc[:, :-N_META].values
+            data_frame_umap = pd.DataFrame(umap.UMAP().fit_transform(df_before_reduction))
+            data_frame_umap.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_umap, df_meta], axis=1)
+            del data_frame_umap
 
         print("AFTER STEP ->", df)
         if "CWT" not in step_slug:
@@ -464,6 +510,7 @@ def loadActivityData(filepath, day):
             new_label.append(v)
 
         data_frame["label"] = new_label
+
     # up_down = False
     # if up_down:
     #     new_label = []
@@ -473,14 +520,14 @@ def loadActivityData(filepath, day):
     #         a = int(split[0])
     #         b = int(split[1])
     #
-    #         if a > b:
+    #         if a == 1 or b == 1:
     #             new_label.append("1To1")
     #             continue
-    #         if a < b:
-    #             new_label.append("2To2")
-    #             continue
+    #         # if a < b:
+    #         #     new_label.append("2To2")
+    #         #     continue
     #
-    #         new_label.append("other")
+    #         new_label.append("2To2")
     #
     #     data_frame["label"] = new_label
 
@@ -603,6 +650,7 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
         os.makedirs(output_dir)
 
     plotHeatmap(X, output_dir, "CLF_INPUT_%s" % steps, "CLF_INPUT_%s.html" % steps, xaxis="features", yaxis="value")
+    plotAllFeatures(X, y, output_dir, filename="CLF_ALLFEATURES_%s.html" % steps)
 
     filename_2d_scatter = "%s/PLS/%s_2DPLS_days_%d_option_%s_downsampled_%s_sampling_%s.png" % (
         output_dir, farm_id, days, steps, downsample_false_class, sampling)
@@ -942,49 +990,51 @@ if __name__ == "__main__":
     #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
     #          ]
     #
+
+    # steps = [
+    #          # ["TEMPERATURE", "STANDARDSCALER"],
+    #          # ["HUMIDITY", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTD"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTD", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG"],
+    #          ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER", "PCA(3)"],
+    #
+    #          ["QN", "ANSCOMBE", "LOG", "DIFF"],
+    #          ["QN", "ANSCOMBE", "LOG", "DIFF", "PCA(3)"],
+    #
+    #          # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
+    #          # # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
+    #          # ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
+    #          # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER", "PCA(3)"],
+    #          # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
+    #          ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+    #          ]
+
+    # if "night" in output_dir:
     steps = [
-             # ["TEMPERATURE", "STANDARDSCALER"],
-             # ["HUMIDITY", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD", "PCA(3)"],
-
-             ["QN", "ANSCOMBE", "LOG"],
-             ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
-
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "PCA(3)"],
-
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFLASTDAPPEND", "STANDARDSCALER", "PCA(3)"],
-
-             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "PCA(3)"],
-
-             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "DIFFAPPEND", "STANDARDSCALER", "PCA(3)"],
-
              ["QN", "ANSCOMBE", "LOG", "DIFF"],
-             ["QN", "ANSCOMBE", "LOG", "DIFF", "PCA(3)"],
-
-             # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STANDARDSCALER"],
-             # # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STANDARDSCALER"],
-             # ["QN", "ANSCOMBE", "LOG", "CENTER", "STFT", "STANDARDSCALER"],
-             # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER", "PCA(3)"],
-             # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER", "PCA(3)"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "UMAP"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "STANDARDSCALER", "UMAP"],
+             ["QN", "ANSCOMBE", "LOG"],
+             ["QN", "ANSCOMBE", "LOG", "DIFFLASTD"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "STANDARDSCALER"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "CWT(MORL)", "UMAP"],
+             ["QN", "ANSCOMBE", "LOG", "DIFF", "CWT(MORL)", "STANDARDSCALER", "UMAP"]
              ]
-
-    if "night" in output_dir:
-        steps = [
-                 ["QN", "ANSCOMBE", "LOG"],
-                 ["QN", "ANSCOMBE", "LOG", "PCA(3)"],
-                 ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MEXH)", "STANDARDSCALER"],
-                 ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STANDARDSCALER"]
-                 ]
-
-
-
 
     main(steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,
          hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window)

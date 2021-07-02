@@ -171,7 +171,7 @@ if __name__ == "__main__":
     # output_dir = "/".join(path.split("/")[:-1])
     # plotMlReport(path, output_dir)
     # exit()
-    directory = "F:/Data2/job_cedara_debug_night/ml"
+    directory = "F:/Data2/job_delmas_debugbiospi/ml"
     output_dir = "/".join(directory.split("/")[:-1])
     all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
     all_csv_files = [x for x in all_csv_files if "final" in x]
