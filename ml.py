@@ -28,29 +28,20 @@ import os
 
 import pandas as pd
 
-from model.data_loader import loadActivityData
+from model.data_loader import loadActivityData, parse_param_from_filename
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import applyPreprocessingSteps
 from utils.visualisation import plotMlReport, plotMeanGroups, \
     plot_zeros_distrib, plot_groups, plot_time_lda, plot_time_pca, plotHeatmap
 
 
-def parse_param_from_filename(file):
-    split = file.split("/")[-1].split('.')[0].split('_')
-    # activity_delmas_70101200027_dbft_1_1min
-    sampling = split[5]
-    days = int(split[4])
-    farm_id = split[1] + "_" + split[2]
-    option = split[0]
-    return days, farm_id, option, sampling
 
-
-def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_unhealthy, stratify, n_scales,
+def main(preprocessing_steps, output_dir, dataset_folder, class_healthy_label, class_unhealthy_label, stratify, n_scales,
          hum_file, temp_file, n_splits, n_repeats, epochs, n_process, output_samples, output_cwt, cv, wavelet_f0, sfft_window):
     print("output_dir=", output_dir)
     print("dataset_filepath=", dataset_folder)
-    print("class_healthy=", class_healthy)
-    print("class_unhealthy=", class_unhealthy)
+    print("class_healthy=", class_healthy_label)
+    print("class_unhealthy=", class_unhealthy_label)
     print("output_samples=", output_samples)
     print("stratify=", stratify)
     print("output_cwt=", output_cwt)
@@ -103,32 +94,8 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
     for file in files:
         days, farm_id, option, sampling = parse_param_from_filename(file)
         print("loading dataset file %s ..." % file)
-        data_frame, N_META = loadActivityData(file, day)
-
-        data_frame_o = data_frame.copy()
-        print(data_frame)
-
-        # Hot Encode of FAmacha targets and assign integer target to each famacha label
-        data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
-        flabels = [x for x in data_frame_labeled.columns if 'label' in x]
-        data_frame["target"] = 0
-        for i, flabel in enumerate(flabels):
-            data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
-            data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
-        class_count = {}
-        label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
-        label_series_inverse = dict((v, k) for k, v in label_series.items())
-        class_healthy = label_series_inverse[class_healthy]
-        class_unhealthy = label_series_inverse[class_unhealthy]
-        print(label_series)
-        class_healthy_label = label_series[class_healthy]
-        class_unhealthy_label = label_series[class_unhealthy]
-        for k in label_series.keys():
-            class_count[label_series[k] + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]
-        print(class_count)
-        # drop label column stored previously, just keep target for ml
-        data_frame = data_frame.drop('label', 1)
-        print(data_frame)
+        data_frame, N_META, class_healthy_target, class_unhealthy_target, label_series = loadActivityData(file, day,
+                                                                                                          class_healthy_label, class_unhealthy_label)
 
         #plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
         ################################################################################################################
@@ -136,7 +103,7 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
         ################################################################################################################
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         df_norm = applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, ["QN"],
-                                          class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+                                          class_healthy_label, class_unhealthy_label, class_healthy_target, class_unhealthy_target,
                                           clf_name="SVM_QN_VISU", n_scales=n_scales)
         plot_zeros_distrib(label_series, df_norm, output_dir,
                            title='Percentage of zeros in activity per sample after normalisation')
@@ -152,32 +119,31 @@ def main(preprocessing_steps, output_dir, dataset_folder, class_healthy, class_u
 
         ntraces = 2
         idx_healthy, idx_unhealthy = plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label,
-                                                 class_healthy,
-                                                 class_unhealthy, output_dir, data_frame.copy(), title="Raw imputed",
+                                                 class_healthy_target, class_unhealthy_target, output_dir, data_frame.copy(), title="Raw imputed",
                                                  xlabel="Time",
                                                  ylabel="activity", ntraces=ntraces)
-        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy,
+        plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy_target, class_unhealthy_target,
                     output_dir,
                     df_norm, title="Normalised(Quotient Norm) samples", xlabel="Time", ylabel="activity",
                     idx_healthy=idx_healthy, idx_unhealthy=idx_unhealthy, stepid=2, ntraces=ntraces)
         ################################################################################################################
         # keep only two class of samples
-        data_frame = data_frame[data_frame["target"].isin([class_healthy, class_unhealthy])]
+        data_frame = data_frame[data_frame["target"].isin([class_healthy_target, class_unhealthy_target])]
         animal_ids = data_frame.iloc[0:len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
             df_processed = applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, data_frame.copy(), N_META, output_dir, steps,
-                                                   class_healthy_label, class_unhealthy_label, class_healthy,
-                                                   class_unhealthy, clf_name="SVM", output_dim=data_frame.shape[0],
+                                                   class_healthy_label, class_unhealthy_label, class_healthy_target,
+                                                   class_unhealthy_target, clf_name="SVM", output_dim=data_frame.shape[0],
                                                    n_scales=n_scales)
-            targets = df_processed["target"]
-            df_processed = df_processed.iloc[:, :-N_META]
-            df_processed["target"] = targets
+            # targets = df_processed["target"]
+            # df_processed = df_processed.iloc[:, :-N_META]
+            # df_processed["target"] = targets
             process_data_frame_svm(output_dir, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug,
                                    n_splits, n_repeats,
-                                   sampling, enable_downsample_df, label_series, class_healthy, class_unhealthy,
+                                   sampling, enable_downsample_df, label_series, class_healthy_target, class_unhealthy_target,
                                    cv=cv)
         #2DCNN
         # for steps in [["QN", "ANSCOMBE", "LOG"]]:

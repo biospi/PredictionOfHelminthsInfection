@@ -27,8 +27,9 @@ def setupGraphOutputPath(output_dir):
 
 
 def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, animal_ids, df, N_META, output_dir, steps, class_healthy_label, class_unhealthy_label,
-                            class_healthy, class_unhealthy, clf_name="", output_dim=2, n_scales=None):
+                            class_healthy_target, class_unhealthy_target, clf_name="", output_dim=2, n_scales=None, farm_name=""):
     step_slug = "_".join(steps)
+    step_slug = farm_name + "_" + step_slug
     graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
 
     if len(steps) == 0:
@@ -191,7 +192,7 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
 
             data_frame_cwt.index = df.index# need to keep original sample index!!!!
             CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
-                             data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy)
+                             data_frame_cwt, class_healthy_label, class_unhealthy_label, class_healthy_target, class_unhealthy_target)
 
             data_frame_cwt_raw.index = df.index  # need to keep original sample index!!!!
             df = pd.concat([data_frame_cwt_raw, df_meta], axis=1)
@@ -235,6 +236,10 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
 
     # if "PCA" in step_slug:
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
+    targets = df["target"]
+    df = df.iloc[:, :-N_META]
+    df["target"] = targets
+    print(df)
     return df
 
 

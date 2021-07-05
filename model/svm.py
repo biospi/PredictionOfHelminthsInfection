@@ -138,75 +138,82 @@ def makeRocCurve(clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal
 
         data0 = []
         data1 = []
-        for i, (train, test) in enumerate(cv.split(X, y)):
-            classifier.fit(X[train], y[train])
-            y_proba_test = classifier.predict_proba(X[test])[:, 1]
-            y_bin_test = y_binary[test]
-            h_0 = y_proba_test[y_bin_test == 0]
-            h_1 = y_proba_test[y_bin_test == 1]
-            data0.extend(h_0)
-            data1.extend(h_1)
-            if isinstance(cv, StratifiedLeaveTwoOut):
-                print("make_roc_curve fold %d/%d" % (i, cv.nfold))
-                viz_roc = plot_roc_curve(classifier, X[test], y[test])
-                #viz_pr = plot_precision_recall_curve(classifier, X[test], y_binary[test])
 
-                label = "%d auc=%d idx=%d" % (int(float(np.unique(cv.animal_ids[test])[0])), viz_roc.roc_auc*100, test[0])
-                if viz_roc.roc_auc > 0.95:
-                    viz_roc = plot_roc_curve(classifier, X[test], y[test],
-                                         label=label,
-                                         alpha=1, lw=1.5, ax=ax_roc)
-                    precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
-                    ax_pr.step(recall, precision, label=label, lw=1.5)
-                elif viz_roc.roc_auc < 0.2:
-                    viz_roc = plot_roc_curve(classifier, X[test], y[test],
-                                         label=label,
-                                         alpha=1, lw=1.5, ax=ax_roc)
-                    precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
-                    ax_pr.step(recall, precision, label=label, lw=1.5)
+        if cv is None:
+            a = [(np.arange(y.size), np.arange(y.size))]
+        else:
+            a = cv.split(X, y)
+
+        for i, (train, test) in enumerate(a):
+                classifier.fit(X[train], y[train])
+                y_proba_test = classifier.predict_proba(X[test])[:, 1]
+                y_bin_test = y_binary[test]
+                h_0 = y_proba_test[y_bin_test == 0]
+                h_1 = y_proba_test[y_bin_test == 1]
+                data0.extend(h_0)
+                data1.extend(h_1)
+                if isinstance(cv, StratifiedLeaveTwoOut):
+                    print("make_roc_curve fold %d/%d" % (i, cv.nfold))
+                    viz_roc = plot_roc_curve(classifier, X[test], y[test])
+                    #viz_pr = plot_precision_recall_curve(classifier, X[test], y_binary[test])
+
+                    label = "%d auc=%d idx=%d" % (int(float(np.unique(cv.animal_ids[test])[0])), viz_roc.roc_auc*100, test[0])
+                    if viz_roc.roc_auc > 0.95:
+                        viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                             label=label,
+                                             alpha=1, lw=1.5, ax=ax_roc)
+                        precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
+                        ax_pr.step(recall, precision, label=label, lw=1.5)
+                    elif viz_roc.roc_auc < 0.2:
+                        viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                             label=label,
+                                             alpha=1, lw=1.5, ax=ax_roc)
+                        precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
+                        ax_pr.step(recall, precision, label=label, lw=1.5)
+                    else:
+                        viz_roc = plot_roc_curve(classifier, X[test], y[test],
+                                             label=None,
+                                             alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
+                        precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
+                        ax_pr.step(recall, precision, label=None)
                 else:
+                    print("make_roc_curve fold %d/%d" % (i, cv.n_repeats * cv.cvargs['n_splits']))
+                    animal_ids = np.array(animal_ids)
+                    print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, train, "\nSAMPLE TEST IDX:",
+                          test, "\nTEST TARGET:",
+                          np.unique(y[test]), "\nTRAIN TARGET:",
+                          np.unique(y[train]), "\nTEST ANIMAL ID:", np.unique(animal_ids[test]),
+                          "\nTRAIN ANIMAL ID:",
+                          np.unique(animal_ids[train]))
                     viz_roc = plot_roc_curve(classifier, X[test], y[test],
                                          label=None,
                                          alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
                     precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
-                    ax_pr.step(recall, precision, label=None)
-            else:
-                print("make_roc_curve fold %d/%d" % (i, cv.n_repeats * cv.cvargs['n_splits']))
-                animal_ids = np.array(animal_ids)
-                print("FOLD %d --> \nSAMPLE TRAIN IDX:" % i, train, "\nSAMPLE TEST IDX:",
-                      test, "\nTEST TARGET:",
-                      np.unique(y[test]), "\nTRAIN TARGET:",
-                      np.unique(y[train]), "\nTEST ANIMAL ID:", np.unique(animal_ids[test]),
-                      "\nTRAIN ANIMAL ID:",
-                      np.unique(animal_ids[train]))
-                viz_roc = plot_roc_curve(classifier, X[test], y[test],
-                                     label=None,
-                                     alpha=0.3, lw=1, ax=ax_roc, c="tab:blue")
-                precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
-                ax_pr.step(recall, precision, label=None, lw=1, c="tab:blue")
+                    ax_pr.step(recall, precision, label=None, lw=1, c="tab:blue")
 
-            interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
-            interp_tpr[0] = 0.0
-            print("auc=", viz_roc.roc_auc)
-            if "TSNE(2)" in steps or "UMAP" in steps:
-                plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps, DR="TSNE")
-            if "PCA(3)" in steps and "linear" in steps.lower():
-                plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc)
-            if "TSNE(3)" in steps and "linear" in steps.lower():
-                plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc, DR="TSNE")
+                interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+                interp_tpr[0] = 0.0
+                print("auc=", viz_roc.roc_auc)
+                if "TSNE(2)" in steps or "UMAP" in steps:
+                    plot_2D_decision_boundaries(viz_roc.roc_auc, i, X, y, X[test], y[test], X[train], y[train], steps, classifier, out_dir, steps, DR="TSNE")
+                if "PCA(3)" in steps and "linear" in steps.lower():
+                    plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc)
+                if "TSNE(3)" in steps and "linear" in steps.lower():
+                    plot_3D_decision_boundaries(X, y, X[train], y[train], X[test], y[test], steps, classifier, i, out_dir, steps, viz_roc.roc_auc, DR="TSNE")
 
-            if np.isnan(viz_roc.roc_auc):
-                continue
-            tprs.append(interp_tpr)
-            aucs_roc.append(viz_roc.roc_auc)
-            aucs_pr.append(auc(recall, precision))
-            precisions.append(precision)
-            recalls.append(recall)
+                if np.isnan(viz_roc.roc_auc):
+                    continue
+                tprs.append(interp_tpr)
+                aucs_roc.append(viz_roc.roc_auc)
+                aucs_pr.append(auc(recall, precision))
+                precisions.append(precision)
+                recalls.append(recall)
 
-            y_ground_truth_pr.append(y_binary[test])
-            y_proba_pr.append(classifier.predict_proba(X[test])[:, 1])
+                y_ground_truth_pr.append(y_binary[test])
+                y_proba_pr.append(classifier.predict_proba(X[test])[:, 1])
 
-            # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+                # ax.plot(viz.fpr, viz.tpr, c="tab:green")
+
         print("make_roc_curve done!")
         mean_auc = plot_roc_range(ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days)
         mean_auc_pr = plot_pr_range(ax_pr, y_ground_truth_pr, y_proba_pr, aucs_pr, out_dir, steps, fig_pr, cv_name, days)

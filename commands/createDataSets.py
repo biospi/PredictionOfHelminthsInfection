@@ -121,7 +121,7 @@ def main(night, famFile, dataDir, outDir, data_col, ndays):
     # base_station = 70091100056
     create_rec_dir(str(outDir))
     # farm_id = str(dataDir).split('\\')[-1]
-    farm_id = "delmas_70101200027"
+    farm_id = "farmid"
     filename = "%s/activity_%s_dbft_%d_1min.json" % (outDir, farm_id, ndays)
     print(filename)
     json.dump(targets_info, open(filename, 'w'))
