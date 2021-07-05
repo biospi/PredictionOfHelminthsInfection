@@ -30,6 +30,7 @@ from pipeline import add_exogenous
 import ml
 import numpy as np
 
+
 def imputed_data_exists(path):
     folders = [x[0] for x in os.walk(path) if len(x) > 0 and "miss_rate" in x[0]]
     return len(folders) > 0, folders[0] if len(folders) > 0 else []

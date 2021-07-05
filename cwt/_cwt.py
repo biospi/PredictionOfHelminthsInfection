@@ -427,9 +427,6 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
     # # new_lab[-1] = matplotlib.text.Text(8, float(l), l)
 
     # axs[1].tick_params(axis='y', which='both', colors='black')
-
-
-
     filename = "%s_%s_%s_%s_idx_%d_%s_cwt_%s.png" % (animal_id, str(target), epoch, date, i, step_slug, filename_sub)
     filepath = "%s/%s" % (out_dir, filename)
     create_rec_dir(filepath)

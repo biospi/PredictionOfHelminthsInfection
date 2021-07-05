@@ -30,8 +30,6 @@ from BaselineRemoval import BaselineRemoval
 
 from utils._normalisation import CenterScaler
 
-
-
 # os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1'  # path to your R installation
 # os.environ[
 #     'R_USER'] = 'C:\\Users\\fo18103\\AppData\\Local\Continuum\\anaconda3\Lib\site-packages\\rpy2'  # path depends on where you installed Python. Mine is the Anaconda distribution
