@@ -7,44 +7,55 @@ This project process accelerometry data and uses machine learning to predict sma
 
 ## How To Use
 ```bash
-usage: ml.py [-h] [--class_healthy CLASS_HEALTHY]
-             [--class_unhealthy CLASS_UNHEALTHY] [--stratify STRATIFY]
-             [--s_output S_OUTPUT] [--cwt CWT] [--n_scales N_SCALES]
-             [--temp_file TEMP_FILE] [--hum_file HUM_FILE]
-             [--n_splits N_SPLITS] [--n_repeats N_REPEATS] [--cv CV]
-             [--wavelet_f0 WAVELET_F0] [--sfft_window SFFT_WINDOW]
-             [--epochs EPOCHS] [--n_process N_PROCESS]
-             output_dir dataset_folder
+Usage: ml.py [OPTIONS]
 
-positional arguments:
-  output_dir            Output directory
-  dataset_folder        Dataset input directory
+  ML
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --class_healthy CLASS_HEALTHY
-                        Label for healthy class
-  --class_unhealthy CLASS_UNHEALTHY
-                        Label for unhealthy class
-  --stratify STRATIFY   Enable stratiy for cross validation
-  --s_output S_OUTPUT   Output sample files
-  --cwt CWT             Enable freq domain (cwt)
-  --n_scales N_SCALES   n scales in dyadic array [2^2....2^n].
-  --temp_file TEMP_FILE
-                        csv file containing temperature features.
-  --hum_file HUM_FILE   csv file containing humidity features.
-  --n_splits N_SPLITS   Number of splits for repeatedkfold cv
-  --n_repeats N_REPEATS
-                        Number of repeats for repeatedkfold cv
-  --cv CV               Cross validation method (LeaveTwoOut|StratifiedLeaveTw
-                        oOut|RepeatedStratifiedKFold|RepeatedKFold|LeaveOneOut
-                        )
-  --wavelet_f0 WAVELET_F0
-                        Mother Wavelet frequency for CWT
-  --sfft_window SFFT_WINDOW
-                        STFT window size
-  --epochs EPOCHS       Cnn epochs
-  --n_process N_PROCESS
-                        Number of threads to use.
+  Args:
+      output_dir: Output directory
+      dataset_folder: Dataset input directory
+      class_healthy: Label for healthy class
+      class_unhealthy: Label for unhealthy class
+      stratify: Enable stratiy for cross validation
+      s_output: Output sample files
+      cwt: Enable freq domain (cwt)
+      n_scales: n scales in dyadic array [2^2....2^n].
+      temp_file: csv file containing temperature features.
+      hum_file: csv file containing humidity features.
+      n_splits: Number of splits for repeatedkfold cv.
+      n_repeats: Number of repeats for repeatedkfold cv.
+      cv: RepeatedKFold
+      wavelet_f0: Mother Wavelet frequency for CWT
+      sfft_window: STFT window size
+      epochs: Cnn epochs
+      n_process:Number of threads to use.
+
+Options:
+  --output-dir DIRECTORY          [required]
+  --dataset-folder DIRECTORY      [required]
+  --preprocessing-steps TEXT      [default: QN, ANSCOMBE, LOG, DIFF]
+  --class-healthy-label TEXT      [default: 1To1]
+  --class-unhealthy-label TEXT    [default: 1To2]
+  --stratify TEXT                 [default: n]
+  --n-scales INTEGER              [default: 30]
+  --hum-file PATH                 [default: .]
+  --temp-file PATH                [default: .]
+  --n-splits INTEGER              [default: 5]
+  --n-repeats INTEGER             [default: 10]
+  --epochs INTEGER                [default: 20]
+  --n-process INTEGER             [default: 6]
+  --output-samples / --no-output-samples
+                                  [default: True]
+  --output-cwt / --no-output-cwt  [default: True]
+  --cv TEXT                       [default: RepeatedKFold]
+  --wavelet-f0 INTEGER            [default: 6]
+  --sfft-window INTEGER           [default: 60]
+  --install-completion [bash|zsh|fish|powershell|pwsh]
+                                  Install completion for the specified shell.
+  --show-completion [bash|zsh|fish|powershell|pwsh]
+                                  Show completion for the specified shell, to
+                                  copy it or customize the installation.
+
+  --help                          Show this message and exit.
 ```
 

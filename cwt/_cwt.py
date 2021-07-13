@@ -28,7 +28,7 @@ from sklearn.metrics import plot_roc_curve
 import plotly.express as px
 from scipy import signal
 
-from utils.Utils import create_rec_dir, anscombe
+from utils.Utils import anscombe
 # import matlab.engine
 # matlab = matlab.engine.start_matlab()
 matlab=None
@@ -167,8 +167,8 @@ def plot_cwt_power_sidebyside(filename_sub, step_slug, output_samples, class_hea
     # ax4.set_xticklabels(labels_)
 
     # plt.show()
-    filename = "%s_%s_%s.png" % (step_slug.replace("->", "_"), title.replace(" ", "_"), filename_sub)
-    filepath = "%s/%s" % (graph_outputdir, filename)
+    filename = f"{step_slug.replace('->', '_')}_{title.replace(' ', '_')}_{filename_sub}.png"
+    filepath = graph_outputdir / filename
     # print('saving fig...')
     print(filepath)
     fig.savefig(filepath)
@@ -206,17 +206,18 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig):
            title="Receiver operating characteristic iteration")
     ax.legend(loc="lower right")
     # fig.show()
-    path = "%s/roc_curve/png/" % out_dir
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    path = out_dir / "roc_curve" / "png"
+    final_path = path / f"roc_{classifier_name}.png"
     print(final_path)
+    final_path.mkdir(parents=True, exist_ok=True)
     fig.savefig(final_path)
 
-    path = "%s/roc_curve/svg/" % out_dir
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
+    path = out_dir / "roc_curve" / "svg"
+    final_path = path / f"roc_{classifier_name}.svg"
     print(final_path)
+    final_path.mkdir(parents=True, exist_ok=True)
     fig.savefig(final_path)
+
     return mean_auc
 
 
@@ -315,9 +316,9 @@ def plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step
         labels_[:] = labels_[0]
         axs[1].set_xticklabels(labels_)
 
-    filename = "%s_%s_%s_%s_idx_%d_%s_sfft.png" % (animal_id, str(target), epoch, date, i, step_slug)
-    filepath = "%s/%s" % (out_dir, filename)
-    create_rec_dir(filepath)
+    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_sfft.png"
+    filepath = out_dir / filename
+    filename.mkdir(parents=True, exist_ok=True)
     print(filepath)
     fig.tight_layout()
     fig.savefig(filepath)
@@ -427,9 +428,9 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
     # # new_lab[-1] = matplotlib.text.Text(8, float(l), l)
 
     # axs[1].tick_params(axis='y', which='both', colors='black')
-    filename = "%s_%s_%s_%s_idx_%d_%s_cwt_%s.png" % (animal_id, str(target), epoch, date, i, step_slug, filename_sub)
-    filepath = "%s/%s" % (out_dir, filename)
-    create_rec_dir(filepath)
+    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_cwt_{filename_sub}.png"
+    filepath = out_dir / filename
+    filepath.mkdir(parents=True, exist_ok=True)
     print(filepath)
     fig.tight_layout()
     fig.savefig(filepath)
@@ -607,9 +608,9 @@ def compute_multi_res(activity, animal_id, target, epoch, date, i, step_slug, ou
             "MRA decomposition %i" % i)
         axs[i, 0].set(xlabel="Time in minute", ylabel="activity")
 
-    filename = "%s_%s_%s_%s_idx_%d_%s_mra.png" % (animal_id, str(target), epoch, date, i, step_slug)
-    filepath = "%s/%s" % (out_dir, filename)
-    create_rec_dir(filepath)
+    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx{i}_{step_slug}_mra.png"
+    filepath = out_dir / filename
+    filepath.mkdir(parents=True, exist_ok=True)
     print(filepath)
     fig.tight_layout()
     fig.savefig(filepath)
@@ -888,10 +889,11 @@ def plotLine(X, out_dir="", title="title", filename="file.html"):
         )
         fig.append_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    #create_rec_dir(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
     # fig.show()
     return trace, title
 
@@ -921,8 +923,8 @@ def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", force_x
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
     # fig.show()
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
     fig.write_html(file_path)
     return trace, title

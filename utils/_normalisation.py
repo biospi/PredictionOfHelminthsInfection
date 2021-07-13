@@ -7,28 +7,45 @@ from sklearn.utils import check_array
 import numpy as np
 from datetime import datetime, timedelta
 
-from utils.Utils import create_rec_dir, anscombe, center_signal
+from utils.Utils import anscombe, center_signal
 from cwt._cwt import cwt_power
 
 np.random.seed(0)
 
 
 def normalize(X, out_dir):
-    out_dir_ = out_dir + "_normalisation"
+    out_dir_ = out_dir / "_normalisation"
     traces = []
     X = X.astype(np.float)
     zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
-    #zmin, zmax = None, None
+    # zmin, zmax = None, None
 
-    traces.append(plotHeatmap(zmin, zmax, np.array(X).copy(), out_dir_, "STEP 0 | Samples", "0_X_samples.html", y_log=True))
+    traces.append(
+        plotHeatmap(
+            zmin,
+            zmax,
+            np.array(X).copy(),
+            out_dir_,
+            "STEP 0 | Samples",
+            "0_X_samples.html",
+            y_log=True,
+        )
+    )
 
-    #step 1 find pointwise median sample [median of col1, .... median of col n].
+    # step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
     median_array[median_array == 0] = 1
-    traces.append(plotLine([median_array], out_dir_, "STEP 1 | find pointwise median sample [median of col1, .... median of col n]", "1_median_array.html"))
-    #cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
+    traces.append(
+        plotLine(
+            [median_array],
+            out_dir_,
+            "STEP 1 | find pointwise median sample [median of col1, .... median of col n]",
+            "1_median_array.html",
+        )
+    )
+    # cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
 
-    #step 2 divide each sample by median array keep div by 0 as NaN!!
+    # step 2 divide each sample by median array keep div by 0 as NaN!!
     X_median = []
     for x in X:
         div = np.divide(x, median_array)
@@ -36,41 +53,80 @@ def normalize(X, out_dir):
         div[div == np.inf] = np.nan
         div[div == 0] = np.nan
         X_median.append(div)
-    traces.append(plotHeatmap(zmin, zmax, np.array(X_median).copy(), out_dir_, "STEP 2 | divide each sample by median array "
-                                                                        "keep div by 0 as NaN, set 0 to NaN", "2_X_median.html", y_log=True))
+    traces.append(
+        plotHeatmap(
+            zmin,
+            zmax,
+            np.array(X_median).copy(),
+            out_dir_,
+            "STEP 2 | divide each sample by median array "
+            "keep div by 0 as NaN, set 0 to NaN",
+            "2_X_median.html",
+            y_log=True,
+        )
+    )
 
-    #step 3 Within each sample (from iii) store the median value of the sample(excluding 0 value!), which will produce an array of
+    # step 3 Within each sample (from iii) store the median value of the sample(excluding 0 value!), which will produce an array of
     # median values (1 per samples).
     within_median = []
     for msample in X_median:
         clean_sample = msample[~np.isnan(msample)]
         within_median.append(np.median(clean_sample))
-    traces.append(plotLine([within_median], out_dir_, "STEP 3 | Within each sample (rows from step2) store the median"
-                                                      " value of the sample, which will produce an array of median "
-                                                      "values (1 per samples)", "3_within_median.html", x_axis_count=True, y_log=True))
+    traces.append(
+        plotLine(
+            [within_median],
+            out_dir_,
+            "STEP 3 | Within each sample (rows from step2) store the median"
+            " value of the sample, which will produce an array of median "
+            "values (1 per samples)",
+            "3_within_median.html",
+            x_axis_count=True,
+            y_log=True,
+        )
+    )
 
-    #step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
+    # step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
     for i, s in enumerate(X):
         qnorm_samples.append(np.divide(s, within_median[i]))
-    traces.append(plotHeatmap(zmin, zmax, np.array(qnorm_samples).copy(), out_dir_, "STEP 4 | Use the array of medians"
-                                                                             " to scale(divide) each original sample,"
-                                                                             " which will give all quotient normalized samples.",
-                              "4_qnorm_sample.html", y_log=True))
+    traces.append(
+        plotHeatmap(
+            zmin,
+            zmax,
+            np.array(qnorm_samples).copy(),
+            out_dir_,
+            "STEP 4 | Use the array of medians"
+            " to scale(divide) each original sample,"
+            " which will give all quotient normalized samples.",
+            "4_qnorm_sample.html",
+            y_log=True,
+        )
+    )
 
-    #step 5 substract step 4 from step 1
+    # step 5 substract step 4 from step 1
     diff = np.log(anscombe(np.array(qnorm_samples))) - np.log(anscombe(median_array))
 
-    traces.append(plotHeatmap(zmin, zmax, diff, out_dir_, "STEP 5 | Substract step 4 (quotient normalised samples)"
-                                                                          " from step 1 (median array)", "5_diff.html", y_log=False))
+    traces.append(
+        plotHeatmap(
+            zmin,
+            zmax,
+            diff,
+            out_dir_,
+            "STEP 5 | Substract step 4 (quotient normalised samples)"
+            " from step 1 (median array)",
+            "5_diff.html",
+            y_log=False,
+        )
+    )
 
     plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
 
     df_norm = np.array(qnorm_samples)
     return df_norm
 
+
 class BaseLineScaler(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False):
+    def __init__(self, norm="q", *, out_dir=None, copy=True, center_by_sample=False):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
@@ -86,7 +142,7 @@ class BaseLineScaler(TransformerMixin, BaseEstimator):
         ----------
         X : array-like
         """
-        self._validate_data(X, accept_sparse='csr')
+        self._validate_data(X, accept_sparse="csr")
         return self
 
     def transform(self, X, copy=None):
@@ -100,18 +156,26 @@ class BaseLineScaler(TransformerMixin, BaseEstimator):
         copy : bool, optional (default: None)
             Copy the input X or not.
         """
-        #copy = copy if copy is not None else self.copy
-        #X = check_array(X, accept_sparse='csr')
+        # copy = copy if copy is not None else self.copy
+        # X = check_array(X, accept_sparse='csr')
         X_br = np.ones(X.shape)
         X_br[:] = np.nan
         for i in range(X.shape[0]):
             X_br[i, :] = BaselineRemoval(X[i, :]).ZhangFit()
-            #X_br[i, :] = BaselineRemoval(X[i, :]).ModPoly(6)
+            # X_br[i, :] = BaselineRemoval(X[i, :]).ModPoly(6)
         return X_br
 
 
 class CenterScaler(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, out_dir=None, copy=True, center_by_sample=False, divide_by_std=False):
+    def __init__(
+        self,
+        norm="q",
+        *,
+        out_dir=None,
+        copy=True,
+        center_by_sample=False,
+        divide_by_std=False
+    ):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
@@ -128,7 +192,7 @@ class CenterScaler(TransformerMixin, BaseEstimator):
         ----------
         X : array-like
         """
-        self._validate_data(X, accept_sparse='csr')
+        self._validate_data(X, accept_sparse="csr")
         return self
 
     def transform(self, X, copy=None):
@@ -142,8 +206,8 @@ class CenterScaler(TransformerMixin, BaseEstimator):
         copy : bool, optional (default: None)
             Copy the input X or not.
         """
-        #copy = copy if copy is not None else self.copy
-        #X = check_array(X, accept_sparse='csr')
+        # copy = copy if copy is not None else self.copy
+        # X = check_array(X, accept_sparse='csr')
         if self.center_by_sample:
             if not isinstance(X, np.ndarray):
                 X = np.array(X)
@@ -164,7 +228,7 @@ class CenterScaler(TransformerMixin, BaseEstimator):
 
 
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
-    def __init__(self, norm='q', *, out_dir=None, copy=True):
+    def __init__(self, norm="q", *, out_dir=None, copy=True):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
@@ -179,7 +243,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         ----------
         X : array-like
         """
-        self._validate_data(X, accept_sparse='csr')
+        self._validate_data(X, accept_sparse="csr")
         return self
 
     def transform(self, X, copy=None):
@@ -193,8 +257,8 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         copy : bool, optional (default: None)
             Copy the input X or not.
         """
-        #copy = copy if copy is not None else self.copy
-        X = check_array(X, accept_sparse='csr')
+        # copy = copy if copy is not None else self.copy
+        X = check_array(X, accept_sparse="csr")
         norm = normalize(X, self.out_dir)
         # norm_simple = normalize_simple(X, self.out_dir)
         return norm
@@ -209,26 +273,34 @@ def createSynthetic(activity):
     return synt.astype(int)
 
 
-def plot_all(traces, out_dir, title="Quotient Normalisation STEPS", filename="steps.html", simple= False):
+def plot_all(
+    traces,
+    out_dir,
+    title="Quotient Normalisation STEPS",
+    filename="steps.html",
+    simple=False,
+):
     ts = []
     for trace in traces:
         ts.append(trace[1])
-    cbarlocs = [.96, 0.75, .60, 0.50, 0.23, .05]
+    cbarlocs = [0.96, 0.75, 0.60, 0.50, 0.23, 0.05]
     if simple:
-        cbarlocs = [.96, 0, .50, 0, .05]
+        cbarlocs = [0.96, 0, 0.50, 0, 0.05]
     fig = make_subplots(rows=len(traces), cols=1, subplot_titles=tuple(ts))
     for i, trace in enumerate(traces):
         trace[0].colorbar = dict(len=0.10, y=cbarlocs[i])
-        fig.append_trace(trace[0], row=i+1, col=1)
+        fig.append_trace(trace[0], row=i + 1, col=1)
     fig.update_layout(title_text=title)
     fig.update_layout(showlegend=False)
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
 
 
-def plotLine(X, out_dir="", title="title", filename="file.html", x_axis_count=False, y_log=False):
+def plotLine(
+    X, out_dir="", title="title", filename="file.html", x_axis_count=False, y_log=False
+):
     # fig = make_subplots(rows=len(transponders), cols=1)
     fig = make_subplots(rows=1, cols=1)
     for i, sample in enumerate(X):
@@ -238,16 +310,16 @@ def plotLine(X, out_dir="", title="title", filename="file.html", x_axis_count=Fa
         if y_log:
             sample_log = np.log(sample)
         trace = go.Line(
-            opacity=.8,
+            opacity=0.8,
             x=timestamp,
             y=sample_log if y_log else sample,
         )
         fig.append_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
     return trace, title
 
 
@@ -259,7 +331,9 @@ def get_time_ticks(nticks):
     return date_list
 
 
-def plotHeatmap(zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False):
+def plotHeatmap(
+    zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False
+):
     # fig = make_subplots(rows=len(transponders), cols=1)
     # ticks = get_time_ticks(X.shape[1])
     ticks = list(range(X.shape[1]))
@@ -271,32 +345,35 @@ def plotHeatmap(zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.ht
             z=X_log if y_log else X,
             x=ticks,
             y=list(range(X.shape[0])),
-            colorscale='Viridis')
+            colorscale="Viridis",
+        )
     else:
         trace = go.Heatmap(
-                z=X_log if y_log else X,
-                x=ticks,
-                y=list(range(X.shape[0])),
-                zmin=zmin,
-                zmax=zmax,
-                colorscale='Viridis')
+            z=X_log if y_log else X,
+            x=ticks,
+            y=list(range(X.shape[0])),
+            zmin=zmin,
+            zmax=zmax,
+            colorscale="Viridis",
+        )
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
-    #fig.show()
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
     return trace, title
 
 
 def createSyntheticActivityData(n_samples=4):
     print("createSyntheticActivityData")
-    samples_path = "F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv"
+    samples_path = (
+        "F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv"
+    )
     df = pd.read_csv(samples_path, header=None)
     df = df.fillna(0)
-    crop = -4 - int(df.shape[1]/1.1)
-    activity = df.iloc[259, 9353: 9353+60*6].values
+    crop = -4 - int(df.shape[1] / 1.1)
+    activity = df.iloc[259, 9353 : 9353 + 60 * 6].values
 
     dataset = []
     for j in range(n_samples):
@@ -308,9 +385,16 @@ def createSyntheticActivityData(n_samples=4):
 
 if __name__ == "__main__":
     print("********QuotientNormalizer*********")
-    df = pd.DataFrame([[4, 1, 2, 2], [1, 3, 0, 3],
-         [0, 7, 5, 1], [2, 0, 6, 8],
-         [1, 6, 5, 4], [1, 2, 0, 4]])
+    df = pd.DataFrame(
+        [
+            [4, 1, 2, 2],
+            [1, 3, 0, 3],
+            [0, 7, 5, 1],
+            [2, 0, 6, 8],
+            [1, 6, 5, 4],
+            [1, 2, 0, 4],
+        ]
+    )
     X = df.values
     print("X=", X)
     X_centered = CenterScaler().transform(X)
@@ -330,6 +414,9 @@ if __name__ == "__main__":
 
     X_normalized = QuotientNormalizer(out_dir=out_dir).transform(X)
 
-    plotLine(X_normalized, out_dir=out_dir, title="Activity sample after quotient normalisation")
+    plotLine(
+        X_normalized,
+        out_dir=out_dir,
+        title="Activity sample after quotient normalisation",
+    )
     print()
-

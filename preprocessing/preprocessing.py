@@ -8,21 +8,21 @@ from sklearn.preprocessing import StandardScaler
 
 from cwt._cwt import STFT, CWT, CWTVisualisation
 from data_imputation.model_utils import MinMaxScaler
-from utils.Utils import create_rec_dir
+
 from utils._anscombe import Anscombe, Sqrt, Log
 from utils._normalisation import BaseLineScaler, CenterScaler, QuotientNormalizer
 from utils.visualisation import plotDistribution
 
 
 def setupGraphOutputPath(output_dir):
-    graph_outputdir = "%s/input_graphs/" % output_dir
+    graph_outputdir = output_dir / "input_graphs"
     # if os.path.exists(graph_outputdir):
     #     print("purge %s ..." % graph_outputdir)
     #     try:
     #         shutil.rmtree(graph_outputdir)
     #     except IOError:
     #         print("file not found.")
-    create_rec_dir(graph_outputdir)
+    graph_outputdir.mkdir(parents=True, exist_ok=True)
     return graph_outputdir
 
 
@@ -30,7 +30,7 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
                             class_healthy_target, class_unhealthy_target, clf_name="", output_dim=2, n_scales=None, farm_name=""):
     step_slug = "_".join(steps)
     step_slug = farm_name + "_" + step_slug
-    graph_outputdir = setupGraphOutputPath(output_dir) + "/" + clf_name + "/" + step_slug
+    graph_outputdir = setupGraphOutputPath(output_dir) / clf_name / step_slug
 
     if len(steps) == 0:
         print("no steps to apply! return data as is")
@@ -157,9 +157,9 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
         if step == "LOG":
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
-            df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir + "/" +step).transform(df.iloc[:, :-N_META].values)
+            df.iloc[:, :-N_META] = QuotientNormalizer(out_dir=graph_outputdir / step).transform(df.iloc[:, :-N_META].values)
         if "STFT" in step:
-            STFT_Transform = STFT(sfft_window=sfft_window, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
+            STFT_Transform = STFT(sfft_window=sfft_window, out_dir=graph_outputdir / step, step_slug=step_slug,
                                   animal_ids=animal_ids, targets=df["target"].tolist(),
                                 dates=df["date"].tolist())
             d = STFT_Transform.transform(df.copy().iloc[:, :-N_META].values)
@@ -171,7 +171,7 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
         if "CWT" in step:
             df_meta = df.iloc[:, -N_META:]
             df_o = df.copy()
-            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir + "/" + step, step_slug=step_slug,
+            CWT_Transform = CWT(wavelet_f0=wavelet_f0, out_dir=graph_outputdir / step, step_slug=step_slug,
                                 n_scales=n_scales, animal_ids=animal_ids, targets=df["target"].tolist(),
                                 dates=df["date"].tolist())
             data_frame_cwt, data_frame_cwt_raw = CWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
@@ -232,7 +232,7 @@ def applyPreprocessingSteps(days, df_hum, df_temp, sfft_window, wavelet_f0, anim
 
         print("AFTER STEP ->", df)
         if "CWT" not in step_slug:
-            plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step)
+            plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, f"data_distribution_after_{step}")
 
     # if "PCA" in step_slug:
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)

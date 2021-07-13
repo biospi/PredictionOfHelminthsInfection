@@ -10,7 +10,6 @@ from sklearn.metrics import make_scorer, balanced_accuracy_score, precision_scor
 from sklearn.model_selection import RepeatedStratifiedKFold, RepeatedKFold, LeaveOneOut, cross_validate
 from sklearn.svm import SVC
 
-from utils.Utils import create_rec_dir
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils.visualisation import plot_2d_space, plot_roc_range, plot_pr_range, plotHeatmap, \
     plot_2D_decision_boundaries, plot_3D_decision_boundaries, plotAllFeatures
@@ -52,9 +51,8 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
     ax.set_title('Receiver operating characteristic LOOCV (at sample level) days=%d' % days)
     ax.legend(loc="lower right")
     ax.grid()
-    path = "%s/roc_curve/%s/" % (out_dir, cv_name)
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    path = out_dir / "roc_curve" / cv_name
+    final_path = path / f"roc_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
     plt.close(fig)
@@ -72,9 +70,8 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
     ax.set_title('Precision Recall LOOCV (at sample level)')
     ax.legend(loc="lower right")
     ax.grid()
-    path = "%s/pr_curve/%s/" % (out_dir, cv_name)
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'pr_%s.png' % classifier_name)
+    path = out_dir / "pr_curve" / cv_name
+    final_path = path / f"pr_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
     plt.close(fig)
@@ -352,16 +349,19 @@ def process_data_frame_svm(output_dir, stratify, animal_ids, out_dir, data_frame
         #                                                                       'n_repeats') else np.nan
         df_report["total_fit_time"] = [time.strftime('%H:%M:%S', time.gmtime(np.nansum(x))) for x in
                                        df_report["fit_time"].values]
-        filename = "%s/%s/%s_%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-            output_dir, cv, scores["classifier"].replace("->", ""), farm_id, days, steps, downsample_false_class, sampling)
-        create_rec_dir(filename)
+        # filename = "%s/%s/%s_%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
+        #     output_dir, cv, scores["classifier"].replace("->", ""), farm_id, days, steps, downsample_false_class, sampling)
+
+        filename = out_dir / cv / f"{scores['classifier'].replace('->', '')}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample_false_class}_sampling_{sampling}.csv"
+        # create_rec_dir(filename)
         df_report.to_csv(filename, sep=',', index=False)
         print("filename=", filename)
         del scores
 
 
 def main():
-    print("main")
+    print("")
+
 
 if __name__ == "__main__":
-    print("Helllo")
+    print("")

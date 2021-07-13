@@ -17,7 +17,7 @@ from sklearn.metrics import auc, precision_recall_curve
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
-from utils.Utils import create_rec_dir, anscombe
+from utils.Utils import anscombe
 import random
 import matplotlib.dates as mdates
 from plotly.subplots import make_subplots
@@ -26,51 +26,11 @@ import plotly.express as px
 from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
 from tqdm import tqdm
 from pathlib import Path
-from BaselineRemoval import BaselineRemoval
 
 from utils._normalisation import CenterScaler
 
-# os.environ['R_HOME'] = 'C:\Program Files\R\R-3.6.1'  # path to your R installation
-# os.environ[
-#     'R_USER'] = 'C:\\Users\\fo18103\\AppData\\Local\Continuum\\anaconda3\Lib\site-packages\\rpy2'  # path depends on where you installed Python. Mine is the Anaconda distribution
-#
-# import rpy2
-# import rpy2.robjects as robjects
-# from rpy2.robjects.packages import importr, isinstalled
-#
-# utils = importr('utils')
-# R = robjects.r
-#
-# # need to be installed from Rstudio or other package installer
-# print('e1071', isinstalled('e1071'))
-# print('rgl', isinstalled('rgl'))
-# print('misc3d', isinstalled('misc3d'))
-# print('plot3D', isinstalled('plot3D'))
-# print('plot3Drgl', isinstalled('plot3Drgl'))
-#
-# if not isinstalled('e1071'):
-#     utils.install_packages('e1071')
-# if not isinstalled('rgl'):
-#     utils.install_packages('rgl')
-# if not isinstalled('misc3d'):
-#     utils.install_packages('misc3d')
-# if not isinstalled('plot3D'):
-#     utils.install_packages('plot3D')
-# if not isinstalled('plot3Drgl'):
-#     utils.install_packages('plot3Drgl')
-#
-# e1071 = importr('e1071')
-# rgl = importr('rgl')
-# misc3d = importr('misc3d')
-# plot3D = importr('plot3D')
-# plot3Drgl = importr('plot3Drgl')
-#
-# print(rpy2.__version__)
-from sklearn.svm import SVC
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn import svm, datasets
-from mpl_toolkits.mplot3d import Axes3D
 
 
 def get_time_ticks(nticks):
@@ -91,17 +51,42 @@ def add_separator(df_):
     df_ = df_.reindex(df_.index.values.tolist() + [str(x).zfill(5) + "a" for x in idxs])
     df_.index = [str(x).zfill(5) for x in df_.index]
     df_ = df_.sort_index()
-    ni = pd.Series(df_["animal_ids"].astype(np.float).values).interpolate(method='nearest').values
+    ni = (
+        pd.Series(df_["animal_ids"].astype(np.float).values)
+        .interpolate(method="nearest")
+        .values
+    )
     df_["animal_ids"] = ni.tolist()
-    nt = pd.Series(df_["target"].astype(np.float).values).interpolate(method='nearest').values
+    nt = (
+        pd.Series(df_["target"].astype(np.float).values)
+        .interpolate(method="nearest")
+        .values
+    )
     df_["target"] = nt.astype(int).tolist()
     return df_
 
 
-def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, graph_outputdir,
-                df, title="title", xlabel='xlabel', ylabel='target',
-                ntraces=1, idx_healthy=None, idx_unhealthy=None,
-                show_max=True, show_min=False, show_mean=True, show_median=True, stepid=0):
+def plot_groups(
+    N_META,
+    animal_ids,
+    class_healthy_label,
+    class_unhealthy_label,
+    class_healthy,
+    class_unhealthy,
+    graph_outputdir,
+    df,
+    title="title",
+    xlabel="xlabel",
+    ylabel="target",
+    ntraces=1,
+    idx_healthy=None,
+    idx_unhealthy=None,
+    show_max=True,
+    show_min=False,
+    show_mean=True,
+    show_median=True,
+    stepid=0,
+):
     """Plot all rows in dataframe for each class Health or Unhealthy.
 
     Keyword arguments:
@@ -118,7 +103,9 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
     if idx_healthy is None or idx_unhealthy is None:
         ymax = np.max(df.iloc[:, :-N_META].values)
     else:
-        ymax = max([np.max(df_healthy[idx_healthy]), np.max(df_unhealthy[idx_unhealthy])])
+        ymax = max(
+            [np.max(df_healthy[idx_healthy]), np.max(df_unhealthy[idx_unhealthy])]
+        )
 
     if show_max:
         ymax = np.max(df_healthy)
@@ -135,13 +122,17 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
         ax1.plot(ticks, df_healthy[i])
         ax1.set(xlabel=xlabel, ylabel=ylabel)
         if ntraces is None:
-            ax1.set_title("Healthy(%s) animals %d / displaying %d" % (
-                class_healthy_label, df_healthy.shape[0], df_healthy.shape[0]))
+            ax1.set_title(
+                "Healthy(%s) animals %d / displaying %d"
+                % (class_healthy_label, df_healthy.shape[0], df_healthy.shape[0])
+            )
         else:
             ax1.set_title(
-                "Healthy(%s) animals %d / displaying %d" % (class_healthy_label, df_healthy.shape[0], ntraces))
+                "Healthy(%s) animals %d / displaying %d"
+                % (class_healthy_label, df_healthy.shape[0], ntraces)
+            )
         ax1.set_ylim([ymin, ymax])
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax1.xaxis.set_major_locator(mdates.DayLocator())
     if idx_unhealthy is None:
         idx_unhealthy = random.sample(range(1, df_unhealthy.shape[0]), ntraces)
@@ -150,36 +141,76 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
         ax2.set(xlabel=xlabel, ylabel=ylabel)
         ax2.set_xticklabels(ticks, fontsize=12)
         if ntraces is None:
-            ax2.set_title("Unhealthy(%s) %d samples / displaying %d" % (
-                class_unhealthy_label, df_unhealthy.shape[0], df_unhealthy.shape[0]))
+            ax2.set_title(
+                "Unhealthy(%s) %d samples / displaying %d"
+                % (class_unhealthy_label, df_unhealthy.shape[0], df_unhealthy.shape[0])
+            )
         else:
             ax2.set_title(
-                "Unhealthy(%s) animals %d / displaying %d" % (class_unhealthy_label, df_unhealthy.shape[0], ntraces))
+                "Unhealthy(%s) animals %d / displaying %d"
+                % (class_unhealthy_label, df_unhealthy.shape[0], ntraces)
+            )
         ax2.set_ylim([ymin, ymax])
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax2.xaxis.set_major_locator(mdates.DayLocator())
     if show_max:
         # ax1.plot(ticks, np.amax(df_healthy, axis=0), c='tab:gray', label='max', linestyle='-')
         # ax2.plot(ticks, np.amax(df_unhealthy, axis=0), c='tab:gray', label='max', linestyle='-')
-        ax1.fill_between(ticks, np.amax(df_healthy, axis=0), color='lightgrey', label='max', zorder=-1)
-        ax2.fill_between(ticks, np.amax(df_unhealthy, axis=0), label='max', color='lightgrey')
+        ax1.fill_between(
+            ticks,
+            np.amax(df_healthy, axis=0),
+            color="lightgrey",
+            label="max",
+            zorder=-1,
+        )
+        ax2.fill_between(
+            ticks, np.amax(df_unhealthy, axis=0), label="max", color="lightgrey"
+        )
         ax1.legend()
         ax2.legend()
     if show_min:
-        ax1.plot(ticks, np.amin(df_healthy, axis=0), c='red', label='min')
-        ax2.plot(ticks, np.amin(df_unhealthy, axis=0), c='red', label='min')
+        ax1.plot(ticks, np.amin(df_healthy, axis=0), c="red", label="min")
+        ax2.plot(ticks, np.amin(df_unhealthy, axis=0), c="red", label="min")
         ax1.legend()
         ax2.legend()
 
     if show_mean:
-        ax1.plot(ticks, np.mean(df_healthy, axis=0), c='black', label='mean', alpha=1, linestyle='-')
-        ax2.plot(ticks, np.mean(df_unhealthy, axis=0), c='black', label='mean', alpha=1, linestyle='-')
+        ax1.plot(
+            ticks,
+            np.mean(df_healthy, axis=0),
+            c="black",
+            label="mean",
+            alpha=1,
+            linestyle="-",
+        )
+        ax2.plot(
+            ticks,
+            np.mean(df_unhealthy, axis=0),
+            c="black",
+            label="mean",
+            alpha=1,
+            linestyle="-",
+        )
         ax1.legend()
         ax2.legend()
 
     if show_median:
-        ax1.plot(ticks, np.median(df_healthy, axis=0), c='black', label='median', alpha=1, linestyle=':')
-        ax2.plot(ticks, np.median(df_unhealthy, axis=0), c='black', label='median', alpha=1, linestyle=':')
+        ax1.plot(
+            ticks,
+            np.median(df_healthy, axis=0),
+            c="black",
+            label="median",
+            alpha=1,
+            linestyle=":",
+        )
+        ax2.plot(
+            ticks,
+            np.median(df_unhealthy, axis=0),
+            c="black",
+            label="median",
+            alpha=1,
+            linestyle=":",
+        )
         ax1.legend()
         ax2.legend()
 
@@ -192,7 +223,7 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
     # print("saved!")
 
     print("building heatmaps...")
-    cbarlocs = [.81, .19]
+    cbarlocs = [0.81, 0.19]
     # add row separator
     df_ = df.copy()
     df_["animal_ids"] = animal_ids
@@ -201,33 +232,55 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
     df_unhealthy_ = add_separator(df_[df_["target"] == class_unhealthy])
 
     t1 = "Healthy(%s) %d animals  %d samples" % (
-        class_healthy_label, df_healthy_["animal_ids"].astype(str).drop_duplicates().size, df_healthy_.shape[0])
+        class_healthy_label,
+        df_healthy_["animal_ids"].astype(str).drop_duplicates().size,
+        df_healthy_.shape[0],
+    )
     t2 = "UnHealthy(%s) %d animals %d samples" % (
-        class_unhealthy_label, df_unhealthy_["animal_ids"].astype(str).drop_duplicates().size, df_unhealthy_.shape[0])
-    fig_ = make_subplots(rows=2, cols=1, x_title=xlabel, y_title="Transponder", subplot_titles=(t1, t2))
+        class_unhealthy_label,
+        df_unhealthy_["animal_ids"].astype(str).drop_duplicates().size,
+        df_unhealthy_.shape[0],
+    )
+    fig_ = make_subplots(
+        rows=2, cols=1, x_title=xlabel, y_title="Transponder", subplot_titles=(t1, t2)
+    )
     fig_.add_trace(
         go.Heatmap(
             z=df_healthy_.iloc[:, :-2],
             x=ticks,
-            y=[str(int(float(x[0]))) + "_" + str(x[1]) for x in
-               zip(df_healthy_["animal_ids"].astype(str).tolist(), list(range(df_healthy_.shape[0])))],
+            y=[
+                str(int(float(x[0]))) + "_" + str(x[1])
+                for x in zip(
+                    df_healthy_["animal_ids"].astype(str).tolist(),
+                    list(range(df_healthy_.shape[0])),
+                )
+            ],
             colorbar=dict(len=0.40, y=cbarlocs[0]),
-            colorscale='Viridis'),
-        row=1, col=1
+            colorscale="Viridis",
+        ),
+        row=1,
+        col=1,
     )
 
     fig_.add_trace(
         go.Heatmap(
             z=df_unhealthy_.iloc[:, :-2],
             x=ticks,
-            y=[str(int(float(x[0]))) + "_" + str(x[1]) for x in
-               zip(df_unhealthy_["animal_ids"].astype(str).tolist(), list(range(df_unhealthy_.shape[0])))],
+            y=[
+                str(int(float(x[0]))) + "_" + str(x[1])
+                for x in zip(
+                    df_unhealthy_["animal_ids"].astype(str).tolist(),
+                    list(range(df_unhealthy_.shape[0])),
+                )
+            ],
             colorbar=dict(len=0.40, y=cbarlocs[1]),
-            colorscale='Viridis'),
-        row=2, col=1
+            colorscale="Viridis",
+        ),
+        row=2,
+        col=1,
     )
-    fig_['layout']['xaxis']['tickformat'] = '%H:%M'
-    fig_['layout']['xaxis2']['tickformat'] = '%H:%M'
+    fig_["layout"]["xaxis"]["tickformat"] = "%H:%M"
+    fig_["layout"]["xaxis2"]["tickformat"] = "%H:%M"
 
     zmin = min([np.min(df_unhealthy.flatten()), np.min(df_unhealthy.flatten())])
     zmax = max([np.max(df_unhealthy.flatten()), np.max(df_unhealthy.flatten())])
@@ -247,38 +300,32 @@ def plot_groups(N_META, animal_ids, class_healthy_label, class_unhealthy_label, 
     return idx_healthy, idx_unhealthy
 
 
-def plot_2d_space(X, y, filename_2d_scatter, label_series, title='title'):
+def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title"):
     fig, ax = plt.subplots(figsize=(12.80, 7.20))
     print("plot_2d_space")
     if len(X[0]) == 1:
         for l in zip(np.unique(y)):
-            ax.scatter(
-                X[y == l, 0],
-                np.zeros(X[y == l, 0].size),
-                label=l
-            )
+            ax.scatter(X[y == l, 0], np.zeros(X[y == l, 0].size), label=l)
     else:
         for l in zip(np.unique(y)):
-            ax.scatter(
-                X[y == l[0]][:, 0],
-                X[y == l[0]][:, 1],
-                label=label_series[l[0]]
-            )
+            ax.scatter(X[y == l[0]][:, 0], X[y == l[0]][:, 1], label=label_series[l[0]])
 
     ax.set_title(title)
-    ax.legend(loc='upper right')
+    ax.legend(loc="upper right")
     ax.set_xlabel("Component 1")
     ax.set_ylabel("Component 2")
     print(filename_2d_scatter)
     folder = "/".join(filename_2d_scatter.split("/")[:-1])
-    create_rec_dir(folder)
+    folder.mkdir(parents=True, exist_ok=True)
     fig.savefig(filename_2d_scatter)
     # plt.show()
     plt.close(fig)
     plt.clf()
 
 
-def plot_time_pca(meta_size, df, output_dir, label_series, title="title", y_col="label"):
+def plot_time_pca(
+    meta_size, df, output_dir, label_series, title="title", y_col="label"
+):
     X = pd.DataFrame(PCA(n_components=2).fit_transform(df.iloc[:, :-meta_size])).values
     y = df["target"].astype(int)
     ##y_label = df_time_domain["label"]
@@ -299,20 +346,35 @@ def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="la
 
 
 def format(text):
-    return text.replace("activity_no_norm", "TimeDom->")\
-        .replace("activity_quotient_norm", "TimeDom->QN->")\
-        .replace("cwt_quotient_norm", "TimeDom->QN->CWT->")\
-        .replace("cwt_no_norm", "TimeDom->CWT->") \
-        .replace("_", "->") \
-        .replace("cwt_quotient_no_norm", "TimeDom->CWT->") \
-        .replace("humidity", "Humidity->") \
-        .replace("_humidity", "Humidity->") \
-        .replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->").replace("_","->")
+    return (
+        text.replace("activity_no_norm", "TimeDom->")
+        .replace("activity_quotient_norm", "TimeDom->QN->")
+        .replace("cwt_quotient_norm", "TimeDom->QN->CWT->")
+        .replace("cwt_no_norm", "TimeDom->CWT->")
+        .replace("_", "->")
+        .replace("cwt_quotient_no_norm", "TimeDom->CWT->")
+        .replace("humidity", "Humidity->")
+        .replace("_humidity", "Humidity->")
+        .replace(",", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("'", "")
+        .replace(" ", "")
+        .replace("->->", "->")
+        .replace("_", "->")
+    )
 
 
 def stringArrayToArray(string):
-    return [float(x) for x in string.replace("\n", "").replace("[", "").replace("]", "").replace(",", "").split(" ") if
-     len(x) > 0]
+    return [
+        float(x)
+        for x in string.replace("\n", "")
+        .replace("[", "")
+        .replace("]", "")
+        .replace(",", "")
+        .split(" ")
+        if len(x) > 0
+    ]
 
 
 def formatForBoxPlot(df):
@@ -320,7 +382,9 @@ def formatForBoxPlot(df):
     dfs = []
     for index, row in df.iterrows():
         data = pd.DataFrame()
-        test_balanced_accuracy_score = stringArrayToArray(row["test_balanced_accuracy_score"])
+        test_balanced_accuracy_score = stringArrayToArray(
+            row["test_balanced_accuracy_score"]
+        )
         test_precision_score0 = stringArrayToArray(row["test_precision_score0"])
         test_precision_score1 = stringArrayToArray(row["test_precision_score1"])
         test_recall_score0 = stringArrayToArray(row["test_recall_score0"])
@@ -336,7 +400,9 @@ def formatForBoxPlot(df):
         data["test_recall_score1"] = test_recall_score1
         data["test_f1_score0"] = test_f1_score0
         data["test_f1_score1"] = test_f1_score1
-        roc_auc_scores.extend([0] * (len(test_balanced_accuracy_score) - len(roc_auc_scores))) #in case auc could not be computed for fold
+        roc_auc_scores.extend(
+            [0] * (len(test_balanced_accuracy_score) - len(roc_auc_scores))
+        )  # in case auc could not be computed for fold
         data["roc_auc_scores"] = roc_auc_scores
         data["config"] = config
         dfs.append(data)
@@ -350,8 +416,10 @@ def plotMlReportFinal(paths, output_dir):
     label_dict = {}
     for path in paths:
         path = path.replace("\\", "/")
-        target_label = [x for x in path.split("/")[4].split("_") if "to" in x.lower()][0]
-        meta = path.split("/")[4].split("_")[-1]+"->"
+        target_label = [x for x in path.split("/")[4].split("_") if "to" in x.lower()][
+            0
+        ]
+        meta = path.split("/")[4].split("_")[-1] + "->"
         if "night" not in meta:
             meta = "entireday->"
         print(target_label)
@@ -362,15 +430,35 @@ def plotMlReportFinal(paths, output_dir):
             medians.append(np.median(v))
         df["median_auc"] = medians
 
-        df["config"] = [("%s" % meta +"%s->" % target_label.upper() + "%dDAYS->" % df["days"].values[0] + format(str(x))).replace("STANDARDSCALER", "STSC").replace("ANSCOMBE", "ANS") for x in list(zip(df.steps, df.classifier))]
-        df = df.sort_values('median_auc')
-        df = df.drop_duplicates(subset=['config'], keep='first')
-        label_dict[target_label.replace("1To1", "Healthy").replace("1To2", "Unhealthy").replace("2to2", "Unhealthy")] = df["class1"].values[0]
-        label_dict[df["class_0_label"].values[0].replace("1To1", "Healthy").replace("1To2", "Unhealthy").replace("2to2", "Unhealthy")] = df["class0"].values[0]
+        df["config"] = [
+            (
+                "%s" % meta
+                + "%s->" % target_label.upper()
+                + "%dDAYS->" % df["days"].values[0]
+                + format(str(x))
+            )
+            .replace("STANDARDSCALER", "STSC")
+            .replace("ANSCOMBE", "ANS")
+            for x in list(zip(df.steps, df.classifier))
+        ]
+        df = df.sort_values("median_auc")
+        df = df.drop_duplicates(subset=["config"], keep="first")
+        label_dict[
+            target_label.replace("1To1", "Healthy")
+            .replace("1To2", "Unhealthy")
+            .replace("2to2", "Unhealthy")
+        ] = df["class1"].values[0]
+        label_dict[
+            df["class_0_label"]
+            .values[0]
+            .replace("1To1", "Healthy")
+            .replace("1To2", "Unhealthy")
+            .replace("2to2", "Unhealthy")
+        ] = df["class0"].values[0]
         dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
-    df = df.sort_values('median_auc')
+    df = df.sort_values("median_auc")
 
     t4 = "AUC performance of different inputs<br>%s" % str(label_dict)
 
@@ -385,12 +473,20 @@ def plotMlReportFinal(paths, output_dir):
 
     df = formatForBoxPlot(df)
 
-    fig.append_trace(px.box(df, x='config', y='test_precision_score0').data[0], row=1, col=1)
-    fig.append_trace(px.box(df, x='config', y='test_precision_score1').data[0], row=2, col=1)
-    fig.append_trace(px.box(df, x='config', y='test_balanced_accuracy_score').data[0], row=3, col=1)
-    fig.append_trace(px.box(df, x='config', y='roc_auc_scores').data[0], row=4, col=1)
+    fig.append_trace(
+        px.box(df, x="config", y="test_precision_score0").data[0], row=1, col=1
+    )
+    fig.append_trace(
+        px.box(df, x="config", y="test_precision_score1").data[0], row=2, col=1
+    )
+    fig.append_trace(
+        px.box(df, x="config", y="test_balanced_accuracy_score").data[0], row=3, col=1
+    )
+    fig.append_trace(px.box(df, x="config", y="roc_auc_scores").data[0], row=4, col=1)
 
-    fig_auc_only.append_trace(px.box(df, x='config', y='roc_auc_scores', title=t4).data[0], row=1, col=1)
+    fig_auc_only.append_trace(
+        px.box(df, x="config", y="roc_auc_scores", title=t4).data[0], row=1, col=1
+    )
 
     # fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
     # fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
@@ -442,33 +538,58 @@ def plotMlReport(path, output_dir):
     df["median_auc"] = medians
 
     df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
-    df = df.sort_values('median_auc')
-    df = df.drop_duplicates(subset=['config'], keep='first')
+    df = df.sort_values("median_auc")
+    df = df.drop_duplicates(subset=["config"], keep="first")
     print(df)
     t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+        df["days"].values[0],
+        df["class0"].values[0],
+        df["class_0_label"].values[0],
+        df["class1"].values[0],
+        df["class_1_label"].values[0],
+    )
 
-    t3 = "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+    t3 = (
+        "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s"
+        % (
+            df["days"].values[0],
+            df["class0"].values[0],
+            df["class_0_label"].values[0],
+            df["class1"].values[0],
+            df["class_1_label"].values[0],
+        )
+    )
 
     t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+        df["days"].values[0],
+        df["class0"].values[0],
+        df["class_0_label"].values[0],
+        df["class1"].values[0],
+        df["class_1_label"].values[0],
+    )
 
     t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-    df["days"].values[0], df["class0"].values[0], df["class_0_label"].values[0], df["class1"].values[0],
-    df["class_1_label"].values[0])
+        df["days"].values[0],
+        df["class0"].values[0],
+        df["class_0_label"].values[0],
+        df["class1"].values[0],
+        df["class_1_label"].values[0],
+    )
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
     df = formatForBoxPlot(df)
 
-    fig.append_trace(px.box(df, x='config', y='test_precision_score0').data[0], row=1, col=1)
-    fig.append_trace(px.box(df, x='config', y='test_precision_score1').data[0], row=2, col=1)
-    fig.append_trace(px.box(df, x='config', y='test_balanced_accuracy_score').data[0], row=3, col=1)
-    fig.append_trace(px.box(df, x='config', y='roc_auc_scores').data[0], row=4, col=1)
+    fig.append_trace(
+        px.box(df, x="config", y="test_precision_score0").data[0], row=1, col=1
+    )
+    fig.append_trace(
+        px.box(df, x="config", y="test_precision_score1").data[0], row=2, col=1
+    )
+    fig.append_trace(
+        px.box(df, x="config", y="test_balanced_accuracy_score").data[0], row=3, col=1
+    )
+    fig.append_trace(px.box(df, x="config", y="roc_auc_scores").data[0], row=4, col=1)
 
     # fig.update_yaxes(range=[df["precision_score0_mean"].min()/1.1, 1], row=1, col=1)
     # fig.update_yaxes(range=[df["precision_score1_mean"].min()/1.1, 1], row=2, col=1)
@@ -505,7 +626,12 @@ def plotMlReport(path, output_dir):
     # fig.show()
 
 
-def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title="Percentage of zeros in activity per sample"):
+def plot_zeros_distrib(
+    label_series,
+    data_frame_no_norm,
+    graph_outputdir,
+    title="Percentage of zeros in activity per sample",
+):
     print("plot_zeros_distrib...")
     data = {}
     target_labels = []
@@ -525,30 +651,35 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title=
     distrib = {}
     for key, value in data.items():
         zeros_count = np.sum(value == np.log(anscombe(0))) / len(value)
-        lcount = np.sum(data_frame_no_norm["target"] == {v: k for k, v in label_series.items()}[key])
+        lcount = np.sum(
+            data_frame_no_norm["target"] == {v: k for k, v in label_series.items()}[key]
+        )
         distrib[str(key) + " (%d)" % lcount] = zeros_count
 
-    plt.bar(range(len(distrib)), list(distrib.values()), align='center')
+    plt.bar(range(len(distrib)), list(distrib.values()), align="center")
     plt.xticks(range(len(distrib)), list(distrib.keys()))
     plt.title(title)
-    plt.xlabel('Famacha samples (number of sample in class)')
-    plt.ylabel('Percentage of zero values in samples')
+    plt.xlabel("Famacha samples (number of sample in class)")
+    plt.ylabel("Percentage of zero values in samples")
     # plt.show()
     print(distrib)
 
-    df = pd.DataFrame.from_dict({'Percent of zeros': z_prct, 'Target': target_labels})
+    df = pd.DataFrame.from_dict({"Percent of zeros": z_prct, "Target": target_labels})
     df.to_csv(graph_outputdir + "/z_prct_data.data")
-    g = (ggplot(df)  # defining what data to use
-         + aes(x='Target', y='Percent of zeros', color='Target', shape='Target')  # defining what variable to use
-         + geom_jitter()  # defining the type of plot to use
-         + stat_summary(geom="crossbar", color="black", width=0.2)
-         + theme(subplots_adjust={'right': 0.82})
-         )
+    g = (
+        ggplot(df)  # defining what data to use
+        + aes(
+            x="Target", y="Percent of zeros", color="Target", shape="Target"
+        )  # defining what variable to use
+        + geom_jitter()  # defining the type of plot to use
+        + stat_summary(geom="crossbar", color="black", width=0.2)
+        + theme(subplots_adjust={"right": 0.82})
+    )
 
     fig = g.draw()
     fig.tight_layout()
     # fig.show()
-    filename = "zero_percent_%s.png" % title.lower().replace(" ","_")
+    filename = "zero_percent_%s.png" % title.lower().replace(" ", "_")
     filepath = "%s/%s" % (graph_outputdir, filename)
     # print('saving fig...')
     fig.savefig(filepath)
@@ -557,7 +688,15 @@ def plot_zeros_distrib(label_series, data_frame_no_norm, graph_outputdir, title=
     plt.close(fig)
 
 
-def plotAllFeatures(X, y, out_dir, title="Features visualisation", filename="heatmap.html", yaxis="value", xaxis="features"):
+def plotAllFeatures(
+    X,
+    y,
+    out_dir,
+    title="Features visualisation",
+    filename="heatmap.html",
+    yaxis="value",
+    xaxis="features",
+):
     dfs = []
     for i in range(X.shape[0]):
         x = X[i, :]
@@ -567,37 +706,48 @@ def plotAllFeatures(X, y, out_dir, title="Features visualisation", filename="hea
     df_data = pd.concat(dfs, axis=0)
     df_data = df_data.sort_index().reset_index()
 
-    fig = px.line(df_data, x="index", y="X", color='y', line_dash="y")
+    fig = px.line(df_data, x="index", y="X", color="y", line_dash="y")
 
     fig.update_layout(title_text=title)
     fig.update_layout(xaxis_title=xaxis)
     fig.update_layout(yaxis_title=yaxis)
 
-    #fig.show()
-    create_rec_dir(out_dir)
+    # fig.show()
+    # create_rec_dir(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir + "/" + filename.replace("=", "_").lower()
     print(file_path)
     fig.write_html(file_path)
 
 
-def plotHeatmap(X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False, yaxis="", xaxis="Time in minutes"):
+def plotHeatmap(
+    X,
+    out_dir,
+    title="Heatmap",
+    filename="heatmap.html",
+    y_log=False,
+    yaxis="",
+    xaxis="Time in minutes",
+):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = list(range(X.shape[1]))
     fig = make_subplots(rows=1, cols=1)
     if y_log:
         X_log = np.log(anscombe(X))
     trace = go.Heatmap(
-            z=X_log if y_log else X,
-            x=ticks,
-            y=list(range(X.shape[0])),
-            colorscale='Viridis')
+        z=X_log if y_log else X,
+        x=ticks,
+        y=list(range(X.shape[0])),
+        colorscale="Viridis",
+    )
     fig.add_trace(trace, row=1, col=1)
     fig.update_layout(title_text=title)
     fig.update_layout(xaxis_title=xaxis)
     fig.update_layout(yaxis_title=yaxis)
-    #fig.show()
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    # fig.show()
+    # create_rec_dir(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
     fig.write_html(file_path)
     return trace, title
@@ -612,28 +762,33 @@ def mean_confidence_interval(x):
     return lo_x_boot, hi_x_boot
 
 
-def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name, days):
+def plot_pr_range(
+    ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name, days
+):
     y_ground_truth = np.concatenate(y_ground_truth)
     y_proba = np.concatenate(y_proba)
     mean_precision, mean_recall, _ = precision_recall_curve(y_ground_truth, y_proba)
 
     mean_auc = auc(mean_recall, mean_precision)
     lo, hi = mean_confidence_interval(aucs)
-    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    label = r"Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )" % (mean_auc, lo, hi)
     if len(aucs) <= 2:
-        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
-    ax_pr.step(mean_recall, mean_precision, label=label, lw=2, color='black')
-    ax_pr.set_xlabel('Recall')
-    ax_pr.set_ylabel('Precision')
-    ax_pr.legend(loc='lower left', fontsize='small')
+        label = r"Mean ROC (Mean AUC = %0.2f)" % mean_auc
+    ax_pr.step(mean_recall, mean_precision, label=label, lw=2, color="black")
+    ax_pr.set_xlabel("Recall")
+    ax_pr.set_ylabel("Precision")
+    ax_pr.legend(loc="lower left", fontsize="small")
 
-    ax_pr.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-              title="Precision Recall curve days=%d cv=%s" % (days, cv_name))
+    ax_pr.set(
+        xlim=[-0.05, 1.05],
+        ylim=[-0.05, 1.05],
+        title="Precision Recall curve days=%d cv=%s" % (days, cv_name),
+    )
     ax_pr.legend(loc="lower right")
     # fig.show()
-    path = "%s/pr_curve/%s/" % (out_dir, cv_name)
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'pr_%s.png' % classifier_name)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "pr_curve" / cv_name
+    final_path = path / f"pr_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
 
@@ -645,29 +800,33 @@ def plot_pr_range(ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name
     return mean_auc
 
 
-def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days):
-    ax.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange',
-            label='Chance', alpha=1)
+def plot_roc_range(
+    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days
+):
+    ax.plot(
+        [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
+    )
 
     mean_tpr = np.mean(tprs, axis=0)
     mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
     # std_auc = np.std(aucs)
     lo, hi = mean_confidence_interval(aucs)
-    label = r'Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )' % (mean_auc, lo, hi)
+    label = r"Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )" % (mean_auc, lo, hi)
     if len(aucs) <= 2:
-        label = r'Mean ROC (Mean AUC = %0.2f)' % mean_auc
-    ax.plot(mean_fpr, mean_tpr, color='black',
-            label=label,
-            lw=2, alpha=1)
+        label = r"Mean ROC (Mean AUC = %0.2f)" % mean_auc
+    ax.plot(mean_fpr, mean_tpr, color="black", label=label, lw=2, alpha=1)
 
-    ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-           title="Receiver operating characteristic days=%d cv=%s" % (days, cv_name))
+    ax.set(
+        xlim=[-0.05, 1.05],
+        ylim=[-0.05, 1.05],
+        title="Receiver operating characteristic days=%d cv=%s" % (days, cv_name),
+    )
     ax.legend(loc="lower right")
     # fig.show()
-    path = "%s/roc_curve/%s/" % (out_dir, cv_name)
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'roc_%s.png' % classifier_name)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "roc_curve" / cv_name
+    final_path = path / f"roc_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
 
@@ -684,28 +843,40 @@ def plotDistribution(X, output_dir, filename):
     hist_array = X.flatten()
     hist_array_nrm = hist_array[~np.isnan(hist_array)]
     df = pd.DataFrame(hist_array_nrm, columns=["value"])
-    fig = px.histogram(df, x="value", nbins=np.unique(hist_array_nrm).size, title=filename)
-    filename = output_dir + "/" + "%s.html" % filename
-    create_rec_dir(filename)
-    fig.write_html(filename)
+    fig = px.histogram(
+        df, x="value", nbins=np.unique(hist_array_nrm).size, title=filename
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filename = output_dir / f"{filename}.html"
+    fig.write_html(str(filename))
 
 
 def figures_to_html(figs, filename="dashboard.html"):
-    dashboard = open(filename, 'w')
+    dashboard = open(filename, "w")
     dashboard.write("<html><head></head><body>" + "\n")
     for fig in figs:
-        inner_html = fig.to_html().split('<body>')[1].split('</body>')[0]
+        inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
         dashboard.write(inner_html)
     dashboard.write("</body></html>" + "\n")
 
-def rolling_window(array, window_size,freq):
+
+def rolling_window(array, window_size, freq):
     shape = (array.shape[0] - window_size + 1, window_size)
     strides = (array.strides[0],) + array.strides
     rolled = np.lib.stride_tricks.as_strided(array, shape=shape, strides=strides)
-    return rolled[np.arange(0,shape[0],freq)]
+    return rolled[np.arange(0, shape[0], freq)]
 
 
-def plotMeanGroups(n_scales, sfft_window, wavelet_f0, df, label_series, N_META, out_dir, filename="mean_of_groups.html"):
+def plotMeanGroups(
+    n_scales,
+    sfft_window,
+    wavelet_f0,
+    df,
+    label_series,
+    N_META,
+    out_dir,
+    filename="mean_of_groups.html",
+):
     print("plot mean group...")
     traces = []
     fig_group_means = go.Figure()
@@ -715,24 +886,24 @@ def plotMeanGroups(n_scales, sfft_window, wavelet_f0, df, label_series, N_META, 
         fig_group = go.Figure()
         n = df_.shape[0]
         for index, row in df_.iterrows():
-            x = np.arange(row.shape[0]-N_META)
+            x = np.arange(row.shape[0] - N_META)
             y = row.iloc[:-N_META].values
             id = str(int(float(row.iloc[-4])))
             date = row.iloc[-2]
             label = label_series[key]
             name = "%s %s %s" % (id, date, label)
-            fig_group.add_trace(go.Scatter(x=x, y=y, mode='lines', name=name))
+            fig_group.add_trace(go.Scatter(x=x, y=y, mode="lines", name=name))
         mean = np.mean(df_.iloc[:, :-N_META], axis=0)
         median = np.median(df_.iloc[:, :-N_META], axis=0)
 
         s = mean.values
         s = anscombe(s)
         s = np.log(s)
-        #s = StandardScaler().fit_transform(s.reshape(-1, 1)).flatten()
-        #s = MinMaxScaler(feature_range=(0, 1)).fit_transform(s.reshape(-1, 1)).flatten()
-        #s = BaselineRemoval(s).ZhangFit()
-        #s = sklearn.preprocessing.normalize(s)
-        #s = BaselineRemoval(s).ModPoly(2)
+        # s = StandardScaler().fit_transform(s.reshape(-1, 1)).flatten()
+        # s = MinMaxScaler(feature_range=(0, 1)).fit_transform(s.reshape(-1, 1)).flatten()
+        # s = BaselineRemoval(s).ZhangFit()
+        # s = sklearn.preprocessing.normalize(s)
+        # s = BaselineRemoval(s).ModPoly(2)
 
         # stop = s.copy()
         # stop[stop >= 0] = 0
@@ -742,49 +913,79 @@ def plotMeanGroups(n_scales, sfft_window, wavelet_f0, df, label_series, N_META, 
         # sbottom[sbottom < 0] = 0
         # sbottom = CenterScaler().transform(sbottom)
 
-        plotLine(np.array([s]), out_dir+"/", label + "_" + str(df_.shape[0]), label + "_" + str(df_.shape[0])+".html")
+        plotLine(
+            np.array([s]),
+            out_dir + "/",
+            label + "_" + str(df_.shape[0]),
+            label + "_" + str(df_.shape[0]) + ".html",
+        )
         #
         # slices = rolling_window(s, 400, 400)
         # for i, s in enumerate(slices):
         s = CenterScaler(divide_by_std=False).transform(s)
         i = 0
         if wavelet_f0 is not None:
-            CWT(hd=True, wavelet_f0=wavelet_f0, out_dir=out_dir+"/", step_slug=label + "_" + str(df_.shape[0]) +"_"+str(i),
-                animal_ids=[], targets=[], dates=[], n_scales=n_scales).transform([s])
+            CWT(
+                hd=True,
+                wavelet_f0=wavelet_f0,
+                out_dir=out_dir + "/",
+                step_slug=label + "_" + str(df_.shape[0]) + "_" + str(i),
+                animal_ids=[],
+                targets=[],
+                dates=[],
+                n_scales=n_scales,
+            ).transform([s])
 
         if sfft_window is not None:
-            STFT(sfft_window=sfft_window, out_dir=out_dir+"/", step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
-                animal_ids=[], targets=[], dates=[]).transform([s])
+            STFT(
+                sfft_window=sfft_window,
+                out_dir=out_dir + "/",
+                step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
+                animal_ids=[],
+                targets=[],
+                dates=[],
+            ).transform([s])
 
-        fig_group.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label), line_color='#000000'))
-        fig_group_means.add_trace(go.Scatter(x=x, y=mean, mode='lines', name="Mean (%d) %s" % (n, label)))
-        fig_group_median.add_trace(go.Scatter(x=x, y=median, mode='lines', name="Median (%d) %s" % (n, label)))
+        fig_group.add_trace(
+            go.Scatter(
+                x=x,
+                y=mean,
+                mode="lines",
+                name="Mean (%d) %s" % (n, label),
+                line_color="#000000",
+            )
+        )
+        fig_group_means.add_trace(
+            go.Scatter(x=x, y=mean, mode="lines", name="Mean (%d) %s" % (n, label))
+        )
+        fig_group_median.add_trace(
+            go.Scatter(x=x, y=median, mode="lines", name="Median (%d) %s" % (n, label))
+        )
         fig_group.update_layout(
             title="%d samples in category %s" % (n, label),
             xaxis_title="Time in minute",
-            yaxis_title="Activity (count)"
+            yaxis_title="Activity (count)",
         )
         fig_group_means.update_layout(
             title="Mean of samples for each category",
             xaxis_title="Time in minute",
-            yaxis_title="Activity (count)"
+            yaxis_title="Activity (count)",
         )
         fig_group_median.update_layout(
             title="Median of samples for each category",
             xaxis_title="Time in minute",
-            yaxis_title="Activity (count)"
+            yaxis_title="Activity (count)",
         )
         traces.append(fig_group)
-        #fig_group.show()
+        # fig_group.show()
 
     traces.append(fig_group_means)
     traces.append(fig_group_median)
-    traces = traces[::-1] #put the median grapth first
-
-    create_rec_dir(out_dir)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    traces = traces[::-1]  # put the median grapth first
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    figures_to_html(traces, filename=file_path)
+    figures_to_html(traces, filename=str(file_path))
 
 
 def plot_mosaic(cv_name, directory_t, filename, subdir):
@@ -797,8 +998,10 @@ def plot_mosaic(cv_name, directory_t, filename, subdir):
 
     images = []
     for i, item in enumerate(cv_dir):
-        files_roc = [str(x) for x in Path(item).rglob('*.png')]
-        files_pr = [str(x) for x in Path(item.replace("roc_curve", "pr_curve")).rglob('*.png')]
+        files_roc = [str(x) for x in Path(item).rglob("*.png")]
+        files_pr = [
+            str(x) for x in Path(item.replace("roc_curve", "pr_curve")).rglob("*.png")
+        ]
         for j in range(len(files_roc)):
             images.append(files_roc[j])
             images.append(files_pr[j])
@@ -808,18 +1011,24 @@ def plot_mosaic(cv_name, directory_t, filename, subdir):
     stft_meta = []
     for image in images:
         steps.append("_".join(image.split("\\")[-1].replace(".png", "").split("_")[1:]))
-        cwt_meta.append("wf0"+image.split("\\")[-4].split("wf0")[-1] if "wf0" in image else "")
-        stft_meta.append("window" + image.split("\\")[-4].split("window")[-1] if "window" in image else "")
+        cwt_meta.append(
+            "wf0" + image.split("\\")[-4].split("wf0")[-1] if "wf0" in image else ""
+        )
+        stft_meta.append(
+            "window" + image.split("\\")[-4].split("window")[-1]
+            if "window" in image
+            else ""
+        )
 
     df = pd.DataFrame()
     df["file"] = images
     df["step"] = steps
     df["wf0"] = cwt_meta
     df["window"] = stft_meta
-    list_of_df = [g for _, g in df.groupby(['step'])]
+    list_of_df = [g for _, g in df.groupby(["step"])]
 
     for dfs_g in list_of_df:
-        for t in ['wf0', 'window']:
+        for t in ["wf0", "window"]:
             for group in [g for _, g in dfs_g.groupby(t)]:
                 if group.shape[0] != 14:
                     continue
@@ -832,26 +1041,37 @@ def plot_mosaic(cv_name, directory_t, filename, subdir):
                 stft_meta = group["window"].values[0]
 
                 fig = plt.figure(figsize=(30.0, 35.0))
-                fig.suptitle('SVM performances for activity dataset (1day ... 7days)\nCross validation=%s | Preprocessing steps=%s' % (cv_name, step_name), fontsize=30)
+                fig.suptitle(
+                    "SVM performances for activity dataset (1day ... 7days)\nCross validation=%s | Preprocessing steps=%s"
+                    % (cv_name, step_name),
+                    fontsize=30,
+                )
 
                 columns = 2
-                rows = int(np.ceil(len(images)/2))
+                rows = int(np.ceil(len(images) / 2))
                 for i, path in enumerate(images):
                     img = plt.imread(path)
                     fig.add_subplot(rows, columns, i + 1)
                     plt.imshow(img)
                     plt.title = path
-                    plt.axis('off')
+                    plt.axis("off")
                 fig.tight_layout()
-                filepath = "%s/roc_pr_curves_%s/%s" % (output_dir, subdir, step_name + "_" + wavelet_meta + "_" + stft_meta + "_" + filename)
-                create_rec_dir(filepath)
+                output_dir.mkdir(parents=True, exist_ok=True)
+                filepath = (
+                    output_dir
+                    / f"roc_pr_curves_{subdir}"
+                    / f"{step_name}_{wavelet_meta}_{stft_meta}+{filename}"
+                )
+
                 print(filepath)
                 fig.savefig(filepath)
 
 
 def build_roc_mosaic(input_dir, output_dir):
     print("input_dir=", input_dir)
-    dir_list = ["%s/%s" % (input_dir, name) for name in os.listdir(input_dir) if "ml_" in name]
+    dir_list = [
+        "%s/%s" % (input_dir, name) for name in os.listdir(input_dir) if "ml_" in name
+    ]
     dir_list_1to2 = []
     dir_list_2to2 = []
     for path in dir_list:
@@ -866,33 +1086,81 @@ def build_roc_mosaic(input_dir, output_dir):
 
     plot_mosaic("kfold", dir_list_2to2, "2to2_roc_pr_curves_kfold.png", "2to2")
     plot_mosaic("l2out", dir_list_2to2, "2to2_roc_pr_curves_l2outd.png", "2to2")
-    plot_mosaic("l1out", dir_list_2to2,  "2to2_roc_pr_curves_l1out.png", "2to2")
+    plot_mosaic("l1out", dir_list_2to2, "2to2_roc_pr_curves_l1out.png", "2to2")
 
 
-def SampleVisualisation(df, shape, N_META, out_dir, step_slug, sfft_window, stft_time, scales):
+def SampleVisualisation(
+    df, shape, N_META, out_dir, step_slug, sfft_window, stft_time, scales
+):
     print("sample visualisation...")
     for i, row in df.iterrows():
         activity = row[:-N_META]
         target = row["target"]
 
-        date = datetime.strptime(row["date"], '%d/%m/%Y').strftime('%d_%m_%Y')
-        epoch = str(int(datetime.strptime(row["date"], '%d/%m/%Y').timestamp()))
+        date = datetime.strptime(row["date"], "%d/%m/%Y").strftime("%d_%m_%Y")
+        epoch = str(int(datetime.strptime(row["date"], "%d/%m/%Y").timestamp()))
 
         imputed_days = row["imputed_days"]
         animal_id = row["id"]
 
         if "CWT" in step_slug:
             cwt = activity.values.reshape(shape).astype(np.float)
-            plot_cwt_power(None, None, epoch, date, animal_id, target, step_slug, out_dir, i, activity, cwt.copy(), None, scales, log_yaxis=False, standard_scale=True, format_xaxis=False)
+            plot_cwt_power(
+                None,
+                None,
+                epoch,
+                date,
+                animal_id,
+                target,
+                step_slug,
+                out_dir,
+                i,
+                activity,
+                cwt.copy(),
+                None,
+                scales,
+                log_yaxis=False,
+                standard_scale=True,
+                format_xaxis=False,
+            )
 
         if "STFT" in step_slug:
             power_sfft = activity.values.reshape(shape).astype(np.float)
-            plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step_slug, out_dir, i, activity,
-                            power_sfft, scales, format_xaxis=False
-                            , vmin=None, vmax=None, standard_scale=True)
+            plot_stft_power(
+                sfft_window,
+                stft_time,
+                epoch,
+                date,
+                animal_id,
+                target,
+                step_slug,
+                out_dir,
+                i,
+                activity,
+                power_sfft,
+                scales,
+                format_xaxis=False,
+                vmin=None,
+                vmax=None,
+                standard_scale=True,
+            )
 
 
-def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, clf, i, folder, sub_dir_name, auc, DR="PCA"):
+def plot_3D_decision_boundaries(
+    X,
+    Y,
+    train_x,
+    train_y,
+    test_x,
+    test_y,
+    title,
+    clf,
+    i,
+    folder,
+    sub_dir_name,
+    auc,
+    DR="PCA",
+):
     Y = (Y != 1).astype(int)
     test_y = (test_y != 1).astype(int)
     train_y = (train_y != 1).astype(int)
@@ -900,39 +1168,76 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 
     # The equation of the separating plane is given by all x so that np.dot(svc.coef_[0], x) + b = 0.
     # Solve for w3 (z)
-    z = lambda x, y: (-clf.intercept_[0] - clf.coef_[0][0] * x - clf.coef_[0][1] * y) / clf.coef_[0][2]
+    z = (
+        lambda x, y: (-clf.intercept_[0] - clf.coef_[0][0] * x - clf.coef_[0][1] * y)
+        / clf.coef_[0][2]
+    )
 
     s = max([np.abs(X.max()), np.abs(X.min())])
     tmp = np.linspace(-s, s, 30)
     x, y = np.meshgrid(tmp, tmp)
 
     fig = plt.figure(figsize=(12.20, 7.20))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(X[Y == 0, 0], X[Y == 0, 1], X[Y == 0, 2], marker='o', color='tab:blue', label='Class0 (Healthy)')
-    ax.scatter(X[Y == 1, 0], X[Y == 1, 1], X[Y == 1, 2], marker='s', color='tab:red', label='Class1 (Unhealthy)')
+    ax = fig.add_subplot(111, projection="3d")
+    ax.scatter(
+        X[Y == 0, 0],
+        X[Y == 0, 1],
+        X[Y == 0, 2],
+        marker="o",
+        color="tab:blue",
+        label="Class0 (Healthy)",
+    )
+    ax.scatter(
+        X[Y == 1, 0],
+        X[Y == 1, 1],
+        X[Y == 1, 2],
+        marker="s",
+        color="tab:red",
+        label="Class1 (Unhealthy)",
+    )
 
-    ax.scatter(test_x[test_y == 0, 0], test_x[test_y == 0, 1], test_x[test_y == 0, 2],  marker='o', color="none", edgecolor="black", label='Test data Class0 (Healthy)')
-    ax.scatter(test_x[test_y == 1, 0], test_x[test_y == 1, 1], test_x[test_y == 1, 2],  marker='s', color="none", edgecolor="black", label='Test data Class1 (Unhealthy)')
-    ax.set(xlabel="%s component 1" % DR, ylabel="%s component 2" % DR, zlabel="%s component 3" % DR)
+    ax.scatter(
+        test_x[test_y == 0, 0],
+        test_x[test_y == 0, 1],
+        test_x[test_y == 0, 2],
+        marker="o",
+        color="none",
+        edgecolor="black",
+        label="Test data Class0 (Healthy)",
+    )
+    ax.scatter(
+        test_x[test_y == 1, 0],
+        test_x[test_y == 1, 1],
+        test_x[test_y == 1, 2],
+        marker="s",
+        color="none",
+        edgecolor="black",
+        label="Test data Class1 (Unhealthy)",
+    )
+    ax.set(
+        xlabel="%s component 1" % DR,
+        ylabel="%s component 2" % DR,
+        zlabel="%s component 3" % DR,
+    )
     handles, labels = ax.get_legend_handles_labels()
     # db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
     # handles.append(db_line)
     plt.legend(loc=4, fancybox=True, framealpha=0.4, handles=handles)
-    plt.title(title+" AUC=%.2f" % auc)
+    plt.title(title + " AUC=%.2f" % auc)
     ttl = ax.title
-    ttl.set_position([.57, 0.97])
+    ttl.set_position([0.57, 0.97])
 
     ax.plot_surface(x, y, z(x, y), alpha=0.2)
     ax.view_init(30, 60)
-    #plt.show()
+    # plt.show()
 
     path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "3D%sfold_%d.png" % (DR, i)
-    final_path = '%s%s' % (path, filename)
+    final_path = "%s%s" % (path, filename)
     print(final_path)
     try:
-        fig.savefig(final_path, bbox_inches='tight')
+        fig.savefig(final_path, bbox_inches="tight")
     except Exception as e:
         print(e)
 
@@ -940,6 +1245,7 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
     # fig.show()
     plt.close()
     fig.clear()
+
 
 # def plot_3D_decision_boundaries(train_x, train_y, test_x, test_y, title, clf, i, filename):
 #     train_y = (train_y != 1).astype(int)
@@ -1079,13 +1385,29 @@ def plot_3D_decision_boundaries(X, Y, train_x, train_y, test_x, test_y, title, c
 #     # input('hello')
 
 
-def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train, title, clf, folder, sub_dir_name, n_bin=8, save=True, DR="PCA"):
+def plot_2D_decision_boundaries(
+    auc,
+    i,
+    X_,
+    y_,
+    X_test,
+    y_test,
+    X_train,
+    y_train,
+    title,
+    clf,
+    folder,
+    sub_dir_name,
+    n_bin=8,
+    save=True,
+    DR="PCA",
+):
     y_ = (y_ != 1).astype(int)
     y_test = (y_test != 1).astype(int)
-    #print('graph...')
+    # print('graph...')
     # plt.subplots_adjust(top=0.75)
     # fig = plt.figure(figsize=(7, 6), dpi=100)
-    fig, ax = plt.subplots(figsize=(7., 4.8))
+    fig, ax = plt.subplots(figsize=(7.0, 4.8))
     # plt.subplots_adjust(top=0.75)
     min = abs(X_.min()) + 1
     max = abs(X_.max()) + 1
@@ -1093,21 +1415,37 @@ def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train
     # print(min, max)
     if np.max([min, max]) > 100:
         return
-    xx, yy = np.mgrid[-min:max:.01, -min:max:.01]
+    xx, yy = np.mgrid[-min:max:0.01, -min:max:0.01]
     grid = np.c_[xx.ravel(), yy.ravel()]
     probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
     offset_r = 0
     offset_g = 0
     offset_b = 0
-    colors = [((77+offset_r)/255, (157+offset_g)/255, (210+offset_b)/255),
-              (1, 1, 1),
-              ((255+offset_r)/255, (177+offset_g)/255, (106+offset_b)/255)]
-    cm = LinearSegmentedColormap.from_list('name', colors, N=n_bin)
+    colors = [
+        ((77 + offset_r) / 255, (157 + offset_g) / 255, (210 + offset_b) / 255),
+        (1, 1, 1),
+        ((255 + offset_r) / 255, (177 + offset_g) / 255, (106 + offset_b) / 255),
+    ]
+    cm = LinearSegmentedColormap.from_list("name", colors, N=n_bin)
 
     for _ in range(0, 1):
-        contour = ax.contourf(xx, yy, probs, n_bin, cmap=cm, antialiased=False, vmin=0, vmax=1, alpha=0.3, linewidth=0,
-                              linestyles='dashed', zorder=-1)
-        ax.contour(contour, cmap=cm, linewidth=1, linestyles='dashed', zorder=-1, alpha=1)
+        contour = ax.contourf(
+            xx,
+            yy,
+            probs,
+            n_bin,
+            cmap=cm,
+            antialiased=False,
+            vmin=0,
+            vmax=1,
+            alpha=0.3,
+            linewidth=0,
+            linestyles="dashed",
+            zorder=-1,
+        )
+        ax.contour(
+            contour, cmap=cm, linewidth=1, linestyles="dashed", zorder=-1, alpha=1
+        )
 
     ax_c = fig.colorbar(contour)
 
@@ -1122,20 +1460,58 @@ def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train
     X_lda_0_t = X_test[y_test == 0]
     X_lda_1_t = X_test[y_test == 1]
     marker_size = 150
-    ax.scatter(X_lda_0[:, 0], X_lda_0[:, 1], c=(39/255, 111/255, 158/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(49/255, 121/255, 168/255), linewidth=0, marker='s', alpha=0.7, label='Class0 (Healthy)'
-               , zorder=1)
+    ax.scatter(
+        X_lda_0[:, 0],
+        X_lda_0[:, 1],
+        c=(39 / 255, 111 / 255, 158 / 255),
+        s=marker_size,
+        vmin=-0.2,
+        vmax=1.2,
+        edgecolor=(49 / 255, 121 / 255, 168 / 255),
+        linewidth=0,
+        marker="s",
+        alpha=0.7,
+        label="Class0 (Healthy)",
+        zorder=1,
+    )
 
-    ax.scatter(X_lda_1[:, 0], X_lda_1[:, 1], c=(251/255, 119/255, 0/255), s=marker_size, vmin=-.2, vmax=1.2,
-               edgecolor=(255/255, 129/255, 10/255), linewidth=0, marker='^', alpha=0.7, label='Class1 (Unhealthy)'
-               , zorder=1)
+    ax.scatter(
+        X_lda_1[:, 0],
+        X_lda_1[:, 1],
+        c=(251 / 255, 119 / 255, 0 / 255),
+        s=marker_size,
+        vmin=-0.2,
+        vmax=1.2,
+        edgecolor=(255 / 255, 129 / 255, 10 / 255),
+        linewidth=0,
+        marker="^",
+        alpha=0.7,
+        label="Class1 (Unhealthy)",
+        zorder=1,
+    )
 
-    ax.scatter(X_lda_0_t[:, 0], X_lda_0_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none', label='Test data', zorder=1)
+    ax.scatter(
+        X_lda_0_t[:, 0],
+        X_lda_0_t[:, 1],
+        s=marker_size - 10,
+        vmin=-0.2,
+        vmax=1.2,
+        edgecolor="black",
+        facecolors="none",
+        label="Test data",
+        zorder=1,
+    )
 
-    ax.scatter(X_lda_1_t[:, 0], X_lda_1_t[:, 1], s=marker_size-10, vmin=-.2, vmax=1.2,
-               edgecolor="black", facecolors='none', zorder=1)
-
+    ax.scatter(
+        X_lda_1_t[:, 0],
+        X_lda_1_t[:, 1],
+        s=marker_size - 10,
+        vmin=-0.2,
+        vmax=1.2,
+        edgecolor="black",
+        facecolors="none",
+        zorder=1,
+    )
 
     # X_lda_0_train = X_train[y_train == 0]
     # X_lda_1_train = X_train[y_train == 1]
@@ -1147,28 +1523,32 @@ def plot_2D_decision_boundaries(auc, i, X_, y_, X_test, y_test, X_train, y_train
 
     ax.set(xlabel="$X_1$", ylabel="$X_2$")
 
-    ax.contour(xx, yy, probs, levels=[.5], cmap="Reds", vmin=0, vmax=.6, linewidth=0.1)
+    ax.contour(
+        xx, yy, probs, levels=[0.5], cmap="Reds", vmin=0, vmax=0.6, linewidth=0.1
+    )
 
     for spine in ax.spines.values():
-        spine.set_edgecolor('white')
+        spine.set_edgecolor("white")
 
     handles, labels = ax.get_legend_handles_labels()
-    db_line = Line2D([0], [0], color=(183/255, 37/255, 42/255), label='Decision boundary')
+    db_line = Line2D(
+        [0], [0], color=(183 / 255, 37 / 255, 42 / 255), label="Decision boundary"
+    )
     handles.append(db_line)
 
     plt.legend(loc=4, fancybox=True, framealpha=0.4, handles=handles)
-    plt.title(title+" AUC=%.2f" % auc)
+    plt.title(title + " AUC=%.2f" % auc)
     ttl = ax.title
-    ttl.set_position([.57, 0.97])
+    ttl.set_position([0.57, 0.97])
 
     if save:
         path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = "%s_fold_%d.png" % (DR, i)
-        final_path = '%s/%s' % (path, filename)
+        final_path = "%s/%s" % (path, filename)
         print(final_path)
         try:
-            plt.savefig(final_path, bbox_inches='tight')
+            plt.savefig(final_path, bbox_inches="tight")
         except FileNotFoundError as e:
             print(e)
             exit()
