@@ -317,8 +317,8 @@ def plot_stft_power(sfft_window, stft_time, epoch, date, animal_id, target, step
         axs[1].set_xticklabels(labels_)
 
     filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_sfft.png"
+    out_dir.mkdir(parents=True, exist_ok=True)
     filepath = out_dir / filename
-    filename.mkdir(parents=True, exist_ok=True)
     print(filepath)
     fig.tight_layout()
     fig.savefig(filepath)
@@ -368,7 +368,7 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
 
     #pos = axs[1].imshow(np.log(power_masked), extent=[0, len(activity), len(scales), 1])
     p = power_masked.copy()
-    if "raw_after_qn" in out_dir:
+    if "raw_after_qn" in str(out_dir):
         p = np.sqrt(p)
     # if "anscombe" in step_slug.lower():
     #     p = anscombe(p)
@@ -429,8 +429,8 @@ def plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_di
 
     # axs[1].tick_params(axis='y', which='both', colors='black')
     filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_cwt_{filename_sub}.png"
+    out_dir.mkdir(parents=True, exist_ok=True)
     filepath = out_dir / filename
-    filepath.mkdir(parents=True, exist_ok=True)
     print(filepath)
     fig.tight_layout()
     fig.savefig(filepath)
@@ -723,7 +723,7 @@ def parse_param(animals_id, dates, i, targets, step_slug):
 
 def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, targets, dates, format_xaxis, vmin, vmax):
     print("compute_cwt...")
-    out_dir = out_dir + "_cwt"
+    out_dir = out_dir / "_cwt"
     #plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
     cwt_raw = []
@@ -755,7 +755,7 @@ def compute_cwt(hd, wavelet_f0, X, out_dir, step_slug, n_scales, animals_id, tar
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
     print("compute_sfft...")
-    out_dir = out_dir + "_stft"
+    out_dir = out_dir / "_stft"
     sffts = []
     i = 0
     for activity in tqdm(X):
@@ -877,7 +877,7 @@ def createSyntheticActivityData(n_samples=4):
     return dataset
 
 
-def plotLine(X, out_dir="", title="title", filename="file.html"):
+def plotLine(X, out_dir, title="title", filename="file.html"):
     # fig = make_subplots(rows=len(transponders), cols=1)
     fig = make_subplots(rows=1, cols=1)
     for i, sample in enumerate(X):

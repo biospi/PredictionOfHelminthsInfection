@@ -175,7 +175,7 @@ def main(
             df_norm,
             label_series,
             N_META,
-            output_dir + "/raw_after_qn/",
+            output_dir / "raw_after_qn",
         )
 
         plot_time_pca(
@@ -245,7 +245,7 @@ def main(
         data_frame = data_frame[
             data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
         ]
-        animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+        animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
         for steps in preprocessing_steps:

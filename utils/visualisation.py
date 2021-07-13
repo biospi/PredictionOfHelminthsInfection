@@ -315,7 +315,7 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title"):
     ax.set_xlabel("Component 1")
     ax.set_ylabel("Component 2")
     print(filename_2d_scatter)
-    folder = "/".join(filename_2d_scatter.split("/")[:-1])
+    folder = Path("/".join(filename_2d_scatter.split("/")[:-1]))
     folder.mkdir(parents=True, exist_ok=True)
     fig.savefig(filename_2d_scatter)
     # plt.show()
@@ -330,7 +330,7 @@ def plot_time_pca(
     y = df["target"].astype(int)
     ##y_label = df_time_domain["label"]
     filename = title.replace(" ", "_")
-    filepath = "%s/%s.png" % (output_dir, filename)
+    filepath = output_dir / filename
     plot_2d_space(X, y, filepath, label_series, title=title)
 
 
@@ -665,7 +665,8 @@ def plot_zeros_distrib(
     print(distrib)
 
     df = pd.DataFrame.from_dict({"Percent of zeros": z_prct, "Target": target_labels})
-    df.to_csv(graph_outputdir + "/z_prct_data.data")
+    graph_outputdir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(graph_outputdir / "z_prct_data.data")
     g = (
         ggplot(df)  # defining what data to use
         + aes(
@@ -679,8 +680,8 @@ def plot_zeros_distrib(
     fig = g.draw()
     fig.tight_layout()
     # fig.show()
-    filename = "zero_percent_%s.png" % title.lower().replace(" ", "_")
-    filepath = "%s/%s" % (graph_outputdir, filename)
+    filename = f"zero_percent_{title.lower().replace(' ', '_')}.png"
+    filepath = graph_outputdir / filename
     # print('saving fig...')
     fig.savefig(filepath)
     # print("saved!")
@@ -915,7 +916,7 @@ def plotMeanGroups(
 
         plotLine(
             np.array([s]),
-            out_dir + "/",
+            out_dir,
             label + "_" + str(df_.shape[0]),
             label + "_" + str(df_.shape[0]) + ".html",
         )
@@ -928,7 +929,7 @@ def plotMeanGroups(
             CWT(
                 hd=True,
                 wavelet_f0=wavelet_f0,
-                out_dir=out_dir + "/",
+                out_dir=out_dir,
                 step_slug=label + "_" + str(df_.shape[0]) + "_" + str(i),
                 animal_ids=[],
                 targets=[],
@@ -939,7 +940,7 @@ def plotMeanGroups(
         if sfft_window is not None:
             STFT(
                 sfft_window=sfft_window,
-                out_dir=out_dir + "/",
+                out_dir=out_dir,
                 step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
                 animal_ids=[],
                 targets=[],
