@@ -4,9 +4,9 @@ import pathlib
 from sys import exit
 import matplotlib
 
-from model.data_loader import loadActivityData
+from model.data_loader import load_activity_data
 
-matplotlib.use('TkAgg')
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from sklearn import cluster, datasets
 import pandas as pd
@@ -31,16 +31,16 @@ def main(output_dir, gt_dataset_folder, dataset_folder, pca_dim):
     print("gt_dataset_folder", gt_dataset_folder)
 
     files = glob.glob(dataset_folder + "/*.csv")  # find dataset files
-    files = [file.replace("\\", '/') for file in files]
+    files = [file.replace("\\", "/") for file in files]
     print("found %d files." % len(files))
     print(files)
 
     files_gt = glob.glob(gt_dataset_folder + "/*.csv")  # find dataset files
-    files_gt = [file.replace("\\", '/') for file in files_gt]
+    files_gt = [file.replace("\\", "/") for file in files_gt]
     print("found %d gt files." % len(files_gt))
     print(files_gt)
 
-    df_gt, n_meta = loadActivityData(files_gt[0], 1)
+    df_gt, n_meta = load_activity_data(files_gt[0], 1)
     X_gt = df_gt.iloc[:, :-n_meta].values
     X_gt = preprocess(X_gt, output_dir)
     X_gt_pca = PCA(n_components=pca_dim).fit_transform(X_gt)
@@ -65,7 +65,7 @@ def main(output_dir, gt_dataset_folder, dataset_folder, pca_dim):
     print("building datasets...")
     cpt = 0
     for file in tqdm(files):
-        samples = getSamples(file)
+        samples = get_samples(file)
         all_samples.extend(samples)
         cpt += 1
         if cpt > 2:
@@ -77,19 +77,19 @@ def main(output_dir, gt_dataset_folder, dataset_folder, pca_dim):
     X = preprocess(X, output_dir)
     X_pca = PCA(n_components=pca_dim).fit_transform(X)
 
-    findClusters("KMEAN clusters PCA(3)", output_dir, X_pca, X_gt_pca, y, y_gt)
+    find_clusters("KMEAN clusters PCA(3)", output_dir, X_pca, X_gt_pca, y, y_gt)
     # findClusters("KMEAN clusters", output_dir, X)
     # findClusters("KMEAN clusters fit on all features, scatter PCA(3)", output_dir, X)
 
 
-def getSamples(file):
-    #print("load activity from datasets...", file)
+def get_samples(file):
+    # print("load activity from datasets...", file)
     data_frame = pd.read_csv(file, sep=",", low_memory=False)
-    data_frame = data_frame.astype(dtype=float, errors='ignore')
-    #print(data_frame)
+    data_frame = data_frame.astype(dtype=float, errors="ignore")
+    # print(data_frame)
     data = data_frame["first_sensor_value_gain"].values
     n = 1440
-    days = [data[i:i + n] for i in range(0, len(data), n)]
+    days = [data[i : i + n] for i in range(0, len(data), n)]
     samples = []
     for day in days:
         if len(day) != n:
@@ -101,21 +101,49 @@ def getSamples(file):
     return samples
 
 
-def findClusters(title, out_dir, X, X_gt_pca, y, labels, n_clusters=2):
+def find_clusters(title, out_dir, X, X_gt_pca, y, labels, n_clusters=2):
     k_means = cluster.KMeans(n_clusters=n_clusters, n_jobs=-1)
     k_means.fit(X)
     y_kmeans = k_means.predict(X)
 
     fig, ax = plt.subplots(figsize=(12.20, 7.20))
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
 
     # ax.scatter(X[y_kmeans == 0, 0], X[y_kmeans == 0, 1], X[y_kmeans == 0, 2], marker='o', color='tab:blue', label='Class0 (Healthy)')
     # ax.scatter(X[y_kmeans == 1, 0], X[y_kmeans == 1, 1], X[y_kmeans == 1, 2], marker='s', color='tab:red', label='Class1 (Unhealthy)')
 
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', 'pink']
+    colors = [
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan",
+        "b",
+        "g",
+        "r",
+        "c",
+        "m",
+        "y",
+        "k",
+        "w",
+        "pink",
+    ]
 
     for i in np.unique(y)[:-1]:
-        ax.scatter(X_gt_pca[y == i, 0], X_gt_pca[y == i, 1], X_gt_pca[y == i, 2],  marker='o', color=colors[i], edgecolor="black", label=labels[i])
+        ax.scatter(
+            X_gt_pca[y == i, 0],
+            X_gt_pca[y == i, 1],
+            X_gt_pca[y == i, 2],
+            marker="o",
+            color=colors[i],
+            edgecolor="black",
+            label=labels[i],
+        )
 
     # centers = k_means.cluster_centers_
     # ax.scatter(centers[:, 0], centers[:, 1], centers[:, 2], c='black', alpha=0.5)
@@ -125,14 +153,14 @@ def findClusters(title, out_dir, X, X_gt_pca, y, labels, n_clusters=2):
 
     plt.title(title)
     ttl = ax.title
-    ttl.set_position([.57, 0.97])
+    ttl.set_position([0.57, 0.97])
     path = "%s/" % (out_dir)
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename = "%s.png" % (title)
-    final_path = '%s/%s' % (path, filename)
+    final_path = "%s/%s" % (path, filename)
     print(final_path)
     try:
-        plt.savefig(final_path, bbox_inches='tight')
+        plt.savefig(final_path, bbox_inches="tight")
     except FileNotFoundError as e:
         print(e)
         exit()
@@ -144,7 +172,7 @@ def findClusters(title, out_dir, X, X_gt_pca, y, labels, n_clusters=2):
 
 def test():
     X, y = datasets.load_iris(return_X_y=True)
-    findClusters(X, y)
+    find_clusters(X, y)
 
 
 if __name__ == "__main__":
@@ -152,10 +180,12 @@ if __name__ == "__main__":
     print("*                    ML PIPELINE UNSUPERVISED                      *")
     print("********************************************************************")
     parser = argparse.ArgumentParser()
-    parser.add_argument('output_dir', help='output directory', type=str)
-    parser.add_argument('dataset_folder', help='dataset input directory', type=str)
-    parser.add_argument('gt_dataset_folder', help='ground truth dataset input directory', type=str)
-    parser.add_argument('--pca_dim', help='PCA components', type=int, default=3)
+    parser.add_argument("output_dir", help="output directory", type=str)
+    parser.add_argument("dataset_folder", help="dataset input directory", type=str)
+    parser.add_argument(
+        "gt_dataset_folder", help="ground truth dataset input directory", type=str
+    )
+    parser.add_argument("--pca_dim", help="PCA components", type=int, default=3)
     args = parser.parse_args()
 
     output_dir = args.output_dir

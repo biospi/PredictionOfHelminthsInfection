@@ -31,7 +31,7 @@ from typing import List, Optional
 import typer
 import pandas as pd
 
-from model.data_loader import loadActivityData, parse_param_from_filename
+from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import applyPreprocessingSteps
 from utils.visualisation import (
@@ -126,7 +126,7 @@ def main(
             class_healthy_target,
             class_unhealthy_target,
             label_series,
-        ) = loadActivityData(file, day, class_healthy_label, class_unhealthy_label)
+        ) = load_activity_data(file, day, class_healthy_label, class_unhealthy_label)
 
         # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
         ###############

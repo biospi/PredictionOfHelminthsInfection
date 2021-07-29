@@ -805,7 +805,7 @@ def plot_pr_range(
 
 
 def plot_roc_range(
-    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days
+    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days, info="None"
 ):
     ax.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -816,7 +816,8 @@ def plot_roc_range(
     mean_auc = auc(mean_fpr, mean_tpr)
     # std_auc = np.std(aucs)
     lo, hi = mean_confidence_interval(aucs)
-    label = r"Mean ROC (Median AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )" % (np.median(aucs), lo, hi)
+
+    label = f"Mean ROC (Median AUC = {np.median(aucs):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
     if len(aucs) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs)
     ax.plot(mean_fpr, mean_tpr, color="black", label=label, lw=2, alpha=1)
@@ -824,7 +825,7 @@ def plot_roc_range(
     ax.set(
         xlim=[-0.05, 1.05],
         ylim=[-0.05, 1.05],
-        title="Receiver operating characteristic days=%d cv=%s" % (days, cv_name),
+        title=f"Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}"
     )
     ax.legend(loc="lower right")
     # fig.show()

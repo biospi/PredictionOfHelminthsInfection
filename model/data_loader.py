@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 
 
-def loadActivityData(filepath, day, class_healthy, class_unhealthy):
-    print("load activity from datasets...", filepath)
+def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True):
+    print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
@@ -21,6 +21,15 @@ def loadActivityData(filepath, day, class_healthy, class_unhealthy):
         data_frame = data_frame[data_frame["imputed_days"] >= day]
 
     # #1To1 1To2 2To2 2To1
+    # new_label = []
+    # for v in data_frame["label"].values:
+    #     if v in ["1To1"]:
+    #         new_label.append("1To1")
+    #         continue
+    #     new_label.append("2To2")
+    #
+    # data_frame["label"] = new_label
+
     if "cedara" in filepath:#todo parametarize
         new_label = []
         for v in data_frame["label"].values:
@@ -30,9 +39,25 @@ def loadActivityData(filepath, day, class_healthy, class_unhealthy):
             if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
                 new_label.append("2To2")
                 continue
-            new_label.append("ignore")
+            new_label.append(np.nan)
 
         data_frame["label"] = new_label
+
+    if "delmas" in filepath:#todo parametarize
+        new_label = []
+        for v in data_frame["label"].values:
+            if v in ["1To1"]:
+                new_label.append("1To1")
+                continue
+            if v in ["2To2"]:
+                new_label.append("2To2")
+                continue
+            new_label.append(np.nan)
+
+        data_frame["label"] = new_label
+
+    if keep_2_only:
+        data_frame = data_frame.dropna()
 
     #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
     #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}

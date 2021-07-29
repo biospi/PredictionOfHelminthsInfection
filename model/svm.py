@@ -182,7 +182,7 @@ def makeRocCurve(
             if split1 is None:
                 a = [(np.arange(0, int(y.size/2)), np.arange(int(y.size/2), y.size))] #split in half
             else:
-                a = [(np.arange(0, split1), np.arange(split1, split2))]
+                a = [(np.arange(0, split1), np.arange(split1, y.size))]
         else:
             a = cv.split(X, y)
 
@@ -284,9 +284,7 @@ def makeRocCurve(
                     c="tab:blue",
                 )
                 precision, recall, _ = precision_recall_curve(y_bin_test, y_proba_test)
-                p0 = np.mean(precision[:-1][y_bin_test == 0])
-                p1 = np.mean(precision[:-1][y_bin_test == 1])
-
+                y_pred = classifier.predict(X[test])
                 ax_pr.step(recall, precision, label=None, lw=1, c="tab:blue")
 
             interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
@@ -346,7 +344,7 @@ def makeRocCurve(
             aucs_roc.append(viz_roc.roc_auc)
             aucs_pr.append(auc(recall, precision))
             precisions.append(precision)
-            print(f"precisions c0:{p0} c1:{p1}")
+            info = f"train shape:{str(train.shape)} test shape:{str(test.shape)}"
             recalls.append(recall)
 
             y_ground_truth_pr.append(y_binary[test])
@@ -356,7 +354,7 @@ def makeRocCurve(
 
         print("make_roc_curve done!")
         mean_auc = plot_roc_range(
-            ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days
+            ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days, info=info
         )
         mean_auc_pr = plot_pr_range(
             ax_pr,

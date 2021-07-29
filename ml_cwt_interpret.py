@@ -6,9 +6,7 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import makeRocCurve, processSVM
 from preprocessing.preprocessing import applyPreprocessingSteps
-from utils.Utils import getXY
 
 
 def main(
@@ -20,9 +18,9 @@ def main(
     ),
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "CWT(MEXH)"],
 ):
-    """This script train a ml model(SVM) on the dataset first half time period and test on the second half\n
+    """This script builds the graphs for cwt interpretation\n
     Args:\n
         output_dir: Output directory
         dataset_folder: Dataset input directory
@@ -44,24 +42,7 @@ def main(
             label_series,
         ) = load_activity_data(file, days, class_healthy_label, class_unhealthy_label)
 
-        data_frame = data_frame[
-            data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
-        ]
-
-        data_frame["date_"] = pd.to_datetime(data_frame["date"], dayfirst=True)
-        data_frame = data_frame.sort_values("date_", ascending=True)
-        del data_frame["date_"]
-
-        # print(data_frame)
-        nrows = int(data_frame.shape[0] / 2)
-        print(nrows)
-        print(
-            "data_frame:%s %s"
-            % (
-                str(data_frame["date"].iloc[0]).split(" ")[0],
-                str(data_frame["date"].iloc[-1]).split(" ")[0],
-            )
-        )
+        print(data_frame)
 
         data_frame = applyPreprocessingSteps(
             days,
@@ -83,28 +64,7 @@ def main(
             farm_name="FARMS",
             keep_meta=False,
         )
-
-        df1 = data_frame.iloc[:nrows, :]
-        df2 = data_frame.iloc[nrows:, :]
-
-        print(df1)
-        print(df2)
-        X1, y1 = getXY(df1)
-        X2, y2 = getXY(df2)
-        slug = "_".join(steps)
-        clf_best, X, y = processSVM(X1, X2, y1, y2, output_dir)
-        makeRocCurve(
-            str(clf_best),
-            output_dir,
-            clf_best,
-            X,
-            y,
-            None,
-            slug,
-            "Split",
-            None,
-            days
-        )
+        print(data_frame)
 
 
 if __name__ == "__main__":
