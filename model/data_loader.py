@@ -17,21 +17,49 @@ def loadActivityData(filepath, day, class_healthy, class_unhealthy):
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
     data_frame = data_frame.fillna(-1)
     # filter with imputed_days count
-    data_frame = data_frame[data_frame["imputed_days"] >= day]
+    if 'cat' not in filepath:#todo parametarize
+        data_frame = data_frame[data_frame["imputed_days"] >= day]
 
-    #1To1 1To2 2To2 2To1
-    if "cedara" in filepath:
+    # #1To1 1To2 2To2 2To1
+    if "cedara" in filepath:#todo parametarize
         new_label = []
         for v in data_frame["label"].values:
-            if v in ["1To1"]:
+            if v in ["1To1", "2To2"]:
                 new_label.append("1To1")
                 continue
             if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
                 new_label.append("2To2")
                 continue
-            new_label.append(v)
+            new_label.append("ignore")
 
         data_frame["label"] = new_label
+
+    #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
+    #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}
+    #{2: '1To2', 4: '2To2', 3: '2To1', 1: '1To1', 6: '3To2', 8: '4To2', 5: '3To1', 10: '5To2', 7: '3To3', 9: '4To3'}
+    # if True:
+    #     new_label = []
+    #     for v in data_frame["label"].values:
+    #         if v in ["2To1"]:
+    #             new_label.append("1To1")
+    #             continue
+    #         if v in ["1To2"]:
+    #             new_label.append("2To2")
+    #             continue
+    #         new_label.append("ignore")
+    #     data_frame["label"] = new_label
+    # if True:
+    #     new_label = []
+    #     for v in data_frame["label"].values:
+    #         if v in ["2To1", "1To1"]:
+    #             new_label.append("1To1")
+    #             continue
+    #         if v in ["2To2", "1To2"]:
+    #             new_label.append("2To2")
+    #             continue
+    #         new_label.append("ignore")
+    #     data_frame["label"] = new_label
+
 
     # up_down = False
     # if up_down:
@@ -54,7 +82,7 @@ def loadActivityData(filepath, day, class_healthy, class_unhealthy):
     #     data_frame["label"] = new_label
 
     data_frame_o = data_frame.copy()
-    print(data_frame)
+    #print(data_frame)
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
@@ -92,11 +120,3 @@ def parse_param_from_filename(file):
             break
 
     return days, farm_id, option, sampling
-
-
-def main():
-    print("")
-
-
-if __name__ == "__main__":
-    print("")

@@ -1,14 +1,14 @@
-import pandas as pd
-from BaselineRemoval import BaselineRemoval
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-from sklearn.base import TransformerMixin, BaseEstimator
-from sklearn.utils import check_array
-import numpy as np
 from datetime import datetime, timedelta
 
-from utils.Utils import anscombe, center_signal
-from cwt._cwt import cwt_power
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from BaselineRemoval import BaselineRemoval
+from plotly.subplots import make_subplots
+from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.utils import check_array
+
+from utils.Utils import anscombe
 
 np.random.seed(0)
 

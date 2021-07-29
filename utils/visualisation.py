@@ -315,7 +315,7 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title"):
     ax.set_xlabel("Component 1")
     ax.set_ylabel("Component 2")
     print(filename_2d_scatter)
-    folder = Path("/".join(filename_2d_scatter.split("/")[:-1]))
+    folder = Path(filename_2d_scatter).parent
     folder.mkdir(parents=True, exist_ok=True)
     fig.savefig(filename_2d_scatter)
     # plt.show()
@@ -519,12 +519,13 @@ def plotMlReportFinal(paths, output_dir):
     fig.update_xaxes(showgrid=True, gridwidth=1, automargin=True)
     fig.update_layout(margin=dict(l=20, r=20, t=20, b=500))
     fig_auc_only.update_layout(margin=dict(l=20, r=20, t=20, b=500))
-    filepath = output_dir + "/" + "ML_performance_final.html"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filepath = output_dir / "ML_performance_final.html"
     print(filepath)
-    fig.write_html(filepath)
-    filepath = output_dir + "/" + "ML_performance_final_auc.html"
+    fig.write_html(str(filepath))
+    filepath = output_dir / "ML_performance_final_auc.html"
     print(filepath)
-    fig_auc_only.write_html(filepath)
+    fig_auc_only.write_html(str(filepath))
     # fig.show()
 
 
@@ -620,9 +621,10 @@ def plotMlReport(path, output_dir):
     # ])
     fig.update_yaxes(showgrid=True, gridwidth=1)
     fig.update_xaxes(showgrid=True, gridwidth=1)
-    filepath = output_dir + "/" + "ML_performance_2.html"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filepath = output_dir / "ML_performance_2.html"
     print(filepath)
-    fig.write_html(filepath)
+    fig.write_html(str(filepath))
     # fig.show()
 
 
@@ -716,9 +718,9 @@ def plotAllFeatures(
     # fig.show()
     # create_rec_dir(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    file_path = out_dir + "/" + filename.replace("=", "_").lower()
+    file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
 
 
 def plotHeatmap(
@@ -750,7 +752,7 @@ def plotHeatmap(
     out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
     return trace, title
 
 
@@ -787,8 +789,9 @@ def plot_pr_range(
     )
     ax_pr.legend(loc="lower right")
     # fig.show()
-    out_dir.mkdir(parents=True, exist_ok=True)
+
     path = out_dir / "pr_curve" / cv_name
+    path.mkdir(parents=True, exist_ok=True)
     final_path = path / f"pr_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
@@ -813,9 +816,9 @@ def plot_roc_range(
     mean_auc = auc(mean_fpr, mean_tpr)
     # std_auc = np.std(aucs)
     lo, hi = mean_confidence_interval(aucs)
-    label = r"Mean ROC (Mean AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )" % (mean_auc, lo, hi)
+    label = r"Mean ROC (Median AUC = %0.2f, 95%% CI [%0.4f, %0.4f] )" % (np.median(aucs), lo, hi)
     if len(aucs) <= 2:
-        label = r"Mean ROC (Mean AUC = %0.2f)" % mean_auc
+        label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs)
     ax.plot(mean_fpr, mean_tpr, color="black", label=label, lw=2, alpha=1)
 
     ax.set(
@@ -825,8 +828,8 @@ def plot_roc_range(
     )
     ax.legend(loc="lower right")
     # fig.show()
-    output_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "roc_curve" / cv_name
+    path.mkdir(parents=True, exist_ok=True)
     final_path = path / f"roc_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)

@@ -48,19 +48,14 @@ from utils.visualisation import (
 def main(
     output_dir: Path = typer.Option(..., exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     dataset_folder: Path = typer.Option(..., exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
+    preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG", "DIFF"]],
     class_healthy_label: str = "1To1",
-    class_unhealthy_label: str = "1To2",
-    stratify: str = "n",
+    class_unhealthy_label: str = "2To2",
     n_scales: int = 30,
     hum_file: Optional[Path] = Path('.'),
     temp_file: Optional[Path] = Path('.'),
     n_splits: int = 5,
     n_repeats: int = 10,
-    epochs: int = 20,
-    n_process: int = 6,
-    output_samples: bool = True,
-    output_cwt: bool = True,
     cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -134,10 +129,10 @@ def main(
         ) = loadActivityData(file, day, class_healthy_label, class_unhealthy_label)
 
         # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
-        ################################################################################################################
-        ##VISUALISATION
-        ################################################################################################################
-        animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+        ###############
+        #VISUALISATION
+        ###############
+        animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
         df_norm = applyPreprocessingSteps(
             days,
             df_hum,
@@ -271,7 +266,6 @@ def main(
             )
             process_data_frame_svm(
                 output_dir,
-                stratify,
                 animal_ids,
                 output_dir,
                 df_processed,
@@ -319,7 +313,7 @@ def main(
     ]
     print("found %d files." % len(files))
     print("compiling final file...")
-    df_final = pd.DataFrame()
+
     dfs = [pd.read_csv(file, sep=",") for file in files]
     df_final = pd.concat(dfs)
     filename = output_dir / "final_classification_report.csv"
