@@ -4,9 +4,18 @@ from typing import List
 
 import pandas as pd
 import typer
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
 
+from classifier.src.cwt_weight import (
+    reduce_lda,
+    chunck_df,
+    explain_cwt,
+    get_cwt_data_frame,
+)
 from model.data_loader import load_activity_data, parse_param_from_filename
 from preprocessing.preprocessing import applyPreprocessingSteps
+from utils.Utils import getXY
 
 
 def main(
@@ -18,7 +27,7 @@ def main(
     ),
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "CWT(MEXH)"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
 ):
     """This script builds the graphs for cwt interpretation\n
     Args:\n
@@ -60,11 +69,30 @@ def main(
             class_healthy_target,
             class_unhealthy_target,
             clf_name="SVM",
-            n_scales=None,
+            n_scales=10,
             farm_name="FARMS",
             keep_meta=False,
         )
         print(data_frame)
+        X, y = getXY(data_frame)
+
+        df_cwt, cwt_coefs_data = get_cwt_data_frame(data_frame)
+        dfs, data = chunck_df(days, df_cwt, cwt_coefs_data, ignore=True, W_DAY_STEP=1)
+
+        explain_cwt(
+            dfs,
+            data,
+            None,
+            None,
+            "cwt.png",
+            df_temp=None,
+            df_hum=None,
+            resolution=None,
+            farm_id=farm_id,
+            days=days,
+            f_config=None,
+            out_dir=output_dir,
+        )
 
 
 if __name__ == "__main__":

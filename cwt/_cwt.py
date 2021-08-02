@@ -653,7 +653,7 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
     #     # scales = np.concatenate(
     #     #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6)])
     # else:
-    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales+1, 0.5)])
+    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales+1, 0.1)])
     print(scales)
 
         #scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
@@ -711,6 +711,9 @@ def cwt_power(hd, vmin, vmax, wavelet_f0, epoch, date, animal_id, target, activi
 
 
 def parse_param(animals_id, dates, i, targets, step_slug):
+    if animals_id is None:
+        return "Mean sample", step_slug, "", ""
+
     if len(animals_id) > 0:
         animal_id = str(int(float(animals_id[i])))
         target = targets[i]

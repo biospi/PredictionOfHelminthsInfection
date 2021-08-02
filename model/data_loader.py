@@ -20,6 +20,17 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     if 'cat' not in filepath:#todo parametarize
         data_frame = data_frame[data_frame["imputed_days"] >= day]
 
+    if class_unhealthy is None:
+        data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
+        flabels = [x for x in data_frame_labeled.columns if 'label' in x]
+        data_frame["target"] = 0
+        for i, flabel in enumerate(flabels):
+            data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
+            data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
+        label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
+        data_frame = data_frame.drop('label', 1)
+        return data_frame, N_META, None, None, label_series
+
     # #1To1 1To2 2To2 2To1
     # new_label = []
     # for v in data_frame["label"].values:
