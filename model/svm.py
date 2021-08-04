@@ -378,7 +378,6 @@ def makeRocCurve(
 def process_data_frame_svm(
     output_dir,
     animal_ids,
-    out_dir,
     data_frame,
     days,
     farm_id,
@@ -451,7 +450,7 @@ def process_data_frame_svm(
         xaxis="features",
         yaxis="value",
     )
-    plotAllFeatures(X, y, output_dir, filename="CLF_ALLFEATURES_%s.html" % steps)
+    #plotAllFeatures(X, y, output_dir, filename="CLF_ALLFEATURES_%s.html" % steps)
 
     filename_2d_scatter = (
         "%s/PLS/%s_2DPLS_days_%d_option_%s_downsampled_%s_sampling_%s.png"
@@ -542,7 +541,7 @@ def process_data_frame_svm(
         # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
         auc_m, aucs = makeRocCurve(
             scores["classifier"].replace("->", ""),
-            out_dir,
+            output_dir,
             clf_svc,
             X.copy(),
             y.copy(),
@@ -575,7 +574,7 @@ def process_data_frame_svm(
         # filename = "%s/%s/%s_%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
         #     output_dir, cv, scores["classifier"].replace("->", ""), farm_id, days, steps, downsample_false_class, sampling)
 
-        out = out_dir / cv
+        out = output_dir / cv
         out.mkdir(parents=True, exist_ok=True)
         filename = (
             out

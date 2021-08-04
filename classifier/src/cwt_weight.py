@@ -18,12 +18,11 @@ from mlxtend.plotting import plot_decision_regions
 from scipy import interp
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import chirp
-from sklearn import preprocessing
+from sklearn import preprocessing, metrics
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.feature_selection import RFECV
 from sklearn.linear_model import LassoCV
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.metrics import auc
 from sklearn.metrics import classification_report
 from sklearn.metrics import plot_roc_curve
 from sklearn.model_selection import RepeatedKFold
@@ -32,6 +31,9 @@ from sklearn.preprocessing import normalize, minmax_scale
 from sklearn.svm import SVC
 from sklearn.utils import shuffle
 import matplotlib.pylab as pylab
+from sklearn.metrics import roc_curve, auc, roc_auc_score
+
+from model.svm import process_data_frame_svm
 
 params = {
     "legend.fontsize": "x-large",
@@ -213,7 +215,7 @@ def process_df(df, data):
     return dfs, cwt_coefs_data
 
 
-def chunck_df(days, df, data, w_day_step=None):
+def chunck_df(days, df, data):
     (
         scales,
         delta_t,
@@ -1183,7 +1185,7 @@ def process_data_frame_(data_frame, y_col="label"):
 def get_cwt_data_frame(data_frame):
     global DATA_
     data_frame["target"] = (data_frame["target"].values == 1).astype(int)
-    data_frame = data_frame.tail(4)
+    #data_frame = data_frame.tail(4)
     DATA_ = []
     X = data_frame[data_frame.columns[0 : data_frame.shape[1] - 1]].values
     H = []
@@ -1503,7 +1505,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
     global DATA_  # todo clean up this mess
     plt.clf()
     print("process...", days)
-
+    aucs = []
     for i, df in enumerate(dfs):
         (
             scales,
@@ -1522,28 +1524,30 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
         y = df["target"].values
 
         if len(dfs) > 1:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.4, random_state=0, stratify=y
+            process_data_frame_svm(
+                out_dir,
+                None,
+                df,
+                days,
+                None,
+                f"window_{i}",
+                5,
+                10,
+                "1min",
+                False,
+                {0: 'class0', 1: 'class1'},
+                0,
+                1,
+                cv="RepeatedKFold",
             )
+            continue
         else:
             X_train, X_test, y_train, y_test = X, X, y, y
-
-        clf = SVC(kernel="linear", probability=True)
-
-        print("fit...")
-        X_train_svm = X_train.copy()
-        y_train_svm = y_train.copy()
-
-        clf.fit(X_train_svm, y_train_svm)
-
-        y_pred = clf.predict(X_test)
-        print(classification_report(y_test, y_pred))
-        y_probas = clf.predict_proba(X_test)
-        y_probas = y_probas[:, :2]
-        save_roc_curve(y_test, y_probas, "", [], out_dir, i=i, j=i)
+            clf = SVC(kernel="linear", probability=True)
+            print("fit...")
+            clf.fit(X_train, y_train)
 
         print("explain_prediction...")
-
         weight0 = clf.coef_[0]
 
         pad_value = abs(np.prod(DATA_[0]["coef_shape"]) - weight0.shape[0])

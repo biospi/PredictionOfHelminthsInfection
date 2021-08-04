@@ -74,7 +74,7 @@ def main(
 
         df_cwt, class0_count, class1_count, cwt_coefs_data = get_cwt_data_frame(data_frame)
         if p:
-            dfs, data = chunck_df(days, df_cwt, cwt_coefs_data, w_day_step=0.2)
+            dfs, data = chunck_df(days, df_cwt, cwt_coefs_data)
         else:
             dfs, data = process_df(df_cwt, cwt_coefs_data)
 
