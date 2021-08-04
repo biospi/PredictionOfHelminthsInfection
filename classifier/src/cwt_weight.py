@@ -45,6 +45,7 @@ pylab.rcParams.update(params)
 
 DATA_ = []
 
+
 def interpolate(input_activity):
     try:
         i = np.array(input_activity, dtype=np.float)
@@ -229,8 +230,8 @@ def chunck_df(days, df, data, w_day_step=None):
     y = df["target"]
 
     n_week = int(days / 7)
-    chunch_size = int((X.shape[1] / n_week) / 1)
-    step = int((X.shape[1] / (n_week * 7)) * w_day_step)
+    chunch_size = int(X.shape[1] / 7)
+    step = int(X.shape[1] / 7)
 
     print(
         "step size is %d, chunch_size is %d, n_week is %d" % (step, chunch_size, n_week)
@@ -249,20 +250,10 @@ def chunck_df(days, df, data, w_day_step=None):
         end = int(end)
         print("start=%d end=%d" % (start, end))
         df_x = pd.DataFrame(X.values[:, start:end])
-        df_x["label"] = np.array(y)
+        df_x["target"] = np.array(y)
         print("window:")
         print(df_x)
         dfs.append(df_x)
-
-        fig, axs = plt.subplots(2, 1, facecolor="white")
-        axs[0].pcolormesh(coefs_class0_mean[start:end], cmap="viridis")
-        axs[0].set_yscale("log")
-        axs[1].pcolormesh(coefs_class1_mean[start:end], cmap="viridis")
-        axs[1].set_yscale("log")
-        fig.show()
-        plt.close(fig)
-        plt.close()
-        fig.clear()
 
         cwt_coefs_data.append(
             (
@@ -1388,12 +1379,11 @@ def save_roc_curve(y_test, y_probas, title, options, folder, i=0, j=0):
     split = title.split("\n")
     title = "ROC Curves"
     skplt.metrics.plot_roc(y_test, y_probas, title=title, title_fontsize="medium")
-    path = "%s/roc_curve/" % folder
+    path = folder / "roc_curve"
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    final_path = "%s/%s" % (path, "roc_%d_%d.png" % (j, i))
-    final_path = final_path.replace("/", "'").replace("'", "\\").replace("\\", "/")
+    final_path = path / f"roc_{j}_{i}.png"
     print(final_path)
-    plt.savefig(final_path)
+    plt.savefig(str(final_path))
     plt.show()
     plt.close()
 
@@ -1510,7 +1500,7 @@ def get_min_max(data, ignore=[0, 1, 2, 5, 6, 7, 8]):
 
 
 def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
-    global DATA_ #todo clean up this mess
+    global DATA_  # todo clean up this mess
     plt.clf()
     print("process...", days)
 
@@ -1531,7 +1521,12 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
         X = X.fillna(-1)
         y = df["target"].values
 
-        X_train, X_test, y_train, y_test = X, X, y, y
+        if len(dfs) > 1:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.4, random_state=0, stratify=y
+            )
+        else:
+            X_train, X_test, y_train, y_test = X, X, y, y
 
         clf = SVC(kernel="linear", probability=True)
 
@@ -1540,6 +1535,12 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
         y_train_svm = y_train.copy()
 
         clf.fit(X_train_svm, y_train_svm)
+
+        y_pred = clf.predict(X_test)
+        print(classification_report(y_test, y_pred))
+        y_probas = clf.predict_proba(X_test)
+        y_probas = y_probas[:, :2]
+        save_roc_curve(y_test, y_probas, "", [], out_dir, i=i, j=i)
 
         print("explain_prediction...")
 
@@ -1564,7 +1565,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
                 coefs_class0_mean,
                 class0_mean,
                 f"Mean activity of Healthy animals ({class0_count})",
-                "Mean cwt of Healthy animals"
+                "Mean cwt of Healthy animals",
             )
         )
         data_to_plot.append(
@@ -1572,7 +1573,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
                 coefs_class1_mean,
                 class1_mean,
                 f"Mean activity of Unhealthy animals ({class1_count})",
-                "Mean cwt of Unhealthy animals"
+                "Mean cwt of Unhealthy animals",
             )
         )
 
@@ -1593,25 +1594,37 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
             get_weight_map_data(
                 weight0_best, shape, coefs_class0_mean, scales, delta_t, wavelet_type
             )
-            + ("Mean cwt of Healthy animals * features weight (top 50% features)", "Inverse cwt")
+            + (
+                "Mean cwt of Healthy animals * features weight (top 50% features)",
+                "Inverse cwt",
+            )
         )
         data_to_plot.append(
             get_weight_map_data(
                 weight0_best, shape, coefs_class1_mean, scales, delta_t, wavelet_type
             )
-            + ("Mean cwt of Unhealthy animals * features weight (top 50% features)", "Inverse")
+            + (
+                "Mean cwt of Unhealthy animals * features weight (top 50% features)",
+                "Inverse",
+            )
         )
         data_to_plot.append(
             get_weight_map_data(
                 weight0_best_2, shape, coefs_class0_mean, scales, delta_t, wavelet_type
             )
-            + ("Mean cwt of Healthy animals * features weight (top 20% features)", "Inverse cwt")
+            + (
+                "Mean cwt of Healthy animals * features weight (top 20% features)",
+                "Inverse cwt",
+            )
         )
         data_to_plot.append(
             get_weight_map_data(
                 weight0_best_2, shape, coefs_class1_mean, scales, delta_t, wavelet_type
             )
-            + ("Mean cwt of Unhealthy animals * features weight (top 20% features)", "Inverse")
+            + (
+                "Mean cwt of Unhealthy animals * features weight (top 20% features)",
+                "Inverse",
+            )
         )
 
         with plt.style.context("seaborn-white"):
@@ -1637,7 +1650,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
                     vmin_map=v_min_map,
                     vmax_map=v_max_map,
                     auto_scale=False,
-                    title=item[2]
+                    title=item[2],
                 )
                 pot_icwt(
                     axs,
@@ -1651,7 +1664,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
                     days=days,
                     i=i,
                     auto_scale=False,
-                    title=item[3]
+                    title=item[3],
                 )
             fig.tight_layout()
             fig.show()
@@ -1674,4 +1687,4 @@ def slice_df(df):
 
 
 if __name__ == "__main__":
-   print()
+    print()
