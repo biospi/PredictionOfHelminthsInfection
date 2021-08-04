@@ -74,24 +74,17 @@ def main(
             keep_meta=False,
         )
         print(data_frame)
-        X, y = getXY(data_frame)
 
-        df_cwt, cwt_coefs_data = get_cwt_data_frame(data_frame)
+        df_cwt, class0_count, class1_count, cwt_coefs_data = get_cwt_data_frame(data_frame)
         dfs, data = chunck_df(days, df_cwt, cwt_coefs_data, ignore=True, W_DAY_STEP=1)
 
         explain_cwt(
+            days,
             dfs,
             data,
-            None,
-            None,
-            "cwt.png",
-            df_temp=None,
-            df_hum=None,
-            resolution=None,
-            farm_id=farm_id,
-            days=days,
-            f_config=None,
-            out_dir=output_dir,
+            output_dir,
+            class0_count,
+            class1_count
         )
 
 

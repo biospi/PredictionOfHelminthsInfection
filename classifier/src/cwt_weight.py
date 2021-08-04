@@ -1,75 +1,36 @@
 import gc
-import math
 import os
-import shutil
+import pathlib
+from datetime import datetime
 from sys import exit
-from sklearn.multiclass import OneVsRestClassifier
-import eli5
+
+# sns.set()
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pycwt as wavelet
 import pywt
-from scipy.signal import chirp
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import scale
-from sklearn.svm import SVC, LinearSVC
-from sklearn.utils import shuffle
-from sklearn import preprocessing
-from sklearn.preprocessing import normalize, minmax_scale
-from sklearn.model_selection import KFold, StratifiedKFold
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.metrics import classification_report
-from mlxtend.plotting import plot_decision_regions
-import matplotlib.ticker as ticker
-import pathlib
-import json
+import scikitplot as skplt
 import seaborn as sns
-from scipy import signal
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
-import scikitplot as skplt
-
-# sns.set()
-import matplotlib.pyplot as plt
-from scipy.interpolate import UnivariateSpline
-from datetime import datetime
-from sklearn.ensemble import BaggingRegressor
-from sklearn.metrics import plot_roc_curve
-from sklearn.metrics import plot_precision_recall_curve
+from mlxtend.plotting import plot_decision_regions
 from scipy import interp
+from scipy.interpolate import UnivariateSpline
+from scipy.signal import chirp
+from sklearn import preprocessing
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.feature_selection import RFECV
+from sklearn.linear_model import LassoCV
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.metrics import auc
-from sklearn.model_selection import LeaveOneOut, RepeatedKFold
-from sklearn import model_selection
-from sklearn.datasets import make_friedman1
-from sklearn.feature_selection import RFE, RFECV
-from sklearn.svm import SVR
-from classifier.src.my_lda import process_lda
-from sklearn.linear_model import LassoCV, Lasso
-from matplotlib.colors import LogNorm
-from sklearn.cross_decomposition import PLSRegression
-
-DATA_ = []
-CWT_RES = 1000000
-TRAINING_DIR = (
-    "E:/Users/fo18103/PycharmProjects"
-    "/prediction_of_helminths_infection/training_data_generator_and_ml_classifier/src/sd/"
-)
-
-pd.set_option("display.max_columns", 40)
-pd.set_option("display.max_rows", 10)
-pd.set_option("display.expand_frame_repr", False)
-pd.set_option("max_colwidth", -1)
-
-# plt.style.use("seaborn-white")
-# plt.rcParams["figure.facecolor"] = 'white'
-# plt.rcParams["savefig.facecolor"] = 'white'
-# plt.rcParams.update({'font.size': 12})
-
-
+from sklearn.metrics import classification_report
+from sklearn.metrics import plot_roc_curve
+from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize, minmax_scale
+from sklearn.svm import SVC
+from sklearn.utils import shuffle
 import matplotlib.pylab as pylab
 
 params = {
@@ -82,6 +43,7 @@ params = {
 }
 pylab.rcParams.update(params)
 
+DATA_ = []
 
 def interpolate(input_activity):
     try:
@@ -127,11 +89,7 @@ def low_pass_filter(signal, thresh=0.35, wavelet="db4"):
 
 
 def compute_cwt(activity, hd=False):
-    return compute_cwt_hd(activity, scale=80)
-    # if hd:
-    #     return compute_cwt_hd(activity)
-    # else:
-    #     return compute_cwt_sd(activity)
+    return compute_cwt_hd(activity)
 
 
 def compute_cwt_sd(activity, scale=80):
@@ -179,60 +137,17 @@ def compute_cwt_hd(activity, scale=10):
     print("compute_cwt...")
     # t, activity = dummy_sin()
     scales = even_list(scale)
-
     num_steps = len(activity)
     x = np.arange(num_steps)
     y = activity
-    y = interpolate(y)
-
     delta_t = (x[1] - x[0]) * 1
-    # scales = np.arange(1, int(num_steps/10))
-    freqs = 1 / (wavelet.MexicanHat().flambda() * scales)
     wavelet_type = "morlet"
-    # y = [0 if x is np.nan else x for x in y] #todo fix
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(
         y, delta_t, wavelet=wavelet_type
     )
-
-    coefs_masked = mask_cwt(coefs.real, coi)
-    # plt.matshow(coefs_masked)
-    # plt.plot(coi)
-    # plt.show()
-    # print("*********************************************")
-    # print(y)
-    # print(coefs)
-    # print("*******************************************")
-    # iwave = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
-    # plt.plot(iwave)
-    # plt.show()
-    # plt.plot(activity)
-    # plt.show()
-    #
-    # plt.matshow((coefs.real))
-    # plt.show()
-    # exit()
-    # todo clip extrimities
-    # n_cols = int(coefs.shape[1]/10)
-    # coefs = coefs[:, n_cols:-n_cols]
-
-    # print('shapes:')
-    # print(coefs.shape)
-    # diff = coefs.shape[1]
-    # n = int(coefs.shape[1] / 8)
-    # coefs = coefs[:, n:-n]
-    # diff = diff - coefs.shape[1]
-    # print(coefs.shape, diff)
-    #
-    # cwt = [element for tupl in coefs_masked for element in tupl]
-    cwt = []
-    for element in coefs_masked:
-        for tupl in element:
-            if np.isnan(tupl) or tupl < 0:
-                continue
-            cwt.append(tupl)
-    # indexes = np.asarray(list(range(len(coefs.real))))
+    cwt = coefs.flatten()
     indexes = []
-    return cwt, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
+    return cwt.real, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
 
 
 META_DATA_LENGTH = 19
@@ -256,379 +171,6 @@ def find_type_for_mem_opt(df):
     type_dict[str(data_col_n - 11)] = np.int
     type_dict[str(data_col_n - 15)] = np.int
     return type_dict
-
-
-def start(
-    fname="",
-    out_fname=None,
-    fname_temp=None,
-    fname_hum=None,
-    resolution=None,
-    days=None,
-    f_config=None,
-    farm_id=None,
-    output_clf_transit=False,
-    cwt1=None,
-    cwt2=None,
-    filter_delmas=False,
-    filter_cedara=False,
-    filter_resp_to_treat_delmas=False,
-    filter_resp_to_treat_cedara=False,
-):
-    try:
-        if fname_temp is not None:
-            df_temp = pd.read_csv(fname_temp, sep=",", header=None)
-            sample_count = df_temp.shape[1]
-            hearder = [str(n) for n in range(0, sample_count)]
-            df_temp.columns = hearder
-
-        if fname_hum is not None:
-            df_hum = pd.read_csv(fname_hum, sep=",", header=None)
-            sample_count = df_hum.shape[1]
-            hearder = [str(n) for n in range(0, sample_count)]
-            df_hum.columns = hearder
-    except FileNotFoundError as e:
-        print("missing weather file!")
-        print(e)
-
-    print(out_fname)
-    print("loading dataset...")
-    print(fname)
-    df = pd.read_csv(fname, nrows=1, sep=",", header=None)
-
-    type_dict = find_type_for_mem_opt(df)
-    df = pd.read_csv(fname, sep=",", header=None, dtype=type_dict)
-    del type_dict
-
-    # print(data_frame)
-    sample_count = df.shape[1]
-    hearder = [str(n) for n in range(0, sample_count)]
-    hearder[-19] = "label"
-    hearder[-18] = "elem_in_row"
-    hearder[-17] = "date1"
-    hearder[-16] = "date2"
-    hearder[-15] = "serial"
-    hearder[-14] = "famacha_score"
-    hearder[-13] = "previous_famacha_score"
-    hearder[-12] = "previous_famacha_score2"
-    hearder[-11] = "previous_famacha_score3"
-    hearder[-10] = "previous_famacha_score4"
-
-    hearder[-9] = "dtf1"
-    hearder[-8] = "dtf2"
-    hearder[-7] = "dtf3"
-    hearder[-6] = "dtf4"
-    hearder[-5] = "dtf5"
-
-    hearder[-4] = "nd1"
-    hearder[-3] = "nd2"
-    hearder[-2] = "nd3"
-    hearder[-1] = "nd4"
-
-    df.columns = hearder
-    print(df)
-
-    if filter_resp_to_treat_delmas:
-        print("filter_resp_to_treat_delmas...")
-        df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd2 == 7)]
-        filter1 = (
-            (df.famacha_score == 1)
-            & (df.previous_famacha_score == 1)
-            & (df.previous_famacha_score == 1)
-        )
-        filter2 = (
-            (df.famacha_score == 1)
-            & (df.previous_famacha_score == 2)
-            & (df.previous_famacha_score2 == 2)
-        )
-        df.loc[filter1, "label"] = 0
-        df.loc[filter2, "label"] = 1
-        df1 = df[filter1]
-        df2 = df[filter2]
-        s = min([df1.shape[0], df2.shape[0]])
-        df1 = df1.head(s)
-        df2 = df2.head(s)
-        df = pd.concat([df1, df2])
-
-    if filter_resp_to_treat_cedara:
-        print("filter_resp_to_treat_cedara...")
-        df = df[(df.nd1 == 14) & (df.nd2 == 14) & (df.nd2 == 14)]
-        filter1 = (
-            (df.famacha_score == 1)
-            & (df.previous_famacha_score == 1)
-            & (df.previous_famacha_score == 1)
-        )
-        filter2 = (
-            (df.famacha_score == 1)
-            & (df.previous_famacha_score >= 2)
-            & (df.previous_famacha_score2 >= 2)
-        )
-        df.loc[filter1, "label"] = 0
-        df.loc[filter2, "label"] = 1
-        df1 = df[filter1]
-        df2 = df[filter2]
-        s = min([df1.shape[0], df2.shape[0]])
-        df1 = df1.head(s)
-        df2 = df2.head(s)
-        df = pd.concat([df1, df2])
-
-    if filter_delmas:
-        print("filter_delmas...")
-        if days == 7 + 7 + 7 + 7:
-            # df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd3 == 7) & (df.nd4 == 7)]
-            filter1 = (
-                (df.famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score4 == 1)
-            )
-            filter2 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score3 == 1)
-            )
-            filter3 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 2)
-                & (df.previous_famacha_score2 == 2)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score4 == 1)
-            )
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            df3 = df3.head(1)
-            df = pd.concat([df1, df2, df3])
-
-        if days == 7 + 7 + 7:
-            # df = df[(df.nd1 == 7) & (df.nd2 == 7)]
-            filter1 = (
-                (df.famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-            )
-            filter2 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-            )
-            # filter3 = ((df.famacha_score == 2) & (df.previous_famacha_score == 2) & (df.previous_famacha_score2 == 2))
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            # df.loc[filter3, 'label'] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            # df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            # df3 = df3.head(1)
-            df = pd.concat([df1, df2])
-
-        if days == 7 + 7:
-            df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd3 == 7)]
-            filter1 = (df.famacha_score == 1) & (df.previous_famacha_score == 1)
-            filter2 = (df.famacha_score == 2) & (df.previous_famacha_score == 1)
-            filter3 = (df.famacha_score == 1) & (df.previous_famacha_score == 2)
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            df3 = df3.head(1)
-            df = pd.concat([df1, df2, df3])
-
-        if days == 7:
-            df = df[(df.nd1 == 7) & (df.nd2 == 7)]
-            filter1 = (df.famacha_score == 1) & (df.previous_famacha_score == 1)
-            filter2 = (df.famacha_score == 1) & (df.previous_famacha_score == 2)
-            filter3 = (df.famacha_score == 2) & (df.previous_famacha_score == 2)
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0], df3.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            # df3 = df3.head(s)
-            df = pd.concat([df1, df2])
-
-    if filter_cedara:
-        print("filter_delmas...")
-        if days == 7 + 7 + 7 + 7:
-            # df = df[(df.nd1 == 7) & (df.nd2 == 7) & (df.nd3 == 7) & (df.nd4 == 7)]
-            filter1 = (
-                (df.famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score4 == 1)
-            )
-            filter2 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score3 == 1)
-            )
-            filter3 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 2)
-                & (df.previous_famacha_score2 == 2)
-                & (df.previous_famacha_score3 == 1)
-                & (df.previous_famacha_score4 == 1)
-            )
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            df3 = df3.head(1)
-            df = pd.concat([df1, df2, df3])
-
-        if days == 7 + 7 + 7:
-            df = df[(df.nd1 == 14) & (df.nd2 == 14) & (df.nd3 == 14)]
-            filter1 = (
-                (df.famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score == 1)
-            )
-            filter2 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 1)
-                & (df.previous_famacha_score2 == 1)
-            )
-            filter3 = (
-                (df.famacha_score == 2)
-                & (df.previous_famacha_score == 2)
-                & (df.previous_famacha_score2 == 2)
-            )
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            df3 = df3.head(1)
-            df = pd.concat([df1, df2, df3])
-
-        if days == 7 + 7:
-            df = df[(df.nd1 == 14) & (df.nd2 == 14) & (df.nd3 == 14)]
-            filter1 = (df.famacha_score == 1) & (df.previous_famacha_score == 1)
-            filter2 = (df.famacha_score >= 2) & (df.previous_famacha_score == 1)
-            filter3 = (df.famacha_score == 2) & (df.previous_famacha_score == 2)
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            # df3 = df3.head(2)
-            df = pd.concat([df1, df2, df3])
-
-        if days == 7:
-            df = df[(df.nd1 == 14)]
-            filter1 = (df.famacha_score == 1) & (df.previous_famacha_score == 1)
-            filter2 = (df.famacha_score == 1) & (df.previous_famacha_score == 2)
-            filter3 = (df.famacha_score == 2) & (df.previous_famacha_score == 2)
-            df.loc[filter1, "label"] = 0
-            df.loc[filter2, "label"] = 1
-            df.loc[filter3, "label"] = 2
-            df1 = df[filter1]
-            df2 = df[filter2]
-            df3 = df[filter3]
-            # s = min([df1.shape[0], df2.shape[0], df3.shape[0]])
-            # df1 = df1.head(s)
-            # df2 = df2.head(s)
-            # df3 = df3.head(s)
-            df = pd.concat([df1, df2])
-
-    print("labels")
-    print(df["label"].value_counts())
-    df.sort_index(inplace=False)
-    print(df)
-    df_0 = df
-
-    df = df.loc[:, :"label"]
-    # df = shuffle(df)
-    print(df)
-    if df.shape[0] == 0:
-        return
-
-    # for n in [1,2,10,100,1000]:
-    #     process2(df, df_0, out_fname, n_components=n, df_temp=df_temp, df_hum=df_hum, resolution=resolution, farm_id=farm_id, days=days,
-    #             f_config=f_config, out_dir="%s\\%d\\" % (farm_id, days))
-    #
-    # exit()
-    out_dir = "%s\\%d\\" % (farm_id, days)
-    #
-    # dfs_td, data = chunck_df(df, ignore=False)
-    # dfs = []
-    # for df_td in dfs_td:
-    # df_cwt, _ = get_cwt_data_frame(df_td, df_0, out_fname, df_hum=df_hum, df_temp=df_temp, days=days, resolution=resolution, out_dir=out_dir)
-    #     dfs.append(df_cwt)
-
-    df_cwt, cwt_coefs_data = get_cwt_data_frame(
-        df,
-        df_0,
-        out_fname,
-        df_hum=df_hum,
-        df_temp=df_temp,
-        days=days,
-        resolution=resolution,
-        out_dir=out_dir,
-    )
-
-    dfs, data = chunck_df(df_cwt, cwt_coefs_data, ignore=True, W_DAY_STEP=1)
-
-    explain_cwt(
-        dfs,
-        data,
-        df,
-        df_0,
-        out_fname,
-        df_temp=df_temp,
-        df_hum=df_hum,
-        resolution=resolution,
-        farm_id=farm_id,
-        days=days,
-        f_config=f_config,
-        out_dir=out_dir,
-    )
-
-    # print("output transit...")
-    # dfs = []
-    # for result in df_time_split:
-    #     df, _, _, _, _, _, _, _, _, _ = result[0], result[1], result[2], result[3], result[4], result[5], result[6],\
-    #                                     result[7], result[8], result[9]
-    #     df = shuffle(df)
-    #     dfs.append(df)
-    # process_transit(dfs, days, resolution, farm_id)
 
 
 def chunck_df(days, df, data, ignore=True, W_DAY_STEP=0.5):
@@ -675,11 +217,11 @@ def chunck_df(days, df, data, ignore=True, W_DAY_STEP=0.5):
             print(df_x)
             dfs.append(df_x)
 
-            fig, axs = plt.subplots(2, 1, facecolor='white')
-            axs[0].pcolormesh(coefs_class0_mean[start:end], cmap='viridis')
-            axs[0].set_yscale('log')
-            axs[1].pcolormesh(coefs_class1_mean[start:end], cmap='viridis')
-            axs[1].set_yscale('log')
+            fig, axs = plt.subplots(2, 1, facecolor="white")
+            axs[0].pcolormesh(coefs_class0_mean[start:end], cmap="viridis")
+            axs[0].set_yscale("log")
+            axs[1].pcolormesh(coefs_class1_mean[start:end], cmap="viridis")
+            axs[1].set_yscale("log")
             fig.show()
             plt.close(fig)
             plt.close()
@@ -1506,55 +1048,6 @@ def process_transit(dfs, days, resolution, farm_id):
         "model accuracy in %",
         days,
     )
-    # plot_(ribbon_plot_dir, data_pf, 'Classifier precision(False) over time during increase of the FAMACHA score',
-    #       "model precision(False) in %")
-    # plot_(ribbon_plot_dir, data_pt, 'Classifier precision(True) over time during increase of the FAMACHA score',
-    #       "model precision(True) in %")
-    # plot_(ribbon_plot_dir, data_rf, 'Classifier recall(False) over time during increase of the FAMACHA score',
-    #       "model recall(False) in %")
-    # plot_(ribbon_plot_dir, data_rt, 'Classifier recall(True) over time during increase of the FAMACHA score',
-    #       "model recall(True) in %")
-    # plot_(ribbon_plot_dir, data_ff, 'Classifier Fscore(False) over time during increase of the FAMACHA score',
-    #       "model Fscore(False) in %")
-    # plot_(ribbon_plot_dir, data_ft, 'Classifier Fscore(True) over time during increase of the FAMACHA score',
-    #       "model Fscore(True) in %")
-    # plot_(ribbon_plot_dir, data_sf, 'Classifier Support(False) over time during increase of the FAMACHA score',
-    #       "model Support(False)")
-    # plot_(ribbon_plot_dir, data_st, 'Classifier Support(True) over time during increase of the FAMACHA score',
-    #       "model Support(True)")
-
-    # fig = plt.figure(figsize=(10, 25))
-    # ax = fig.add_subplot(711)
-    # plot(ax, data_acc, 'Classifier accuracy over time during increase of the FAMACHA score', "model accuracy in %")
-    # ax = fig.add_subplot(712)
-    # plot(ax, data_pf, 'Classifier precision(False) over time during increase of the FAMACHA score',
-    #      "model precision(False) in %")
-    # ax = fig.add_subplot(713)
-    # plot(ax, data_pt, 'Classifier precision(True) over time during increase of the FAMACHA score',
-    #      "model precision(True) in %")
-    # ax = fig.add_subplot(714)
-    # plot(ax, data_rf, 'Classifier recall(False) over time during increase of the FAMACHA score',
-    #      "model recall(False) in %")
-    # ax = fig.add_subplot(715)
-    # plot(ax, data_rt, 'Classifier recall(True) over time during increase of the FAMACHA score',
-    #      "model recall(True) in %")
-    # ax = fig.add_subplot(716)
-    # plot(ax, data_ff, 'Classifier Fscore(False) over time during increase of the FAMACHA score',
-    #      "model Fscore(False) in %")
-    # ax = fig.add_subplot(717)
-    # plot(ax, data_ft, 'Classifier Fscore(True) over time during increase of the FAMACHA score',
-    #      "model Fscore(True) in %")
-    # ax = fig.add_subplot(918)
-    # plot(ax, data_sf, 'Classifier Support(False) over time during increase of the FAMACHA score', "model Support(False)")
-    # ax = fig.add_subplot(919)
-    # plot(ax, data_st, 'Classifier Support(True) over time during increase of the FAMACHA score', "model Support(True)")
-    # plt.tight_layout()
-    # plt.show()
-    # path = "%s\\model_transit.png" % ribbon_plot_dir
-    # print(path)
-    # fig.savefig(path, dpi=100)
-    # fig.clear()
-    # plt.close(fig)
 
 
 def plot_(path, data, title, y_label, days):
@@ -1681,7 +1174,7 @@ def process_data_frame_(data_frame, y_col="label"):
 def get_cwt_data_frame(data_frame):
     global DATA_
     data_frame["target"] = (data_frame["target"].values == 1).astype(int)
-    data_frame = data_frame.tail(10)
+    data_frame = data_frame.tail(4)
     DATA_ = []
     X = data_frame[data_frame.columns[0 : data_frame.shape[1] - 1]].values
     H = []
@@ -1705,10 +1198,10 @@ def get_cwt_data_frame(data_frame):
     class0_t = []
     class1_t = []
     for activity, (i, row) in zip(X, data_frame.iterrows()):
-        activity = interpolate(activity)
+        # activity = interpolate(activity)
         activity = np.asarray(activity)
         activity_o = activity.copy()
-        activity = np.divide(activity, herd_mean)
+        # activity = np.divide(activity, herd_mean)
         print(len(activity), "%d/%d ..." % (cpt, len(X)))
         cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type, coi = compute_cwt(
             activity
@@ -1736,16 +1229,21 @@ def get_cwt_data_frame(data_frame):
     print(data_frame)
     print(X_cwt)
 
-    return X_cwt, (
-        scales,
-        delta_t,
-        wavelet_type,
-        class0_mean,
-        coefs_class0_mean,
-        class1_mean,
-        coefs_class1_mean,
-        coefs_herd_mean,
-        herd_mean,
+    return (
+        X_cwt,
+        len(class0),
+        len(class1),
+        (
+            scales,
+            delta_t,
+            wavelet_type,
+            class0_mean,
+            coefs_class0_mean,
+            class1_mean,
+            coefs_class1_mean,
+            coefs_herd_mean,
+            herd_mean,
+        ),
     )
 
 
@@ -1792,17 +1290,12 @@ def plot_cwt_coefs(
     axs,
     x,
     y,
-    x_axis_lenght,
     coefs_class0_mean,
-    out_dir,
-    out_fname,
-    id="",
-    days=0,
     i=0,
-    j=0,
     vmin_map=None,
     vmax_map=None,
     auto_scale=True,
+    title="title",
 ):
     # fig, ax = plt.subplots(figsize=(9, 4.8))
     ax = axs[x, y]
@@ -1823,30 +1316,9 @@ def plot_cwt_coefs(
         vmax=vmax_map,
     )
     fig.colorbar(im, ax=ax)
-    # ax.set_title('Magnitude')
-    # fig.colorbar(im, ax=ax)
-    # ax.set_title('Continuous Wavelet Transform of %s on a %d days time period' % (id, days))
     ax.set_yscale("log")
+    ax.title.set_text(title)
     ax.set(xlabel="$Time (days)$", ylabel="$Frequency$")
-    # fig.show()
-    pathlib.Path(out_dir + "\\cwt\\" + str(i) + "\\").mkdir(parents=True, exist_ok=True)
-    outfile = "%s\\cwt\\%d\\cwt_%s_%d_%d_%s_%s_%s_days_%d_%s_%d_%d.png" % (
-        out_dir,
-        i,
-        id,
-        j,
-        i,
-        farm_id,
-        out_fname.split(".")[0],
-        resolution,
-        days,
-        str("empty").replace(",", "").replace("[", "").replace("]", ""),
-        0,
-        0,
-    )
-    # fig.savefig(outfile, dpi=100)
-    # fig.clear()
-    # plt.close(fig)
 
 
 def pot_icwt(
@@ -1858,13 +1330,10 @@ def pot_icwt(
     ymax2,
     ymin2_,
     ymax2_,
-    out_dir,
-    out_fname,
-    id="",
     days=0,
     i=0,
-    j=0,
     auto_scale=False,
+    title="title",
 ):
     if i in [0, 1, 2]:
         ymin2 = ymin2_
@@ -1889,19 +1358,8 @@ def pot_icwt(
             del iwave0
             print([ymin2, ymax2])
             ax.set_ylim([ymin2, ymax2])
+            ax.title.set_text(title)
             ax.set(xlabel="$Time (days)$", ylabel="Activity")
-            # ax.set_title('Inverse Continuous Wavelet Transform of %s on a %d days time period' % (id, days))
-            # ax.set(xlabel="$Time (days)$", ylabel="Activity (Summed sensor values over 10 minutes)")
-            # ax.set(xlabel="$Time (days)$", ylabel="$Frequency (1/600th of an event per sec)$")
-            # fig.show()
-            # pathlib.Path(out_dir+'\\cwt\\'+str(i)+'\\').mkdir(parents=True, exist_ok=True)
-            # outfile = '%s\\cwt\\%d\\%s_%d_%d_%s_%s_%s_days_%d_%s_%d_%d_.png' % (
-            #     out_dir, i, id, j, i, farm_id, out_fname.split('.')[0], resolution, days,
-            #     str('empty').replace(',', '').replace('[', '').replace(']', ''),
-            #     0, 0)
-            # fig.savefig(outfile, dpi=100)
-            # fig.clear()
-            # plt.close(fig)
     except ValueError as e:
         print(e)
 
@@ -2033,25 +1491,10 @@ def get_min_max(data, ignore=[0, 1, 2, 5, 6, 7, 8]):
     return min(cwt_list), max(cwt_list), min(icwt_list), max(icwt_list)
 
 
-def explain_cwt(
-    dfs,
-    data,
-    data_frame,
-    data_frame_0,
-    out_fname=None,
-    df_hum=None,
-    df_temp=None,
-    resolution=None,
-    days=None,
-    f_config=None,
-    farm_id=None,
-    out_dir=None,
-):
-    global DATA_
+def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
+    global DATA_ #todo clean up this mess
     plt.clf()
-    print("process...", resolution, days)
-
-    print("train_test_split...")
+    print("process...", days)
 
     for i, df in enumerate(dfs):
         (
@@ -2069,43 +1512,10 @@ def explain_cwt(
         X = df[df.columns[0 : df.shape[1] - 1]]
         X = X.fillna(-1)
         y = df["target"].values
-        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4,
-        #                                                     random_state=int((datetime.now().microsecond)/10), stratify=y)
-
-        # X = normalize(X)
-        # X = preprocessing.MinMaxScaler().fit_transform(X)
-        # X = minmax_scale(X, feature_range=(-1, 1))
-
-        # print('shapes:')
-        # print(X.shape)
-        # diff = X.shape[1]
-        # n = int(X.shape[1] / 100)
-        # X = X.iloc[:, n:-n]
-        # diff = diff - X.shape[1]
-        # print(X.shape, diff)
-
-        X_o = X.copy()
-        # for i in range(y[y == 0].shape[0]):
-        #     dummy_features = np.ones(X.shape[1])
-        #     #dummy_features = np.array(range(X.shape[1]))*0.0001
-        #     # dummy_features = X_o.loc[i].values
-        #     # dummy_features = np.random.rand(X.shape[1])
-        #     X = np.vstack((X, dummy_features))
-        #     dummy_target = 2
-        #     y = np.append(y, dummy_target)
 
         X_train, X_test, y_train, y_test = X, X, y, y
-        # clf = LogisticRegression(C=1e10)
 
-        # clf = LDA(n_components=2)
-        # clf = Lasso(alpha=0.1)
-        clf = OneVsRestClassifier(SVC(kernel="linear", probability=True), n_jobs=3)
-        # clf = SVC(kernel='linear', probability=True)
-
-        print("finding best...")
-        # weight_best_lasso = lasso_feature_selection(X, y, coefs_herd_mean.shape, n_job=-1)
-        # weight_best_rec = rec_feature_selection(clf, X, y, int(X.loc[0].shape[0]/3), coefs_herd_mean.shape, n_job=-1)
-        # weight_best_rec = weight_best_lasso
+        clf = SVC(kernel="linear", probability=True)
 
         print("fit...")
         X_train_svm = X_train.copy()
@@ -2113,101 +1523,78 @@ def explain_cwt(
 
         clf.fit(X_train_svm, y_train_svm)
 
-        # X_lda, _, y_lda, _, clf_lda = reduce_lda(2, X, X, y, y)
-        # clf_lda.fit(X_lda, y_lda)
-        # clf_svm = SVC(kernel='linear', probability=True)
-        # clf_svm.fit(X_lda, y_lda)
-        #plot_2D_decision_boundaries_(X_lda, y_lda, X_lda, "title", clf_lda, save=False)
-        # clf = clf.best_estimator_
-        y_pred = clf.predict(X_test)
-        # print(classification_report(y_test, y_pred))
-        # y_probas = clf.predict_proba(X_test)
-        # y_probas = y_probas[:, :2]
-        # save_roc_curve(y_test, y_probas, '', [], out_dir, i=i, j=v)
-        # del X_train
-        # del y_train
-        # gc.collect()
-
         print("explain_prediction...")
-        # print(eli5.explain_prediction_df(clf))
-        # doc = np.average(X, axis=0)
-        # aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, doc)
-        # aux1 = eli5.format_as_dataframe(aux1)
-        # print("********************************")
-        # print(aux1)
-        # weight0 = get_eli5_weight(aux1, 0)
-        # weight1 = get_eli5_weight(aux1, 1)
-        # weight2 = get_eli5_weight(aux1, 2)
-
-        # weight0 = np.multiply(doc, clf.coef_[0])
-        # weight1 = np.multiply(doc, clf.coef_[1])
-        # weight2 = np.multiply(doc, clf.coef_[2])
 
         weight0 = clf.coef_[0]
-        weight1 = clf.coef_[0]
-        weight2 = clf.coef_[0]
 
         pad_value = abs(np.prod(DATA_[0]["coef_shape"]) - weight0.shape[0])
         for n in range(pad_value):
             weight0 = np.append(weight0, 0)
-            weight1 = np.append(weight1, 0)
-            weight2 = np.append(weight2, 0)
-
-        # weight0 = minmax_scale(weight0, feature_range=(-1, 1))
-        # weight1 = minmax_scale(weight1, feature_range=(-1, 1))
 
         weight0_best = get_top_weight(weight0)
-        weight1_best = get_top_weight(weight1)
 
         weight0_best_2 = get_top_weight(weight0, scale=20)
-        weight1_best_2 = get_top_weight(weight1, scale=20)
-        # weight0_best_3 = get_top_weight(weight0, scale=12)
-        # weight1_best_3 = get_top_weight(weight1, scale=12)
 
         print("building figure...")
         shape = DATA_[0]["coef_shape"]
         data_to_plot = []
-        data_to_plot.append((coefs_herd_mean, herd_mean))
-        data_to_plot.append((coefs_class0_mean, class0_mean))
-        data_to_plot.append((coefs_class1_mean, class1_mean))
+        data_to_plot.append(
+            (coefs_herd_mean, herd_mean, "Mean herd activity", "Mean cwt of herd")
+        )
+        data_to_plot.append(
+            (
+                coefs_class0_mean,
+                class0_mean,
+                f"Mean activity of Healthy animals ({class0_count})",
+                "Mean cwt of Healthy animals"
+            )
+        )
+        data_to_plot.append(
+            (
+                coefs_class1_mean,
+                class1_mean,
+                f"Mean activity of Unhealthy animals ({class1_count})",
+                "Mean cwt of Unhealthy animals"
+            )
+        )
 
         data_to_plot.append(
             get_weight_map_data(
                 weight0, shape, coefs_class0_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Healthy animals * features weight", "Inverse cwt")
         )
         data_to_plot.append(
             get_weight_map_data(
-                weight1, shape, coefs_class1_mean, scales, delta_t, wavelet_type
+                weight0, shape, coefs_class1_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Unhealthy animals * features weight", "Inverse")
         )
 
         data_to_plot.append(
             get_weight_map_data(
                 weight0_best, shape, coefs_class0_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Healthy animals * features weight (top 50% features)", "Inverse cwt")
         )
         data_to_plot.append(
             get_weight_map_data(
-                weight1_best, shape, coefs_class1_mean, scales, delta_t, wavelet_type
+                weight0_best, shape, coefs_class1_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Unhealthy animals * features weight (top 50% features)", "Inverse")
         )
         data_to_plot.append(
             get_weight_map_data(
                 weight0_best_2, shape, coefs_class0_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Healthy animals * features weight (top 20% features)", "Inverse cwt")
         )
         data_to_plot.append(
             get_weight_map_data(
-                weight1_best_2, shape, coefs_class1_mean, scales, delta_t, wavelet_type
+                weight0_best_2, shape, coefs_class1_mean, scales, delta_t, wavelet_type
             )
+            + ("Mean cwt of Unhealthy animals * features weight (top 20% features)", "Inverse")
         )
-        # data_to_plot.append(get_weight_map_data(weight0_best_3, shape, coefs_class0_mean, scales, delta_t, wavelet_type))
-        # data_to_plot.append(get_weight_map_data(weight1_best_3, shape, coefs_class1_mean, scales, delta_t, wavelet_type))
-
-        x_axis = [x for x in range(int(weight0.size / scales.size))]
-
-        w = len(x_axis)
 
         with plt.style.context("seaborn-white"):
             fig, axs = plt.subplots(len(data_to_plot), 2, facecolor="white")
@@ -2227,17 +1614,12 @@ def explain_cwt(
                     axs,
                     i,
                     0 if i > 2 else 1,
-                    w,
                     item[0],
-                    out_dir,
-                    out_fname,
-                    id="class0",
-                    days=days,
                     i=i,
-                    j=0,
                     vmin_map=v_min_map,
                     vmax_map=v_max_map,
                     auto_scale=False,
+                    title=item[2]
                 )
                 pot_icwt(
                     axs,
@@ -2248,36 +1630,16 @@ def explain_cwt(
                     ymax2,
                     ymin2_,
                     ymax2_,
-                    out_dir,
-                    out_fname,
-                    id="class0",
                     days=days,
                     i=i,
-                    j=0,
                     auto_scale=False,
+                    title=item[3]
                 )
             fig.tight_layout()
             fig.show()
             out_dir.mkdir(parents=True, exist_ok=True)
-            filename = out_dir / "cwt_wight.png"
+            filename = out_dir / "cwt_weight.png"
             fig.savefig(str(filename), dpi=100, facecolor="white")
-            # fig.clear()
-            # gc.collect()
-            # else:
-            #     x_axis = [x for x in range(coefs_class1_mean.shape[1])]
-            #     plot_cwt_coefs(x_axis, coefs_class1_mean, out_dir, out_fname, data_frame, f_config, id='class1', days=days)
-            #
-            #     c1 = np.reshape(normalized(weight1), DATA_[0]['coef_shape'])
-            #     # del weight1
-            #     print("computing icwt of weight1")
-            #     iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
-            #     iwave1 = np.real(iwave1)
-            #     print(DATA_[0])
-            #     print(iwave1)
-            #
-            #     ymin2 = min(iwave1)
-            #     ymax2 = max(iwave1)
-            #     pot_icwt(iwave1, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class1_i', days=days)
 
 
 def slice_df(df):
@@ -2293,419 +1655,5 @@ def slice_df(df):
     return df
 
 
-def get_mean_cwt(X):
-    class0 = []
-    for i, activity in enumerate(X):
-        activity = interpolate(activity)
-        activity = np.asarray(activity)
-        class0.append(activity)
-    class0 = np.average(class0, axis=0)
-    _, coefs_class0, freqs, _, scales, _, _, coi = compute_cwt(class0)
-    return coefs_class0
-
-
-def process_data_frame(
-    data_frame,
-    data_frame_0,
-    out_fname=None,
-    df_hum=None,
-    df_temp=None,
-    resolution=None,
-    days=None,
-):
-    global DATA_
-    DATA_ = []
-    print(out_fname)
-    # data_frame = data_frame.fillna(-1)
-    X = data_frame[data_frame.columns[0 : data_frame.shape[1] - 1]].values
-    X_t = df_temp[df_temp.columns[0 : df_temp.shape[1] - 1]].values
-    X_h = df_hum[df_hum.columns[0 : df_hum.shape[1] - 1]].values
-    X_date = data_frame_0[
-        data_frame_0.columns[data_frame_0.shape[1] - 7 : data_frame_0.shape[1]]
-    ].values
-    # cwt_list = []
-    class0 = []
-    class1 = []
-    H = []
-    # data_frame_0 = data_frame_0.reset_index(drop=True)
-
-    for i, activity in enumerate(X):
-        activity = interpolate(activity)
-        activity = np.asarray(activity)
-        H.append(activity)
-    herd_mean = np.average(H, axis=0)
-
-    del H
-    gc.collect()
-    print("finished computing herd mean.")
-
-    # herd_mean = np.average(herd_data, axis=0)
-    # herd_mean = interpolate(herd_mean)
-    print("computing herd cwt")
-    cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _, coi = compute_cwt(herd_mean)
-    DATA_.append({"coef_shape": coefs_herd_mean.shape, "freqs": freqs_h})
-    print("finished calculating herd cwt.")
-    # herd_mean = minmax_scale(herd_mean, feature_range=(0, 1))
-
-    purge_file(out_fname)
-    X_cwt = pd.DataFrame()
-    cpt = 0
-    with open(out_fname, "a") as outfile:
-        for activity, (i, row), temperature, humidity in zip(
-            X, data_frame_0.iterrows(), X_t, X_h
-        ):
-            meta = row["label":].values.tolist()
-            # activity = item
-            temperature = temperature.tolist()
-            humidity = humidity.tolist()
-            activity = interpolate(activity)
-            activity = np.asarray(activity)
-            # activity = np.divide(activity, herd_mean)
-
-            # activity = minmax_scale(activity, feature_range=(0, 1))
-            # if 'div' in out_fname:
-            #     activity = np.divide(activity, herd_mean)
-            #     print('div')
-            # if 'sub' in out_fname:
-            #     activity = np.subtract(activity, herd_mean)
-            # activity[activity == np.inf] = np.nan
-            # activity = interpolate(activity)
-
-            print(len(activity), "%d/%d ..." % (i, len(X)))
-            (
-                cwt,
-                coefs,
-                freqs,
-                indexes,
-                scales,
-                delta_t,
-                wavelet_type,
-                coi,
-            ) = compute_cwt(activity)
-
-            # if len(DATA_) < 1:
-            #     DATA_.append({'coef_shape': coefs_herd_mean.shape, 'freqs': freqs_h})
-            #     print(DATA_)
-
-            if cpt == 0:
-                X_cwt = pd.DataFrame(
-                    columns=[str(x) for x in range(len(cwt))], dtype=np.float16
-                )
-
-            X_cwt.loc[cpt] = cwt
-            cpt += 1
-            # print(X_cwt)
-            target = data_frame.at[i, "label"]
-
-            label = "False"
-            if target == 0:
-                class0.append(activity)
-            if target == 1:
-                label = "True"
-                class1.append(activity)
-            if "temperature" in out_fname:
-                print("temperature")
-                training_str_flatten = (
-                    str(coefs.shape).strip("()")
-                    + ","
-                    + str(cwt).strip("[]").replace(" ", "").replace("None", "NaN")
-                    + ","
-                    + str(temperature)
-                    .strip("[]")
-                    .replace(" ", "")
-                    .replace("None", "NaN")
-                    + ","
-                    + str(humidity).strip("[]").replace(" ", "").replace("None", "NaN")
-                    + ","
-                    + str(meta).strip("[]").replace(" ", "").replace("None", "NaN")
-                )
-            else:
-                training_str_flatten = (
-                    str(cwt).strip("[]").replace(" ", "").replace("None", "NaN")
-                    + ","
-                    + str(meta).strip("[]").replace(" ", "").replace("None", "NaN")
-                )
-
-            print(
-                " %s.....%s" % (training_str_flatten[0:50], training_str_flatten[-150:])
-            )
-
-            # outfile.write(training_str_flatten)
-            # outfile.write('\n')
-
-    coefs_class0_mean = []
-    class0_mean = []
-    if len(class0) > 0:
-        class0_mean = np.average(class0, axis=0)
-        _, coefs_class0_mean, _, _, _, _, _, coi = compute_cwt(class0_mean)
-    class1_mean = np.average(class1, axis=0)
-    del class1
-    _, coefs_class1_mean, _, _, _, _, _, coi = compute_cwt(class1_mean)
-    X = X_cwt
-    y = data_frame["label"].values.flatten()
-    y = y.astype(int)
-    return (
-        X.values,
-        y,
-        scales,
-        delta_t,
-        wavelet_type,
-        class0_mean,
-        coefs_class0_mean,
-        class1_mean,
-        coefs_class1_mean,
-        coefs_herd_mean,
-        herd_mean,
-    )
-
-
-# def process2(data_frame, data_frame_0, out_fname=None, df_hum=None, df_temp=None, resolution=None,
-#             days=None, f_config=None, farm_id=None, out_dir=None, n_components=None):
-#     global DATA_
-#     plt.clf()
-#     print("process...", resolution, days)
-#     X, y, scales, delta_t, wavelet_type, class0_mean, coefs_class0_mean, class1_mean, coefs_class1_mean, \
-#     coefs_herd_mean, herd_mean = process_data_frame(
-#         data_frame, data_frame_0, out_fname, df_hum=df_hum, df_temp=df_temp, days=days, resolution=resolution)
-#     print("train_test_split...")
-#
-#     #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-#     # X = normalize(X)
-#     # X = preprocessing.MinMaxScaler().fit_transform(X)
-#     X_train, X_test, y_train, y_test = X, X, y, y
-#
-#     # process_lda(X_train, y, 2)
-#     clf = SVC(kernel='linear', C=1e10)
-#     # clf = LDA(n_components=n_components, store_covariance=True)
-#     # r = clf.fit_transform(X_train, y_test)
-#
-#     if n_components is None:
-#         n_components = 0
-#
-#
-#
-#     # clf = LDA(n_components=2)
-#
-#     # y_train[0] = 3
-#     # X_train = np.vstack((X_train, np.array([np.zeros(X_train.shape[1])])))
-#     # y_train = np.append(y_train, 3)
-#
-#     # X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
-#     # y_test = np.append(y_test, 3)
-#
-#     # param_grid = {'C': np.logspace(-6, -1, 10), 'gamma': np.logspace(-6, -1, 10)}
-#     # clf = GridSearchCV(SVC(kernel='linear', probability=True), param_grid, n_jobs=4)
-#
-#     print("fit...")
-#     clf.fit(X_train, y_train)
-#     plt.plot(clf.coef_[0])
-#     plt.plot(clf.coef_[1])
-#     plt.plot(clf.coef_[2])
-#     plt.show()
-#
-#     # clf = clf.best_estimator_
-#     y_pred = clf.predict(X_test)
-#     print(classification_report(y_test, y_pred))
-#
-#     del X_train
-#     del y_train
-#     gc.collect()
-#
-#     print("explain_prediction...")
-#     aux1 = eli5.sklearn.explain_prediction.explain_prediction_linear_classifier(clf, X[0], top=X.shape[1])
-#     aux1 = eli5.format_as_dataframe(aux1)
-#     print("********************************")
-#     print(aux1)
-#     class0 = aux1[aux1.target == 0]
-#     class1 = aux1[aux1.target == 1]
-#     del aux1
-#
-#     class0 = class0[class0.feature != '<BIAS>']
-#     class1 = class1[class1.feature != '<BIAS>']
-#
-#     class0['feature'] = class0['feature'].str.replace('x', '')
-#     class1['feature'] = class1['feature'].str.replace('x', '')
-#
-#     class0['feature'] = class0['feature'].apply(int)
-#     class1['feature'] = class1['feature'].apply(int)
-#
-#     class0 = class0.sort_values('feature')
-#     class1 = class1.sort_values('feature')
-#
-#     weight0 = class0['weight'].values
-#     weight1 = class1['weight'].values
-#
-#     del class1
-#     weight0 = pad(weight0, DATA_[0]['coef_shape'][0] * DATA_[0]['coef_shape'][1])
-#     weight1 = pad(weight1, DATA_[0]['coef_shape'][0] * DATA_[0]['coef_shape'][1])
-#
-#
-#     print("building figure...")
-#
-#     if len(class0) > 0:
-#         x_axis = [x for x in range(coefs_class0_mean.shape[1])]
-#         plot_cwt_coefs(x_axis, coefs_class0_mean, out_dir, out_fname, data_frame, f_config, id='class0_%d' % n_components, days=days)
-#         plot_cwt_coefs(x_axis, coefs_class1_mean, out_dir, out_fname, data_frame, f_config, id='class1_%d' % n_components, days=days)
-#
-#         c0 = np.reshape(weight0, DATA_[0]['coef_shape'])
-#         del weight0
-#         print("computing icwt of weight0")
-#         iwave0 = wavelet.icwt(c0, scales, delta_t, wavelet=wavelet_type)
-#         iwave0 = np.real(iwave0)
-#         print(DATA_[0])
-#         print(iwave0)
-#
-#         c1 = np.reshape(weight1, DATA_[0]['coef_shape'])
-#         del weight1
-#         print("computing icwt of weight1")
-#         iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
-#         iwave1 = np.real(iwave1)
-#         print(DATA_[0])
-#         print(iwave1)
-#
-#         ymin2 = min([min(iwave0), min(iwave1)])
-#         ymax2 = max([max(iwave0), max(iwave1)])
-#
-#         pot_icwt(iwave0, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class0_%d' % n_components, days=days)
-#         del iwave0
-#
-#         pot_icwt(iwave1, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class1_%d' % n_components, days=days)
-#
-#         gc.collect()
-#         del coefs_class1_mean
-#         del coefs_class0_mean
-#     else:
-#         x_axis = [x for x in range(coefs_class1_mean.shape[1])]
-#         plot_cwt_coefs(x_axis, coefs_class1_mean, out_dir, out_fname, data_frame, f_config, id='class1', days=days)
-#
-#         c1 = np.reshape(normalized(weight1), DATA_[0]['coef_shape'])
-#         del weight1
-#         print("computing icwt of weight1")
-#         iwave1 = wavelet.icwt(c1, scales, delta_t, wavelet=wavelet_type)
-#         iwave1 = np.real(iwave1)
-#         print(DATA_[0])
-#         print(iwave1)
-#
-#         ymin2 = min(iwave1)
-#         ymax2 = max(iwave1)
-#         pot_icwt(iwave1, ymin2, ymax2, out_dir, out_fname, data_frame, f_config, id='class1_i', days=days)
-#     DATA_ = []
-
-
 if __name__ == "__main__":
-    # try:
-    #     shutil.rmtree("cedara_70091100056")
-    # except (OSError, FileNotFoundError) as e:
-    #     print(e)
-    # try:
-    #     shutil.rmtree("delmas_70101200027")
-    # except (OSError, FileNotFoundError) as e:
-    #     print(e)
-    for resolution in ["10min"]:
-        # for item in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15]:
-        #     dir = TRAINING_DIR + 'cedara_70091100056_resolution_%s_days_%d/' % (resolution, item)
-        #
-        #     try:
-        #         start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data', id=1)
-        #         start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_.data', id=1)
-        #     except MemoryError as e:
-        #         print(e)
-        #         DATA_ = []
-        #         plt.clf()
-        #         gc.collect()
-        for farm_id in ["delmas_70101200027", "cedara_70091100056"]:
-            # try:
-            #     shutil.rmtree("transition")
-            # except (OSError, FileNotFoundError) as e:
-            #     print(e)
-
-            for days in [7]:
-                dir = TRAINING_DIR + "%s_sld_0_dbt%d_%s/" % (resolution, days, farm_id)
-                # os.chdir(dir)
-
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='%d_%s_resp_to_treat.data' % (days, farm_id),
-                #       resolution=resolution,
-                #       days=days,
-                #       farm_id=farm_id,
-                #       filter_delmas=(farm_id == 'delmas_70101200027'),
-                #       filter_cedara=(farm_id == 'cedara_70091100056'),
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir,
-                #       output_clf_transit=False
-                #       )
-
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='%d_%s_cwt_div.data' % (days, farm_id),
-                #       resolution=resolution,
-                #       days=days,
-                #       farm_id=farm_id,
-                #       filter_delmas=(farm_id == 'delmas_70101200027'),
-                #       filter_cedara=(farm_id == 'cedara_70091100056'),
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir)
-                #
-                # exit()
-                start(
-                    fname="%s/training_sets/activity_.data" % dir,
-                    out_fname="",
-                    resolution=resolution,
-                    days=days,
-                    farm_id=farm_id + "_" + "kfold_100x10_hd_new",
-                    filter_delmas=(farm_id == "delmas_70101200027"),
-                    filter_cedara=(farm_id == "cedara_70091100056"),
-                    fname_temp="%s/training_sets/temperature.data" % dir,
-                    fname_hum="%s/training_sets/humidity.data" % dir,
-                    output_clf_transit=True,
-                )
-
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='%d_%s_cwt_div.data' % (days, farm_id),
-                #       resolution=resolution,
-                #       days=days,
-                #       farm_id='resp10_' + farm_id,
-                #       filter_resp_to_treat_delmas=(farm_id == 'delmas_70101200027'),
-                #       filter_resp_to_treat_cedara=(farm_id == 'cedara_70091100056'),
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir,
-                #       output_clf_transit=False
-                #       )
-                # continue
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='%d_%s_cwt_div.data' % (days, farm_id),
-                #       resolution=resolution,
-                #       days=days,
-                #       farm_id='leave1out_'+farm_id,
-                #       filter_delmas=(farm_id == 'delmas_70101200027'),
-                #       filter_cedara=(farm_id == 'cedara_70091100056'),
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir,
-                #       output_clf_transit=False
-                #       )
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_.data',
-                #       resolution=resolution,
-                #       days=days,
-                #       farm_id=farm_id,
-                #       filter_delmas=(farm_id == 'delmas_70101200027'),
-                #       filter_cedara=(farm_id == 'cedara_70091100056'),
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir
-                #       )
-
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='%s_cwt_div.data' % farm_id,
-                #       resolution=resolution,
-                #       f_config=[2, 1],
-                #       days=days,
-                #       farm_id=farm_id,
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir)
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_sub.data',
-                #       resolution=resolution,
-                #       days=days,
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir)
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_div.data',
-                #       resolution=resolution,
-                #       days=days,
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir)
-                # start(fname="%s/training_sets/activity_.data" % dir, out_fname='cwt_humidity_temperature_.data', id=1,
-                #       fname_temp="%s/training_sets/temperature.data" % dir,
-                #       fname_hum="%s/training_sets/humidity.data" % dir
-                #       )
+   print()
