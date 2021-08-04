@@ -173,7 +173,46 @@ def find_type_for_mem_opt(df):
     return type_dict
 
 
-def chunck_df(days, df, data, ignore=True, W_DAY_STEP=0.5):
+def process_df(df, data):
+    (
+        scales,
+        delta_t,
+        wavelet_type,
+        class0_mean,
+        coefs_class0_mean,
+        class1_mean,
+        coefs_class1_mean,
+        coefs_herd_mean,
+        herd_mean,
+    ) = data
+
+    X = df[df.columns[0 : df.shape[1] - 1]]
+    y = df["target"]
+    dfs = []
+    cwt_coefs_data = []
+    df_x = pd.DataFrame(X.values[:, :])
+    df_x["target"] = np.array(y)
+    print("window:")
+    print(df_x)
+    dfs.append(df_x)
+    cwt_coefs_data.append(
+        (
+            scales,
+            delta_t,
+            wavelet_type,
+            class0_mean,
+            class1_mean,
+            herd_mean,
+            coefs_class0_mean,
+            coefs_class1_mean,
+            coefs_herd_mean[:, :],
+        )
+    )
+
+    return dfs, cwt_coefs_data
+
+
+def chunck_df(days, df, data, w_day_step=None):
     (
         scales,
         delta_t,
@@ -191,72 +230,51 @@ def chunck_df(days, df, data, ignore=True, W_DAY_STEP=0.5):
 
     n_week = int(days / 7)
     chunch_size = int((X.shape[1] / n_week) / 1)
-    # W_DAY_STEP = 0.5
-    step = int((X.shape[1] / (n_week * 7)) * W_DAY_STEP)
+    step = int((X.shape[1] / (n_week * 7)) * w_day_step)
 
     print(
         "step size is %d, chunch_size is %d, n_week is %d" % (step, chunch_size, n_week)
     )
     dfs = []
     cwt_coefs_data = []
-    if not ignore:
 
-        for m, value in enumerate(range(0, int(X.shape[1]), step)):
-            start = value
-            end = int(start + chunch_size - 1)
-            if end > int(X.shape[1]):
-                end = int(X.shape[1]) - 1
-            if abs(start - end) != chunch_size - 1:
-                continue
-            start = int(start)
-            end = int(end)
-            print("start=%d end=%d" % (start, end))
-            df_x = pd.DataFrame(X.values[:, start:end])
-            df_x["label"] = np.array(y)
-            print("window:")
-            print(df_x)
-            dfs.append(df_x)
-
-            fig, axs = plt.subplots(2, 1, facecolor="white")
-            axs[0].pcolormesh(coefs_class0_mean[start:end], cmap="viridis")
-            axs[0].set_yscale("log")
-            axs[1].pcolormesh(coefs_class1_mean[start:end], cmap="viridis")
-            axs[1].set_yscale("log")
-            fig.show()
-            plt.close(fig)
-            plt.close()
-            fig.clear()
-
-            cwt_coefs_data.append(
-                (
-                    scales,
-                    delta_t,
-                    wavelet_type,
-                    class0_mean[start:end],
-                    class1_mean[start:end],
-                    herd_mean[start:end],
-                    coefs_class0_mean[start:end],
-                    coefs_class1_mean[start:end],
-                    coefs_herd_mean[:, start:end],
-                )
-            )
-    else:
-        df_x = pd.DataFrame(X.values[:, :])
-        df_x["target"] = np.array(y)
+    for m, value in enumerate(range(0, int(X.shape[1]), step)):
+        start = value
+        end = int(start + chunch_size - 1)
+        if end > int(X.shape[1]):
+            end = int(X.shape[1]) - 1
+        if abs(start - end) != chunch_size - 1:
+            continue
+        start = int(start)
+        end = int(end)
+        print("start=%d end=%d" % (start, end))
+        df_x = pd.DataFrame(X.values[:, start:end])
+        df_x["label"] = np.array(y)
         print("window:")
         print(df_x)
         dfs.append(df_x)
+
+        fig, axs = plt.subplots(2, 1, facecolor="white")
+        axs[0].pcolormesh(coefs_class0_mean[start:end], cmap="viridis")
+        axs[0].set_yscale("log")
+        axs[1].pcolormesh(coefs_class1_mean[start:end], cmap="viridis")
+        axs[1].set_yscale("log")
+        fig.show()
+        plt.close(fig)
+        plt.close()
+        fig.clear()
+
         cwt_coefs_data.append(
             (
                 scales,
                 delta_t,
                 wavelet_type,
-                class0_mean,
-                class1_mean,
-                herd_mean,
-                coefs_class0_mean,
-                coefs_class1_mean,
-                coefs_herd_mean[:, :],
+                class0_mean[start:end],
+                class1_mean[start:end],
+                herd_mean[start:end],
+                coefs_class0_mean[start:end],
+                coefs_class1_mean[start:end],
+                coefs_herd_mean[:, start:end],
             )
         )
 

@@ -2,20 +2,15 @@ import glob
 from pathlib import Path
 from typing import List
 
-import pandas as pd
 import typer
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.svm import SVC
 
 from classifier.src.cwt_weight import (
-    reduce_lda,
     chunck_df,
     explain_cwt,
     get_cwt_data_frame,
-)
+    process_df)
 from model.data_loader import load_activity_data, parse_param_from_filename
 from preprocessing.preprocessing import applyPreprocessingSteps
-from utils.Utils import getXY
 
 
 def main(
@@ -28,6 +23,7 @@ def main(
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
     steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    p: bool = typer.Option(False, "--p")
 ):
     """This script builds the graphs for cwt interpretation\n
     Args:\n
@@ -35,6 +31,7 @@ def main(
         dataset_folder: Dataset input directory
         class_healthy: Label for healthy class
         class_unhealthy: Label for unhealthy class
+        p: analyse famacha impact over time up to test date
     """
     files = glob.glob(str(dataset_folder / "*.csv"))  # find datset files
     print("found %d files." % len(files))
@@ -76,7 +73,10 @@ def main(
         print(data_frame)
 
         df_cwt, class0_count, class1_count, cwt_coefs_data = get_cwt_data_frame(data_frame)
-        dfs, data = chunck_df(days, df_cwt, cwt_coefs_data, ignore=True, W_DAY_STEP=1)
+        if p:
+            dfs, data = chunck_df(days, df_cwt, cwt_coefs_data, w_day_step=0.2)
+        else:
+            dfs, data = process_df(df_cwt, cwt_coefs_data)
 
         explain_cwt(
             days,
