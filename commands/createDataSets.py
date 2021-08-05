@@ -19,27 +19,48 @@
 # along with seaMass.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#%%
-import argparse
-import sys
-import os
+# %%
+
+import typer
 
 from commands.Herd import *
 from commands.Samples import *
 from commands.cmdsextra import bc
-from utils.Utils import create_rec_dir
+import datetime
+import json
 
 
-def main(night, famFile, dataDir, outDir, data_col, ndays):
-
-    print("Commanline argument: ", famFile)
+def main(
+        fam_file: Path = typer.Option(
+            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+        ),
+        data_dir: Path = typer.Option(
+            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+        ),
+        out_dir: Path = typer.Option(
+            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+        ),
+        data_col: str = "first_sensor_value_gain",
+        n_days: int = 7,
+        farm_id: str = "farmid",
+        night: bool = typer.Option(False, "--p"),
+):
+    """This script builds activity/ground truth datasets\n
+    Args:\n
+        famFile: Famacha HDF5 file
+        dataDir: Directory with activity data
+        outDir: Output Directory
+        data_col: Name of data column in imputed file (first_sensor_value_gain | first_sensor_value | first_sensor_value_li)
+        ndays: Number of days in samples
+        night: Use night data
+    """
 
     print("Loading Famacha and Sorce based data from HDF5 file")
-    fileHerd = HerdFile(famFile)
+    fileHerd = HerdFile(fam_file)
     famachaHerd = HerdData()
 
     print("Loading Activity traces and Times of famacha based animals")
-    activityData = ActivityFile(dataDir, data_col)
+    activityData = ActivityFile(data_dir, data_col)
 
     # load Famacha based scores from HDF5
     fileHerd.loadHerd(famachaHerd)
@@ -56,7 +77,7 @@ def main(night, famFile, dataDir, outDir, data_col, ndays):
     # Load only data based on Famacha data.
     samples = SampleSet()
 
-    samples.generateSet(famachaHerd, activityData, ndays)
+    samples.generateSet(famachaHerd, activityData, n_days)
 
     # aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
 
@@ -89,10 +110,19 @@ def main(night, famFile, dataDir, outDir, data_col, ndays):
     set1To2T = timeSet[idx]
 
     # targets_info = {"total": {"all": totalS}}
-    targets_info = {"total": {"all": totalS, "valid": np.where(samples.valid == True)[0].size,
-                              "not_valid": np.where(samples.valid == False)[0].size}}
+    targets_info = {
+        "total": {
+            "all": totalS,
+            "valid": np.where(samples.valid == True)[0].size,
+            "not_valid": np.where(samples.valid == False)[0].size,
+        }
+    }
     for target in list(set(samples.df)):
-        targets_info[target] = {"all": np.where(samples.df == target)[0].size, "valid": 0, "not_valid": 0}
+        targets_info[target] = {
+            "all": np.where(samples.df == target)[0].size,
+            "valid": 0,
+            "not_valid": 0,
+        }
 
     # targets_info = {"total": {"valid": np.where(samples.valid == True)[0].size, "not_valid": np.where(samples.valid == False)[0].size, "all": totalS}}
     # for target in list(set(samples.df)):
@@ -111,122 +141,57 @@ def main(night, famFile, dataDir, outDir, data_col, ndays):
     # for k in targets_info.keys():
     #     targets_info[k]["all"] = targets_info[k]["not_valid"] + targets_info[k]["valid"]
 
-    split = dataDir.name.split("_")
-    import datetime
-    import json
+    split = data_dir.name.split("_")
+
     # farm = "delmas"
     # base_station = 70101200027
 
     # farm = "cedara"
     # base_station = 70091100056
-    create_rec_dir(str(outDir))
+    out_dir.mkdir(parents=True, exist_ok=True)
     # farm_id = str(dataDir).split('\\')[-1]
-    farm_id = "farmid"
-    filename = "%s/activity_%s_dbft_%d_1min.json" % (outDir, farm_id, ndays)
+
+    filename = out_dir / f"activity_{farm_id}_dbft_{n_days}_1min.json"
     print(filename)
-    json.dump(targets_info, open(filename, 'w'))
+    json.dump(targets_info, open(str(filename), "w"))
 
     s = []
-    # meta = [0, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
+    # meta = [0, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016',
+    # '15/01/2016', '22/01/2016', 13, 24, 31, 7]
     # valid_idx = np.where(samples.valid == True)[0]
     for idx in range(totalS):
         # meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
         # meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
         # meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
         # meta[3] = samples.set[idx].ID
-        dayTime = np.array(["Day" if x.hour >= 6 and x.hour <= 18 else "Night" for x in pd.to_datetime(samples.iT[idx], unit='s')])
+        dayTime = np.array(
+            [
+                "Day" if 6 <= x.hour <= 18 else "Night"
+                for x in pd.to_datetime(samples.iT[idx], unit="s")
+            ]
+        )
         if night:
-            sample_activity = samples.iA[idx][dayTime == 'Night'].tolist()
+            sample_activity = samples.iA[idx][dayTime == "Night"].tolist()
         else:
             sample_activity = samples.iA[idx].tolist()
-        sample = sample_activity + [samples.df[idx]] + [samples.set[idx].ID, samples.set[idx].missRate,
-                                                                 datetime.datetime.fromtimestamp(
-                                                                     samples.iT[idx][-1]).strftime('%d/%m/%Y')]
+        sample = (
+                sample_activity
+                + [samples.df[idx]]
+                + [
+                    samples.set[idx].ID,
+                    samples.set[idx].missRate,
+                    datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime(
+                        "%d/%m/%Y"
+                    ),
+                ]
+        )
         s.append(sample)
     df = pd.DataFrame(s)
-    df.to_csv(filename.replace(".json", ".csv"), sep=',', index=False, header=False)
+    df.to_csv(str(filename).replace(".json", ".csv"), sep=",", index=False, header=False)
     print(filename)
     del samples
-    return str(outDir)
-
-    # total_sample_11 = np.where(samples.df == '1To1')[0].size
-    # total_sample_12 = np.where(samples.df == '1To2')[0].size
-    #
-    # nan_sample_11 = 0
-    # nan_sample_12 = 0
-    # for i in np.where(samples.valid == False)[0]:
-    #     if samples.df[i] == '1To1':
-    #         nan_sample_11 += 1
-    #     if samples.df[i] == '1To2':
-    #         nan_sample_12 += 1
-    #
-    # usable_11 = 0
-    # usable_12 = 0
-    # for i in np.where(samples.valid == True)[0]:
-    #     if samples.df[i] == '1To1':
-    #         usable_11 += 1
-    #     if samples.df[i] == '1To2':
-    #         usable_12 += 1
-    #
-    # split = dataDir.name.split("_")
-    # import datetime
-    # report = "Total samples = %d\n1 -> 1 = %d\n1 -> 2 = %d\nNan samples: \n1 -> 1 = %d\n1 -> 2 = %d\nUsable: \n1 " \
-    #          "-> 1 = %d\n1 -> 2 = %d\n" % (
-    #          totalS, total_sample_11, total_sample_12, nan_sample_11,
-    #          nan_sample_12, usable_11, usable_12)
-    #
-    # filename = "F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min_threshi_%d_threshz_%d.txt" % (ndays, int(split[3]), int(split[5]))
-    # with open(filename, 'a') as outfile:
-    #     outfile.write(report)
-    #     outfile.write('\n')
-    #     outfile.close()
-    #
-    # s = []
-    # meta = [1442, '02/12/2015', '01/12/2015', 40101310050, 2, 1, 1, 1, -1, '02/12/2015', '15/12/2015', '08/01/2016', '15/01/2016', '22/01/2016', 13, 24, 31, 7]
-    # valid_idx = np.where(samples.valid == True)[0]
-    # for idx in valid_idx:
-    #     if samples.df[idx] == '1To1':
-    #         target = "False"
-    #     if samples.df[idx] == '1To2':
-    #         target = "True"
-    #     if samples.df[idx] not in ['1To1', '1To2']:
-    #         continue
-    #
-    #     meta[1] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
-    #     meta[2] = datetime.datetime.fromtimestamp(samples.iT[idx][0]).strftime('%d/%m/%Y')
-    #     meta[9] = datetime.datetime.fromtimestamp(samples.iT[idx][-1]).strftime('%d/%m/%Y')
-    #     meta[3] = samples.set[idx].ID
-    #     sample = samples.iA[idx].tolist() + [target] + meta
-    #     s.append(sample)
-    #
-    #     # sample = samples.iA[idx].tolist() + ["median_"+target] + meta
-    #     # s.append(sample)
-    #     #
-    #     # sample = samples.iA[idx].tolist() + ["mean_"+target] + meta
-    #     # s.append(sample)
-    #
-    #
-    # df = pd.DataFrame(s)
-    # df.to_csv("F:/Data2/gen_dataset_new/activity_delmas_70101200027_dbft_%d_1min_threshi_%d_threshz_%d.csv" % (ndays, int(split[3]), int(split[5])), sep=',', index=False, header=False)
-    #
+    return str(out_dir)
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('famFile', help='Famacha HDF5 file', type=str)
-    parser.add_argument('dataDir', help='Directory with activity data', type=str)
-    parser.add_argument('outDir', help='Output Directory', type=str)
-    parser.add_argument('--dataCol', help="Name of data column in imputed file (first_sensor_value_gain | first_sensor_value | first_sensor_value_li)", type=str, default='first_sensor_value_gain')
-    parser.add_argument('--ndays', help="Number of days in samples", default=6, type=int)
-    parser.add_argument('--night', help="Use night data", default=False, type=bool)
-
-    args = parser.parse_args()
-    famFile = Path(args.famFile)
-    dataDir = Path(args.dataDir)
-    outDir = Path(args.outDir)
-    dataCol = args.dataCol
-    ndays = args.ndays
-    night = args.night
-
-    main(night, famFile, dataDir, outDir, dataCol, ndays)
+    typer.run(main)
