@@ -8,7 +8,7 @@ from numbers import Number
 from sys import exit
 import sys
 import datetime as dt
-from commands.Herd import AnimalData, HerdFile
+from dataset.Herd import AnimalData, HerdFile
 
 if __name__ == '__main__':
     print("Usage: "
