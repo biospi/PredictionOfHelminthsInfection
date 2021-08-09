@@ -33,6 +33,7 @@ from sklearn.utils import shuffle
 import matplotlib.pylab as pylab
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 
+from cwt._cwt import compute_cwt_paper_hd
 from model.svm import process_data_frame_svm
 
 params = {
@@ -91,34 +92,13 @@ def low_pass_filter(signal, thresh=0.35, wavelet="db4"):
     return reconstructed_signal[:-1]
 
 
-def compute_cwt(activity, hd=False):
-    return compute_cwt_hd(activity)
-
-
-def compute_cwt_sd(activity, scale=80):
-    w = pywt.ContinuousWavelet("mexh")
-    scales = even_list(scale)
-    sampling_frequency = 1 / 60
-    sampling_period = 1 / sampling_frequency
-    activity_i = interpolate(activity)
-
-    coefs, freqs = pywt.cwt(
-        np.asarray(activity_i), scales, w, sampling_period=sampling_period
-    )
-
-    # print('shapes:')
-    # print(coefs.shape)
-    diff = coefs.shape[1]
-    n = int(coefs.shape[1] / 10)
-    coefs = coefs[:, n:-n]
-    diff = diff - coefs.shape[1]
-    # print(coefs.shape, diff)
-
-    cwt = [element for tupl in coefs for element in tupl]
-    # indexes = np.asarray(list(range(coef.shape[1])))
+def compute_cwt(activity, wavelet_f0=1.0, nscales=10):
+    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])
+    coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales, wavelet_f0, "MEXH")
+    cwt = coefs.flatten().real
+    # cwt.real, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
     indexes = []
-    # cwt = [x if x > -0.1 else 0 for x in cwt]
-    return cwt, coefs, freqs, indexes, scales, 1, "morlet", []
+    return cwt, coefs.real, freqs, indexes, scales, 1, "MEXH", coi
 
 
 def mask_cwt(cwt, coi):
@@ -134,24 +114,6 @@ def mask_cwt(cwt, coi):
             continue
         col[indexes_to_keep] = -1
     return cwt
-
-
-def compute_cwt_hd(activity, scale=10):
-    print("compute_cwt...")
-    # t, activity = dummy_sin()
-    scales = even_list(scale)
-    num_steps = len(activity)
-    x = np.arange(num_steps)
-    y = activity
-    delta_t = (x[1] - x[0]) * 1
-    wavelet_type = "morlet"
-    coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(
-        y, delta_t, wavelet=wavelet_type
-    )
-    cwt = coefs.flatten()
-    indexes = []
-    return cwt.real, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
-
 
 META_DATA_LENGTH = 19
 
@@ -1103,7 +1065,7 @@ def plot_ribbon(path, data, title, y_label, days):
     print("labels", labels)
 
     # ax.set_xticklabels(time_axis_s)
-    file_path = path / f"{y_label}.png"
+    file_path = path / "model_auc_progression.png"
     plt.savefig(str(file_path))
     plt.show()
 

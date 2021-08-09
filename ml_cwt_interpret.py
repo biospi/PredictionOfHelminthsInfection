@@ -27,7 +27,7 @@ def plot_progression(output_dir, days):
         output_dir,
         aucs,
         "Classifier Auc over time during increase of the FAMACHA score",
-        "model_auc_progression",
+        "Auc",
         days,
     )
 
@@ -68,8 +68,6 @@ def main(
             label_series,
         ) = load_activity_data(file, days, class_healthy_label, class_unhealthy_label)
 
-        plot_progression(output_dir, days)
-
         print(data_frame)
 
         data_frame = applyPreprocessingSteps(
@@ -108,6 +106,9 @@ def main(
             class0_count,
             class1_count
         )
+
+        if p:
+            plot_progression(output_dir, days)
 
 
 if __name__ == "__main__":
