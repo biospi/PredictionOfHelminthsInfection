@@ -1052,7 +1052,7 @@ def process_transit(dfs, days, resolution, farm_id):
     )
     pathlib.Path(ribbon_plot_dir).mkdir(parents=True, exist_ok=True)
 
-    plot_(
+    plot_ribbon(
         ribbon_plot_dir,
         data_acc,
         "Classifier accuracy over time during increase of the FAMACHA score",
@@ -1061,7 +1061,7 @@ def process_transit(dfs, days, resolution, farm_id):
     )
 
 
-def plot_(path, data, title, y_label, days):
+def plot_ribbon(path, data, title, y_label, days):
     df = pd.DataFrame.from_dict(data, orient="index")
     print(df)
     time = []
@@ -1084,12 +1084,12 @@ def plot_(path, data, title, y_label, days):
     sns.lineplot(x=df["time"], y="acc", data=df, marker="o", ax=ax)
     ax.set_title(title)
     # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
-    ax.set_xlabel("time")
+    ax.set_xlabel("days")
     ax.set_ylabel(y_label)
 
     labels = [item.get_text() for item in ax.get_xticklabels()]
     m_d = max(df["time"].to_list()) + 1
-    labels_ = interpolate_time(np.arange(15), m_d)
+    labels_ = interpolate_time(np.arange(days+1), m_d)
     l = []
     for i, item in enumerate(labels_):
         l.append("%.1f" % float(item))
@@ -1103,8 +1103,8 @@ def plot_(path, data, title, y_label, days):
     print("labels", labels)
 
     # ax.set_xticklabels(time_axis_s)
-    file_path = "%s\\%s.png" % (path, y_label)
-    plt.savefig(file_path)
+    file_path = path / f"{y_label}.png"
+    plt.savefig(str(file_path))
     plt.show()
 
 

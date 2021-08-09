@@ -8,9 +8,28 @@ from classifier.src.cwt_weight import (
     chunck_df,
     explain_cwt,
     get_cwt_data_frame,
-    process_df)
+    process_df, plot_ribbon)
 from model.data_loader import load_activity_data, parse_param_from_filename
 from preprocessing.preprocessing import applyPreprocessingSteps
+import pandas as pd
+
+
+def plot_progression(output_dir, days):
+    print("plot progression...")
+    files = [x for x in glob.glob(str(output_dir / "RepeatedKFold" / "*.csv")) if "rbf" in x]
+    aucs = {}
+    for i, file in enumerate(files):
+        df = pd.read_csv(str(file), converters={'roc_auc_scores': eval})
+        a = df["roc_auc_scores"][0]
+        aucs[i] = a
+
+    plot_ribbon(
+        output_dir,
+        aucs,
+        "Classifier Auc over time during increase of the FAMACHA score",
+        "model_auc_progression",
+        days,
+    )
 
 
 def main(
@@ -33,6 +52,7 @@ def main(
         class_unhealthy: Label for unhealthy class
         p: analyse famacha impact over time up to test date
     """
+
     files = glob.glob(str(dataset_folder / "*.csv"))  # find datset files
     print("found %d files." % len(files))
     print(files)
@@ -47,6 +67,8 @@ def main(
             class_unhealthy_target,
             label_series,
         ) = load_activity_data(file, days, class_healthy_label, class_unhealthy_label)
+
+        plot_progression(output_dir, days)
 
         print(data_frame)
 
