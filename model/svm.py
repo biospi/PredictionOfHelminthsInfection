@@ -1,10 +1,13 @@
 import os
 import pathlib
 import time
-
+from itertools import cycle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.metrics import precision_recall_curve
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.metrics import average_precision_score
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.metrics import (
     make_scorer,
@@ -148,7 +151,7 @@ def downsampleDf(data_frame, class_healthy, class_unhealthy):
     return data_frame
 
 
-def makeRocCurve(
+def make_roc_curve(
     clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days, split1=None, split2=None
 ):
     steps = clf_name + "_" + steps
@@ -539,7 +542,7 @@ def process_data_frame_svm(
         scores["classifier"] = "->SVC(%s)" % clf_svc.kernel
         scores["classifier_details"] = str(clf_svc).replace("\n", "").replace(" ", "")
         # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-        auc_m, aucs = makeRocCurve(
+        auc_m, aucs = make_roc_curve(
             scores["classifier"].replace("->", ""),
             output_dir,
             clf_svc,
@@ -597,14 +600,15 @@ def processSVM(X_train, X_test, y_train, y_test, output_dir):
         },
         {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
     ]
-    clf = GridSearchCV(clf_svc, tuned_parameters, scoring="roc_auc", n_jobs=-1)
+
+    clf = GridSearchCV(clf_svc, tuned_parameters, scoring=['roc_auc', 'accuracy', 'precision'], refit='accuracy', n_jobs=-1)
     clf.fit(X_train.copy(), y_train.copy())
     clf_best = clf.best_estimator_
     print("Best estimator from gridsearch=")
     print(clf_best)
     y_pred = clf.predict(X_test.copy())
     print(classification_report(y_test, y_pred))
-
+    print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
     filename = "%s/report.csv" % output_dir
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     print(filename)

@@ -94,11 +94,13 @@ def low_pass_filter(signal, thresh=0.35, wavelet="db4"):
 
 def compute_cwt(activity, wavelet_f0=1.0, nscales=10):
     scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])
-    coefs, coi, scales, freqs = compute_cwt_paper_hd(activity, scales, wavelet_f0, "MEXH")
+    coefs, coi, scales, freqs = compute_cwt_paper_hd(
+        activity, scales, wavelet_f0, "MORL"
+    )
     cwt = coefs.flatten().real
     # cwt.real, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
     indexes = []
-    return cwt, coefs.real, freqs, indexes, scales, 1, "MEXH", coi
+    return cwt, coefs.real, freqs, indexes, scales, 1, "morlet", coi
 
 
 def mask_cwt(cwt, coi):
@@ -114,6 +116,7 @@ def mask_cwt(cwt, coi):
             continue
         col[indexes_to_keep] = -1
     return cwt
+
 
 META_DATA_LENGTH = 19
 
@@ -251,8 +254,8 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     #     X_test = np.vstack((X_test, np.array([np.zeros(X_test.shape[1])])))
     #     y_test = np.append(y_test, 3)
     clf = LDA(n_components=output_dim)
-    X_train = clf.fit_transform(X_train, y_train)[0]
-    X_test = clf.fit_transform(X_test, y_test)[0]
+    X_train = clf.fit_transform(X_train, y_train)
+    X_test = clf.fit_transform(X_test, y_test)
     # if output_dim != 1:
     #     X_train = X_train[0:-(output_dim - 1)]
     #     y_train = y_train[0:-(output_dim - 1)]
@@ -262,33 +265,33 @@ def reduce_lda(output_dim, X_train, X_test, y_train, y_test):
     return X_train, X_test, y_train, y_test, clf
 
 
-def process_fold(n, X, y, i, dim_reduc=None):
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.4, random_state=i, stratify=y
-    )
-    print(X_train.shape, X_test.shape, y)
-
-    if dim_reduc is None:
-        return X, y, X_train, X_test, y_train, y_test
-
-    if dim_reduc == "LDA":
-        X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = reduce_lda(
-            n, X_train, X_test, y_train, y_test
-        )
-
-    print(X_train_reduced.shape, X_test_reduced.shape, y)
-    X_reduced = np.concatenate((X_train_reduced, X_test_reduced), axis=0)
-    print(y_train_reduced.shape, y_test_reduced.shape)
-    y_reduced = np.concatenate((y_train_reduced, y_test_reduced), axis=0)
-
-    return (
-        X_reduced,
-        y_reduced,
-        X_train_reduced,
-        X_test_reduced,
-        y_train_reduced,
-        y_test_reduced,
-    )
+# def process_fold(n, X, y, i, dim_reduc=None):
+#     X_train, X_test, y_train, y_test = train_test_split(
+#         X, y, test_size=0.4, random_state=i, stratify=y
+#     )
+#     print(X_train.shape, X_test.shape, y)
+#
+#     if dim_reduc is None:
+#         return X, y, X_train, X_test, y_train, y_test
+#
+#     if dim_reduc == "LDA":
+#         X_train_reduced, X_test_reduced, y_train_reduced, y_test_reduced = reduce_lda(
+#             n, X_train, X_test, y_train, y_test
+#         )
+#
+#     print(X_train_reduced.shape, X_test_reduced.shape, y)
+#     X_reduced = np.concatenate((X_train_reduced, X_test_reduced), axis=0)
+#     print(y_train_reduced.shape, y_test_reduced.shape)
+#     y_reduced = np.concatenate((y_train_reduced, y_test_reduced), axis=0)
+#
+#     return (
+#         X_reduced,
+#         y_reduced,
+#         X_train_reduced,
+#         X_test_reduced,
+#         y_train_reduced,
+#         y_test_reduced,
+#     )
 
 
 def get_proba(y_probas, y_pred):
@@ -504,7 +507,17 @@ def plot_2D_decision_boundaries(
 
 
 def plot_2D_decision_boundaries_(
-    X, y, X_test, title, clf, folder=None, i=0, df_id=None, sub_dir_name=None, save=True
+    label_series,
+    X,
+    y,
+    X_test,
+    title,
+    clf,
+    folder=None,
+    i=0,
+    df_id=0,
+    sub_dir_name="lda",
+    save=True,
 ):
 
     # plt.scatter(X[:, 0], X[:, 1], c=y, s=30, cmap=plt.cm.Paired)
@@ -534,7 +547,7 @@ def plot_2D_decision_boundaries_(
     scatter_kwargs = {"s": 120, "edgecolor": None, "alpha": 0.7}
     contourf_kwargs = {"alpha": 0.2}
     scatter_highlight_kwargs = {"s": 120, "label": "Test data", "alpha": 0.7}
-    plot_decision_regions(
+    ax = plot_decision_regions(
         X,
         y,
         clf=clf,
@@ -544,15 +557,22 @@ def plot_2D_decision_boundaries_(
         contourf_kwargs=contourf_kwargs,
         scatter_highlight_kwargs=scatter_highlight_kwargs,
     )
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles,
+              [label_series[1],
+               label_series[2],
+               "Test data"],
+              framealpha=0.3, scatterpoints=1)
+
     plt.title(title)
     if save:
-        path = "%s/%s/decision_boundaries_graphs/df%d/" % (folder, sub_dir_name, df_id)
+        path = folder / sub_dir_name / f"df{df_id}"
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        filename = "iter_%d.png" % (i)
-        final_path = "%s/%s" % (path, filename)
+        filename = f"iter_{i}.png"
+        final_path = path / filename
         print(final_path)
         try:
-            plt.savefig(final_path)
+            plt.savefig(str(final_path))
         except FileNotFoundError as e:
             print(e)
             exit()
@@ -883,144 +903,144 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig, prec_data_str):
     fig.savefig(final_path)
 
 
-def process_transit(dfs, days, resolution, farm_id):
-    data_acc, data_pf, data_pt, data_rf, data_rt, data_ff, data_ft, data_sf, data_st = (
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-    )
-    sub_dir_name = None
-    for id, data_frame in enumerate(dfs):
-        # kf = StratifiedKFold(n_splits=3, random_state=None, shuffle=True)
-        # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
-        # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid)
-        # clf = LogisticRegression(n_jobs=8)
-
-        # N_ITER = 1000
-        # model = BaggingRegressor(LogisticRegression(),
-        #                          n_estimators=N_ITER,
-        #                          bootstrap=True, n_jobs=8)
-
-        clf = SVC(kernel="linear", probability=True)
-        X, y = process_data_frame_(data_frame)
-        X, _, y, _, _ = reduce_lda(2, X, X, y, y)
-        # model.fit(X, y)
-        (
-            acc_list,
-            p_f_list,
-            p_t_list,
-            recall_f_list,
-            recall_t_list,
-            fscore_f_list,
-            fscore_t_list,
-            support_f_list,
-            support_t_list,
-        ) = ([], [], [], [], [], [], [], [], [])
-        tprs = []
-        aucs = []
-        mean_fpr = np.linspace(0, 1, 100)
-        fig, ax = plt.subplots()
-
-        # loo = LeaveOneOut()
-        # loo.get_n_splits(X, y)
-        rkf = RepeatedKFold(
-            n_splits=10,
-            n_repeats=10,
-            random_state=int((datetime.now().microsecond) / 10),
-        )
-
-        for n, (train_index, test_index) in enumerate(rkf.split(X)):
-            print("TRAIN:", train_index, "TEST:", test_index)
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
-            (
-                acc,
-                precision_false,
-                precision_true,
-                recall_false,
-                recall_true,
-                fscore_false,
-                fscore_true,
-                support_false,
-                support_true,
-                sub_dir_name,
-            ) = compute_model_loo(
-                X,
-                y,
-                X_train,
-                y_train,
-                X_test,
-                y_test,
-                farm_id,
-                n,
-                clf=clf,
-                df_id=id,
-                days=days,
-            )
-
-            # for n, clf in enumerate(model.estimators_):
-            #     try:
-            #         acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name = compute_model(
-            #             X, y, n, farm_id, clf=clf, df_id=id, days=days)
-            #     except ValueError as e:
-            #         print(e)
-            #         continue
-
-            viz = plot_roc_curve(
-                clf, X, y, name="", label="_Hidden", alpha=0, lw=1, ax=ax
-            )
-            interp_tpr = interp(mean_fpr, viz.fpr, viz.tpr)
-            interp_tpr[0] = 0.0
-            tprs.append(interp_tpr)
-            aucs.append(viz.roc_auc)
-
-            acc_list.append(acc)
-            p_f_list.append(precision_false)
-            p_t_list.append(precision_true)
-            recall_f_list.append(recall_false)
-            recall_t_list.append(recall_true)
-            fscore_f_list.append(fscore_false)
-            fscore_t_list.append(fscore_true)
-            support_f_list.append(support_false)
-            support_t_list.append(support_true)
-        out_dir = "%s\\%d\\" % (farm_id, days)
-
-        print("acc_list", np.mean(acc_list), acc_list)
-        data_acc[id] = acc_list
-        data_pf[id] = p_f_list
-        data_pt[id] = p_t_list
-        data_rf[id] = recall_f_list
-        data_rt[id] = recall_t_list
-        data_ff[id] = fscore_f_list
-        data_ft[id] = fscore_t_list
-        data_sf[id] = support_f_list
-        data_st[id] = support_t_list
-        print("precisions...")
-        prec_data_str = "%.2f_%.2f" % (np.mean(p_f_list), np.mean(p_t_list))
-        print(id, prec_data_str)
-        plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, id, fig, prec_data_str)
-        fig.clear()
-
-    ribbon_plot_dir = "%s\\%d\\transition\\ribbon_transit\\%s" % (
-        farm_id,
-        days,
-        sub_dir_name,
-    )
-    pathlib.Path(ribbon_plot_dir).mkdir(parents=True, exist_ok=True)
-
-    plot_ribbon(
-        ribbon_plot_dir,
-        data_acc,
-        "Classifier accuracy over time during increase of the FAMACHA score",
-        "model accuracy in %",
-        days,
-    )
+# def process_transit(dfs, days, resolution, farm_id):
+#     data_acc, data_pf, data_pt, data_rf, data_rt, data_ff, data_ft, data_sf, data_st = (
+#         {},
+#         {},
+#         {},
+#         {},
+#         {},
+#         {},
+#         {},
+#         {},
+#         {},
+#     )
+#     sub_dir_name = None
+#     for id, data_frame in enumerate(dfs):
+#         # kf = StratifiedKFold(n_splits=3, random_state=None, shuffle=True)
+#         # param_grid = {'penalty': ['none', 'l2'], 'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
+#         # clf = GridSearchCV(LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial'), param_grid)
+#         # clf = LogisticRegression(n_jobs=8)
+#
+#         # N_ITER = 1000
+#         # model = BaggingRegressor(LogisticRegression(),
+#         #                          n_estimators=N_ITER,
+#         #                          bootstrap=True, n_jobs=8)
+#
+#         clf = SVC(kernel="linear", probability=True)
+#         X, y = process_data_frame_(data_frame)
+#         X, _, y, _, _ = reduce_lda(2, X, X, y, y)
+#         # model.fit(X, y)
+#         (
+#             acc_list,
+#             p_f_list,
+#             p_t_list,
+#             recall_f_list,
+#             recall_t_list,
+#             fscore_f_list,
+#             fscore_t_list,
+#             support_f_list,
+#             support_t_list,
+#         ) = ([], [], [], [], [], [], [], [], [])
+#         tprs = []
+#         aucs = []
+#         mean_fpr = np.linspace(0, 1, 100)
+#         fig, ax = plt.subplots()
+#
+#         # loo = LeaveOneOut()
+#         # loo.get_n_splits(X, y)
+#         rkf = RepeatedKFold(
+#             n_splits=10,
+#             n_repeats=10,
+#             random_state=int((datetime.now().microsecond) / 10),
+#         )
+#
+#         for n, (train_index, test_index) in enumerate(rkf.split(X)):
+#             print("TRAIN:", train_index, "TEST:", test_index)
+#             X_train, X_test = X[train_index], X[test_index]
+#             y_train, y_test = y[train_index], y[test_index]
+#             (
+#                 acc,
+#                 precision_false,
+#                 precision_true,
+#                 recall_false,
+#                 recall_true,
+#                 fscore_false,
+#                 fscore_true,
+#                 support_false,
+#                 support_true,
+#                 sub_dir_name,
+#             ) = compute_model_loo(
+#                 X,
+#                 y,
+#                 X_train,
+#                 y_train,
+#                 X_test,
+#                 y_test,
+#                 farm_id,
+#                 n,
+#                 clf=clf,
+#                 df_id=id,
+#                 days=days,
+#             )
+#
+#             # for n, clf in enumerate(model.estimators_):
+#             #     try:
+#             #         acc, precision_false, precision_true, recall_false, recall_true, fscore_false, fscore_true, support_false, support_true, sub_dir_name = compute_model(
+#             #             X, y, n, farm_id, clf=clf, df_id=id, days=days)
+#             #     except ValueError as e:
+#             #         print(e)
+#             #         continue
+#
+#             viz = plot_roc_curve(
+#                 clf, X, y, name="", label="_Hidden", alpha=0, lw=1, ax=ax
+#             )
+#             interp_tpr = interp(mean_fpr, viz.fpr, viz.tpr)
+#             interp_tpr[0] = 0.0
+#             tprs.append(interp_tpr)
+#             aucs.append(viz.roc_auc)
+#
+#             acc_list.append(acc)
+#             p_f_list.append(precision_false)
+#             p_t_list.append(precision_true)
+#             recall_f_list.append(recall_false)
+#             recall_t_list.append(recall_true)
+#             fscore_f_list.append(fscore_false)
+#             fscore_t_list.append(fscore_true)
+#             support_f_list.append(support_false)
+#             support_t_list.append(support_true)
+#         out_dir = "%s\\%d\\" % (farm_id, days)
+#
+#         print("acc_list", np.mean(acc_list), acc_list)
+#         data_acc[id] = acc_list
+#         data_pf[id] = p_f_list
+#         data_pt[id] = p_t_list
+#         data_rf[id] = recall_f_list
+#         data_rt[id] = recall_t_list
+#         data_ff[id] = fscore_f_list
+#         data_ft[id] = fscore_t_list
+#         data_sf[id] = support_f_list
+#         data_st[id] = support_t_list
+#         print("precisions...")
+#         prec_data_str = "%.2f_%.2f" % (np.mean(p_f_list), np.mean(p_t_list))
+#         print(id, prec_data_str)
+#         plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, id, fig, prec_data_str)
+#         fig.clear()
+#
+#     ribbon_plot_dir = "%s\\%d\\transition\\ribbon_transit\\%s" % (
+#         farm_id,
+#         days,
+#         sub_dir_name,
+#     )
+#     pathlib.Path(ribbon_plot_dir).mkdir(parents=True, exist_ok=True)
+#
+#     plot_ribbon(
+#         ribbon_plot_dir,
+#         data_acc,
+#         "Classifier accuracy over time during increase of the FAMACHA score",
+#         "model accuracy in %",
+#         days,
+#     )
 
 
 def plot_ribbon(path, data, title, y_label, days):
@@ -1051,7 +1071,7 @@ def plot_ribbon(path, data, title, y_label, days):
 
     labels = [item.get_text() for item in ax.get_xticklabels()]
     m_d = max(df["time"].to_list()) + 1
-    labels_ = interpolate_time(np.arange(days+1), m_d)
+    labels_ = interpolate_time(np.arange(days + 1), m_d)
     l = []
     for i, item in enumerate(labels_):
         l.append("%.1f" % float(item))
@@ -1144,10 +1164,17 @@ def process_data_frame_(data_frame, y_col="label"):
     return X, y
 
 
+def create_cwt_features_name(freqs, coefs):
+    data = np.array(range(0, coefs.size)).reshape(coefs.shape[0], coefs.shape[1]).astype(str)
+    for i in range(data.shape[0]):
+        data[i, :] = [f"{x}_{freqs[i]:0.6}" for x in data[i, :]]
+    return data.flatten()
+
+
 def get_cwt_data_frame(data_frame):
     global DATA_
-    data_frame["target"] = (data_frame["target"].values == 1).astype(int)
-    #data_frame = data_frame.tail(4)
+    # data_frame["target"] = (data_frame["target"].values == 1).astype(int)
+    # data_frame = data_frame.tail(4)
     DATA_ = []
     X = data_frame[data_frame.columns[0 : data_frame.shape[1] - 1]].values
     H = []
@@ -1179,14 +1206,15 @@ def get_cwt_data_frame(data_frame):
         cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type, coi = compute_cwt(
             activity
         )
+        features_names = create_cwt_features_name(freqs, coefs)
         print(len(activity), len(cwt))
         X_cwt = X_cwt.append(dict(enumerate(np.array(cwt))), ignore_index=True)
         cpt += 1
         target = data_frame.at[i, "target"]
-        if target == 0:
+        if target == 1:
             class0.append(cwt)
             class0_t.append(activity_o)
-        if target == 1:
+        if target == 2:
             class1.append(cwt)
             class1_t.append(activity_o)
 
@@ -1196,6 +1224,7 @@ def get_cwt_data_frame(data_frame):
     _, coefs_class1_mean, _, _, _, _, _, coi = compute_cwt(class1_mean)
 
     y = data_frame["target"].values.flatten()
+
     y = y.astype(int)
     X_cwt["target"] = y
 
@@ -1217,6 +1246,7 @@ def get_cwt_data_frame(data_frame):
             coefs_herd_mean,
             herd_mean,
         ),
+        features_names
     )
 
 
@@ -1463,11 +1493,36 @@ def get_min_max(data, ignore=[0, 1, 2, 5, 6, 7, 8]):
     return min(cwt_list), max(cwt_list), min(icwt_list), max(icwt_list)
 
 
-def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
+def plot_svm_db(clf, i, color):
+    w = clf.coef_[i]
+    a = -w[0] / w[1]
+    xx = np.linspace(-5, 5)
+    yy = a * xx - (clf.intercept_[i]) / w[1]
+    plt.plot(xx, yy, 'k-', color=color)
+
+
+def f_importances(coef, names, out_dir, top=30):
+    imp = np.abs(coef[0])
+    imp, names = zip(*sorted(zip(imp, names)))
+    names_ = names[0:top]
+    imp_ = imp[0:top]
+    plt.figure(figsize=(10, len(names_)/3))
+    plt.barh(range(len(names_)), imp_, align='center')
+    plt.yticks(range(len(names_)), names_)
+    #ax.set_ylabel(names_)
+    #plt.show()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = out_dir / "features_importance.png"
+    print(str(filename))
+    plt.tight_layout()
+    plt.savefig(str(filename), dpi=300, facecolor="white")
+
+
+def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count, label_series, features_names):
     global DATA_  # todo clean up this mess
     plt.clf()
     print("process...", days)
-    aucs = []
+
     for i, df in enumerate(dfs):
         (
             scales,
@@ -1497,27 +1552,35 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
                 10,
                 "1min",
                 False,
-                {0: 'class0', 1: 'class1'},
-                0,
+                {1: "class0", 2: "class1"},
                 1,
+                2,
                 cv="RepeatedKFold",
             )
             continue
         else:
             X_train, X_test, y_train, y_test = X, X, y, y
+
+            X_lda, _, y_lda, _, clf_lda = reduce_lda(1, X, X, y, y)
+            clf_lda.fit(X_lda, y_lda)
+            plot_2D_decision_boundaries_(
+                label_series, X_lda, y_lda, X_lda, "LDA", clf_lda, folder=out_dir
+            )
+
             clf = SVC(kernel="linear", probability=True)
             print("fit...")
             clf.fit(X_train, y_train)
+            f_importances(clf.coef_, features_names, out_dir)
 
         print("explain_prediction...")
         weight0 = clf.coef_[0]
+        # weight1 = clf.coef_[1]
+        # weight2 = clf.coef_[2]
 
         pad_value = abs(np.prod(DATA_[0]["coef_shape"]) - weight0.shape[0])
         for n in range(pad_value):
             weight0 = np.append(weight0, 0)
-
         weight0_best = get_top_weight(weight0)
-
         weight0_best_2 = get_top_weight(weight0, scale=20)
 
         print("building figure...")
@@ -1555,6 +1618,14 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count):
             )
             + ("Mean cwt of Unhealthy animals * features weight", "Inverse")
         )
+
+        data_to_plot.append(
+            get_weight_map_data(
+                weight0, shape, coefs_herd_mean, scales, delta_t, wavelet_type
+            )
+            + ("Mean cwt of herd animals * features weight", "Inverse")
+        )
+
 
         data_to_plot.append(
             get_weight_map_data(

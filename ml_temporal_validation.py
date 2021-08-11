@@ -6,8 +6,8 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import makeRocCurve, processSVM
-from preprocessing.preprocessing import applyPreprocessingSteps
+from model.svm import make_roc_curve, processSVM
+from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY
 
 
@@ -20,7 +20,7 @@ def main(
     ),
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
 ):
     """This script train a ml model(SVM) on the dataset first half time period and test on the second half\n
     Args:\n
@@ -63,7 +63,7 @@ def main(
             )
         )
 
-        data_frame = applyPreprocessingSteps(
+        data_frame = apply_preprocessing_steps(
             days,
             None,
             None,
@@ -92,8 +92,9 @@ def main(
         X1, y1 = getXY(df1)
         X2, y2 = getXY(df2)
         slug = "_".join(steps)
+
         clf_best, X, y = processSVM(X1, X2, y1, y2, output_dir)
-        makeRocCurve(
+        make_roc_curve(
             str(clf_best),
             output_dir,
             clf_best,

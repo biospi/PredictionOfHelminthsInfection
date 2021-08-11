@@ -33,7 +33,7 @@ import pandas as pd
 
 from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
-from preprocessing.preprocessing import applyPreprocessingSteps
+from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
     plotMlReport,
     plotMeanGroups,
@@ -133,7 +133,7 @@ def main(
         #VISUALISATION
         ###############
         animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
-        df_norm = applyPreprocessingSteps(
+        df_norm = apply_preprocessing_steps(
             days,
             df_hum,
             df_temp,
@@ -245,7 +245,7 @@ def main(
 
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
-            df_processed = applyPreprocessingSteps(
+            df_processed = apply_preprocessing_steps(
                 days,
                 df_hum,
                 df_temp,

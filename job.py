@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 
 import imputation
-from dataset import createDataSets
+from dataset import create_data_sets
 from pipeline import add_exogenous
 import ml
 import numpy as np
@@ -202,7 +202,7 @@ if __name__ == "__main__":
 
             if night:
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -212,7 +212,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -222,7 +222,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -232,7 +232,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -242,7 +242,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -252,7 +252,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -262,7 +262,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -273,7 +273,7 @@ if __name__ == "__main__":
                 )
 
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -283,7 +283,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -293,7 +293,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -303,7 +303,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -313,7 +313,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -323,7 +323,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -333,7 +333,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li_night.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -344,7 +344,7 @@ if __name__ == "__main__":
                 )
             else:
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -354,7 +354,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -364,7 +364,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -374,7 +374,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -384,7 +384,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -394,7 +394,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -404,7 +404,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_gain.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -415,7 +415,7 @@ if __name__ == "__main__":
                 )
 
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -425,7 +425,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -435,7 +435,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -445,7 +445,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -455,7 +455,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -465,7 +465,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,
@@ -475,7 +475,7 @@ if __name__ == "__main__":
                     )
                 )
                 dataset_files_li.append(
-                    createDataSets.main(
+                    create_data_sets.main(
                         night,
                         famFile,
                         dataDir,

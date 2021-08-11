@@ -6,8 +6,8 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import makeRocCurve, processSVM
-from preprocessing.preprocessing import applyPreprocessingSteps
+from model.svm import make_roc_curve, processSVM
+from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY
 
 
@@ -31,7 +31,7 @@ def main(
     ),
     class_healthy: str = "1To1",
     class_unhealthy: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
 ):
     """This script train a ml model(SVM) on all the data of 1 dataset and test on a different dataset\n
     Args:\n
@@ -90,17 +90,17 @@ def main(
     # df1_processed = df_processed.iloc[0: dataset1.shape[0], :]
     # df2_processed = df_processed.iloc[dataset1.shape[0]:, :]
 
-    df1_processed = applyPreprocessingSteps(days, None, None, None, None, None,
-                                           dataset1.copy(), N_META, output_dir, steps,
-                                           class_healthy, class_unhealthy, class_healthy_target,
-                                           class_unhealthy_target, clf_name="SVM", output_dim=dataset1.shape[0],
-                                           n_scales=None, farm_name="FARM1")
+    df1_processed = apply_preprocessing_steps(days, None, None, None, None, None,
+                                              dataset1.copy(), N_META, output_dir, steps,
+                                              class_healthy, class_unhealthy, class_healthy_target,
+                                              class_unhealthy_target, clf_name="SVM", output_dim=dataset1.shape[0],
+                                              n_scales=None, farm_name="FARM1")
 
-    df2_processed = applyPreprocessingSteps(days, None, None, None, None, None,
-                                           dataset2.copy(), N_META, output_dir, steps,
-                                           class_healthy, class_unhealthy, class_healthy_target,
-                                           class_unhealthy_target, clf_name="SVM", output_dim=dataset2.shape[0],
-                                           n_scales=None, farm_name="FARM2")
+    df2_processed = apply_preprocessing_steps(days, None, None, None, None, None,
+                                              dataset2.copy(), N_META, output_dir, steps,
+                                              class_healthy, class_unhealthy, class_healthy_target,
+                                              class_unhealthy_target, clf_name="SVM", output_dim=dataset2.shape[0],
+                                              n_scales=None, farm_name="FARM2")
     print(df1_processed)
     print(df2_processed)
 
@@ -109,7 +109,7 @@ def main(
 
     slug = "_".join(steps)
     clf_best, X, y = processSVM(X1, X2, y1, y2, output_dir)
-    makeRocCurve(
+    make_roc_curve(
         str(clf_best),
         output_dir,
         clf_best,

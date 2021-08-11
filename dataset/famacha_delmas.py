@@ -33,7 +33,7 @@ if len(sys.argv) != 3:
     print("Only will extract weight, CS and Famacha from Excel sheet RAW formated in certain way."
           "Warning when processing Excel files make SURE ALL NUMBERS IN EXCEL ARE CONVERTED TO NUMS AND NOT STRING!!!"
           "Usage: "
-          "Famacha_delmas.py <Famacha Excel File> <FileOut> ")
+          "famacha_delmas.py <Famacha Excel File> <FileOut> ")
     exit(1)
 famFile = Path(sys.argv[1])
 outFile = Path(sys.argv[2])

@@ -26,7 +26,7 @@ def setupGraphOutputPath(output_dir):
     return graph_outputdir
 
 
-def applyPreprocessingSteps(
+def apply_preprocessing_steps(
     days,
     df_hum,
     df_temp,

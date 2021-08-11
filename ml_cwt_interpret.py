@@ -10,7 +10,7 @@ from classifier.src.cwt_weight import (
     get_cwt_data_frame,
     process_df, plot_ribbon)
 from model.data_loader import load_activity_data, parse_param_from_filename
-from preprocessing.preprocessing import applyPreprocessingSteps
+from preprocessing.preprocessing import apply_preprocessing_steps
 import pandas as pd
 
 
@@ -41,7 +41,7 @@ def main(
     ),
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
     p: bool = typer.Option(False, "--p")
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -70,7 +70,7 @@ def main(
 
         print(data_frame)
 
-        data_frame = applyPreprocessingSteps(
+        data_frame = apply_preprocessing_steps(
             days,
             None,
             None,
@@ -92,7 +92,7 @@ def main(
         )
         print(data_frame)
 
-        df_cwt, class0_count, class1_count, cwt_coefs_data = get_cwt_data_frame(data_frame)
+        df_cwt, class0_count, class1_count, cwt_coefs_data, features_names = get_cwt_data_frame(data_frame)
         if p:
             dfs, data = chunck_df(days, df_cwt, cwt_coefs_data)
         else:
@@ -104,7 +104,9 @@ def main(
             data,
             output_dir,
             class0_count,
-            class1_count
+            class1_count,
+            label_series,
+            features_names
         )
 
         if p:

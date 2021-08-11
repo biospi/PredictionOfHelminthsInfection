@@ -3,12 +3,13 @@ import glob
 import json
 import math
 import sys
+from pathlib import Path
+
 import matplotlib
-#matplotlib.use('Qt5Agg')
-matplotlib.use('Agg')
+
 from sys import platform as _platform
-if _platform == "linux" or _platform == "linux2":
-    matplotlib.use('Agg')
+
+import typer
 from matplotlib import cm
 import matplotlib.patches as mpatches
 import pandas as pd
@@ -28,13 +29,13 @@ from plotly.subplots import make_subplots
 
 
 def breaklineinsert_(str):
-    midPoint = len(str)//2
-    return str[:midPoint] + '\n' + str[midPoint:]
+    midPoint = len(str) // 2
+    return str[:midPoint] + "\n" + str[midPoint:]
 
 
 def breaklineinsert(str):
-    midPoint = len(str)//2
-    return breaklineinsert_(str[:midPoint]) + '\n' + breaklineinsert_(str[midPoint:])
+    midPoint = len(str) // 2
+    return breaklineinsert_(str[:midPoint]) + "\n" + breaklineinsert_(str[midPoint:])
 
 
 def create_rec_dir(path):
@@ -49,7 +50,7 @@ def create_rec_dir(path):
 
 
 def parse_options(dataset_filepath):
-    filename = dataset_filepath.split("/")[-1].replace(".csv", "")
+    filename = Path(dataset_filepath).name
     split = filename.split("_")
     farm_id = split[1] + "_" + split[2]
     sampling = split[5]
@@ -58,7 +59,7 @@ def parse_options(dataset_filepath):
 
 
 def parse_animal_id(file):
-    animal_id = int(file.split("/")[-1].replace(".csv", ""))
+    animal_id = int(Path(file).stem)
     return animal_id
 
 
@@ -87,7 +88,20 @@ def median_(to_resample):
 
 def resample(df, animal_id, res=None):
     df.index = pd.to_datetime(df.date_str)
-    df_resampled = df.resample(res).agg(dict(first_sensor_value=sum_, first_sensor_value_gain=sum_, signal_strength=median_, battery_voltage=median_, xmin=sum_, xmax=sum_, ymin=sum_, ymax=sum_, zmin=sum_, zmax=sum_))
+    df_resampled = df.resample(res).agg(
+        dict(
+            first_sensor_value=sum_,
+            first_sensor_value_gain=sum_,
+            signal_strength=median_,
+            battery_voltage=median_,
+            xmin=sum_,
+            xmax=sum_,
+            ymin=sum_,
+            ymax=sum_,
+            zmin=sum_,
+            zmax=sum_,
+        )
+    )
     # df_resampled = df.resample(res).agg(sum_)
     # df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_, signal_strength=entropy_, battery_voltage=entropy_, xmin=entropy_, xmax=entropy_, ymin=entropy_, ymax=entropy_, zmin=entropy_, zmax=entropy_))
     # df_resampled_median = df.resample(res).agg(dict(first_sensor_value=median_, signal_strength=median_, battery_voltage=median_, xmin=median_, xmax=median_, ymin=median_, ymax=median_, zmin=median_, zmax=median_))
@@ -95,7 +109,7 @@ def resample(df, animal_id, res=None):
 
 
 def entropy2(labels, base=None):
-    """ Computes entropy of label distribution. """
+    """Computes entropy of label distribution."""
     n_labels = len(labels)
     if n_labels <= 1:
         return 0
@@ -104,7 +118,7 @@ def entropy2(labels, base=None):
     n_classes = np.count_nonzero(probs)
     if n_classes <= 1:
         return 0
-    ent = 0.
+    ent = 0.0
     # Compute entropy
     base = math.e if base is None else base
     for i in probs:
@@ -144,10 +158,10 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
 
     for i in range(start, end, w):
         # print(animal_id, i, i+w)
-        df_activity_w = df_activity.loc[i: i+w, :]
+        df_activity_w = df_activity.loc[i : i + w, :]
         # print(df_activity_w)
         # 411989 2015-11-04T02:29
-        #159840
+        # 159840
         if df_activity_w.shape[0] - w > 1:
             continue
         entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
@@ -167,7 +181,7 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
             entropy = 0
         # entropy = entropy2(df_activity["first_sensor_value"].dropna().values)
 
-        #add herd start and end to create missing empty bins of full time range
+        # add herd start and end to create missing empty bins of full time range
         # data = []
         # data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(start_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
         # df_activity = pd.concat([pd.DataFrame(data), df_activity], ignore_index=True)
@@ -179,12 +193,12 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         df_activity_w.index = pd.to_datetime(df_activity_w.date_str)
         time = df_activity_w.index.values
         activity = df_activity_w.first_sensor_value.values
-        activity_i = df_activity_w.first_sensor_value_gain.values
+        # activity_i = df_activity_w.first_sensor_value_gain.values
         # activity_e = df_activity_w.first_sensor_value.values
         # activity_m = df_activity_w.first_sensor_value.values
 
         merge_a = activity.tolist() + [entropy, 0, animal_id]
-        merge_a_i = activity_i.tolist() + [entropy, 0, animal_id]
+        # merge_a_i = activity_i.tolist() + [entropy, 0, animal_id]
         # merge_e = activity_e.tolist() + [entropy, entropy_s2, animal_id]
         # merge_m = activity_m.tolist() + [entropy, entropy_s2, animal_id]
         # merge_bat = df_resampled_activity.battery_voltage.values.tolist() + [entropy, entropy_s2, animal_id]
@@ -197,9 +211,40 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
         #
         # merge_zmin = df_resampled_activity.zmin.values.tolist() + [entropy, entropy_s2, animal_id]
         # merge_zmax = df_resampled_activity.zmax.values.tolist() + [entropy, entropy_s2, animal_id]
-        merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, merge_e, merge_m = [], [], [], [], [], [], [], [], [], []
+        (
+            merge_bat,
+            merg_ss,
+            merge_xmin,
+            merge_xmax,
+            merge_ymin,
+            merge_ymax,
+            merge_zmin,
+            merge_zmax,
+            merge_e,
+            merge_m,
+        ) = ([], [], [], [], [], [], [], [], [], [])
 
-        data = [animal_id, time, entropy, 0, merge_a, merge_a_i, merge_e, merge_m, merge_bat, merg_ss, merge_xmin, merge_xmax, merge_ymin, merge_ymax, merge_zmin, merge_zmax, res, cpt, str(i)+"_"+str(i+w)]
+        data = [
+            animal_id,
+            time,
+            entropy,
+            0,
+            merge_a,
+            merge_a,
+            merge_e,
+            merge_m,
+            merge_bat,
+            merg_ss,
+            merge_xmin,
+            merge_xmax,
+            merge_ymin,
+            merge_ymax,
+            merge_zmin,
+            merge_zmax,
+            res,
+            cpt,
+            str(i) + "_" + str(i + w),
+        ]
         # if cpt > 14:
         #     break
         results.append(data)
@@ -220,32 +265,10 @@ def load_dataset(file):
     data_frame = pd.read_csv(file, sep=",", header=None)
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    # hearder[-19] = "label"
-    # hearder[-18] = "elem_in_row"
-    # hearder[-17] = "date1"
-    # hearder[-16] = "date2"
-    # hearder[-15] = "serial"
-    # hearder[-14] = "famacha_score"
-    # hearder[-13] = "previous_famacha_score"
-    # hearder[-12] = "previous_famacha_score2"
-    # hearder[-11] = "previous_famacha_score3"
-    # hearder[-10] = "previous_famacha_score4"
-    #
-    # hearder[-9] = "dtf1"
-    # hearder[-8] = "dtf2"
-    # hearder[-7] = "dtf3"
-    # hearder[-6] = "dtf4"
-    # hearder[-5] = "dtf5"
-    #
-    # hearder[-4] = "nd1"
-    # hearder[-3] = "nd2"
-    # hearder[-2] = "nd3"
-    # hearder[-1] = "nd4"
     hearder[-4] = "label"
     hearder[-3] = "serial"
     hearder[-2] = "miss_rate"
     hearder[-1] = "dtf1"
-
     data_frame.columns = hearder
     return data_frame
 
@@ -259,10 +282,13 @@ def create_annotation_matrix(df, time_axis, window_size):
 
     cpt = 0
     for i in range(annotation.shape[0]):
-        a_id = df.iloc[i, :]['id']
-        data_fam = np.array(df.iloc[i, :]['famacha'])
+        a_id = df.iloc[i, :]["id"]
+        data_fam = np.array(df.iloc[i, :]["famacha"])
         if len(data_fam.shape) == 0:
-            print("animal id %s in the activity data (csv files) do not exist in the famacha data." % a_id)
+            print(
+                "animal id %s in the activity data (csv files) do not exist in the famacha data."
+                % a_id
+            )
             annotation[i, :] = "n"
             missing_ids.append(a_id)
             continue
@@ -271,9 +297,12 @@ def create_annotation_matrix(df, time_axis, window_size):
             for j in range(time_axis.shape[0]):
                 date_f = f_data[0].to_datetime64()
                 target = f_data[1]
-                days = int((date_f - time_axis[j]).astype('timedelta64[D]') / np.timedelta64(1, 'D'))
+                days = int(
+                    (date_f - time_axis[j]).astype("timedelta64[D]")
+                    / np.timedelta64(1, "D")
+                )
                 if days == 0:
-                    annotation[i, j-window_size:j] = target
+                    annotation[i, j - window_size : j] = target
                     # df.iloc[i, j-window_size:j+1] = 10000000
                     cpt += 1
                     break
@@ -299,47 +328,22 @@ def add_famacha_format_id(row, fam_data, s2):
     return row
 
 
-# def test():
-#     host = host_subplot(111, axes_class=AA.Axes, figsize=(19.20, 10.80))
-#     plt.subplots_adjust(right=0.75)
-#
-#     par1 = host.twinx()
-#     par2 = host.twinx()
-#     par3 = host.twinx()
-#
-#     offset = 60
-#     new_fixed_axis = par2.get_grid_helper().new_fixed_axis
-#     par2.axis["right"] = new_fixed_axis(loc="right", axes=par2,
-#                                         offset=(offset, 0))
-#     par2.axis["right"].toggle(all=True)
-#
-#     new_fixed_axis3 = par3.get_grid_helper().new_fixed_axis
-#     par3.axis["right"] = new_fixed_axis3(loc="right", axes=par3,
-#                                         offset=(offset*2, 0))
-#     par3.axis["right"].toggle(all=True)
-#
-#     host.set_xlabel("Time (days)")
-#     host.set_ylabel("activity (first sensor)")
-#     par1.set_ylabel("signal strenght (dB)")
-#     par2.set_ylabel("battery level (V)")
-#     par3.set_ylabel("acceleration sensor 2 (m.s^-1)")
-#
-#     host.plot(time_axis, activity, label="activity (first sensor)")
-#     par1.plot(time_axis, ss, label="signal strenght (dB)")
-#     par2.plot(time_axis, bat, label="battery level (V)")
-#     par3.plot(time_axis, xmin, label="xmin")
-#     par3.plot(time_axis, xmax, label="xmax")
-#     par3.plot(time_axis, ymin, label="ymin")
-#     par3.plot(time_axis, ymax, label="ymax")
-#     par3.plot(time_axis, zmin, label="zmin")
-#     par3.plot(time_axis, zmax, label="zmax")
-#
-#     host.legend()
-#     plt.draw()
-#     plt.show()
-
-
-def export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowymax, rowzmin, rowzmax, out_dir, farm_id, time_axis, i_c, i_t):
+def export_tranponder_traces(
+    row,
+    rowss,
+    rowbat,
+    rowxmin,
+    rowxmax,
+    rowymin,
+    rowymax,
+    rowzmin,
+    rowzmax,
+    out_dir,
+    farm_id,
+    time_axis,
+    i_c,
+    i_t,
+):
     print("export_tranponder_traces %d/%d..." % (i_c, i_t))
     export_dir = out_dir + "/transponder_export"
     create_rec_dir(export_dir)
@@ -391,13 +395,11 @@ def export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowy
 
     offset = 60
     new_fixed_axis = par1.get_grid_helper().new_fixed_axis
-    par1.axis["right"] = new_fixed_axis(loc="right", axes=par1,
-                                        offset=(0, 0))
+    par1.axis["right"] = new_fixed_axis(loc="right", axes=par1, offset=(0, 0))
     par2.axis["right"].toggle(all=True)
 
     new_fixed_axis2 = par2.get_grid_helper().new_fixed_axis
-    par2.axis["right"] = new_fixed_axis2(loc="right", axes=par2,
-                                        offset=(offset, 0))
+    par2.axis["right"] = new_fixed_axis2(loc="right", axes=par2, offset=(offset, 0))
     par2.axis["right"].toggle(all=True)
 
     # new_fixed_axis3 = par3.get_grid_helper().new_fixed_axis
@@ -420,8 +422,12 @@ def export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowy
     amax = xmax * xmax + ymax * ymax + zmax * zmax
     s2max = np.sqrt(amax.tolist())
 
-    par2.plot(time_axis, s2min, c='black', label="sensor 2 min magnitude", linestyle='-')
-    par2.plot(time_axis, s2max, c='black', label="sensor 2 max magnitude", linestyle='--')
+    par2.plot(
+        time_axis, s2min, c="black", label="sensor 2 min magnitude", linestyle="-"
+    )
+    par2.plot(
+        time_axis, s2max, c="black", label="sensor 2 max magnitude", linestyle="--"
+    )
 
     host.legend()
     # plt.draw()
@@ -429,7 +435,7 @@ def export_tranponder_traces(row, rowss, rowbat, rowxmin, rowxmax, rowymin, rowy
     filename = "%s_%.4f_%s" % (farm_id, entropy, id)
     filename = filename.replace(".", "_").replace("*", "") + ".png"
     filepath = "%s/%s" % (export_dir, filename)
-    print('saving fig...')
+    print("saving fig...")
     plt.savefig(filepath)
     print("saved!")
 
@@ -438,12 +444,19 @@ def add_famacha_format_id_todf(df_raw, header, famacha_data, s2=False):
     df_raw.columns = header
     df_raw["famacha"] = np.nan
     df_raw = df_raw.apply(add_famacha_format_id, axis=1, args=(famacha_data, s2))
-    df_raw["possible"] = ['*' in x for x in df_raw["id"].values]
+    df_raw["possible"] = ["*" in x for x in df_raw["id"].values]
     if s2:
-        df_raw = df_raw.sort_values(['possible', 'entropy_s2'], ascending=[True, False]).groupby('possible').head(df_raw.shape[0])
+        df_raw = (
+            df_raw.sort_values(["possible", "entropy_s2"], ascending=[True, False])
+            .groupby("possible")
+            .head(df_raw.shape[0])
+        )
     else:
-        df_raw = df_raw.sort_values(['possible', 'entropy'], ascending=[True, False]).groupby('possible').head(
-            df_raw.shape[0])
+        df_raw = (
+            df_raw.sort_values(["possible", "entropy"], ascending=[True, False])
+            .groupby("possible")
+            .head(df_raw.shape[0])
+        )
 
     df_raw = df_raw.reset_index(drop=True)
     # df_raw = df_raw.sort_values(['entropy'], ascending=False, ignore_index=True)
@@ -458,14 +471,25 @@ def compute_magnitude(a_xmin, a_ymin, a_zmin):
             x = a_xmin[i, j]
             y = a_ymin[i, j]
             z = a_zmin[i, j]
-            m = math.sqrt(x*x + y*y + z*z)
+            m = math.sqrt(x * x + y * y + z * z)
             magnitude[i, j] = m
     return magnitude
 
 
-def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, n_job):
+def create_heatmap(
+    DATA,
+    k,
+    idx,
+    itot,
+    famacha_data,
+    day_before_famacha_test,
+    farm_id,
+    DATASET_INFO,
+    out_DIR,
+    n_job,
+):
     print("create_heatmap")
-    print("progress create_heatmap %d/%d ..." % (idx, itot))
+    print(f"progress create_heatmap {idx}/{itot} ...")
     # activity_list = []
     time_axis = None
     # animal_ids = []
@@ -483,9 +507,9 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     raw_ymax = []
     raw_zmin = []
     raw_zmax = []
-    resolution = ''
+    resolution = ""
     wid = 0
-    range_id = ''
+    range_id = ""
     for item in DATA:
         # animal_ids.append(item[0])
         time_axis = item[k][1]
@@ -510,10 +534,13 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
         range_id = item[k][18]
 
     df_raw = pd.DataFrame(raw, dtype=object)
-    if np.sum(np.isnan(df_raw.iloc[:, :-4].values.flatten().astype(float)).astype(int)) == 0:
+    if (
+        np.sum(np.isnan(df_raw.iloc[:, :-4].values.flatten().astype(float)).astype(int))
+        == 0
+    ):
         print("empty df only Nan!")
         return
-    df_raw_i = pd.DataFrame(raw_i, dtype=object)
+    # df_raw_i = pd.DataFrame(raw_i, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
     # df_raw_m = pd.DataFrame(raw_m, dtype=object)
 
@@ -534,9 +561,9 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     header[-2] = "entropy_s2"
     header[-3] = "entropy"
 
-    print("add_famacha_format_id_todf... %d/%d ..." % (idx, itot))
+    print(f"add_famacha_format_id_todf... {idx}/{itot} ...")
     df_raw = add_famacha_format_id_todf(df_raw, header, famacha_data)
-    df_raw_i = add_famacha_format_id_todf(df_raw_i, header, famacha_data)
+    # df_raw_i = add_famacha_format_id_todf(df_raw_i, header, famacha_data)
     # df_raw_ss = add_famacha_format_id_todf(df_raw_ss, header, famacha_data)
     # df_raw_bat = add_famacha_format_id_todf(df_raw_bat, header, famacha_data)
     # df_raw_xmin = add_famacha_format_id_todf(df_raw_xmin, header, famacha_data, s2=True)
@@ -545,10 +572,10 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # df_raw_ymax = add_famacha_format_id_todf(df_raw_ymax, header, famacha_data, s2=True)
     # df_raw_zmin = add_famacha_format_id_todf(df_raw_zmin, header, famacha_data, s2=True)
     # df_raw_zmax = add_famacha_format_id_todf(df_raw_zmax, header, famacha_data, s2=True)
-    print("add_famacha_format_id_todf done %d/%d ..." % (idx, itot))
+    print(f"add_famacha_format_id_todf done {idx}/{itot} ...")
 
     df_raw = df_raw[df_raw["possible"] == False]
-    df_raw_i = df_raw_i[df_raw_i["possible"] == False]
+    # df_raw_i = df_raw_i[df_raw_i["possible"] == False]
 
     if df_raw.shape[0] == 0:
         print("empty df!")
@@ -563,7 +590,7 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # df_raw_ymax = df_raw_ymax[df_raw_ymax["possible"] == False]
     # df_raw_zmin = df_raw_zmin[df_raw_zmin["possible"] == False]
     # df_raw_zmax = df_raw_zmax[df_raw_zmax["possible"] == False]
-    print("ready for figure %d/%d ..." % (idx, itot))
+    print(f"ready for figure {idx}/{itot} ...")
 
     # n = 3
     # h = (df_raw.shape[0] * 40 * n) / 100
@@ -574,20 +601,22 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # #     axs[p].yaxis.tick_right()
     #
 
-    annotation, missing_ids = create_annotation_matrix(df_raw, time_axis, day_before_famacha_test)
+    annotation, missing_ids = create_annotation_matrix(
+        df_raw, time_axis, day_before_famacha_test
+    )
     print("ANNOT", np.unique(annotation.flatten()).tolist())
     # f_id = [list(x)[1] for x in list(map(set, annotation))]
     f_id = []
     for x in list(map(set, annotation)):
         if len(x) != 2:
-            f_id.append('')
+            f_id.append("")
             continue
         f_id.append(list(x)[1])
 
     a = df_raw.iloc[:, :-5].values
-    a_i = df_raw_i.iloc[:, :-5].values
-    a_i_only = a_i.copy()
-    a_i_only[np.isnan(a) == False] = np.nan
+    # a_i = df_raw_i.iloc[:, :-5].values
+    # a_i_only = a_i.copy()
+    # a_i_only[np.isnan(a) == False] = np.nan
     # ss = df_raw_ss.iloc[:, :-5].values
     # bat = df_raw_bat.iloc[:, :-5].values
     #
@@ -604,7 +633,6 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # pink = np.array([0 / 256, 0 / 256, 0 / 256, 1])
     # newcolors[:1, :] = pink
     # newcmp = ListedColormap(newcolors)
-
 
     # im_a_log_anscomb = axs[0].imshow(a, cmap=newcmp, aspect='auto',
     #                                  interpolation="nearest",
@@ -644,7 +672,9 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     # fig.autofmt_xdate()
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
-    animal_ids_formatted_ent = np.array([x[1] + " " + x[0] for x in zip(f_id, animal_ids_formatted_ent)])
+    animal_ids_formatted_ent = np.array(
+        [x[1] + " " + x[0] for x in zip(f_id, animal_ids_formatted_ent)]
+    )
     # animal_ids_formatted_ent_s2 = df_raw_xmin["id"].values[::-1]
     # for p in range(n):
     #     axs[p].set_yticklabels(animal_ids_formatted_ent)
@@ -693,17 +723,16 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
     #                                 edgecolor=color, facecolor=None, lw=lw, alpha=1)
     #                 axs[p].add_patch(rec)
 
-
-    param_str = "sampling=%s day_before_famacha_test=%d" % (resolution, day_before_famacha_test)
+    param_str = (
+        f"sampling={resolution} day_before_famacha_test={day_before_famacha_test}"
+    )
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
 
-    title1 = "Activity data per %s  %s herd" % (resolution, farm_id)
+    title1 = f"Activity data per %s  %s herd" % (resolution, farm_id)
 
-    title2 = "Imputed Activity data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids), len(animal_ids_formatted_ent), ntrans_with_samples)
-
-    title3 = "(imputed only) Imputed Activity raw data per %s  %s herd and dataset samples location\n%s\n%s\n*no famacha data corresponding animal id size=%d/%d\ntransponder traces with fam samples=%d" % (
-        resolution, farm_id, breaklineinsert(str(DATASET_INFO)), param_str, len(missing_ids),
-        len(animal_ids_formatted_ent), ntrans_with_samples)
+    # title2 = f"Imputed Activity data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
+    #
+    # title3 = f"(imputed only) Imputed Activity raw data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
 
     # patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
     # patch2 = mpatches.Patch(color='red', label="1To2 "+str(DATASET_INFO["1To2"]))
@@ -738,129 +767,136 @@ def create_heatmap(DATA, k, idx, itot, famacha_data, day_before_famacha_test, fa
 
     time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
     # animal_ids_formatted_ent = ["\""+x+"\"" for x in animal_ids_formatted_ent]
-    fig = make_subplots(rows=3, cols=1, subplot_titles=(title1.replace("\n", "<br>"), title2.replace("\n", "<br>"),
-                                                        title3.replace("\n", "<br>")))
-    cbarlocs = [.89, .5, .11]
+    fig = make_subplots(rows=1, cols=1, subplot_titles=(title1.replace("\n", "<br>")))
+    #cbarlocs = [0.89, 0.5, 0.11]
 
     html_formatted = []
     for item in animal_ids_formatted_ent:
         formatted = item
         split = formatted.split()
         if "1to2" in item.lower():
-            formatted = ' '.join(split[0:2]) + " <b>" + split[-1] + "</b>"
+            formatted = " ".join(split[0:2]) + " <b>" + split[-1] + "</b>"
         if "2to2" in item.lower():
-            formatted = ' '.join(split[0:2]) + " <b><i>" + split[-1] + "</i></b>"
+            formatted = " ".join(split[0:2]) + " <b><i>" + split[-1] + "</i></b>"
         if "2to1" in item.lower():
-            formatted = ' '.join(split[0:2]) + " <i>" + split[-1] + "</i>"
+            formatted = " ".join(split[0:2]) + " <i>" + split[-1] + "</i>"
         if "3to2" in item.lower():
-            formatted = ' '.join(split[0:2]) + " <i>" + split[-1] + "</i>"
+            formatted = " ".join(split[0:2]) + " <i>" + split[-1] + "</i>"
         html_formatted.append(formatted)
 
-    fig_im_a_log_anscomb = go.Figure(data=go.Heatmap(
-        z=a,
-        x=time_axis,
-        y=html_formatted,
-        colorbar=dict(len=0.25, y=cbarlocs[0]),
-        colorscale='Viridis'))
-    fig.update_yaxes(type='category')
+    fig_im_a_log_anscomb = go.Figure(
+        data=go.Heatmap(
+            z=a,
+            x=time_axis,
+            y=html_formatted,
+            #colorbar=dict(len=0.25, y=cbarlocs[0]),
+            colorscale="Viridis",
+        )
+    )
+    fig.update_yaxes(type="category")
     # fig_im_a_log_anscomb.update_traces(showscale=True)
 
-    fig.add_trace(fig_im_a_log_anscomb['data'][0], row=1, col=1)
+    fig.add_trace(fig_im_a_log_anscomb["data"][0], row=1, col=1)
 
-    fig_im_a_i = go.Figure(data=go.Heatmap(
-        z=a_i,
-        x=time_axis,
-        y=html_formatted,
-        colorbar=dict(len=0.25, y=cbarlocs[1]),
-        colorscale='Viridis'))
-    fig_im_a_i.update_yaxes(type='category')
+    # fig_im_a_i = go.Figure(data=go.Heatmap(
+    #     z=a_i,
+    #     x=time_axis,
+    #     y=html_formatted,
+    #     colorbar=dict(len=0.25, y=cbarlocs[1]),
+    #     colorscale='Viridis'))
+    # fig_im_a_i.update_yaxes(type='category')
     # fig_im_a_i.update_traces(showscale=False)
 
-    fig.add_trace(fig_im_a_i['data'][0], row=2, col=1)
-
-    fig_a_i_only = go.Figure(data=go.Heatmap(
-        z=a_i_only,
-        x=time_axis,
-        y=html_formatted,
-        colorbar=dict(len=0.25, y=cbarlocs[2]),
-        colorscale='Viridis'))
-    fig_a_i_only.update_yaxes(type='category')
-    # fig_a_i_only.update_traces(showscale=True)
-
-    fig.add_trace(fig_a_i_only['data'][0], row=3, col=1)
+    # fig.add_trace(fig_im_a_i['data'][0], row=2, col=1)
+    #
+    # fig_a_i_only = go.Figure(data=go.Heatmap(
+    #     z=a_i_only,
+    #     x=time_axis,
+    #     y=html_formatted,
+    #     colorbar=dict(len=0.25, y=cbarlocs[2]),
+    #     colorscale='Viridis'))
+    # fig_a_i_only.update_yaxes(type='category')
+    # # fig_a_i_only.update_traces(showscale=True)
+    #
+    # fig.add_trace(fig_a_i_only['data'][0], row=3, col=1)
 
     has_famdata = False
     for item in animal_ids_formatted_ent:
         if "to" in item.lower():
             has_famdata = True
             break
-    filename = "%s_dataset_heatmap_%s_%s_has_famacha_%s.html" % (range_id, farm_id, resolution, has_famdata)
-    create_rec_dir(out_DIR)
-    file_path = out_DIR + "/" + filename.replace("=", "_").lower()
+    filename = f"{range_id}_dataset_heatmap_{farm_id}_{resolution}_has_famacha_{has_famdata}.html"
+    out_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = out_DIR / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(file_path)
+    fig.write_html(str(file_path))
 
 
-def main(args):
+def main(
+    output: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    activity_dir: Path = typer.Option(
+        ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    dataset_dir: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    w: int = 1440 * 7,
+    res: str = "10T",
+    start: int = 0,
+    end: str = -1,
+    n_job: int = 6,
+):
+    """Create heatmap of the heard with sample overlay.\n
+    Args:\n
+        output: Directory path of heatmap output. (Directory will be created if does not exist)
+        activity_dir: Directory with activity data
+        dataset_dir: Path of the directory containing dataset .csv and class info .txt.
+        w: Size of slicing window in minutes. (pass negative value for entire signal trace)
+        res: Sampling resolution.
+        start: start time in minute.
+        end: end time in minute.
+        n_job: Number of thread to use.
+    """
+
     try:
-        dataset_file_path = glob.glob(args.dataset_dir + "/*.csv")[0].replace("\\", '/')
+        dataset_file_path = glob.glob(str(dataset_dir / "*.csv"))[0]
     except IndexError as e:
         print(e)
-        print("could not find dataset (.csv) file in %s" % args.dataset_dir)
-    info_files = glob.glob(args.dataset_dir+"/*.json")
+        print(f"could not find dataset (.csv) file in {dataset_dir}")
+    info_files = glob.glob(str(dataset_dir / "*.json"))
     info_file = None
     for file in info_files:
-        file = file.replace("\\", '/')
         info_file = file
         print("found info file %s" % file)
         break
     if info_file is None:
-        raise IOError("missing dataset info (.json) file! in %s" % args.dataset_dir)
+        raise IOError(f"missing dataset info (.json) file! in {dataset_dir}")
     DATASET_INFO = json.load(open(info_file))
 
     farm_id, sampling, day_before_famacha_test = parse_options(dataset_file_path)
 
-    out_DIR = args.output + "/" + farm_id
-    create_rec_dir(out_DIR)
+    out_DIR = output / farm_id
+    out_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("farm_id=", farm_id)
-    print("sampling=", sampling)
-    print("day_before_famacha_test=", day_before_famacha_test)
+    print(f"farm_id{farm_id}")
+    print(f"sampling{sampling}")
+    print(f"day_before_famacha_test{day_before_famacha_test}")
 
-    files = glob.glob(args.activity_dir+"/*.csv")
+    files = glob.glob(str(activity_dir / "*.csv"))
     if len(files) == 0:
-        raise IOError("missing activity files .csv! in %s" % args.activity_dir)
-    files = [file.replace("\\", '/') for file in files]#prevent Unix issues
-    #find start date and end date##########################
-    # pool = Pool(processes=args.n_job)
-    # results_dates = []
-    # for i, file in enumerate(files):
-    #     if 'median' in file or 'mean' in file:
-    #         continue
-    #     results_dates.append(pool.apply_async(get_start_end_date, (file, i, len(files))))
-    # pool.close()
-    # pool.join()
-    # pool.terminate()
-    # start_time = None
-    # end_time = None
-    # for res in results_dates:
-    #     s = res.get()[0]
-    #     e = res.get()[1]
-    #     if start_time is None or s < start_time:
-    #         start_time = s
-    #     if end_time is None or e > end_time:
-    #         end_time = e
-    # start_time = np.datetime64(str(start_time).split('T')[0])
-    # end_time = np.datetime64(str(end_time).split('T')[0])
-    # end_time = end_time + np.timedelta64(1, 'D')
-    ######################################################
-    #get FAMACHA data
+        raise IOError(f"missing activity files .csv! in {activity_dir}")
+
+    # get FAMACHA data
     famacha_data = {}
     dataset = load_dataset(dataset_file_path)
     for i in range(dataset.shape[0]):
         row = dataset.iloc[i, :]
         date_of_famacha_test_str = row["dtf1"].strip("'")
-        date_of_famacha_test = pd.to_datetime(date_of_famacha_test_str, format="%d/%m/%Y")
+        date_of_famacha_test = pd.to_datetime(
+            date_of_famacha_test_str, format="%d/%m/%Y"
+        )
         label = row["label"]
         animal_id = row["serial"]
         if animal_id in famacha_data.keys():
@@ -868,12 +904,16 @@ def main(args):
         else:
             famacha_data[animal_id] = [[date_of_famacha_test, label]]
     ######################################################
-    pool = Pool(processes=args.n_job)
+    pool = Pool(processes=n_job)
     results = []
     for i, file in enumerate(files):
-        if 'median' in file or 'mean' in file:
+        if "median" in file or "mean" in file:
             continue
-        results.append(pool.apply_async(process_activity_data, (file, i, len(files), args.w, args.res, args.start, args.end)))
+        results.append(
+            pool.apply_async(
+                process_activity_data, (file, i, len(files), w, res, start, end)
+            )
+        )
     pool.close()
     pool.join()
     pool.terminate()
@@ -885,8 +925,8 @@ def main(args):
     ######################################################
     print("starting second pool.")
     # MAX_THREADC = 6
-    MAX_THREADC = args.n_job
-    njob = MAX_THREADC if args.n_job >= MAX_THREADC else args.n_job
+    MAX_THREADC = n_job
+    njob = MAX_THREADC if n_job >= MAX_THREADC else n_job
     # pool2 = Pool(processes=njob)
     print("with njob=%d" % njob)
     r_ = list(range(len(DATA[0])))
@@ -894,7 +934,18 @@ def main(args):
     for i, k in enumerate(r_):
         print("feeding pool", i)
         # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
-        create_heatmap(DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job)
+        create_heatmap(
+            DATA,
+            k,
+            i,
+            len(DATA[0]),
+            famacha_data,
+            day_before_famacha_test,
+            farm_id,
+            DATASET_INFO,
+            out_DIR,
+            n_job,
+        )
     #     pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
     # pool2.close()
     # pool2.join()
@@ -903,34 +954,5 @@ def main(args):
     print("done.")
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Create heatmap of the heard with sample overlay.')
-    parser.add_argument('output',
-                        help='Directory path of heatmap output. (Directory will be created if does not exist)')
-    parser.add_argument('activity_dir', help='Parent directory of the activity data.')
-    parser.add_argument('dataset_dir', help='Path of the directory containing dataset .csv and class info .txt.')
-    parser.add_argument('--w', type=int, default=1440 * 7, help='Size of slicing window in minutes. (pass negative value for entire signal trace)')
-    parser.add_argument('--res', type=str, default='1T', help='Sampling resolution.')
-    parser.add_argument('--start', type=int, default=0, help='start time in minute.')
-    parser.add_argument('--end', type=int, default=-1, help='end time in minute.')
-    parser.add_argument('--n_job', type=int, default=6, help='Number of thread to use.')
-    args = parser.parse_args()
-
-    print("Argument values:")
-    print("output=", args.output)
-    print("activity_dir=", args.activity_dir)
-    print("dataset_dir=", args.dataset_dir)
-    print("w=", args.w)
-    print("res=", args.res)
-    print("start=", args.start)
-    print("end=", args.end)
-    print("njob=", args.n_job)
-
-    main(args)
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    typer.run(main)

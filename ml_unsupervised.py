@@ -6,7 +6,7 @@ import matplotlib
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from preprocessing.preprocessing import applyPreprocessingSteps
+from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY
 from utils.visualisation import plot_2d_space
 
@@ -72,7 +72,7 @@ def main(
         print(data_frame)
         data_frame_o = data_frame.copy()
 
-        data_frame = applyPreprocessingSteps(
+        data_frame = apply_preprocessing_steps(
             days,
             None,
             None,

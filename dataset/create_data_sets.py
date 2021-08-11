@@ -23,8 +23,8 @@
 
 import typer
 
-from dataset.Herd import *
-from dataset.Samples import *
+from dataset.herd import *
+from dataset.samples import *
 from dataset.cmdsextra import bc
 import datetime
 import json

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True):
+def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, filter=True):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -19,6 +19,8 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     # filter with imputed_days count
     if 'cat' not in filepath:#todo parametarize
         data_frame = data_frame[data_frame["imputed_days"] >= day]
+
+    # data_frame = data_frame[data_frame["label"].isin(["1To2", "1To1", "2To2"])]
 
     if class_unhealthy is None:
         data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
@@ -41,34 +43,36 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     #
     # data_frame["label"] = new_label
 
-    if "cedara" in filepath:#todo parametarize
-        new_label = []
-        for v in data_frame["label"].values:
-            if v in ["1To1", "2To2"]:
-                new_label.append("1To1")
-                continue
-            if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
-                new_label.append("2To2")
-                continue
-            new_label.append(np.nan)
 
-        data_frame["label"] = new_label
+    if filter:
+        if "cedara" in filepath:#todo parametarize
+            new_label = []
+            for v in data_frame["label"].values:
+                if v in ["1To1", "2To2"]:
+                    new_label.append("1To1")
+                    continue
+                if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
+                    new_label.append("2To2")
+                    continue
+                new_label.append(np.nan)
 
-    if "delmas" in filepath:#todo parametarize
-        new_label = []
-        for v in data_frame["label"].values:
-            if v in ["1To1"]:
-                new_label.append("1To1")
-                continue
-            if v in ["2To2"]:
-                new_label.append("2To2")
-                continue
-            new_label.append(np.nan)
+            data_frame["label"] = new_label
 
-        data_frame["label"] = new_label
+        if "delmas" in filepath:#todo parametarize
+            new_label = []
+            for v in data_frame["label"].values:
+                if v in ["1To1"]:
+                    new_label.append("1To1")
+                    continue
+                if v in ["1To2"]:
+                    new_label.append("2To2")
+                    continue
+                new_label.append(np.nan)
 
-    if keep_2_only:
-        data_frame = data_frame.dropna()
+            data_frame["label"] = new_label
+
+        if keep_2_only:
+            data_frame = data_frame.dropna()
 
     #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
     #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}
@@ -97,25 +101,29 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     #     data_frame["label"] = new_label
 
 
-    # up_down = False
+    # up_down = True
     # if up_down:
     #     new_label = []
     #     for v in data_frame["label"].values:
-    #
     #         split = v.split("To")
     #         a = int(split[0])
     #         b = int(split[1])
-    #
-    #         if a == 1 or b == 1:
-    #             new_label.append("1To1")
-    #             continue
-    #         # if a < b:
+    #         # if a == 1 or b == 1:
+    #         #     new_label.append("1To1")
+    #         #     continue
+    #         # if a == b:
     #         #     new_label.append("2To2")
     #         #     continue
-    #
-    #         new_label.append("2To2")
-    #
+    #         if a > b:
+    #             new_label.append("1To1")
+    #             continue
+    #         if a < b:
+    #             new_label.append("2To2")
+    #             continue
+    #         new_label.append(np.nan)
     #     data_frame["label"] = new_label
+    # data_frame = data_frame.dropna()
+
 
     data_frame_o = data_frame.copy()
     #print(data_frame)
@@ -138,6 +146,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     print(class_count)
     # drop label column stored previously, just keep target for ml
     data_frame = data_frame.drop('label', 1)
+
     print(data_frame)
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series
