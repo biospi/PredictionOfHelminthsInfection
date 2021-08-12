@@ -857,12 +857,37 @@ def plotDistribution(X, output_dir, filename):
 
 
 def figures_to_html(figs, filename="dashboard.html"):
-    dashboard = open(filename, "w")
-    dashboard.write("<html><head></head><body>" + "\n")
-    for fig in figs:
-        inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
-        dashboard.write(inner_html)
-    dashboard.write("</body></html>" + "\n")
+    fig = make_subplots(rows=int(np.ceil(len(figs)/3)), cols=3)
+    row = 1
+    col = 1
+    for i, f in enumerate(figs):
+        fig.add_trace(f["data"][0], row=row, col=col)
+        #print(row, col)
+        col += 1
+        if col > 3:
+            print("row")
+            col = 1
+            row += 1
+    fig.write_html(str(filename))
+
+    # dashboard = open(filename, "w")
+    # dashboard.write("<html><head></head><body>" + "\n")
+    # for i, fig in enumerate(figs):
+    #
+    #     if i % 3 == 0:
+    #         dashboard.write("<div class='row'>" + "\n")
+    #
+    #     dashboard.write("\t<div class='column'>" + "\n")
+    #
+    #     inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
+    #     dashboard.write(inner_html)
+    #
+    #     dashboard.write("\t</div>" + "\n")
+    #
+    #     if i % 3 == 0:
+    #         dashboard.write("</div>" + "\n")
+    #
+    # dashboard.write("</body></html>" + "\n")
 
 
 def rolling_window(array, window_size, freq):

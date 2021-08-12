@@ -27,6 +27,8 @@ from utils.Utils import anscombe
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from utils.visualisation import figures_to_html
+
 
 def breaklineinsert_(str):
     midPoint = len(str) // 2
@@ -609,7 +611,7 @@ def create_heatmap(
     f_id = []
     for x in list(map(set, annotation)):
         if len(x) != 2:
-            f_id.append("")
+            f_id.append("NaN")
             continue
         f_id.append(list(x)[1])
 
@@ -728,7 +730,7 @@ def create_heatmap(
     )
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
 
-    title1 = f"Activity data per %s  %s herd" % (resolution, farm_id)
+    title1 = f"Activity data per {resolution} {farm_id} herd"
 
     # title2 = f"Imputed Activity data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
     #
@@ -767,12 +769,12 @@ def create_heatmap(
 
     time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
     # animal_ids_formatted_ent = ["\""+x+"\"" for x in animal_ids_formatted_ent]
-    fig = make_subplots(rows=1, cols=1, subplot_titles=(title1.replace("\n", "<br>")))
+    #fig = make_subplots(rows=1, cols=1)
     #cbarlocs = [0.89, 0.5, 0.11]
 
     html_formatted = []
     for item in animal_ids_formatted_ent:
-        formatted = item
+        formatted = item[7:]
         split = formatted.split()
         if "1to2" in item.lower():
             formatted = " ".join(split[0:2]) + " <b>" + split[-1] + "</b>"
@@ -790,13 +792,27 @@ def create_heatmap(
             x=time_axis,
             y=html_formatted,
             #colorbar=dict(len=0.25, y=cbarlocs[0]),
-            colorscale="Viridis",
+            colorscale="Viridis"
         )
     )
-    fig.update_yaxes(type="category")
+
+    fig_im_a_log_anscomb.update_traces(showscale=False)
+    fig_im_a_log_anscomb.update_yaxes(type="category")
     # fig_im_a_log_anscomb.update_traces(showscale=True)
 
-    fig.add_trace(fig_im_a_log_anscomb["data"][0], row=1, col=1)
+    # fig.add_trace(fig_im_a_log_anscomb["data"][0], row=1, col=1)
+    # fig.update_layout(
+    #     #title=title1.replace("10T", "10 minutes"),
+    #     autosize=False,
+    #     width=900,
+    #     height=450,
+    # )
+
+    # fig_im_a_log_anscomb.update_layout(
+    #     autosize=False,
+    #     width=900,
+    #     height=450,
+    # )
 
     # fig_im_a_i = go.Figure(data=go.Heatmap(
     #     z=a_i,
@@ -829,7 +845,8 @@ def create_heatmap(
     out_DIR.mkdir(parents=True, exist_ok=True)
     file_path = out_DIR / filename.replace("=", "_").lower()
     print(file_path)
-    fig.write_html(str(file_path))
+    fig_im_a_log_anscomb.write_html(str(file_path))
+    return fig_im_a_log_anscomb
 
 
 def main(
@@ -931,10 +948,11 @@ def main(
     print("with njob=%d" % njob)
     r_ = list(range(len(DATA[0])))
 
+    traces = []
     for i, k in enumerate(r_):
         print("feeding pool", i)
         # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
-        create_heatmap(
+        trace = create_heatmap(
             DATA,
             k,
             i,
@@ -946,10 +964,12 @@ def main(
             out_DIR,
             n_job,
         )
+        traces.append(trace)
     #     pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
     # pool2.close()
     # pool2.join()
     # pool2.terminate()
+    figures_to_html(traces, filename=str(out_DIR / "dashboard.html"))
 
     print("done.")
 
