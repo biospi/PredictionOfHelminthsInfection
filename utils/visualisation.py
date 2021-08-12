@@ -17,7 +17,7 @@ from sklearn.metrics import auc, precision_recall_curve
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
-from utils.Utils import anscombe
+from utils.Utils import anscombe, chunks
 import random
 import matplotlib.dates as mdates
 from plotly.subplots import make_subplots
@@ -856,19 +856,28 @@ def plotDistribution(X, output_dir, filename):
     fig.write_html(str(filename))
 
 
-def figures_to_html(figs, filename="dashboard.html"):
-    fig = make_subplots(rows=int(np.ceil(len(figs)/3)), cols=3)
-    row = 1
-    col = 1
-    for i, f in enumerate(figs):
-        fig.add_trace(f["data"][0], row=row, col=col)
-        #print(row, col)
-        col += 1
-        if col > 3:
-            print("row")
-            col = 1
-            row += 1
-    fig.write_html(str(filename))
+def figures_to_html(figs, out_dir, ncol=2, maxrow=15):
+    fig_list = chunks(figs, maxrow*2)
+
+    for i, ff in enumerate(fig_list):
+        fig = make_subplots(rows=maxrow, cols=ncol)
+        row = 1
+        col = 1
+        for f in ff:
+            fig.add_trace(f["data"][0], row=row, col=col)
+            #print(row, col)
+            col += 1
+            if col > ncol:
+                col = 1
+                row += 1
+
+        fig.update_layout(
+            autosize=False,
+            width=1200,
+            height=1700
+        )
+        filename = out_dir / f"dashboard_{i}.html"
+        fig.write_html(str(filename))
 
     # dashboard = open(filename, "w")
     # dashboard.write("<html><head></head><body>" + "\n")

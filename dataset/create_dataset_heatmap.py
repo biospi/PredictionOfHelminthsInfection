@@ -535,13 +535,19 @@ def create_heatmap(
         wid = item[k][17]
         range_id = item[k][18]
 
+    # if range_id == "100800_110880" or idx == 10:
+    #     time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
+    #     print(time_axis)
+    #     print(0)
+
     df_raw = pd.DataFrame(raw, dtype=object)
-    if (
-        np.sum(np.isnan(df_raw.iloc[:, :-4].values.flatten().astype(float)).astype(int))
-        == 0
-    ):
+    print(df_raw)
+    c = np.nansum(df_raw.iloc[:, :-4].values.astype(float))
+    print("c", c)
+    if c == 0:
         print("empty df only Nan!")
-        return
+        df_raw[0][0] = 0 #need at leas 1 value in dataframe for heatmap plot otherwise xaxis ignored
+        #return
     # df_raw_i = pd.DataFrame(raw_i, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
     # df_raw_m = pd.DataFrame(raw_m, dtype=object)
@@ -576,12 +582,14 @@ def create_heatmap(
     # df_raw_zmax = add_famacha_format_id_todf(df_raw_zmax, header, famacha_data, s2=True)
     print(f"add_famacha_format_id_todf done {idx}/{itot} ...")
 
-    df_raw = df_raw[df_raw["possible"] == False]
+    if c != 0:
+        df_raw = df_raw[df_raw["possible"] == False]
     # df_raw_i = df_raw_i[df_raw_i["possible"] == False]
 
-    if df_raw.shape[0] == 0:
-        print("empty df!")
-        return
+    # if df_raw.shape[0] == 0:
+    #     print("empty df!")
+    #     return
+
     # df_raw_e = df_raw_e[df_raw_e["possible"] == False]
     # df_raw_m = df_raw_m[df_raw_m["possible"] == False]
     # df_raw_ss = df_raw_ss[df_raw_ss["possible"] == False]
@@ -768,22 +776,33 @@ def create_heatmap(
     # x_lims = mdates.date2num(time_axis)
 
     time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
+    print(time_axis)
     # animal_ids_formatted_ent = ["\""+x+"\"" for x in animal_ids_formatted_ent]
     #fig = make_subplots(rows=1, cols=1)
     #cbarlocs = [0.89, 0.5, 0.11]
 
     html_formatted = []
     for item in animal_ids_formatted_ent:
-        formatted = item[7:]
+        formatted = item
         split = formatted.split()
         if "1to2" in item.lower():
-            formatted = " ".join(split[0:2]) + " <b>" + split[-1] + "</b>"
+            formatted = f"{''.join(split[0][7:])} <b>{split[-1]}</b>"
+            html_formatted.append(formatted)
+            continue
         if "2to2" in item.lower():
-            formatted = " ".join(split[0:2]) + " <b><i>" + split[-1] + "</i></b>"
+            formatted = f"{''.join(split[0][7:])} <b><i>{split[-1]}</i></b>"
+            html_formatted.append(formatted)
+            continue
         if "2to1" in item.lower():
-            formatted = " ".join(split[0:2]) + " <i>" + split[-1] + "</i>"
+            formatted = f"{''.join(split[0][7:])} <i>{split[-1]}</i>"
+            html_formatted.append(formatted)
+            continue
         if "3to2" in item.lower():
-            formatted = " ".join(split[0:2]) + " <i>" + split[-1] + "</i>"
+            formatted = f"{''.join(split[0][7:])} <i>{split[-1]}</i>"
+            html_formatted.append(formatted)
+            continue
+
+        formatted = f"{''.join(split[0][7:])}  {split[-1]}"
         html_formatted.append(formatted)
 
     fig_im_a_log_anscomb = go.Figure(
@@ -950,7 +969,7 @@ def main(
 
     traces = []
     for i, k in enumerate(r_):
-        print("feeding pool", i)
+        #print("feeding pool", i)
         # print(k, i, len(DATA[0]), day_before_famacha_test, farm_id, out_DIR)
         trace = create_heatmap(
             DATA,
@@ -965,11 +984,14 @@ def main(
             n_job,
         )
         traces.append(trace)
+
+        # if i > 11:
+        #     break
     #     pool2.apply_async(create_heatmap, (DATA, k, i, len(DATA[0]), famacha_data, day_before_famacha_test, farm_id, DATASET_INFO, out_DIR, args.n_job))
     # pool2.close()
     # pool2.join()
     # pool2.terminate()
-    figures_to_html(traces, filename=str(out_DIR / "dashboard.html"))
+    figures_to_html(traces, out_DIR)
 
     print("done.")
 
