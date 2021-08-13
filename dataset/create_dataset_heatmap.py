@@ -535,18 +535,20 @@ def create_heatmap(
         wid = item[k][17]
         range_id = item[k][18]
 
-    # if range_id == "100800_110880" or idx == 10:
+    # if range_id == "161280_171360" or idx == 16:
     #     time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
     #     print(time_axis)
     #     print(0)
 
     df_raw = pd.DataFrame(raw, dtype=object)
+    return [np.nanmin(df_raw.iloc[:, :-4].values), np.nanmax(df_raw.iloc[:, :-4].values)]
+    df_raw[0][0] = 0
     print(df_raw)
     c = np.nansum(df_raw.iloc[:, :-4].values.astype(float))
-    print("c", c)
-    if c == 0:
-        print("empty df only Nan!")
-        df_raw[0][0] = 0 #need at leas 1 value in dataframe for heatmap plot otherwise xaxis ignored
+    # print("c", c)
+    # if c == 0:
+    #     print("empty df only Nan!")
+    #     df_raw[0][0] = 0 #need at leas 1 value in dataframe for heatmap plot otherwise xaxis ignored
         #return
     # df_raw_i = pd.DataFrame(raw_i, dtype=object)
     # df_raw_e = pd.DataFrame(raw_e, dtype=object)
@@ -805,6 +807,7 @@ def create_heatmap(
         formatted = f"{''.join(split[0][7:])}  {split[-1]}"
         html_formatted.append(formatted)
 
+    a[0][0] = 0#workaround to prevent empty heatmap
     fig_im_a_log_anscomb = go.Figure(
         data=go.Heatmap(
             z=a,

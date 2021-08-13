@@ -43,7 +43,7 @@ __location__ = os.path.realpath(
 
 global sql_db
 
-db_name = "south_africa_debug_resamp_1440min"
+db_name = "south_africa"
 
 
 def get_date_range(layout_data, herd=False):
