@@ -1599,6 +1599,59 @@ def plot_2D_decision_boundaries(
     else:
         fig.show()
 
+def plot_histogram(x, farm_id, threshold_gap, title):
+    try:
+        if len(x) == 0:
+            print("empty input in plot histogram!")
+            return
+        print("lenght=", len(x))
+        print("max=", max(x))
+        print("min=", min(x))
+        x = pd.Series(x)
+
+        # histogram on linear scale
+        plt.subplot(211)
+        plt.title(title)
+        num_bins = int(max(list(set(x))))
+        print("building histogram...")
+        hist, bins, _ = plt.hist(x, bins=num_bins + 1, histtype="step")
+        # histogram on log scale.
+        # Use non-equal bin sizes, such that they look equal on log scale.
+        logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+        plt.subplot(212)
+
+        print("building log histogram...")
+        plt.hist(x, bins=num_bins + 1, histtype="step")
+        # plt.xscale('log')
+        plt.yscale("log", nonposy="clip")
+        print(
+            "histogram_of_gap_duration_%s_%d.png"
+            % (str(farm_id) + title, threshold_gap)
+        )
+        plt.savefig(
+            "histogram_of_gap_duration_%s_%d.png"
+            % (str(farm_id) + title, threshold_gap)
+        )
+        plt.show()
+        # plt.imsave()
+    except Exception as e:
+        print(e)
+
+    # num_bins = max(x)
+    # fig, ax = plt.subplots()
+    # # the histogram of the data
+    # print("max=", max(x))
+    # print("min=", min(x))
+    # ax.hist(x, num_bins, density=1)
+    # ax.set_xlabel('gap lenght (minutes)')
+    # ax.set_ylabel('count')
+    # ax.set_title('Histogram')
+    # # Tweak spacing to prevent clipping of ylabel
+    # fig.tight_layout()
+    # plt.show()
+    # print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+    # fig.savefig('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+
 
 if __name__ == "__main__":
     dir_path = "F:/Data2/job_debug/ml"

@@ -474,13 +474,13 @@ def init_database(farm_id):
     print(sys.argv)
 
     print("store data in sql database...")
-    # create_sql_table("%s_resolution_min" % farm_id)
-    # create_sql_table_("%s_resolution_5min" % farm_id)
+    create_sql_table("%s_resolution_min" % farm_id)
+    create_sql_table_("%s_resolution_5min" % farm_id)
     create_sql_table_("%s_resolution_10min" % farm_id)
-    # create_sql_table_("%s_resolution_month" % farm_id)
-    # create_sql_table_("%s_resolution_week" % farm_id)
-    # create_sql_table_("%s_resolution_day" % farm_id)
-    # create_sql_table_("%s_resolution_hour" % farm_id)
+    create_sql_table_("%s_resolution_month" % farm_id)
+    create_sql_table_("%s_resolution_week" % farm_id)
+    create_sql_table_("%s_resolution_day" % farm_id)
+    create_sql_table_("%s_resolution_hour" % farm_id)
     return None, None, None, None, None, None, None
 
     if sys.argv[1] == "h5":
@@ -1029,6 +1029,7 @@ def create_mean_median_animal_(data):
         median_battery = {}
         median_signal_strengh = {}
         for record in item:
+            #print(record)
             median_activity[record[2]] = record[5] if record[5] is not None else 0
             median_battery[record[2]] = record[4] if record[4] is not None else 0
             median_signal_strengh[record[2]] = record[3] if record[3] is not None else 0
@@ -1196,7 +1197,7 @@ def create_mean_median_animal(data):
     return result
 
 
-def create_dataframe(list_data):
+def create_dataframe(list_data, res):
     df = pd.DataFrame(list_data)
     df.columns = [
         "timestamp",
@@ -1210,7 +1211,8 @@ def create_dataframe(list_data):
     ]
     df = df.drop_duplicates(subset=["timestamp", "first_sensor_value"])
     df = df.sort_values(by="date")
-    df.rename({"date": "index"}, axis=1, inplace=True)
+    if res is not None:
+        df.rename({"date": "index"}, axis=1, inplace=True)
     return df
 
 
@@ -1234,7 +1236,7 @@ def thresholded_interpol(df_1min, thresh):
     ) | data["first_sensor_value"].notnull()
     interpolated = data.interpolate().bfill()[mask]
     df_1min["first_sensor_value"] = interpolated
-    histogram_array_nan_dur, histogram_array_no_activity_dur = [], []
+    #histogram_array_nan_dur, histogram_array_no_activity_dur = [], []
     # clump = using_clump(data["first_sensor_value"].values)
     len_holes = [
         len(list(g))
@@ -1243,8 +1245,8 @@ def thresholded_interpol(df_1min, thresh):
         )
         if k
     ]
-    for nan_gap in len_holes:
-        histogram_array_nan_dur.append(nan_gap)
+    # for nan_gap in len_holes:
+    #     histogram_array_nan_dur.append(nan_gap)
 
     len_no_activity = [
         len(list(g))
@@ -1253,8 +1255,8 @@ def thresholded_interpol(df_1min, thresh):
         )
         if k
     ]
-    for zero_gap in len_no_activity:
-        histogram_array_no_activity_dur.append(zero_gap)
+    # for zero_gap in len_no_activity:
+    #     histogram_array_no_activity_dur.append(zero_gap)
 
     print("thresholded_interpol done.", thresh)
 
@@ -1292,7 +1294,7 @@ def thresholded_interpol(df_1min, thresh):
         value=0
     )
 
-    return df_linterpolated, histogram_array_nan_dur, histogram_array_no_activity_dur
+    return df_linterpolated
 
 
 def resample_df(res, data):
@@ -1548,12 +1550,11 @@ def get_db_data(df):
     data = [
         (
             np.nan if np.isnan(x[0]) else int(x[0]),
-            str(x[1]),
+            str(x[6]),
             None if np.isnan(x[2]) else int(x[2]),
             None if np.isnan(x[3]) else int(x[3]),
             None if np.isnan(x[4]) else int(x[4]),
-            None if np.isnan(x[5]) else int(x[5]),
-            None if np.isnan(x[6]) else int(x[6]),
+            None if np.isnan(x[5]) else int(x[5])
         )
         for x in df.to_numpy()
     ]
@@ -1581,10 +1582,10 @@ def resample(res, data):
     subset = subset.assign(
         serial_number=df["serial_number"].max()
     )  # fills in gap when agg fails because of empty sensor value
-    subset = subset.assign(serial_number=df["farm_id"].max())
-    subset = subset.assign(serial_number=df["signal_strength"].max())
-    subset = subset.assign(serial_number=df["signal_strength_2"].max())
-    subset = subset.assign(serial_number=df["battery_voltage"].max())
+    #subset = subset.assign(serial_number=df["farm_id"].max())
+    subset = subset.assign(signal_strength=df["signal_strength"].max())
+    subset = subset.assign(signal_strength_2=df["signal_strength_2"].max())
+    subset = subset.assign(battery_voltage=df["battery_voltage"].max())
 
     data = [
         (
@@ -1605,36 +1606,18 @@ def resample(res, data):
 
 def build_data_from_raw(animal_records_df, threshold_gap, res=None):
     df_raw = resample_1min(animal_records_df)
-    df_linterpolated, gap_data = thresholded_interpol(df_raw, threshold_gap)
+    df_linterpolated = thresholded_interpol(df_raw, threshold_gap)
     df_processed = resample(res, df_linterpolated)
-    return df_processed, gap_data
-
-
-# def build_data_from_raw(farm_id, animal_records_df, zero_to_nan_threh, interpolation_thesh):
-#     df_raw_cleaned = resample_1min(animal_records_df)
-#     df_linterpolated, gap_nan_data, gap_zero_data = thresholded_interpol(df_raw_cleaned, interpolation_thesh)
-#     print(df_raw_cleaned)
-
-# export_rawdata_to_csv(df_raw_cleaned, farm_id)
-# #todo var thresh value
-# threshold_gap = 10
-# df_linterpolated, gap_nan_data, gap_zero_data = thresholded_interpol(df_raw_cleaned, threshold_gap)
-# df_resample = resample_df(res, df_linterpolated)
-# print(df_resample)
-# data_db = get_db_data(df_resample)
-# return data_db, gap_nan_data, gap_zero_data
-
-
-# def process(farm_id, animal_records, zero_to_nan_threh, interpolation_thesh):
-#     animal_records_df = create_dataframe(animal_records)
-#     data, gap_data, gap_zero_data = build_data_from_raw(farm_id, animal_records_df, zero_to_nan_threh, interpolation_thesh)
-#     return [data, gap_data, gap_zero_data]
+    return df_processed
 
 
 def process(animal_records, threshold_gap, res):
-    animal_records_df = create_dataframe(animal_records)
-    df_10min, gap_data = build_data_from_raw(animal_records_df, threshold_gap, res=res)
-    return [df_10min, gap_data]
+    animal_records_df = create_dataframe(animal_records, res)
+    if res is None:
+        d = get_db_data(animal_records_df)
+        return [d]
+    df_ = build_data_from_raw(animal_records_df, threshold_gap, res=res)
+    return [df_]
 
 
 async_results_1min = []
@@ -1643,6 +1626,7 @@ async_results_10min = []
 async_results_day = []
 async_results_hour = []
 async_results_week = []
+async_results_month = []
 
 
 def save_result_1min(result):
@@ -1667,6 +1651,10 @@ def save_result_hour(result):
 
 def save_result_week(result):
     async_results_week.append(result)
+
+
+def save_result_month(result):
+    async_results_month.append(result)
 
 
 def export_data_to_csv(data, farm_id, threshold_gap, resolution):
@@ -1699,7 +1687,7 @@ def process_raw_file(farm_id, data, threshold_gap=60):
 
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
-
+    init_database(farm_id)
     print("process data for farm %s." % farm_id)
 
     # group records by animal id/serial number
@@ -1731,7 +1719,7 @@ def process_raw_file(farm_id, data, threshold_gap=60):
                 (
                     animal_records,
                     threshold_gap,
-                    "T",
+                    None,
                 ),
                 callback=save_result_1min,
             )
@@ -1779,6 +1767,11 @@ def process_raw_file(farm_id, data, threshold_gap=60):
             pool.apply_async(
                 process, (animal_records, threshold_gap, "W"), callback=save_result_week
             )
+
+            pool.apply_async(
+                process, (animal_records, threshold_gap, "M"), callback=save_result_month
+            )
+
         pool.close()
         pool.join()
         for item in async_results_1min:
@@ -1793,6 +1786,8 @@ def process_raw_file(farm_id, data, threshold_gap=60):
             data_resampled_hour.extend(item[0])
         for item in async_results_week:
             data_resampled_week.extend(item[0])
+        for item in async_results_month:
+            data_resampled_month.extend(item[0])
     else:
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
             print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
@@ -1800,7 +1795,7 @@ def process_raw_file(farm_id, data, threshold_gap=60):
                 continue
             print("animal_records=", len(animal_records))
 
-            result = process(animal_records, threshold_gap, "T")
+            result = process(animal_records, threshold_gap, None)
             data_resampled_min.extend(result[0])
 
             result = process(animal_records, threshold_gap, "5min")
@@ -1817,6 +1812,9 @@ def process_raw_file(farm_id, data, threshold_gap=60):
 
             result = process(animal_records, threshold_gap, "W")
             data_resampled_week.extend(result[0])
+
+            result = process(animal_records, threshold_gap, "M")
+            data_resampled_month.extend(result[0])
 
     # plot_histogram(histogram_array_nan_dur, farm_id, threshold_gap, "histogram of nan gaps")
     #
@@ -1839,6 +1837,7 @@ def process_raw_file(farm_id, data, threshold_gap=60):
 
     data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
     insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
+
 
     data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
     insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
@@ -2288,61 +2287,6 @@ def generate_raw_files_from_xlsx(directory_path, file_name):
             print(path)
             continue
     store.close()
-
-
-def plot_histogram(x, farm_id, threshold_gap, title):
-    try:
-        if len(x) == 0:
-            print("empty input in plot histogram!")
-            return
-        print("lenght=", len(x))
-        print("max=", max(x))
-        print("min=", min(x))
-        x = pd.Series(x)
-
-        # histogram on linear scale
-        plt.subplot(211)
-        plt.title(title)
-        num_bins = int(max(list(set(x))))
-        print("building histogram...")
-        hist, bins, _ = plt.hist(x, bins=num_bins + 1, histtype="step")
-        # histogram on log scale.
-        # Use non-equal bin sizes, such that they look equal on log scale.
-        logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
-        plt.subplot(212)
-
-        print("building log histogram...")
-        plt.hist(x, bins=num_bins + 1, histtype="step")
-        # plt.xscale('log')
-        plt.yscale("log", nonposy="clip")
-        print(
-            "histogram_of_gap_duration_%s_%d.png"
-            % (str(farm_id) + title, threshold_gap)
-        )
-        plt.savefig(
-            "histogram_of_gap_duration_%s_%d.png"
-            % (str(farm_id) + title, threshold_gap)
-        )
-        plt.show()
-        # plt.imsave()
-    except Exception as e:
-        print(e)
-
-    # num_bins = max(x)
-    # fig, ax = plt.subplots()
-    # # the histogram of the data
-    # print("max=", max(x))
-    # print("min=", min(x))
-    # ax.hist(x, num_bins, density=1)
-    # ax.set_xlabel('gap lenght (minutes)')
-    # ax.set_ylabel('count')
-    # ax.set_title('Histogram')
-    # # Tweak spacing to prevent clipping of ylabel
-    # fig.tight_layout()
-    # plt.show()
-    # print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
-    # fig.savefig('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
-
 
 def main(
     raw_h5_filepath: Path = typer.Option(

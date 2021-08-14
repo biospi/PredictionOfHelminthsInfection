@@ -43,7 +43,7 @@ __location__ = os.path.realpath(
 
 global sql_db
 
-db_name = "south_africa"
+db_name = "south_africa_1"
 
 
 def get_date_range(layout_data, herd=False):
@@ -450,11 +450,11 @@ def get_resolution_string(value):
     if value == 2:
         result = 'resolution_10min'
     if value == 3:
-        result = 'resolution_10min'
+        result = 'resolution_5min'
     if value == 4:
-        result = 'resolution_10min'
+        result = 'resolution_min'
     if value == 5:
-        result = 'resolution_10min'
+        result = 'resolution_min'
     return result
 
 
@@ -1083,19 +1083,6 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
 
 
 def nan_helper(y):
-    """Helper to handle indices and logical indices of NaNs.
-
-    Input:
-        - y, 1d numpy array with possible NaNs
-    Output:
-        - nans, logical indices of NaNs
-        - index, a function, with signature indices= index(logical_indices),
-          to convert logical indices of NaNs to 'equivalent' indices
-    Example:
-        >>> # linear interpolation of NaNs
-        >>> nans, x= nan_helper(y)
-        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
-    """
     return np.isnan(y), lambda z: z.nonzero()[0]
 
 
