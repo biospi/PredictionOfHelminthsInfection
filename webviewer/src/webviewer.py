@@ -1525,7 +1525,7 @@ def build_dashboard_layout():
                     )
                 ],
                     style={'margin-left': '20px', 'display': 'inline-block', 'min-width': '1050px', 'max-width': '1050px',
-                           'margin-bottom': '0px', 'background-color': 'red'}
+                           'margin-bottom': '0px', 'background-color': 'gray'}
                 )
             ], style={'width': '2520px', 'height': '70px', 'display': 'inline-block', 'background-color': 'gray'})
         ], style={'width': '100%', 'background-color': 'gray'}),
@@ -1547,15 +1547,10 @@ def build_dashboard_layout():
                     html.Div(id='log-div', style={'color': 'white'}),
                 ], style={'margin-left': '20px', 'background-color': 'gray', 'margin-top': '-5px', 'height': '60px', 'width': '900px', 'display': 'inline-block'})
             ], id='dashboard',
-                style={'width': '1920px', 'height': '100px', 'min-height': '50px',
-                       'max-height': '50px', 'background-color': 'gray', 'padding-left': '0px',  'padding-bottom': '10px', 'padding-top': '5px'})],
-            style={'width': '100%', 'background-color': 'gray'}),
+                style={'width': '100%', 'height': '60px', 'background-color': 'gray', 'padding-left': '0px',  'padding-bottom': '0px', 'padding-top': '5px'})
+        ]),
 
-
-
-
-
-    ], style={'max-height': '350px', 'min-height': '350px', 'background-color': 'white', 'margin-bottom': '0px'})
+    ], style={'max-height': '350px', 'min-height': '350px', 'background-color': 'transparent', 'margin-bottom': '0px'})
 
 
 def get_side_by_side_div(div_l, div_r, offset, height=150, h_div=400, margin_top=0):
@@ -1604,7 +1599,7 @@ def build_derivative_layout():
             ),
             100)
 
-    ], style={'background-color': 'white', 'margin-top': '-140px', 'max-width': '1920px', 'min-width': '1920px',
+    ], style={'background-color': 'gray', 'margin-top': '-140px', 'max-width': '1920px', 'min-width': '1920px',
               'visibility': 'hidden'})
 
 
@@ -1627,7 +1622,7 @@ def build_histogram_layout():
             style={'padding-top': '0vh', 'visibility': 'hidden', 'height': '200px' },
             id='histogram-graph'
         )
-    ], style={'background-color': 'white', 'margin-top': '-560px', 'max-width': '1920px', 'min-width': '1920px'})
+    ], style={'background-color': 'transparent', 'margin-top': '-560px', 'max-width': '1920px', 'min-width': '1920px'})
 
 
 def build_graphs_layout():
@@ -1649,7 +1644,7 @@ def build_graphs_layout():
                         plot_bgcolor='rgba(0,0,0,0)',
                     )
                 ),
-                style={'margin-top': '-100px', 'height': '600px', 'visibility': 'hidden'},
+                style={'padding-top': '0vh', 'height': '600px', 'visibility': 'hidden'},
                 id='activity-graph-herd'
                 # config={
                 #     'displayModeBar': True
@@ -1671,7 +1666,7 @@ def build_graphs_layout():
                 style={'padding-top': '0vh', 'visibility': 'hidden'},
                 id='activity-graph'
             ),
-            100)
+            200)
         ,
 
         get_side_by_side_div(
@@ -1711,7 +1706,7 @@ def build_graphs_layout():
             )
             , 0, margin_top=-50)
 
-    ], style={'background-color': 'white', 'margin-top': '-40px', 'max-width': '1920px', 'min-width': '1920px'})
+    ], style={'background-color': 'transparent', 'margin-top': '0px', 'max-width': '1920px', 'min-width': '1920px'})
 
 
 def build_default_app_layout(app):
