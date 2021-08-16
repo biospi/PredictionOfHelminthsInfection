@@ -43,7 +43,7 @@ __location__ = os.path.realpath(
 
 global sql_db
 
-db_name = "south_africa_1"
+db_name = "south_africa"
 
 
 def get_date_range(layout_data, herd=False):
@@ -1366,7 +1366,7 @@ def build_dashboard_layout():
                                 {'label': 'Anscombe', 'value': 'Anscombe'},
                                 {'label': 'HMean', 'value': 'HMeanDiff'}
                             ],
-                            value=['HMeanDiff', 'Anscombe'],
+                            value=['', ''],
                             labelStyle={'display': 'inline-block'},
                             style={'margin-top': '-50px', 'margin-left': '0px',
                                    'color': 'white',

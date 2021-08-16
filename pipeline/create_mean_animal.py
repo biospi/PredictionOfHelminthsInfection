@@ -51,7 +51,7 @@ def format_farm_id(farm_id):
 
 
 def thresholded_interpol(df_1min, thresh):
-    print("thresholded_interpol...", thresh)
+    #print("thresholded_interpol...", thresh)
     data = pd.DataFrame(df_1min["first_sensor_value"])
     mask = data.copy()
     df = pd.DataFrame(data["first_sensor_value"])

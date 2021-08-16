@@ -46,7 +46,7 @@ def format_farm_id(farm_id):
 
 
 def inputation_interpol(df_1min, thresh, imputation_type=0):
-    print("thresholded_interpol...", thresh)
+    #print("thresholded_interpol...", thresh)
     data = pd.DataFrame(df_1min["first_sensor_value"])
     mask = data.copy()
     df = pd.DataFrame(data["first_sensor_value"])
@@ -110,16 +110,16 @@ def process_csv(output_directory, path, zero_to_nan_threh, interpolation_thesh, 
     print("loading data...", path)
     df = pd.read_csv(path, sep=",")
 
-    if imputation_type == 0:
-        df_imputated = inputation_interpol(df.copy(), interpolation_thesh, imputation_type=0)
-        data_zerofill_thresh = zeros_to_nan(df_imputated, zero_to_nan_threh)
+    # if imputation_type == 0:
+    #     df_imputated = inputation_interpol(df.copy(), interpolation_thesh, imputation_type=0)
+    #     data_zerofill_thresh = zeros_to_nan(df_imputated, zero_to_nan_threh)
+    #
+    # if imputation_type == 1:
+    #     df = df.fillna(0)
+    #     data_zerofill_thresh = zeros_to_nan(df, zero_to_nan_threh)
 
-    if imputation_type == 1:
-        df = df.fillna(0)
-        data_zerofill_thresh = zeros_to_nan(df, zero_to_nan_threh)
-
-    path = export_rawdata_to_csv(output_directory, data_zerofill_thresh, farm_id, animal_id, interpolation_thesh,
-                          zero_to_nan_threh, imputation_type)
+    # path = export_rawdata_to_csv(output_directory, data_zerofill_thresh, farm_id, animal_id, interpolation_thesh,
+    #                       zero_to_nan_threh, imputation_type)
     return path
 
 

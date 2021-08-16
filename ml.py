@@ -84,7 +84,7 @@ def main(
     enable_downsample_df = False
     day = int([a for a in dataset_folder.name.split("_") if "day" in a][0][0])
 
-    files = glob.glob(str(dataset_folder / "*.csv"))  # find datset files
+    files = dataset_folder.glob('*.csv') # find datset files
     print("found %d files." % len(files))
     print(files)
 
