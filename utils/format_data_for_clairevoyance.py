@@ -28,7 +28,8 @@ def main(
     """This script reformats the raw backfilled activity data for clairevoyance imputation\n
     Args:\n
         dataset: Folder containing the backfilled .csv files
-        split: test size in percent
+        output: Output directory where the reformatted files will be created
+        split: Test size in percent
     """
     print(dataset)
     files = dataset.glob("*.csv")
@@ -57,6 +58,8 @@ def main(
     temporal_test_data = df_temporal_f.iloc[0: test_size, :]
     temporal_train_data = df_temporal_f.iloc[test_size: train_size, :]
 
+    output.mkdir(parents=True, exist_ok=True)
+    print(f"saving files in {output} ...")
     static_test_data.to_csv(output / "static_test_data.csv", index=False)
     static_train_data.to_csv(output / "static_train_data.csv", index=False)
     temporal_test_data.to_csv(output / "temporal_test_data.csv", index=False)
