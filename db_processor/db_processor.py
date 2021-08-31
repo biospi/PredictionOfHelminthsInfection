@@ -973,14 +973,14 @@ def process_raw_h5files(path, njob=None):
     print("loading data...")
     for idx, x in enumerate(data):  # need idx for data iteration?
         farm_id = x["control_station"]
-        # if farm_id != 70091100056: #todo remove
-        #     continue
+        if "cedara" in str(path) and farm_id != 70091100056:  # todo remove
+            continue
         # if x['serial_number'] not in [40121100797]:
         #     continue
         # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
         #     continue
-        # if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
-        #     continue
+        if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
+            continue
         value = (
             x["timestamp"],
             farm_id,
@@ -1225,7 +1225,7 @@ def isNaN(num):
 
 
 def thresholded_interpol(df_1min, thresh):
-   # print("thresholded_interpol...", thresh)
+    # print("thresholded_interpol...", thresh)
     data = pd.DataFrame(df_1min["first_sensor_value"])
     mask = data.copy()
     df = pd.DataFrame(data["first_sensor_value"])
@@ -1234,8 +1234,14 @@ def thresholded_interpol(df_1min, thresh):
     mask["first_sensor_value"] = (
         df.groupby("new")["ones"].transform("count") < thresh
     ) | data["first_sensor_value"].notnull()
+
     interpolated = data.interpolate().bfill()[mask]
-    df_1min["first_sensor_value"] = interpolated
+    if thresh > 0:
+        df_1min["first_sensor_value"] = interpolated
+    else:
+        df_1min["first_sensor_value"] = data
+
+    # df_1min["first_sensor_value"] = interpolated
     # histogram_array_nan_dur, histogram_array_no_activity_dur = [], []
     # clump = using_clump(data["first_sensor_value"].values)
     len_holes = [
@@ -1296,7 +1302,7 @@ def thresholded_interpol(df_1min, thresh):
 
 
 def resample_df(res, data):
-    #print("resample_df ", res)
+    # print("resample_df ", res)
     # data = data.set_index('index')
     # data.index.name = None
     data.index = pd.to_datetime(data.index)
@@ -1689,7 +1695,7 @@ def export_rawdata_to_csv(df, farm_id):
     print(filename_path)
 
 
-def process_raw_file(farm_id, data, threshold_gap=60, njob=None):
+def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, thresh=1000):
 
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
@@ -1715,7 +1721,7 @@ def process_raw_file(farm_id, data, threshold_gap=60, njob=None):
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=njob)
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
-            if len(animal_records) <= 1:
+            if len(animal_records) <= thresh:
                 continue
             print("animal_records=", len(animal_records))
             # pool.apply_async(process, (farm_id, animal_records, zero_to_nan_threh, interpolation_thesh,),
@@ -1828,7 +1834,7 @@ def process_raw_file(farm_id, data, threshold_gap=60, njob=None):
     else:
         for idx, animal_records in enumerate(animal_list_grouped_by_serialn):
             print("progress=%d/%d." % (idx, len(animal_list_grouped_by_serialn)))
-            if len(animal_records) <= 1:
+            if len(animal_records) <= thresh:
                 continue
             print("animal_records=", len(animal_records))
 
@@ -2331,7 +2337,7 @@ def main(
     ),
     db_name: str = "sb",
     create_db: bool = True,
-    n_job: int = 6
+    n_job: int = 2,
 ):
     """This script create a SQL database which will hold the activity data of the farm in multiple sampling resolution
     the resulted database is required for the webviewer\n
@@ -2352,7 +2358,7 @@ if __name__ == "__main__":
     # )
     main(
         "F:\\Data2\\h5\\cedara.h5",
-        "south_africa",
+        "south_africa_cedara_test",
     )
 
     # typer.run(main)

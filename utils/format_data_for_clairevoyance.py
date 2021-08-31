@@ -2,9 +2,10 @@ import typer
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import gzip
 
 
-def format(df, id):
+def format(df, id, famacha):
     df_static = df[["first_sensor_value"]]
     df_static.insert(0, "id", id)
     df_static.columns = ["id", "first_sensor_value"]
@@ -14,11 +15,33 @@ def format(df, id):
     df_temporal.insert(2, "variable", "first_sensor_value")
     df_temporal.columns = ["id", "time", "variable", "value"]
 
+    df_groundtruth = df_temporal.copy()
+    df_groundtruth["variable"] = "famacha"
+    values = np.zeros(df_groundtruth.shape[0])
+    df_groundtruth["value"] = values
+
+    df_merge = []
+    for (index1, row1), (index2, row2) in zip(df_temporal.iterrows(), df_groundtruth.iterrows()):
+        df_merge.append(row1.values)
+        df_merge.append(row2.values)
+    df_merge = pd.DataFrame(df_merge)
+
     return df_static, df_temporal
 
 
+def create_archive(file_path):
+    print(f"saving file in {file_path} ...")
+    input_path = str(file_path)
+    output_path = str(file_path.parent / f"{file_path.name}.gz")
+    with open(input_path, 'rb') as f_in, gzip.open(output_path, 'wb') as f_out:
+        f_out.writelines(f_in)
+
+
 def main(
-    dataset: Path = typer.Option(
+    activity_data: Path = typer.Option(
+        ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    dataset_ground: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
     output: Path = typer.Option(
@@ -26,16 +49,18 @@ def main(
     ),
     split: int = 20,
     thresh: int = 100,
+    data_name: str = "sf_activity"
 ):
     """This script reformats the raw backfilled activity data for clairevoyance imputation\n
     Args:\n
-        dataset: Folder containing the backfilled .csv files
+        activity_data: Folder containing the backfilled .csv files
+        dataset_ground:  File containing famacha data
         output: Output directory where the reformatted files will be created
         split: Test size in percent
         thresh: minimum activity points that need to be in backfilled file
     """
-    print(dataset)
-    files = dataset.glob("*.csv")
+    print(activity_data)
+    files = activity_data.glob("*.csv")
     df_static_list = []
     df_temporal_list = []
     for file in files:
@@ -48,7 +73,7 @@ def main(
             print(f"very few ({valid_record_count}/{df.shape[0]}) valid activity counts in file. dismiss file.")
             continue
         print(f"animal id: {id}")
-        df_static, df_temporal = format(df, id)
+        df_static, df_temporal = format(df, id, None)
         df_static_list.append(df_static)
         df_temporal_list.append(df_temporal)
 
@@ -66,15 +91,24 @@ def main(
     temporal_test_data = df_temporal_f.iloc[0: test_size, :]
     temporal_train_data = df_temporal_f.iloc[test_size: train_size, :]
 
+    output = output / data_name
     output.mkdir(parents=True, exist_ok=True)
-    print(f"saving file in {output} ...")
-    static_test_data.to_csv(output / "static_test_data.csv", index=False)
-    print(f"saving file in {output} ...")
-    static_train_data.to_csv(output / "static_train_data.csv", index=False)
-    print(f"saving file in {output} ...")
-    temporal_test_data.to_csv(output / "temporal_test_data.csv", index=False)
-    print(f"saving file in {output} ...")
-    temporal_train_data.to_csv(output / "temporal_train_data.csv", index=False)
+
+    path = output / f"{data_name}_static_test_data.csv"
+    static_test_data.to_csv(path, index=False)
+    create_archive(path)
+
+    path = output / f"{data_name}_static_train_data.csv"
+    static_train_data.to_csv(path, index=False)
+    create_archive(path)
+
+    path = output / f"{data_name}_temporal_test_data.csv"
+    temporal_test_data.to_csv(path, index=False)
+    create_archive(path)
+
+    path = output / f"{data_name}_temporal_train_data.csv"
+    temporal_train_data.to_csv(path, index=False)
+    create_archive(path)
 
 
 if __name__ == "__main__":

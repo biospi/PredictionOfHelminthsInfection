@@ -127,6 +127,8 @@ def format(text):
 
 
 if __name__ == "__main__":
+    df = pd.read_csv("F:/Data2/clairevoyance/Data_clair/mimic_antibiotics_temporal_test_data_eav.csv")
+    print(df)
     # clf = SVC(kernel="linear", probability=True)
     # X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
     # y = np.array([1, 1, 2, 2])
@@ -171,12 +173,12 @@ if __name__ == "__main__":
     # output_dir = "/".join(path.split("/")[:-1])
     # plotMlReport(path, output_dir)
     # exit()
-    directory = "F:/Data2/job_delmas_debugbiospi/ml"
-    output_dir = "/".join(directory.split("/")[:-1])
-    all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
-    all_csv_files = [x for x in all_csv_files if "final" in x]
-    plotMlReportFinal(all_csv_files, output_dir)
-    exit()
+    # directory = "F:/Data2/job_delmas_debugbiospi/ml"
+    # output_dir = "/".join(directory.split("/")[:-1])
+    # all_csv_files = [file for path, subdir, files in os.walk(directory) for file in glob.glob(os.path.join(path, "*.csv"))]
+    # all_csv_files = [x for x in all_csv_files if "final" in x]
+    # plotMlReportFinal(all_csv_files, output_dir)
+    # exit()
 
     # # import the libraries
     # from scipy import signal
@@ -279,9 +281,9 @@ if __name__ == "__main__":
     # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
     #
     # plt.cla()
-    # pca = decomposition.PCA(n_components=3)
     # pca.fit(X)
     # X = pca.transform(X)
+    # pca = decomposition.PCA(n_components=3)
     #
     # for name, label in [('Setosa', 0), ('Versicolour', 1), ('Virginica', 2)]:
     #     ax.text3D(X[y == label, 0].mean(),
