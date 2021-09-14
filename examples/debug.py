@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 from sklearn import datasets, linear_model
 from sklearn.model_selection import cross_validate, cross_val_predict
@@ -126,9 +127,85 @@ def format(text):
         .replace(",", "").replace("(", "").replace(")", "").replace("'","").replace(" ","").replace("->->","->").replace("_","->")
 
 
+def clair_debug(dataset):
+    x = dataset.temporal_data
+    s = dataset.static_data
+
+    # 1. Label define
+    # For temporal labels
+    if problem == "online":
+        assert x is not None
+        y = pad_sequence(x[["id"] + label])
+        # if window > 0
+        y = sliding_window_label(y)
+        x = x.drop(label, axis=1)
+    # For static labels
+    else:
+        assert s is not None
+        y = np.asarray(s[label])
+        s = s.drop(label, axis=1)
+
+    # 2. Time define
+    time = pad_sequence(x[["id", "time"]])
+    x = x.drop(["time"], axis=1)
+
+    # 3. Treatment define
+    # TODO: mixing static and temporal treatment is not allowed
+    if treatment is None:
+        treatment = np.zeros([0])
+    else:
+        if treatment[0] in x.columns:
+            treatment = pad_sequence(x[["id"] + treatment])
+            x = x.drop(treatment, axis=1)
+        elif treatment[0] in s.columns:
+            treatment = np.asarray(s[treatment])
+            s = s.drop(treatment, axis=1)
+        else:
+            raise ValueError("Treatment {} is not found in data set.".format(treatment[0]))
+
+    # Set temporal and static features
+    temporal_features = list_diff(x.columns.values.tolist(), ["id", "time"]) if x is not None else None
+    static_features = list_diff(s.columns.values.tolist(), ["id"]) if s is not None else None
+
+    # Feature name for visualization
+    feature_name = {
+        "temporal": temporal_features,
+        "static": static_features,
+        "treatment": treatment,
+        "label": label,
+    }
+
+    # Set temporal features
+    x = pad_sequence(x)
+    # Set static features
+    s = np.asarray(s.drop(columns=["id"]))
+    
+    
 if __name__ == "__main__":
-    df = pd.read_csv("F:/Data2/clairevoyance/Data_clair/mimic_antibiotics_temporal_test_data_eav.csv")
-    print(df)
+    import datetime
+    df = pd.read_csv("F:/clairevoyance/api/imputed_data.csv")
+    list_of_df = [g for _, g in df.groupby(['id'])]
+
+    for i, df in enumerate(list_of_df):
+        print(i)
+        fig = go.Figure()
+        #time = pd.to_datetime(df["time"])
+        time = [datetime.datetime.fromtimestamp(x) for x in df["time"]]
+        activity = df["first_sensor_value"]
+        activity_i = df["imputed_feature_0"]
+        fig.add_trace(go.Scatter(x=time, y=activity,
+                                 mode='lines',
+                                 name='activity'))
+        fig.add_trace(go.Scatter(x=time, y=activity_i,
+                                 mode='lines',
+                                 name='activity imputed'))
+        #fig.show()
+        out_dir = pathlib.Path("F:/debug")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{int(df['id'].values[0])}.html"
+        filepath = out_dir / filename
+        fig.write_html(str(filepath))
+
     # clf = SVC(kernel="linear", probability=True)
     # X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
     # y = np.array([1, 1, 2, 2])
