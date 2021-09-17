@@ -1,3 +1,5 @@
+import json
+
 import typer
 from pathlib import Path
 import pandas as pd
@@ -9,6 +11,7 @@ from tqdm import tqdm
 from model.data_loader import load_activity_data
 from utils._anscombe import anscombe
 from sys import exit
+from datetime import datetime
 
 
 def build_gt_data(df_famacha, df_temporal):
@@ -49,7 +52,7 @@ def combine_dfs(df1, df2):
 
 
 def format(df, farm_id, id, ground_truth_file):
-    df["first_sensor_value"] = [anscombe(np.array([x]))[0] for x in df["first_sensor_value"]]
+    #df["first_sensor_value"] = [anscombe(np.array([x]))[0] for x in df["first_sensor_value"]]
     df_static = df[["first_sensor_value"]]
     df_static.insert(0, "id", farm_id)
     df_static.columns = ["id", "first_sensor_value"]
@@ -119,6 +122,27 @@ def filter_empty_days(df, thresh):
     return df_filtered
 
 
+def get_weather_data(timestamps, w_d):
+    humidity = np.zeros(len(timestamps))
+    humidity[:] = np.nan
+    temperature = np.zeros(len(timestamps))
+    temperature[:] = np.nan
+    for i, epoch in enumerate(timestamps):
+        date_str = datetime.fromtimestamp(epoch).strftime('%Y-%m-%d')
+        if date_str in w_d.keys():
+            data = w_d[date_str]
+            date_str_time = datetime.fromtimestamp(epoch).strftime('%H')
+            for d in data:
+                t = d["time"].split(':')[0]
+                if t == date_str_time:
+                    hum = d["humidity"]
+                    temp = d["temp_c"]
+                    humidity[i] = hum
+                    temperature[i] = temp
+                    break
+    return humidity, temperature
+
+
 def main(
     activity_data: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
@@ -129,6 +153,7 @@ def main(
     output: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
     ),
+    weather_file: Path = None,
     split: int = 20,
     thresh: int = 100,
     thresh_nan: int = 100,
@@ -143,6 +168,12 @@ def main(
         split: Test size in percent
         thresh: minimum activity points that need to be in backfilled file
     """
+
+    weather_data = None
+    if weather_file is not None:
+        with open(weather_file) as json_file:
+            weather_data = json.load(json_file)
+
     print(activity_data)
     files = list(activity_data.glob("*.csv"))
     df_static_list = []
@@ -159,10 +190,17 @@ def main(
 
     activity = []
     ids = []
+    w_d = None
     for i, file in enumerate(files):
         print(f"progress {i}/{len(files)}...")
+        if i > 29:
+            break
         id = file.stem
         df = pd.read_csv(file)
+
+        if w_d is None:
+            w_d = get_weather_data(df["timestamp"].values, weather_data)
+
         tot_activity = df["first_sensor_value"].values.astype(float)
         mask = ~np.isnan(tot_activity)
         nan_record_count = np.sum(mask.astype(int))
@@ -186,6 +224,12 @@ def main(
         df_temporal_list.append(df_temporal)
         # if len(df_temporal_list) > 2:
         #     break
+
+    if w_d is not None:
+        activity.append(pd.Series(w_d[0]))
+        activity.append(pd.Series(w_d[1]))
+        ids.append("humidity")
+        ids.append("temperature")
 
     df_activity = pd.concat(activity, axis=1)
     df_activity.columns = ids
