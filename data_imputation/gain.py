@@ -31,7 +31,7 @@ import pandas as pd
 
 
 def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
-         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, n_transpond):
+         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
   '''Impute missing values in data_x
   
   Args:
@@ -195,90 +195,90 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     # Rounding
     # imputed_data = rounding(imputed_data, data_x)
 
-    if (i % 100 == 0) | (i == 0) | (i == range_iter[-1]):
     #if True:
-      rmse_iter.append(i)
-      i_d = imputed_data[:, :-n_transpond - 1 - 1] #epoch and id
-      fig = go.Figure(data=go.Heatmap(
-        z=i_d,
-        x=xaxix_label,
-        y=np.array(list(range(i_d.shape[0]))),
-        colorscale='Viridis'))
-      fig.update_xaxes(tickformat="%H:%M")
-      fig.update_layout(
-        title="Activity data after imputation i=%s" % i,
-        xaxis_title="Time (1 min bins)",
-        yaxis_title="Transponders")
+    rmse_iter.append(i)
+    i_d = imputed_data[:, :-N_TRANSPOND - 1 - 1] #epoch and id
+    fig = go.Figure(data=go.Heatmap(
+      z=i_d,
+      x=xaxix_label,
+      y=np.array(list(range(i_d.shape[0]))),
+      colorscale='Viridis'))
+    fig.update_xaxes(tickformat="%H:%M")
+    fig.update_layout(
+      title="Activity data after imputation i=%s" % i,
+      xaxis_title="Time (1 min bins)",
+      yaxis_title="Transponders")
 
-      filename = output_dir + "/" + "imputed_gain_%d.html" % i
-      print(filename)
-      fig.write_html(filename)
+    filename = output_dir + "/" + "imputed_gain_%d.html" % i
+    print(filename)
+    fig.write_html(filename)
 
-      df_ = pd.DataFrame(imputed_data)
-      header = [str(x) for x in range(imputed_data.shape[1])]
-      for v in range(1, n_transpond + 1):
-        header[-v] = "t_%d" % (n_transpond - v)
-      header[-n_transpond - 1] = "id"
-      header[-n_transpond - 2] = "epoch"
-      df_.columns = header
-      dfs_transponder = [g for _, g in df_.groupby(['id'])]
+    # df_ = pd.DataFrame(imputed_data)
+    # header = [str(x) for x in range(imputed_data.shape[1])]
+    # for v in range(1, N_TRANSPOND + 1):
+    #   header[-v] = "t_%d" % (N_TRANSPOND - v)
+    # header[-N_TRANSPOND - 1] = "id"
+    # header[-N_TRANSPOND - 2] = "epoch"
+    # df_.columns = header
+    # dfs_transponder = [g for _, g in df_.groupby(['id'])]
 
-      for ii in range(len(dfs_transponder)):
-        df_t_i = dfs_transponder[ii].iloc[:, :-n_transpond - 2]
-        valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
-        if valid <= 0:
-            continue
-        id = int(dfs_transponder[ii]["id"].values[0])
-
-        _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
-                                                       days_in_col=df_t_i.shape[0])
-        fig = go.Figure(data=go.Heatmap(
-          z=df_t_i.values,
-          x=xaxix_label,
-          y=yaxis_label,
-          colorscale='Viridis'))
-        fig.update_xaxes(tickformat="%H:%M")
-        fig.update_yaxes(tickformat="%d %b %Y")
-        fig.update_layout(
-          title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
-          xaxis_title="Time (1 min bins)",
-          yaxis_title="Days")
-        filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
-        print(filename)
-        fig.write_html(filename)
-
-
-      '''
-      
-      RMSE Calculation
-      
-      '''
-
-      if np.isnan(imputed_data).any():
-        warnings.warn("Warning NaN in normalised imputed results.")
-
-      if np.isnan(imputed_data).all():
-        raise ValueError("Error while imputing data, all value NaN!")
-
-      if RESHAPE:
-        imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
-                                                    shape_o, rm_row_idx, imputed_data, n_transpond, add_t_col=ADD_TRANSP_COL)
-      else:
-        imputed_data_restored = restore_matrix_ranjeet(imputed_data, n_transpond)
+    # for ii in range(len(dfs_transponder)):
+    #   df_t_i = dfs_transponder[ii].iloc[:, :-N_TRANSPOND - 2]
+    #   valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
+    #   # if valid <= 0:
+    #   #     continue
+    #   id = int(dfs_transponder[ii]["id"].values[0])
+    #
+    #   _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+    #                                                  days_in_col=df_t_i.shape[0])
+    #   fig = go.Figure(data=go.Heatmap(
+    #     z=df_t_i.values,
+    #     x=xaxix_label,
+    #     y=yaxis_label,
+    #     colorscale='Viridis'))
+    #   fig.update_xaxes(tickformat="%H:%M")
+    #   fig.update_yaxes(tickformat="%d %b %Y")
+    #   fig.update_layout(
+    #     title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+    #     xaxis_title="Time (1 min bins)",
+    #     yaxis_title="Days")
+    #   filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
+    #   if (i % 100 == 0) | (i == 0) | (i == range_iter[-1]):
+    #     print(filename)
+    #     fig.write_html(filename)
 
 
-      if miss_rate > 0:
-        # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
-        rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
+    '''
+    
+    RMSE Calculation
+    
+    '''
 
-        print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
-        print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
-        rmse_gain.append(rmse_g)
-        rmse_li.append(rmse_l)
+    if np.isnan(imputed_data).any():
+      warnings.warn("Warning NaN in normalised imputed results.")
 
-        rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
-        with open(outpath + '/rmse_%i.json' % i, 'w') as f:
-          json.dump(rmse_info, f)
+    if np.isnan(imputed_data).all():
+      raise ValueError("Error while imputing data, all value NaN!")
+
+    if RESHAPE:
+      imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
+                                                  shape_o, rm_row_idx, imputed_data, N_TRANSPOND, add_t_col=ADD_TRANSP_COL)
+    else:
+      imputed_data_restored = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+
+
+    if miss_rate > 0:
+      # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
+      rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
+
+      print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
+      print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
+      rmse_gain.append(rmse_g)
+      rmse_li.append(rmse_l)
+
+      rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
+      with open(outpath + '/rmse_%i.json' % i, 'w') as f:
+        json.dump(rmse_info, f)
 
     i += 1
   if miss_rate > 0:

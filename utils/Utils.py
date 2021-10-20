@@ -91,13 +91,17 @@ def center_signal(y, avg):
     return y_centered
 
 
-def getXY(data_frame):
-    y = data_frame["target"].values.flatten()
-    y = y.astype(int)
-    X = data_frame[data_frame.columns[0: data_frame.shape[1] - 1]].values
-    y_binary = (y.copy() != 1).astype(int)
-
-    return X, y_binary
+def create_rec_dir(path):
+    dir_path = ""
+    sub_dirs = path.split("/")
+    for sub_dir in sub_dirs[0:]:
+        if "." in sub_dir:
+            continue
+        dir_path += sub_dir + "/"
+        # print("sub_folder=", dir_path)
+        if not os.path.exists(dir_path):
+            print("mkdir", dir_path)
+            os.makedirs(dir_path)
 
 
 def chunks(l, n):

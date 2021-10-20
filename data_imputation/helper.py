@@ -374,7 +374,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
 
     if thresh >= 0:
         filtered_row, filtered_row_ss, rm_idx = remove_rows(THRESH_NAN_R, vstack_ss, vstack, thresh, n_transponder)
-        #t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh)
+        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh)
     else:
         filtered_row = vstack
         filtered_row_ss = vstack_ss
@@ -427,15 +427,15 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
         middle_time = int(len(row[:-n_transponder-1-1])/2)#epoch and id
         window = row[middle_time - 60*n_h: middle_time + 60*n_h]
         #positive_count = window[window > 0].shape[0]
-        positive_count = np.nansum(window[window > np.log(anscombe(0))])
+        positive_count = np.nansum(window)
         nan_count = np.sum(np.isnan(row).astype(int))
         ratio = nan_count/row.shape[0]
-        #print(ratio, float(thresh_nan / 100))
+
         if ratio > float(thresh_nan / 100):
             continue
         if positive_count < thresh_pos:
             continue
-        #print(window)
+        print(positive_count)
 
         idx.append(i)
         filtered_row.append(row)
@@ -445,25 +445,24 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
     return filtered_row, filtered_row_ss, idx
 
 
-def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
-                        n_transpond, add_t_col=None):
+def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed, n_transpond, add_t_col=None):
     if thresh >= 0:
         imputed = add_nan_rows(shape_o, imputed, row_idx)
 
-    # valid = np.sum((~np.isnan(imputed[:, :-n_transpond -1])).astype(int))
-    # # if valid > 0:
-    # fig = go.Figure(data=go.Heatmap(
-    #     z=imputed[:, :-n_transpond -1 - 1],
-    #     x=xaxix_label,
-    #     y=np.array(list(range(imputed.shape[1])))[:-n_transpond -1],
-    #     colorscale='Viridis'))
-    # fig.update_xaxes(tickformat="%H:%M")
-    # fig.update_layout(
-    #     title="imputed all transp stack thresh=%d iteration=%d" % (thresh, i),
-    #     xaxis_title="Time (1 min bins)",
-    #     yaxis_title="Days")
-    # filename = output_dir + "/" + "imputed_gain_restored_%d.html" % i
-    # fig.write_html(filename)
+    valid = np.sum((~np.isnan(imputed[:, :-n_transpond -1])).astype(int))
+    # if valid > 0:
+    fig = go.Figure(data=go.Heatmap(
+        z=imputed[:, :-n_transpond -1 - 1],
+        x=xaxix_label,
+        y=np.array(list(range(imputed.shape[1])))[:-n_transpond -1],
+        colorscale='Viridis'))
+    fig.update_xaxes(tickformat="%H:%M")
+    fig.update_layout(
+        title="imputed all transp stack thresh=%d iteration=%d" % (thresh, i),
+        xaxis_title="Time (1 min bins)",
+        yaxis_title="Days")
+    filename = output_dir + "/" + "imputed_gain_restored_%d.html" % i
+    fig.write_html(filename)
 
     # df_ = pd.DataFrame(imputed).iloc[:, :-n_transpond - 1]
     # start = 0
@@ -491,17 +490,17 @@ def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out
     #     print(filename)
     #     fig.write_html(filename)
 
-    if add_t_col:
-        imputed = np.hstack([imputed[:, :1440], imputed[:, 1440 + 1].reshape(-1, 1)])
+    # if add_t_col:
+    #     imputed = imputed[:, :-n_transpond -1 -1] #-1 for date col
 
     split = np.array_split(imputed, n_transpond, axis=0)
     matrix = []
     for s in split:
         days = []
         for i in range(s.shape[0]):
-            d = s[i, :-1].reshape(-1, 1) #remove epoch and id
-            if ~np.isnan(s[i, -1]):
-                id = s[i, -1]
+            d = s[i, :-n_transpond - 2].reshape(-1, 1) #remove epoch and id
+            if ~np.isnan(s[i, -n_transpond - 1]):
+                id = s[i, -n_transpond - 1]
             days.append(d)
         days.append(id)
         vstack = np.vstack(days)

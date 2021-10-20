@@ -193,8 +193,6 @@ def main(
     w_d = None
     for i, file in enumerate(files):
         print(f"progress {i}/{len(files)}...")
-        if i > 29:
-            break
         id = file.stem
         df = pd.read_csv(file)
 
@@ -237,6 +235,8 @@ def main(
     output = output / data_name
     output.mkdir(parents=True, exist_ok=True)
 
+    df_activity["timestamp"] = df["timestamp"]
+    df_activity["date_str"] = df["date_str"]
     path = output / "activity_data.csv"
     print(path)
     df_activity.to_csv(path, index=False)
