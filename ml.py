@@ -48,7 +48,7 @@ from utils.visualisation import (
 def main(
     output_dir: Path = typer.Option(..., exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     dataset_folder: Path = typer.Option(..., exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG", "DIFF"]],
+    preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
     class_healthy_label: str = "1To1",
     class_unhealthy_label: str = "2To2",
     n_scales: int = 30,
@@ -84,7 +84,7 @@ def main(
     enable_downsample_df = False
     day = int([a for a in dataset_folder.name.split("_") if "day" in a][0][0])
 
-    files = dataset_folder.glob('*.csv') # find datset files
+    files = [str(x) for x in list(dataset_folder.glob('*.csv'))] # find datset files
     print("found %d files." % len(files))
     print(files)
 
@@ -151,6 +151,10 @@ def main(
             clf_name="SVM_QN_VISU",
             n_scales=n_scales,
         )
+        #df_meta = data_frame.iloc[:, -N_META:]
+        #df_norm_meta = pd.concat([df_norm, df_meta], axis=1)
+
+
         plot_zeros_distrib(
             label_series,
             df_norm,
@@ -267,7 +271,6 @@ def main(
             process_data_frame_svm(
                 output_dir,
                 animal_ids,
-                output_dir,
                 df_processed,
                 days,
                 farm_id,

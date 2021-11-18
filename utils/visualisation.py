@@ -856,48 +856,56 @@ def plotDistribution(X, output_dir, filename):
     fig.write_html(str(filename))
 
 
-def figures_to_html(figs, out_dir, ncol=2, maxrow=15):
-    fig_list = chunks(figs, maxrow*2)
+def figures_to_html(figs, filename="dashboard.html"):
+    dashboard = open(filename, "w")
+    dashboard.write("<html><head></head><body>" + "\n")
+    for fig in figs:
+        inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
+        dashboard.write(inner_html)
+    dashboard.write("</body></html>" + "\n")
 
-    for i, ff in enumerate(fig_list):
-        fig = make_subplots(rows=maxrow, cols=ncol)
-        row = 1
-        col = 1
-        for f in ff:
-            fig.add_trace(f["data"][0], row=row, col=col)
-            #print(row, col)
-            col += 1
-            if col > ncol:
-                col = 1
-                row += 1
-
-        fig.update_layout(
-            autosize=False,
-            width=1200,
-            height=1700
-        )
-        filename = out_dir / f"dashboard_{i}.html"
-        fig.write_html(str(filename))
-
-    # dashboard = open(filename, "w")
-    # dashboard.write("<html><head></head><body>" + "\n")
-    # for i, fig in enumerate(figs):
-    #
-    #     if i % 3 == 0:
-    #         dashboard.write("<div class='row'>" + "\n")
-    #
-    #     dashboard.write("\t<div class='column'>" + "\n")
-    #
-    #     inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
-    #     dashboard.write(inner_html)
-    #
-    #     dashboard.write("\t</div>" + "\n")
-    #
-    #     if i % 3 == 0:
-    #         dashboard.write("</div>" + "\n")
-    #
-    # dashboard.write("</body></html>" + "\n")
-
+# def figures_to_html(figs, out_dir, ncol=2, maxrow=15):
+#     fig_list = chunks(figs, maxrow*2)
+#
+#     for i, ff in enumerate(fig_list):
+#         fig = make_subplots(rows=maxrow, cols=ncol)
+#         row = 1
+#         col = 1
+#         for f in ff:
+#             fig.add_trace(f["data"][0], row=row, col=col)
+#             #print(row, col)
+#             col += 1
+#             if col > ncol:
+#                 col = 1
+#                 row += 1
+#
+#         fig.update_layout(
+#             autosize=False,
+#             width=1200,
+#             height=1700
+#         )
+#         filename = out_dir / f"dashboard_{i}.html"
+#         fig.write_html(str(filename))
+#
+#     # dashboard = open(filename, "w")
+#     # dashboard.write("<html><head></head><body>" + "\n")
+#     # for i, fig in enumerate(figs):
+#     #
+#     #     if i % 3 == 0:
+#     #         dashboard.write("<div class='row'>" + "\n")
+#     #
+#     #     dashboard.write("\t<div class='column'>" + "\n")
+#     #
+#     #     inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
+#     #     dashboard.write(inner_html)
+#     #
+#     #     dashboard.write("\t</div>" + "\n")
+#     #
+#     #     if i % 3 == 0:
+#     #         dashboard.write("</div>" + "\n")
+#     #
+#     # dashboard.write("</body></html>" + "\n")
+#
 
 def rolling_window(array, window_size, freq):
     shape = (array.shape[0] - window_size + 1, window_size)

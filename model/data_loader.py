@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import entropy
 
 
 def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, filter=True):
@@ -15,10 +16,13 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     hearder[-1] = 'date'
     data_frame.columns = hearder
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
+    data_frame = data_frame.dropna()
     data_frame = data_frame.fillna(-1)
+
+    #data_frame = data_frame[(data_frame == 0).sum(axis=1) / len(data_frame.columns) <= 0.5]
     # filter with imputed_days count
-    if 'cat' not in filepath:#todo parametarize
-        data_frame = data_frame[data_frame["imputed_days"] >= day]
+    # if 'cat' not in filepath:#todo parametarize
+    #     data_frame = data_frame[data_frame["imputed_days"] >= day]
 
     # data_frame = data_frame[data_frame["label"].isin(["1To2", "1To1", "2To2"])]
 
@@ -64,7 +68,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
                 if v in ["1To1"]:
                     new_label.append("1To1")
                     continue
-                if v in ["1To2"]:
+                if v in ["2To2"]:
                     new_label.append("2To2")
                     continue
                 new_label.append(np.nan)
@@ -148,6 +152,18 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     data_frame = data_frame.drop('label', 1)
 
     print(data_frame)
+    # entropy_rows = []
+    # for index, row in data_frame.iterrows():
+    #     A = row[:-N_META].values.astype(float)
+    #     A = np.unique(A)
+    #     pA = A / A.sum()
+    #     Shannon2 = -np.nansum(pA * np.log2(pA))
+    #     entropy_rows.append(len(A))
+    #
+    # data_frame["e"] = entropy_rows
+    # data_frame = data_frame.sort_values(by=['e'], ascending=False)
+    # data_frame = data_frame[data_frame["e"] > 150]
+    # data_frame = data_frame.drop('e', 1)
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series
 

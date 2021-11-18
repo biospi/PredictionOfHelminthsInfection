@@ -32,7 +32,7 @@ import json
 
 def main(
         fam_file: Path = typer.Option(
-            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+            ..., exists=False, file_okay=True, dir_okay=False, resolve_path=True
         ),
         data_dir: Path = typer.Option(
             ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -40,7 +40,7 @@ def main(
         out_dir: Path = typer.Option(
             ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
         ),
-        data_col: str = "first_sensor_value_gain",
+        data_col: str = "first_sensor_value_mrnn",
         n_days: int = 7,
         farm_id: str = "farmid",
         night: bool = typer.Option(False, "--p"),
