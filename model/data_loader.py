@@ -44,14 +44,6 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
         data_frame = data_frame.drop('label', 1)
         return data_frame, N_META, None, None, label_series
 
-    #store all samples for later testing after binary fitting
-    labels = data_frame["label"].drop_duplicates().values
-    samples = {}
-    for label in labels:
-        df = data_frame[data_frame["label"] == label]
-        df = df.drop('label', 1)
-        samples[label] = df
-
     # #1To1 1To2 2To2 2To1
     # new_label = []
     # for v in data_frame["label"].values:
@@ -101,7 +93,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
         if v in class_unhealthy:
             new_label.append("2To2")
             continue
-        new_label.append(np.nan)
+        new_label.append(v)
 
     data_frame["label"] = new_label
 
@@ -167,6 +159,15 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
 
+
+    #store all samples for later testing after binary fitting
+    labels = data_frame["label"].drop_duplicates().values
+    samples = {}
+    for label in labels:
+        df = data_frame[data_frame["label"] == label]
+        df = df.drop('label', 1)
+        samples[label] = df
+
     class_count = {}
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     label_series_inverse = dict((v, k) for k, v in label_series.items())
@@ -196,17 +197,19 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
 
     #setup holdout!
     pct = 10
-    class_1_hds = int(data_frame[data_frame['target'] == 1].shape[0] * pct/100)
-    class_2_hds = int(data_frame[data_frame['target'] == 2].shape[0] * pct / 100)
+    class_1_hds = int(data_frame[data_frame['target'] == class_healthy].shape[0] * pct/100)
+    class_2_hds = int(data_frame[data_frame['target'] == class_unhealthy].shape[0] * pct / 100)
 
-    hould_out_1 = data_frame[data_frame['target'] == 1].sample(n=class_1_hds, random_state=0)
-    hould_out_2 = data_frame[data_frame['target'] == 2].sample(n=class_2_hds, random_state=0)
+    hould_out_1 = data_frame[data_frame['target'] == class_healthy].sample(n=class_1_hds, random_state=0)
+    hould_out_2 = data_frame[data_frame['target'] == class_unhealthy].sample(n=class_2_hds, random_state=0)
 
     data_frame = data_frame.drop(hould_out_1.index)
     data_frame = data_frame.drop(hould_out_2.index)
 
     samples[label_series[class_healthy]] = hould_out_1
     samples[label_series[class_unhealthy]] = hould_out_2
+
+    data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 

@@ -50,7 +50,7 @@ from utils.visualisation import (
 def main(
     output_dir: Path = typer.Option(..., exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     dataset_folder: Path = typer.Option(..., exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    preprocessing_steps: List[str] = [['LINEAR']],
+    preprocessing_steps: List[str] = [['ZEROPAD']],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
     imputed_days: int = 6,
@@ -300,24 +300,26 @@ def main(
                 test_labels = []
                 test_size = []
                 for test_label, X in samples.items():
+                    print(f'eval model {test_label} {model_file}...')
                     df_processed = apply_preprocessing_steps(
                         days,
-                        None,
-                        None,
-                        None,
-                        None,
-                        [],
+                        df_hum,
+                        df_temp,
+                        sfft_window,
+                        wavelet_f0,
+                        animal_ids,
                         X.copy(),
                         N_META,
-                        output_dir / test_label,
-                        preprocessing_steps,
-                        "class_healthy_label",
-                        "class_unhealthy_label",
-                        1,
-                        2,
+                        output_dir,
+                        steps,
+                        class_healthy_label,
+                        class_unhealthy_label,
+                        class_healthy_target,
+                        class_unhealthy_target,
                         clf_name="SVM",
-                        output_dim=X.shape[0],
+                        output_dim=data_frame.shape[0],
                         n_scales=None,
+                        keep_meta=False
                     )
 
                     X_test = df_processed.iloc[:, :-1].values
@@ -345,7 +347,10 @@ def main(
                     test_label_str = ''
                     test_size_str = ''
                     for data, label, size in zip(predict_list, test_labels, test_size):
-                        plt.hist(data, bins=bin_size, alpha=0.5, label=f'{label}({str(size)})')
+                        alpha = 0.4
+                        if label in [class_healthy_label, class_unhealthy_label]:
+                            alpha = 0.6
+                        plt.hist(data, bins=bin_size, alpha=alpha, label=f'{label}({str(size)})')
                         test_label_str += label + ','
                         test_size_str += str(size) + ','
                     plt.xlabel("Probability to be unhealthy(2To2)", size=14)
