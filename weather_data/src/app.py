@@ -50,19 +50,19 @@ def execute_sql_query(query, records=None, log_enabled=True):
         print("Exeception occured:{}".format(e))
 
 
-def get_historical_weather_data(dataset_file, farm_id=None, out_file=None, city=None):
+def get_historical_weather_data(days_, out_file=None, city=None):
     # days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_day" % farm_id)
-    df = pd.read_csv(dataset_file, header=None)
+    #df = pd.read_csv(dataset_file, header=None)
     # days_ = pd.to_datetime(df[df.columns[-1]], format='%d/%m/%Y').dt.strftime('%Y-%m-%dT00:00')
-    days = pd.to_datetime(df[df.columns[-1]], format='%d/%m/%Y')
-    q_dates = []
-
-    for d in days:
-        for i in reversed(range(8)):
-            p_d = d - timedelta(days=i)
-            q_dates.append(p_d)
-
-    days_ = np.array([x.strftime('%Y-%m-%dT00:00') for x in q_dates])
+    # days = pd.to_datetime(dates, format='%d/%m/%Y')
+    # q_dates = []
+    #
+    # for d in days:
+    #     for i in reversed(range(8)):
+    #         p_d = d - timedelta(days=i)
+    #         q_dates.append(p_d)
+    #
+    # days_ = np.array([x.strftime('%Y-%m-%dT00:00') for x in q_dates])
     # days_ = []
     # for item in days:
     #     days_.append(item['timestamp_s'].split(' ')[0])
@@ -77,8 +77,8 @@ def get_historical_weather_data(dataset_file, farm_id=None, out_file=None, city=
     # days_ = list(set(days))
     # days_ = sorted(days_, key=lambda n: datetime.strptime(n, '%Y-%m-%d'))
     print(len(days_), days_)
-    REQ = 490
-    keys = ["cdb86ad906ff492cbcc111656211304", "4f95d1403a4c4e4485e230252211504", "6b7c8bdf73044f12a82230404211504"]
+    REQ = 499
+    keys = ["8d6a9b03cf40436e9f203817212411"]
     n_d = np.ceil(len(days_)/REQ)
     print("For 500 req a day you'll need %d days." % n_d)
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
@@ -156,11 +156,46 @@ def get_humidity_date(path, name):
             json.dump(data, outfile)
 
 
+def create_weather_data_for_mrnn():
+    df = pd.read_csv("F:/Data2/mrnn_formatted_activity/cedara/sf_activity/activity_data.csv")
+    days = pd.to_datetime(df["date_str"], format='%Y-%m-%dT%H:%M')
+
+    days_ = np.array([x.strftime('%Y-%m-%dT00:00') for x in days])
+    days_ = np.unique(days_)
+
+    get_historical_weather_data(days_, out_file="Cedara_weather.json", city="Cedara")
+    data_dict = {}
+    with open("Cedara_weather.json") as f:
+        lines = f.readlines()
+        for line in lines:
+            js = json.loads(line)
+            print(js)
+            data_dict[js['data']['weather'][0]['date']] = js['data']['weather'][0]['hourly']
+
+    print(df)
+    dates_q = np.array([x.strftime('%Y-%m-%dT%H:%M') for x in pd.to_datetime(df["date_str"], format='%Y-%m-%dT%H:%M')])
+    humidity_list = []
+    temperature_list = []
+    for d in dates_q:
+        s = d.split('T')
+        day_q = s[0]
+        time_q = int(s[1].split(':')[0])
+        data = data_dict[day_q][time_q]
+        humidity = data['humidity']
+        temperature = data['tempC']
+        print(d, humidity, temperature)
+        humidity_list.append(humidity)
+        temperature_list.append(temperature)
+    df["temperature"] = temperature_list
+    df["humidity"] = humidity_list
+    df.to_csv("F:/MRNN/data/cedara_activity_data_weather.csv", index=False)
+
+
 if __name__ == '__main__':
     print(sys.argv)
+    create_weather_data_for_mrnn()
     #connect_to_sql_database()
     #get_historical_weather_data("F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
     # get_humidity_date('delmas_weather_raw.json', 'delmas')
-
-    get_historical_weather_data("F:/Data2/job_cedara_debug/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
+    #get_historical_weather_data("F:/Data2/job_cedara_debug/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
     #get_humidity_date('delmas_weather_raw.json', 'delmas')

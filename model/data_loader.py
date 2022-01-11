@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import entropy
 
 
-def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, filter=True):
+def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6, preprocessing_steps=None):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -16,8 +16,15 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     hearder[-1] = 'date'
     data_frame.columns = hearder
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
-    data_frame = data_frame.dropna()
-    data_frame = data_frame.fillna(-1)
+    #data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
+    #data_frame = data_frame.dropna()
+
+    data_frame = data_frame[data_frame.nunique(1) > 10]
+    data_frame = data_frame.dropna(subset=data_frame.columns[:-N_META], how='all')
+    if 'ZEROPAD' in preprocessing_steps[0]:
+        data_frame = data_frame.fillna(0)
+    if 'LINEAR' in preprocessing_steps[0]:
+        data_frame.iloc[:, :-N_META] = data_frame.iloc[:, :-N_META].interpolate(axis=0, limit_direction='both')
 
     #data_frame = data_frame[(data_frame == 0).sum(axis=1) / len(data_frame.columns) <= 0.5]
     # filter with imputed_days count
@@ -37,6 +44,14 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
         data_frame = data_frame.drop('label', 1)
         return data_frame, N_META, None, None, label_series
 
+    #store all samples for later testing after binary fitting
+    labels = data_frame["label"].drop_duplicates().values
+    samples = {}
+    for label in labels:
+        df = data_frame[data_frame["label"] == label]
+        df = df.drop('label', 1)
+        samples[label] = df
+
     # #1To1 1To2 2To2 2To1
     # new_label = []
     # for v in data_frame["label"].values:
@@ -48,35 +63,48 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     # data_frame["label"] = new_label
 
 
-    if filter:
-        if "cedara" in filepath:#todo parametarize
-            new_label = []
-            for v in data_frame["label"].values:
-                if v in ["1To1", "2To2"]:
-                    new_label.append("1To1")
-                    continue
-                if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
-                    new_label.append("2To2")
-                    continue
-                new_label.append(np.nan)
+    # if filter:
+    #     if "cedara" in filepath:#todo parametarize
+    #         new_label = []
+    #         for v in data_frame["label"].values:
+    #             if v in ["1To1", "2To2"]:
+    #                 new_label.append("1To1")
+    #                 continue
+    #             if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
+    #                 new_label.append("2To2")
+    #                 continue
+    #             new_label.append(np.nan)
+    #
+    #         data_frame["label"] = new_label
+    #
+    #     if "delmas" in filepath:#todo parametarize
+    #         new_label = []
+    #         for v in data_frame["label"].values:
+    #             if v in ["1To1"]:
+    #                 new_label.append("1To1")
+    #                 continue
+    #             if v in ["2To2"]:
+    #                 new_label.append("2To2")
+    #                 continue
+    #             new_label.append(np.nan)
+    #
+    #         data_frame["label"] = new_label
+    #
+    #     if keep_2_only:
+    #         data_frame = data_frame.dropna()
 
-            data_frame["label"] = new_label
+    new_label = []
+    for v in data_frame["label"].values:
+        if v in class_healthy:
+            new_label.append("1To1")
+            continue
+        if v in class_unhealthy:
+            new_label.append("2To2")
+            continue
+        new_label.append(np.nan)
 
-        if "delmas" in filepath:#todo parametarize
-            new_label = []
-            for v in data_frame["label"].values:
-                if v in ["1To1"]:
-                    new_label.append("1To1")
-                    continue
-                if v in ["2To2"]:
-                    new_label.append("2To2")
-                    continue
-                new_label.append(np.nan)
+    data_frame["label"] = new_label
 
-            data_frame["label"] = new_label
-
-        if keep_2_only:
-            data_frame = data_frame.dropna()
 
     #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
     #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}
@@ -126,9 +154,8 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     #             continue
     #         new_label.append(np.nan)
     #     data_frame["label"] = new_label
-    # data_frame = data_frame.dropna()
 
-
+    data_frame = data_frame.dropna()
     data_frame_o = data_frame.copy()
     #print(data_frame)
 
@@ -139,11 +166,13 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     for i, flabel in enumerate(flabels):
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
+
     class_count = {}
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     label_series_inverse = dict((v, k) for k, v in label_series.items())
-    class_healthy = label_series_inverse[class_healthy]
-    class_unhealthy = label_series_inverse[class_unhealthy]
+    print(label_series_inverse)
+    class_healthy = label_series_inverse["1To1"]
+    class_unhealthy = label_series_inverse["2To2"]
     print(label_series)
     for k in label_series.keys():
         class_count[label_series[k] + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]
@@ -165,7 +194,21 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     # data_frame = data_frame[data_frame["e"] > 150]
     # data_frame = data_frame.drop('e', 1)
 
-    return data_frame, N_META, class_healthy, class_unhealthy, label_series
+    #setup holdout!
+    pct = 10
+    class_1_hds = int(data_frame[data_frame['target'] == 1].shape[0] * pct/100)
+    class_2_hds = int(data_frame[data_frame['target'] == 2].shape[0] * pct / 100)
+
+    hould_out_1 = data_frame[data_frame['target'] == 1].sample(n=class_1_hds, random_state=0)
+    hould_out_2 = data_frame[data_frame['target'] == 2].sample(n=class_2_hds, random_state=0)
+
+    data_frame = data_frame.drop(hould_out_1.index)
+    data_frame = data_frame.drop(hould_out_2.index)
+
+    samples[label_series[class_healthy]] = hould_out_1
+    samples[label_series[class_unhealthy]] = hould_out_2
+
+    return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 
 
 def parse_param_from_filename(file):

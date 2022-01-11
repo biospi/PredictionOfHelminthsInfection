@@ -805,7 +805,7 @@ def plot_pr_range(
 
 
 def plot_roc_range(
-    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days, info="None"
+    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days, info="None", tag=''
 ):
     ax.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -831,7 +831,7 @@ def plot_roc_range(
     # fig.show()
     path = out_dir / "roc_curve" / cv_name
     path.mkdir(parents=True, exist_ok=True)
-    final_path = path / f"roc_{classifier_name}.png"
+    final_path = path / f"{tag}_roc_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
 

@@ -143,7 +143,9 @@ class ActivityFile:
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
         atrace = np.array(dataFrame.loc[:, self.col])
-        missingness = np.array(dataFrame.loc[:, 'imputed'])
+        missingness = np.zeros(dataFrame.shape[0])
+        if 'imputed' in dataFrame.columns:
+            missingness = np.array(dataFrame.loc[:, 'imputed'])
 
         # xmin = dataFrame.loc[:, 'xmin']
         # xmax = dataFrame.loc[:, 'xmax']
@@ -304,13 +306,19 @@ class SampleSet:
                 #missR = np.sum(1 - M) / M.size  # missing marked as 0
                 valid_imputed_day = 0
 
-                cpt = 0
-                for elem in M:
-                    if elem > 0:
-                        cpt += 1
-                    if cpt == 1440-1:
+                range_ = np.arange(0, M.shape[0], 1440)
+                for k in range(len(range_)-1):
+                    d_ = M[range_[k]:range_[k+1]]
+                    if np.all(d_ == 1):
                         valid_imputed_day += 1
-                        cpt = 0
+
+                # cpt = 0
+                # for elem in M:
+                #     if elem > 0:
+                #         cpt += 1
+                #     if cpt == 1440-1:
+                #         valid_imputed_day += 1
+                #         cpt = 0
 
                 val = valid_imputed_day >= 1
 

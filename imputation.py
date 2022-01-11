@@ -232,14 +232,33 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     for result in tqdm(results):
         a_data = result.get()
         activity = a_data[1]["first_sensor_value"]
-        signal_strength = a_data[1]["signal_strength"]
+        signal_strength = np.zeros(a_data[1].shape[0])
+        if "signal_strength" in a_data[1]:
+            signal_strength = a_data[1]["signal_strength"]
 
-        x1 = a_data[1]["xmin"]
-        y1 = a_data[1]["xmax"]
-        z1 = a_data[1]["ymin"]
-        x2 = a_data[1]["ymax"]
-        y2 = a_data[1]["zmin"]
-        z2 = a_data[1]["zmax"]
+        x1 = np.zeros(a_data[1].shape[0])
+        if "xmin" in a_data[1]:
+            x1 = a_data[1]["xmin"]
+
+        y1 = np.zeros(a_data[1].shape[0])
+        if "xmax" in a_data[1]:
+            y1 = a_data[1]["xmax"]
+
+        z1 = np.zeros(a_data[1].shape[0])
+        if "ymin" in a_data[1]:
+            z1 = a_data[1]["ymin"]
+
+        x2 = np.zeros(a_data[1].shape[0])
+        if "ymax" in a_data[1]:
+            x2 = a_data[1]["ymax"]
+
+        y2 = np.zeros(a_data[1].shape[0])
+        if "zmin" in a_data[1]:
+            y2 = a_data[1]["zmin"]
+
+        z2 = np.zeros(a_data[1].shape[0])
+        if "zmax" in a_data[1]:
+            z2 = a_data[1]["zmax"]
 
         power1 = np.sqrt(x1 * x1 + y1 * y1 + z1 * z1)
         power2 = np.sqrt(x2 * x2 + y2 * y2 + z2 * z2)
@@ -324,6 +343,7 @@ def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_l
     data_ss = data_ss.sort_values(data_ss.first_valid_index(), axis=1, ascending=False)
     data_first_sensor = data_first_sensor.iloc[1:-1]
     data_ss = data_ss.iloc[1:-1]
+    data_first_sensor_o = data_first_sensor.copy()
     if n_top_traces > 0:
         data_first_sensor = data_first_sensor.iloc[:, : n_top_traces]
         data_ss = data_ss.iloc[:, : n_top_traces]
@@ -665,7 +685,7 @@ if __name__ == '__main__':
             help='missing data probability',
             default=miss_rate,
             type=float)
-        parser.add_argument('--n_job', type=int, default=6, help='Number of thread to use.')
+        parser.add_argument('--n_job', type=int, default=8, help='Number of thread to use.')
         parser.add_argument('--n_top_traces', type=int, default=17,
                             help='select n traces with highest entropy (<= 0 number to select all traces)')
         parser.add_argument('--enable_anscombe', type=bool, default=False)

@@ -1,5 +1,6 @@
 import os
 import pathlib
+import pickle
 import time
 from itertools import cycle
 import matplotlib.pyplot as plt
@@ -120,15 +121,15 @@ def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, 
     return roc_auc
 
 
-def makeYHist(data0, data1, out_dir, cv_name, steps, auc):
+def makeYHist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
     plt.figure(figsize=(8, 6))
     plt.hist(data0, bins=100, alpha=0.5, label="healthy (y=0)")
     plt.hist(data1, bins=100, alpha=0.5, label="unhealthy (y=1)")
     plt.xlabel("Y probability", size=14)
     plt.ylabel("Count", size=14)
-    plt.title("Histograms of prediction probabilities (ROC Mean AUC = %0.2f)" % auc)
+    plt.title("Histograms of prediction probabilities (ROC Mean AUC = %0.2f)\n %s" % (auc, info))
     plt.legend(loc="upper right")
-    filename = "%s/overlapping_histograms_y_%s_%s.png" % (out_dir, cv_name, steps)
+    filename = "%s/%s_overlapping_histograms_y_%s_%s.png" % (out_dir, tag, cv_name, steps)
     print(filename)
     plt.savefig(filename)
     plt.clf()
@@ -152,7 +153,7 @@ def downsampleDf(data_frame, class_healthy, class_unhealthy):
 
 
 def make_roc_curve(
-    clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days, split1=None, split2=None
+    clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days, split1=None, split2=None, tag=''
 ):
     steps = clf_name + "_" + steps
     print("make_roc_curve %s" % cv_name, steps)
@@ -347,7 +348,7 @@ def make_roc_curve(
             aucs_roc.append(viz_roc.roc_auc)
             aucs_pr.append(auc(recall, precision))
             precisions.append(precision)
-            info = f"train shape:{str(train.shape)} test shape:{str(test.shape)}"
+            info = f"train shape:{str(train.shape)} healthy:{np.sum(y[train] == 1)} unhealthy:{np.sum(y[train] == 2)}| test shape:{str(test.shape)} healthy:{np.sum(y[test] == 1)} unhealthy:{np.sum(y[test] == 2)}"
             recalls.append(recall)
 
             y_ground_truth_pr.append(y_binary[test])
@@ -357,7 +358,7 @@ def make_roc_curve(
 
         print("make_roc_curve done!")
         mean_auc = plot_roc_range(
-            ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days, info=info
+            ax_roc, tprs, mean_fpr, aucs_roc, out_dir, steps, fig_roc, cv_name, days, info=info, tag=tag
         )
         mean_auc_pr = plot_pr_range(
             ax_pr,
@@ -374,7 +375,7 @@ def make_roc_curve(
         plt.close(fig_roc)
         plt.close(fig_pr)
         plt.clf()
-        makeYHist(data0, data1, out_dir, cv_name, steps, mean_auc)
+        makeYHist(data0, data1, out_dir, cv_name, steps, mean_auc, info=info, tag=tag)
         return mean_auc, aucs_roc
 
 
@@ -392,6 +393,8 @@ def process_data_frame_svm(
     label_series,
     class_healthy,
     class_unhealthy,
+    class_healthy_label,
+    class_unhealthy_label,
     y_col="target",
     cv=None,
 ):
@@ -420,7 +423,7 @@ def process_data_frame_svm(
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(
-            n_splits=n_splits, n_repeats=n_repeats, random_state=None
+            n_splits=n_splits, n_repeats=n_repeats, random_state=0
         )
 
     if cv == "RepeatedKFold":
@@ -522,6 +525,7 @@ def process_data_frame_svm(
             cv=cross_validation_method,
             scoring=scoring,
             n_jobs=-1,
+            return_estimator=True
         )
         scores["downsample"] = downsample_false_class
         scores["class0"] = y[y == class_healthy].size
@@ -559,8 +563,8 @@ def process_data_frame_svm(
         report_rows_list.append(scores)
 
         df_report = pd.DataFrame(report_rows_list)
-        df_report["class_0_label"] = label_series[class_healthy]
-        df_report["class_1_label"] = label_series[class_unhealthy]
+        df_report["class_0_label"] = str(class_healthy_label)
+        df_report["class_1_label"] = str(class_unhealthy_label)
         df_report["nfold"] = (
             cross_validation_method.nfold
             if hasattr(cross_validation_method, "nfold")
@@ -587,6 +591,20 @@ def process_data_frame_svm(
         df_report.to_csv(filename, sep=",", index=False)
         print("filename=", filename)
         del scores
+
+    model_files = []
+    for clf_fitted in [
+        SVC(kernel="linear", probability=True, class_weight="balanced"),
+        SVC(kernel="rbf", probability=True, class_weight="balanced"),
+    ]:
+        clf_fitted = clf_fitted.fit(X.copy(), y.copy())
+        filename = output_dir / cv / f"model_{days}_{steps}_{clf_fitted.kernel}.pkl"
+        model_files.append(filename)
+        print("saving classifier...")
+        print(filename)
+        with open(str(filename), 'wb') as f:
+           pickle.dump(clf_fitted, f)
+    return model_files
 
 
 def processSVM(X_train, X_test, y_train, y_test, output_dir):

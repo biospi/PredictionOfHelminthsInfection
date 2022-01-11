@@ -31,14 +31,13 @@ def main(
     ),
     class_healthy: str = "1To1",
     class_unhealthy: str = "2To2",
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "DIFF"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
 ):
     """This script train a ml model(SVM) on all the data of 1 dataset and test on a different dataset\n
     Args:\n
         farm1_path: Dataset input directory
         farm2_path: Dataset input directory
         output_dir: Output directory
-        dataset_folder: Dataset input directory
         class_healthy: Label for healthy class
         class_unhealthy: Label for unhealthy class
     """
@@ -53,6 +52,7 @@ def main(
         class_healthy_target,
         class_unhealthy_target,
         label_series,
+        samples
     ) = load_activity_data(
         find_dataset(str(farm1_path)), days, class_healthy, class_unhealthy, keep_2_only=True
     )

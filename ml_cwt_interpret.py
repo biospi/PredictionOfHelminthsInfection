@@ -66,6 +66,7 @@ def main(
             class_healthy_target,
             class_unhealthy_target,
             label_series,
+            samples
         ) = load_activity_data(file, days, class_healthy_label, class_unhealthy_label)
 
         print(data_frame)

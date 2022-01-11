@@ -29,6 +29,8 @@ from dataset.cmdsextra import bc
 import datetime
 import json
 
+#--fam-file F:\Data2\delmas_animal_data.h5 --data-dir "F:\MRNN\imputed_data\1_missingrate_[0.0]_seql_10080_iteration_100_hw__n_298" --out-dir "E:\Data2\debug\delmas\dataset_mrnn_7day"
+#--fam-file F:\Data2\cedara_animal_data.h5 --data-dir "F:\MRNN\imputed_data\3_missingrate_[0.0]_seql_10080_iteration_100_hw__n_238" --out-dir "E:\Data2\cedara\delmas\dataset_mrnn_7day"
 
 def main(
         fam_file: Path = typer.Option(
@@ -40,7 +42,7 @@ def main(
         out_dir: Path = typer.Option(
             ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
         ),
-        data_col: str = "first_sensor_value_mrnn",
+        data_col: str = "first_sensor_value",
         n_days: int = 7,
         farm_id: str = "farmid",
         night: bool = typer.Option(False, "--p"),

@@ -51,7 +51,7 @@ def combine_dfs(df1, df2):
     return temp
 
 
-def format(df, farm_id, id, ground_truth_file):
+def format(df, farm_id, id):
     #df["first_sensor_value"] = [anscombe(np.array([x]))[0] for x in df["first_sensor_value"]]
     df_static = df[["first_sensor_value"]]
     df_static.insert(0, "id", farm_id)
@@ -62,7 +62,7 @@ def format(df, farm_id, id, ground_truth_file):
     df_temporal.insert(2, "variable", f"first_sensor_value_{id}")
     df_temporal.columns = ["id", "time", "variable", "value"]
 
-    df_treatment = build_gt_data(ground_truth_file, df_temporal)
+    #df_treatment = build_gt_data(ground_truth_file, df_temporal)
 
     # df_treatment2 = df_treatment.copy()
     # df_treatment2["variable"] = "mock_feature1"
@@ -72,7 +72,8 @@ def format(df, farm_id, id, ground_truth_file):
     # df_treatment3["variable"] = "mock_feature2"
     # df_treatment3["value"] = df_temporal["value"]
 
-    df_temporal_ground = combine_dfs(df_temporal, df_treatment)
+    #df_temporal_ground = combine_dfs(df_temporal, df_treatment)
+    df_temporal_ground = df_temporal
     # df_temporal_ground = []
     # for (index1, row1), (index2, row2) in zip(
     #     df_temporal.iterrows(), df_treatment.iterrows()
@@ -147,13 +148,13 @@ def main(
     activity_data: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    dataset_ground: Path = typer.Option(
-        ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
-    ),
+    # dataset_ground: Path = typer.Option(
+    #     ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
+    # ),
     output: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    weather_file: Path = None,
+    #weather_file: Path = None,
     split: int = 20,
     thresh: int = 100,
     thresh_nan: int = 100,
@@ -169,24 +170,24 @@ def main(
         thresh: minimum activity points that need to be in backfilled file
     """
 
-    weather_data = None
-    if weather_file is not None:
-        with open(weather_file) as json_file:
-            weather_data = json.load(json_file)
+    # weather_data = None
+    # if weather_file is not None:
+    #     with open(weather_file) as json_file:
+    #         weather_data = json.load(json_file)
 
     print(activity_data)
     files = list(activity_data.glob("*.csv"))
     df_static_list = []
     df_temporal_list = []
 
-    day = int(dataset_ground.stem.split("dbft_")[1][0])
-    (
-        df_famacha,
-        N_META,
-        class_healthy_target,
-        class_unhealthy_target,
-        label_series,
-    ) = load_activity_data(str(dataset_ground), day, "1To1", "2To2")
+    # day = int(dataset_ground.stem.split("dbft_")[1][0])
+    # (
+    #     df_famacha,
+    #     N_META,
+    #     class_healthy_target,
+    #     class_unhealthy_target,
+    #     label_series,
+    # ) = load_activity_data(str(dataset_ground), day, "1To1", "2To2")
 
     activity = []
     ids = []
@@ -196,8 +197,8 @@ def main(
         id = file.stem
         df = pd.read_csv(file)
 
-        if w_d is None:
-            w_d = get_weather_data(df["timestamp"].values, weather_data)
+        # if w_d is None:
+        #     w_d = get_weather_data(df["timestamp"].values, weather_data)
 
         tot_activity = df["first_sensor_value"].values.astype(float)
         mask = ~np.isnan(tot_activity)
@@ -217,17 +218,17 @@ def main(
         #df = df[126117:126117+1440*7]
         activity.append(df["first_sensor_value"])
         ids.append(id)
-        df_static, df_temporal = format(df, farm_id, id, df_famacha)
+        df_static, df_temporal = format(df, farm_id, id)
         df_static_list.append(df_static)
         df_temporal_list.append(df_temporal)
         # if len(df_temporal_list) > 2:
         #     break
 
-    if w_d is not None:
-        activity.append(pd.Series(w_d[0]))
-        activity.append(pd.Series(w_d[1]))
-        ids.append("humidity")
-        ids.append("temperature")
+    # if w_d is not None:
+    #     activity.append(pd.Series(w_d[0]))
+    #     activity.append(pd.Series(w_d[1]))
+    #     ids.append("humidity")
+    #     ids.append("temperature")
 
     df_activity = pd.concat(activity, axis=1)
     df_activity.columns = ids
@@ -240,6 +241,7 @@ def main(
     path = output / "activity_data.csv"
     print(path)
     df_activity.to_csv(path, index=False)
+    exit()
 
     df_static_f = pd.concat(df_static_list, axis=0)
     df_temporal_f = pd.concat(df_temporal_list, axis=0)

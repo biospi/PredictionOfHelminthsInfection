@@ -4,6 +4,8 @@ import time
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 """
 Utility class for static methods
@@ -107,3 +109,69 @@ def create_rec_dir(path):
 def chunks(l, n):
     n = max(1, n)
     return (l[i:i+n] for i in range(0, len(l), n))
+
+
+def plot_heatmap(X1, y1, X2, y2, out_dir, p1_start, p1_end, p2_start, p2_end):
+    healthy_samples1 = X1[y1 == 1]
+    unhealthy_samples1 = X1[y1 != 1]
+
+    healthy_samples2 = X2[y2 == 1]
+    unhealthy_samples2 = X2[y2 != 1]
+
+    fig = make_subplots(
+        rows=4,
+        cols=1,
+        subplot_titles=(f"healthy samples from {p1_start} to {p1_end}", f"unhealthy samples {p1_start} {p1_end}",
+                        f"healthy samples {p2_start} to {p2_end}", f"unhealthy samples {p2_start} to {p2_end}"),
+        y_title="",
+        x_title="Time (1 min bins)",
+    )
+
+    trace1 = go.Heatmap(
+        z=healthy_samples1,
+        x=np.arange(0, healthy_samples1.shape[0], 1),
+        y=np.arange(0, healthy_samples1.shape[1], 1),
+        colorscale="Viridis",
+        showscale=False
+    )
+    fig.append_trace(trace1, row=1, col=1)
+
+    trace2 = go.Heatmap(
+        z=unhealthy_samples1,
+        x=np.arange(0, unhealthy_samples1.shape[0], 1),
+        y=np.arange(0, unhealthy_samples1.shape[1], 1),
+        colorscale="Viridis",
+        showscale=False
+    )
+    fig.append_trace(trace2, row=2, col=1)
+
+    trace3 = go.Heatmap(
+        z=healthy_samples2,
+        x=np.arange(0, healthy_samples2.shape[0], 1),
+        y=np.arange(0, healthy_samples2.shape[1], 1),
+        colorscale="Viridis",
+        showscale=False
+    )
+    fig.append_trace(trace3, row=3, col=1)
+
+    trace4 = go.Heatmap(
+        z=unhealthy_samples2,
+        x=np.arange(0, unhealthy_samples2.shape[0], 1),
+        y=np.arange(0, unhealthy_samples2.shape[1], 1),
+        colorscale="Viridis",
+        showscale=False
+    )
+    fig.append_trace(trace4, row=4, col=1)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = "samples_heatmap.html"
+    output = out_dir / filename
+    print(output)
+    fig.write_html(str(output))
+
+
+def getXY(df):
+    print(df)
+    X = df.iloc[:, :-1].values
+    y = df["target"].values
+    return X, y
