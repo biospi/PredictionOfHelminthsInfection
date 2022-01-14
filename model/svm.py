@@ -153,7 +153,7 @@ def downsampleDf(data_frame, class_healthy, class_unhealthy):
 
 
 def make_roc_curve(
-    clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days, split1=None, split2=None, tag=''
+    class_healthy, class_unhealthy, clf_name, out_dir, classifier, X, y, cv, steps, cv_name, animal_ids, days, split1=None, split2=None, tag=''
 ):
     steps = clf_name + "_" + steps
     print("make_roc_curve %s" % cv_name, steps)
@@ -348,7 +348,7 @@ def make_roc_curve(
             aucs_roc.append(viz_roc.roc_auc)
             aucs_pr.append(auc(recall, precision))
             precisions.append(precision)
-            info = f"train shape:{str(train.shape)} healthy:{np.sum(y[train] == 1)} unhealthy:{np.sum(y[train] == 2)}| test shape:{str(test.shape)} healthy:{np.sum(y[test] == 1)} unhealthy:{np.sum(y[test] == 2)}"
+            info = f"train shape:{str(train.shape)} healthy:{np.sum(y[train] == class_healthy)} unhealthy:{np.sum(y[train] == class_unhealthy)}| test shape:{str(test.shape)} healthy:{np.sum(y[test] == class_healthy)} unhealthy:{np.sum(y[test] == class_unhealthy)}"
             recalls.append(recall)
 
             y_ground_truth_pr.append(y_binary[test])
@@ -547,6 +547,8 @@ def process_data_frame_svm(
         scores["classifier_details"] = str(clf_svc).replace("\n", "").replace(" ", "")
         # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
         auc_m, aucs = make_roc_curve(
+            class_healthy,
+            class_unhealthy,
             scores["classifier"].replace("->", ""),
             output_dir,
             clf_svc,

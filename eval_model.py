@@ -117,9 +117,7 @@ def main(
         plt.show()
         plt.close()
 
-
         # y_test = np.zeros(df_processed.shape[0])
-        #
         # y_pred_proba = clf.predict_proba(X_test)[::, 1]
         # fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
         # auc = roc_auc_score(y_test, y_pred_proba)

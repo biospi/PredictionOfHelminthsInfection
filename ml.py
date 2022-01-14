@@ -50,10 +50,10 @@ from utils.visualisation import (
 def main(
     output_dir: Path = typer.Option(..., exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     dataset_folder: Path = typer.Option(..., exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    preprocessing_steps: List[str] = [['ZEROPAD']],
+    preprocessing_steps: List[str] = [['MRNN', 'QN', 'ANSCOMBE', 'LOG']],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
-    imputed_days: int = 6,
+    imputed_days: int = 7,
     n_scales: int = 8,
     hum_file: Optional[Path] = Path('.'),
     temp_file: Optional[Path] = Path('.'),
@@ -342,17 +342,26 @@ def main(
                     print(out)
                     plt.savefig(str(out))
 
+                i_h = 0
+                i_uh = 0
                 for bin_size in [5, 10, 30, 50, 100]:
                     plt.clf()
                     test_label_str = ''
                     test_size_str = ''
-                    for data, label, size in zip(predict_list, test_labels, test_size):
-                        alpha = 0.4
-                        if label in [class_healthy_label, class_unhealthy_label]:
-                            alpha = 0.6
-                        plt.hist(data, bins=bin_size, alpha=alpha, label=f'{label}({str(size)})')
+                    for i, (data, label, size) in enumerate(zip(predict_list, test_labels, test_size)):
                         test_label_str += label + ','
                         test_size_str += str(size) + ','
+                        if label in class_healthy_label:
+                            i_h = i
+                            continue
+                        if label in class_unhealthy_label:
+                            i_uh = i
+                            continue
+                        plt.hist(data, bins=bin_size, alpha=0.5, label=f'{label}({str(size)})')
+
+                    plt.hist(predict_list[i_h], bins=bin_size, alpha=0.5, label=f'{test_labels[i_h]}({str(test_size[i_h])})')
+                    plt.hist(predict_list[i_uh], bins=bin_size, alpha=0.5, label=f'{test_labels[i_uh]}({str(test_size[i_uh])})')
+
                     plt.xlabel("Probability to be unhealthy(2To2)", size=14)
                     plt.ylabel("Count", size=14)
                     plt.title(
@@ -396,6 +405,8 @@ def main(
         if file.endswith(".csv")
     ]
     print("found %d files." % len(files))
+    if len(files) == 0:
+        return
     print("compiling final file...")
 
     dfs = [pd.read_csv(file, sep=",") for file in files]
@@ -407,7 +418,7 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    #typer.run(main)
 
     #--output-dir E:\Data2\debug\mrnn_median_ml\debug --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
     #--output-dir E:\Data2\debug\mrnn_median_ml\debug\cedara --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
@@ -418,3 +429,60 @@ if __name__ == "__main__":
     #         main(imputed_days=i, output_dir=Path(f"E:/Data2/mrnn_median_ml_weather/10080_100_{healthy_l}__{unhealthy_l}_{i}"),
     #              dataset_folder=Path("E:\Data2\mrnn_datasets2\median_10080_100_weather\dataset_gain_7day"),
     #              class_healthy_label=healthy_l, class_unhealthy_label=unhealthy_l)
+
+    for steps in [[["ZEROPAD", "QN"]], [["ZEROPAD", "QN", "ANSCOMBE"]],
+                  [["ZEROPAD", "QN", "ANSCOMBE", "LOG"]]]:
+        slug = '_'.join(steps[0])
+        for day in [7]:
+            main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_li_{day}_{slug}"),
+                 dataset_folder=Path("E:\Data2\debug3\delmas\dataset_li_7day"), preprocessing_steps=steps, imputed_days=day)
+
+    # for steps in [[['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
+    #               [['MRNN', "QN", "ANSCOMBE", "LOG"]]]:
+    #     slug = '_'.join(steps[0])
+    #     for day in [0, 1, 2, 3, 4, 5, 6, 7]:
+    #         main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{day}_{slug}"),
+    #              dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"), preprocessing_steps=steps, imputed_days=day)
+
+    # for steps in [[['GAIN']], [['GAIN', "QN"]], [['GAIN', "QN", "ANSCOMBE"]],
+    #               [['GAIN', "QN", "ANSCOMBE", "LOG"]]]:
+    #     slug = '_'.join(steps[0])
+    #     main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+    #          dataset_folder=Path("E:\Data2\debug3\delmas\dataset_gain_7day"), preprocessing_steps=steps)
+
+    # for steps in [[['ZEROPAD']], [['ZEROPAD', "QN"]], [['ZEROPAD', "QN", "ANSCOMBE"]], [['ZEROPAD', "QN", "ANSCOMBE", "LOG"]],
+    #               [['LINEAR']], [['LINEAR', "QN"]], [['LINEAR', "QN", "ANSCOMBE"]], [['LINEAR', "QN", "ANSCOMBE", "LOG"]]]:
+    #     slug = '_'.join(steps[0])
+    #     main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+    #          dataset_folder=Path("E:\Data2\debug3\delmas_\datasetraw_none_7day"), preprocessing_steps=steps)
+
+    # for steps in [[['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
+    #               [['MRNN', "QN", "ANSCOMBE", "LOG"]]]:
+    #     slug = '_'.join(steps[0])
+    #     for day in [0, 1, 2, 3, 4, 5, 6, 7]:
+    #         main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+    #              dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+    #              imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+    #
+    # for steps in [[['ZEROPAD']], [['ZEROPAD', "QN"]], [['ZEROPAD', "QN", "ANSCOMBE"]], [['ZEROPAD', "QN", "ANSCOMBE", "LOG"]],
+    #               [['LINEAR']], [['LINEAR', "QN"]], [['LINEAR', "QN", "ANSCOMBE"]], [['LINEAR', "QN", "ANSCOMBE", "LOG"]]]:
+    #     slug = '_'.join(steps[0])
+    #     main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{slug}"),
+    #          dataset_folder=Path("E:\Data2\debug3\cedara_\datasetraw_none_7day"), preprocessing_steps=steps,
+    #          class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+
+
+    # output_dir = Path(f"E:\Data2\debugfinal3")
+    # files = output_dir.rglob("*.csv")
+    # dfs = []
+    # for file in files:
+    #     if 'final_classification_report' in str(file):
+    #         continue
+    #     print(file)
+    #     dfs.append(pd.read_csv(file))
+    # #dfs = [pd.read_csv(file, sep=",") for file in files if 'final' not in file]
+    # df_final = pd.concat(dfs).drop_duplicates()
+    # filename = output_dir / "final_classification_report.csv"
+    # df_final.to_csv(filename, sep=",", index=False)
+    # print(df_final)
+    # plotMlReport(filename, output_dir)

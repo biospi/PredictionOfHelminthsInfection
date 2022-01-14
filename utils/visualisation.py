@@ -930,6 +930,8 @@ def plotMeanGroups(
     fig_group_median = go.Figure()
     for key in tqdm(label_series.keys()):
         df_ = df[df["target"] == key]
+        if df_.shape[0] == 0:
+            continue
         fig_group = go.Figure()
         n = df_.shape[0]
         for index, row in df_.iterrows():

@@ -5,16 +5,105 @@ import pandas as pd
 from sklearn import datasets
 from sklearn.metrics import make_scorer
 from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, RepeatedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
 from sys import exit
 from sklearn.model_selection import LeavePOut
 import itertools
-
+from pathlib import Path
+from model.data_loader import load_activity_data
 from utils._anscombe import Anscombe
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+from datetime import datetime
 
 np.random.seed(0)
+
+
+def plot_heatmap(
+    X,
+    timestamps,
+    animal_ids,
+    out_dir,
+    title="Heatmap",
+    filename="heatmap.html",
+    yaxis="Count",
+    xaxis="Time bin(1D)",
+):
+    fig = make_subplots(rows=1, cols=1)
+    trace = go.Heatmap(
+        z=X.T,
+        x=timestamps,
+        y=animal_ids,
+        colorscale="Viridis",
+    )
+    fig.add_trace(trace, row=1, col=1)
+    fig.update_layout(title_text=title)
+    fig.update_layout(xaxis_title=xaxis)
+    fig.update_layout(yaxis_title=yaxis)
+    # fig.show()
+    # create_rec_dir(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file_path = out_dir / filename.replace("=", "_").lower()
+    print(file_path)
+    fig.write_html(str(file_path))
+    return trace, title
+
+
+def remove_testing_samples(activity_file, out_dir, ifold, df, to_remove, nmin=10080):
+    print("removing testing samples from dataset....")
+    df_without_test = df.copy()
+    df_without_test["date_datetime"] = pd.to_datetime(df_without_test["date_str"])
+    for test_sample in to_remove:
+        animal_id = int(test_sample[0])
+        date = pd.to_datetime(test_sample[2], format="%d/%m/%Y")
+        date_range = pd.date_range(end=date, periods=nmin, freq='T')
+        #grab test sample from full dataset and remove activity values
+        df_without_test.loc[df_without_test[[str(animal_id), 'date_datetime']]['date_datetime'].isin(date_range), str(animal_id)] = -1
+    df_resampled = df_without_test.resample('D', on='date_datetime').sum()
+    filtered_columns = [x for x in df_resampled.columns if x.isdigit()]
+    df_resampled = df_resampled[filtered_columns]
+    df_resampled[df_resampled._get_numeric_data() < 0] = np.nan
+    timestamps = [pd.to_datetime(x) for x in df_resampled.index.values]
+    plot_heatmap(df_resampled.values, timestamps, [f"_{x}" for x in filtered_columns],
+                 title=f"Fold {ifold} training data with testing samples removed",
+                 out_dir=out_dir / Path("CV"),
+                 filename=f"fold_{ifold}.html")
+    print("removed testing data. ready for imputation.")
+    filename = f"{activity_file.stem}_{ifold}.csv"
+    out = out_dir / filename
+    print(out)
+    df_without_test[df_without_test._get_numeric_data() < 0] = np.nan
+    df_without_test.to_csv(out)
+    return df_without_test
+
+
+class RepeatedKFoldCustom:
+    def __init__(self, n_splits, n_repeats, imputation=None, random_state=0):
+        self.n_splits = n_splits
+        self.n_repeats = n_repeats
+        self.imputation = imputation
+        self.random_state = random_state
+
+    def impute(self, out_dir, X, y, metadata, full_activity_data_file, method=None):
+        print('imputing...')
+        df = pd.read_csv(full_activity_data_file)
+        for ifold, (train_index, test_index) in enumerate(self.split(X, y)):
+            X_train, X_test = X[train_index], X[test_index]
+            X_train_meta, X_test_meta = metadata[train_index], metadata[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            df = remove_testing_samples(full_activity_data_file, out_dir, ifold, df, X_test_meta)
+            
+
+    def split(self, X, y):
+        rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
+        i = 0
+        for train_index, test_index in rkf.split(X):
+            print(f"FOLD {i} --> TRAIN:{train_index} TEST:{test_index}")
+            i += 1
+            yield train_index, test_index
 
 
 class StratifiedLeaveTwoOut:
@@ -119,37 +208,63 @@ if __name__ == "__main__":
     print("CUSTOM SPLIT TEST")
     print("***************************")
 
-    class_healthy = 1
-    class_unhealthy = 4
+    # class_healthy = 1
+    # class_unhealthy = 4
+    #
+    # scoring = {
+    #     'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+    #     # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+    #     'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+    #     'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+    #     'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+    #     'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+    #     'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+    #     'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
+    # }
+    #
+    #
+    # # y = np.array([4, 4, 1, 1, 4, 4, 1, 1, 1, 1, 4, 4, 1, 1, 4, 4, 1, 4, 4, 4, 1, 4,
+    # #    1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 1, 4, 1, 1, 1, 4,
+    # #    4, 4, 1, 1, 1, 1, 4, 4, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 1, 1, 1, 1,
+    # #    1, 1, 1, 4, 4, 4, 4, 1, 1, 1, 4, 1, 1, 1, 1, 4, 4, 4, 1, 4, 4, 1,
+    # #    4, 4, 4, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4,
+    # #    4, 4, 4, 1, 1, 1, 1, 4, 1, 1, 1, 4, 4, 4, 4, 4, 1, 1]).reshape(-1, 1)
+    #
+    # y = np.array([4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    #    1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]).reshape(-1, 1)
+    #
+    # X = np.array(list(range(y.size))).reshape(-1, 1)
+    # X = np.concatenate((X, X), 1)
 
-    scoring = {
-        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
-        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
-        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
-        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
-        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
-        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
-        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
-        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
-    }
+    file = Path("E:/Data2/debug3/delmas/datasetraw_none_7day/activity_farmid_dbft_7_1min.csv")
+    out_dir = Path("E:/Data2/cv_test")
+    day = 7
+    imputed_days = 7
+    print(f"loading dataset file {file} ...")
+    (
+        data_frame,
+        N_META,
+        class_healthy_target,
+        class_unhealthy_target,
+        label_series,
+        samples,
+    ) = load_activity_data(file, day, ["1To1"], ["2To2"])
 
+    X = data_frame.iloc[:, :-N_META].values
+    y = data_frame["target"].values
+    meta = data_frame.iloc[:, data_frame.shape[1]-N_META:].values
 
-    # y = np.array([4, 4, 1, 1, 4, 4, 1, 1, 1, 1, 4, 4, 1, 1, 4, 4, 1, 4, 4, 4, 1, 4,
-    #    1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 1, 4, 1, 1, 1, 4,
-    #    4, 4, 1, 1, 1, 1, 4, 4, 1, 4, 4, 4, 4, 1, 4, 4, 4, 1, 1, 1, 1, 1,
-    #    1, 1, 1, 4, 4, 4, 4, 1, 1, 1, 4, 1, 1, 1, 1, 4, 4, 4, 1, 4, 4, 1,
-    #    4, 4, 4, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4,
-    #    4, 4, 4, 1, 1, 1, 1, 4, 1, 1, 1, 4, 4, 4, 4, 4, 1, 1]).reshape(-1, 1)
+    rkfc = RepeatedKFoldCustom(2, 2)
+    rkfc.impute(out_dir, X, y, meta, Path("C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/activity_data.csv"), method="MRNN")
+    # for train_index, test_index in rkfc.split(X, y):
+    #     X_train, X_test = X[train_index], X[test_index]
+    #     y_train, y_test = y[train_index], y[test_index]
 
-    y = np.array([4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]).reshape(-1, 1)
-
-    X = np.array(list(range(y.size))).reshape(-1, 1)
-    X = np.concatenate((X, X), 1)
+    exit()
 
     animal_ids = np.array(['40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
        '40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',

@@ -3,7 +3,8 @@ import numpy as np
 from scipy.stats import entropy
 
 
-def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6, preprocessing_steps=None):
+def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
+                       preprocessing_steps=[['MRNN', 'QN', 'ANSCOMBE', 'LOG']]):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
@@ -147,8 +148,8 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     #         new_label.append(np.nan)
     #     data_frame["label"] = new_label
 
-    data_frame = data_frame.dropna()
-    data_frame_o = data_frame.copy()
+    #data_frame = data_frame.dropna()
+    #data_frame_o = data_frame.copy()
     #print(data_frame)
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
