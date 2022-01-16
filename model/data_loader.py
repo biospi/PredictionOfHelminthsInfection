@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import entropy
-
+import matplotlib.pyplot as plt
 
 def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
                        preprocessing_steps=[['MRNN', 'QN', 'ANSCOMBE', 'LOG']]):
@@ -211,6 +211,9 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     samples[label_series[class_unhealthy]] = hould_out_2
 
     data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
+
+    data_frame['id'].plot(kind='hist')
+    plt.show()
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 

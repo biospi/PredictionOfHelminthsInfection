@@ -13,11 +13,12 @@ from sklearn.model_selection import LeavePOut
 import itertools
 from pathlib import Path
 from model.data_loader import load_activity_data
+from mrnn.main_mrnn import start_mrnn
 from utils._anscombe import Anscombe
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from datetime import datetime
-
+import matplotlib.pyplot as plt
 np.random.seed(0)
 
 
@@ -72,38 +73,58 @@ def remove_testing_samples(activity_file, out_dir, ifold, df, to_remove, nmin=10
                  filename=f"fold_{ifold}.html")
     print("removed testing data. ready for imputation.")
     filename = f"{activity_file.stem}_{ifold}.csv"
-    out = out_dir / filename
+    out = out_dir / Path("CV") / filename
     print(out)
     df_without_test[df_without_test._get_numeric_data() < 0] = np.nan
     df_without_test.to_csv(out)
-    return df_without_test
+    return df_without_test, out, filtered_columns
 
 
 class RepeatedKFoldCustom:
-    def __init__(self, n_splits, n_repeats, imputation=None, random_state=0):
+    def __init__(self, n_splits, n_repeats, random_state=0, farmname='', out_dir = None, metadata = None,
+                 full_activity_data_file = None, days = None, method = None):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
-        self.imputation = imputation
         self.random_state = random_state
+        self.farmname = farmname
+        self.out_dir = out_dir
+        self.metadata = metadata
+        self.full_activity_data_file = full_activity_data_file
+        self.days = days
+        self.method = method
 
-    def impute(self, out_dir, X, y, metadata, full_activity_data_file, method=None):
+    def split(self, X, y=None, groups=None):
         print('imputing...')
-        df = pd.read_csv(full_activity_data_file)
-        for ifold, (train_index, test_index) in enumerate(self.split(X, y)):
+        df = pd.read_csv(self.full_activity_data_file)
+        #X_i, y_i = [], []
+        rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
+        for ifold, (train_index, test_index) in enumerate(rkf.split(X, y)):
+            X_train_meta, X_test_meta = self.metadata[train_index], self.metadata[test_index]
+            df, file_without_test, transponders = remove_testing_samples(self.full_activity_data_file, out_dir, ifold, df, X_test_meta)
+            if self.method == "MRNN":
+                model, norm_parameters, streams = start_mrnn(self.farmname, file_without_test)
+            if self.method == "GAIN":
+                model, norm_parameters, streams = start_mrnn(self.farmname, file_without_test)
             X_train, X_test = X[train_index], X[test_index]
-            X_train_meta, X_test_meta = metadata[train_index], metadata[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
-            df = remove_testing_samples(full_activity_data_file, out_dir, ifold, df, X_test_meta)
-            
-
-    def split(self, X, y):
-        rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
-        i = 0
-        for train_index, test_index in rkf.split(X):
-            print(f"FOLD {i} --> TRAIN:{train_index} TEST:{test_index}")
-            i += 1
+            X_train = model.transform_(X_train, X_train_meta, streams, self.days, norm_parameters)
+            X_test = model.transform_(X_test, X_test_meta, streams, self.days, norm_parameters)
+            X[train_index] = X_train
+            X[test_index] = X_test
             yield train_index, test_index
+
+        # print("mrrn imputation done!")
+        # path = Path(os.path.dirname(os.path.dirname(__file__)))
+        # print(f"set current dir to {path}")
+
+    # def split(self, X, y):
+    #     rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
+    #     i = 0
+    #     for train_index, test_index in rkf.split(X):
+    #         print(f"FOLD {i} --> TRAIN:{train_index} TEST:{test_index}")
+    #         i += 1
+    #         yield train_index, test_index
 
 
 class StratifiedLeaveTwoOut:
@@ -208,19 +229,19 @@ if __name__ == "__main__":
     print("CUSTOM SPLIT TEST")
     print("***************************")
 
-    # class_healthy = 1
-    # class_unhealthy = 4
-    #
-    # scoring = {
-    #     'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
-    #     # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
-    #     'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
-    #     'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
-    #     'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
-    #     'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
-    #     'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
-    #     'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
-    # }
+    class_healthy = 1
+    class_unhealthy = 4
+
+    scoring = {
+        'balanced_accuracy_score': make_scorer(balanced_accuracy_score),
+        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+        'precision_score0': make_scorer(precision_score, average=None, labels=[class_healthy]),
+        'precision_score1': make_scorer(precision_score, average=None, labels=[class_unhealthy]),
+        'recall_score0': make_scorer(recall_score, average=None, labels=[class_healthy]),
+        'recall_score1': make_scorer(recall_score, average=None, labels=[class_unhealthy]),
+        'f1_score0': make_scorer(f1_score, average=None, labels=[class_healthy]),
+        'f1_score1': make_scorer(f1_score, average=None, labels=[class_unhealthy])
+    }
     #
     #
     # # y = np.array([4, 4, 1, 1, 4, 4, 1, 1, 1, 1, 4, 4, 1, 1, 4, 4, 1, 4, 4, 4, 1, 4,
@@ -256,75 +277,116 @@ if __name__ == "__main__":
 
     X = data_frame.iloc[:, :-N_META].values
     y = data_frame["target"].values
+
+
+    print(f"loading dataset file {file} ...")
+    (
+        data_frame_,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = load_activity_data(file, day, ["1To1"], ["2To2"], preprocessing_steps=[['LINEAR']])
+
+    X_ = data_frame_.iloc[:, :-N_META].values
+    y_ = data_frame_["target"].values
+
+    rkf = RepeatedKFold(2, 2)
+    clf_std_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
+    scores = cross_validate(clf_std_svc, X_.copy(), y_.copy(), cv=rkf, scoring=scoring, n_jobs=-1)
+
+    df_score = pd.DataFrame(scores)
+    acc = np.mean(df_score["test_balanced_accuracy_score"].values)
+    print(df_score)
+    print(acc)
+
     meta = data_frame.iloc[:, data_frame.shape[1]-N_META:].values
 
-    rkfc = RepeatedKFoldCustom(2, 2)
-    rkfc.impute(out_dir, X, y, meta, Path("C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/activity_data.csv"), method="MRNN")
+    rkfc = RepeatedKFoldCustom(2, 2, farmname="delmas",
+                               metadata=meta,
+                               days=day,
+                               method="MRNN",
+                               out_dir=out_dir,
+                               full_activity_data_file=Path("C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/activity_data.csv"))
+
+    clf_std_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=rkfc, scoring=scoring, n_jobs=-1)
+
+    df_score = pd.DataFrame(scores)
+    acc = np.mean(df_score["test_balanced_accuracy_score"].values)
+    print(df_score)
+    print(acc)
+    exit()
+
+    #X, y = rkfc.split(X, y)
     # for train_index, test_index in rkfc.split(X, y):
     #     X_train, X_test = X[train_index], X[test_index]
     #     y_train, y_test = y[train_index], y[test_index]
 
-    exit()
+    #exit()
 
-    animal_ids = np.array(['40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
-       '40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
-       '40101310109.0', '40101310109.0', '40101310013.0', '40101310013.0',
-       '40101310013.0', '40101310013.0', '40101310013.0', '40101310013.0',
-       '40101310013.0', '40101310013.0', '40101310134.0', '40101310134.0',
-       '40101310134.0', '40101310134.0', '40101310134.0', '40101310134.0',
-       '40101310134.0', '40101310134.0', '40101310134.0', '40101310134.0',
-       '40101310134.0', '40101310143.0', '40101310143.0', '40101310143.0',
-       '40101310143.0', '40101310143.0', '40101310143.0', '40101310143.0',
-       '40101310143.0', '40101310143.0', '40101310143.0', '40101310249.0',
-       '40101310249.0', '40101310249.0', '40101310249.0', '40101310314.0',
-       '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
-       '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
-       '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
-       '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
-       '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
-       '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
-       '40101310316.0', '40101310342.0', '40101310342.0', '40101310342.0',
-       '40101310342.0', '40101310342.0', '40101310342.0', '40101310342.0',
-       '40101310342.0', '40101310342.0', '40101310342.0', '40101310342.0',
-       '40101310342.0', '40101310350.0', '40101310350.0', '40101310350.0',
-       '40101310350.0', '40101310350.0', '40101310350.0', '40101310350.0',
-       '40101310350.0', '40101310353.0', '40101310353.0', '40101310353.0',
-       '40101310353.0', '40101310353.0', '40101310353.0', '40101310353.0',
-       '40101310353.0', '40101310353.0', '40101310353.0', '40101310353.0',
-       '40101310353.0', '40101310386.0', '40101310386.0', '40101310386.0',
-       '40101310386.0', '40101310386.0', '40101310386.0', '40101310386.0',
-       '40101310386.0', '40101310386.0', '40101310069.0', '40101310069.0',
-       '40101310069.0', '40101310069.0', '40101310069.0', '40101310069.0',
-       '40101310069.0', '40101310069.0', '40101310098.0', '40101310098.0',
-       '40101310098.0', '40101310098.0', '40101310098.0', '40101310098.0',
-       '40101310098.0', '40101310098.0', '40101310098.0', '40101310098.0'])
-
-    sample_idx = [1, 2, 3, 6, 8, 9, 10, 13, 14, 17, 18, 19, 21, 22, 24, 28, 30, 34, 35, 36, 38, 39, 43, 45, 46, 47, 50,
-                  51, 52, 55, 56, 59, 60, 61, 62, 63, 65, 67, 69, 71, 73, 76, 80, 81, 82, 85, 87, 88, 89, 90, 91, 92,
-                  94, 96, 97, 98, 101, 103, 105, 107, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
-                  124, 127, 128, 130, 132, 133, 134, 135, 137, 138, 143, 145, 146, 147, 149, 153, 155, 156, 158, 160,
-                  162, 163, 165, 167, 169, 170, 171, 172, 174, 175, 177, 178, 179, 180, 181, 183, 185, 188, 189, 191,
-                  194, 197, 198, 199, 201, 205, 206, 207, 209, 210, 211, 214, 215, 219, 220]
-
-    print("DATASET:")
-    dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
-    header = ["a1", "a2", "target", "animal_id"]
-    dataset.columns = header
-    dataset.to_csv("dummy_dataset_for_cv.csv")
-    print(dataset)
-    print("")
-
-    slto = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=False, verbose=True)
-
-    rows = []
-    i = 0
-    for train_index, test_index in slto.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        #print("FOLD %d --> SAMPLE TRAIN IDX:" % i, train_index, "SAMPLE TEST IDX:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", np.unique(animal_ids[test_index]), "TRAIN ANIMAL ID:", np.unique(animal_ids[train_index]))
-        row = train_index.tolist() + test_index.tolist() + y_test.tolist() + animal_ids[test_index].tolist()
-        rows.append(row)
-        i += 1
+    # animal_ids = np.array(['40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
+    #    '40101310109.0', '40101310109.0', '40101310109.0', '40101310109.0',
+    #    '40101310109.0', '40101310109.0', '40101310013.0', '40101310013.0',
+    #    '40101310013.0', '40101310013.0', '40101310013.0', '40101310013.0',
+    #    '40101310013.0', '40101310013.0', '40101310134.0', '40101310134.0',
+    #    '40101310134.0', '40101310134.0', '40101310134.0', '40101310134.0',
+    #    '40101310134.0', '40101310134.0', '40101310134.0', '40101310134.0',
+    #    '40101310134.0', '40101310143.0', '40101310143.0', '40101310143.0',
+    #    '40101310143.0', '40101310143.0', '40101310143.0', '40101310143.0',
+    #    '40101310143.0', '40101310143.0', '40101310143.0', '40101310249.0',
+    #    '40101310249.0', '40101310249.0', '40101310249.0', '40101310314.0',
+    #    '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
+    #    '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
+    #    '40101310314.0', '40101310314.0', '40101310314.0', '40101310314.0',
+    #    '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
+    #    '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
+    #    '40101310316.0', '40101310316.0', '40101310316.0', '40101310316.0',
+    #    '40101310316.0', '40101310342.0', '40101310342.0', '40101310342.0',
+    #    '40101310342.0', '40101310342.0', '40101310342.0', '40101310342.0',
+    #    '40101310342.0', '40101310342.0', '40101310342.0', '40101310342.0',
+    #    '40101310342.0', '40101310350.0', '40101310350.0', '40101310350.0',
+    #    '40101310350.0', '40101310350.0', '40101310350.0', '40101310350.0',
+    #    '40101310350.0', '40101310353.0', '40101310353.0', '40101310353.0',
+    #    '40101310353.0', '40101310353.0', '40101310353.0', '40101310353.0',
+    #    '40101310353.0', '40101310353.0', '40101310353.0', '40101310353.0',
+    #    '40101310353.0', '40101310386.0', '40101310386.0', '40101310386.0',
+    #    '40101310386.0', '40101310386.0', '40101310386.0', '40101310386.0',
+    #    '40101310386.0', '40101310386.0', '40101310069.0', '40101310069.0',
+    #    '40101310069.0', '40101310069.0', '40101310069.0', '40101310069.0',
+    #    '40101310069.0', '40101310069.0', '40101310098.0', '40101310098.0',
+    #    '40101310098.0', '40101310098.0', '40101310098.0', '40101310098.0',
+    #    '40101310098.0', '40101310098.0', '40101310098.0', '40101310098.0'])
+    #
+    # sample_idx = [1, 2, 3, 6, 8, 9, 10, 13, 14, 17, 18, 19, 21, 22, 24, 28, 30, 34, 35, 36, 38, 39, 43, 45, 46, 47, 50,
+    #               51, 52, 55, 56, 59, 60, 61, 62, 63, 65, 67, 69, 71, 73, 76, 80, 81, 82, 85, 87, 88, 89, 90, 91, 92,
+    #               94, 96, 97, 98, 101, 103, 105, 107, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
+    #               124, 127, 128, 130, 132, 133, 134, 135, 137, 138, 143, 145, 146, 147, 149, 153, 155, 156, 158, 160,
+    #               162, 163, 165, 167, 169, 170, 171, 172, 174, 175, 177, 178, 179, 180, 181, 183, 185, 188, 189, 191,
+    #               194, 197, 198, 199, 201, 205, 206, 207, 209, 210, 211, 214, 215, 219, 220]
+    #
+    # print("DATASET:")
+    # dataset = pd.DataFrame(np.hstack((X, y.reshape(y.size, 1), animal_ids.reshape(animal_ids.size, 1))))
+    # header = ["a1", "a2", "target", "animal_id"]
+    # dataset.columns = header
+    # dataset.to_csv("dummy_dataset_for_cv.csv")
+    # print(dataset)
+    # print("")
+    #
+    # slto = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=False, verbose=True)
+    #
+    # rows = []
+    # i = 0
+    # for train_index, test_index in slto.split(X, y):
+    #     X_train, X_test = X[train_index], X[test_index]
+    #     y_train, y_test = y[train_index], y[test_index]
+    #     #print("FOLD %d --> SAMPLE TRAIN IDX:" % i, train_index, "SAMPLE TEST IDX:", test_index, "TEST TARGET:", y_test, "TEST ANIMAL ID:", np.unique(animal_ids[test_index]), "TRAIN ANIMAL ID:", np.unique(animal_ids[train_index]))
+    #     row = train_index.tolist() + test_index.tolist() + y_test.tolist() + animal_ids[test_index].tolist()
+    #     rows.append(row)
+    #     i += 1
     # print(slto.nfold)
     # df_rows = pd.DataFrame(rows)
     # df_rows.columns = [ ["TRAIN IDX" for x in range(len(train_index))] + ["TEST IDX" for x in range(len(test_index))] + ["TEST TARGET" for x in range(len(y_test))] + ["TEST ANIMAL ID" for x in range(len(animal_ids[test_index].tolist()))] ]
@@ -345,7 +407,7 @@ if __name__ == "__main__":
     for c in [100]:
         clf_std_svc = make_pipeline(SVC(C=c, probability=True, class_weight='balanced'))
         #cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
-        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=slto, scoring=scoring, n_jobs=-1)
+        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=rkfc, scoring=scoring, n_jobs=-1)
 
         df_score = pd.DataFrame(scores)
         acc = np.mean(df_score["test_balanced_accuracy_score"].values)
@@ -356,7 +418,7 @@ if __name__ == "__main__":
     for c in [100]:
         clf_std_svc = make_pipeline(Anscombe(), SVC(C=c, probability=True, class_weight='balanced'))
         #cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
-        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=slto, scoring=scoring, n_jobs=-1)
+        scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=rkfc, scoring=scoring, n_jobs=-1)
 
         df_score = pd.DataFrame(scores)
         acc = np.mean(df_score["test_balanced_accuracy_score"].values)
