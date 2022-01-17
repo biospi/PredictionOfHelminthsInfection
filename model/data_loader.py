@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import entropy
 import matplotlib.pyplot as plt
+from collections import Counter
 
 def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
                        preprocessing_steps=[['MRNN', 'QN', 'ANSCOMBE', 'LOG']]):
@@ -212,8 +213,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
 
     data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
 
-    data_frame['id'].plot(kind='hist')
-    plt.show()
+    #plot_samples_distribution(samples)
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 
@@ -231,3 +231,44 @@ def parse_param_from_filename(file):
             break
 
     return days, farm_id, option, sampling
+
+
+def plot_samples_distribution(samples):
+    print(samples)
+    t = []
+    d = []
+    for key, value in samples.items():
+        ids = value['id'].apply(str)
+        t.extend(ids.tolist())
+        value['id'] = [key+"_"+str(x) for x in value['id']]
+        d.append(dict(ids.value_counts()))
+
+    t = list(set(t))
+    c = Counter()
+    for dct in d:
+        c.update(dct)
+    c = dict(c)
+    print(c)
+
+    # for transp in t:
+    #     for k, v in c:
+    #         if transp in k:
+
+
+    countries = ['USA', 'GB', 'China', 'Russia', 'Germany']
+    bronzes = np.array([38, 17, 26, 19, 15])
+    silvers = np.array([37, 23, 18, 18, 10])
+    golds = np.array([46, 27, 26, 19, 17])
+    ind = [x for x, _ in enumerate(countries)]
+
+    plt.bar(ind, golds, width=0.8, label='golds', color='gold', bottom=silvers + bronzes)
+    plt.bar(ind, silvers, width=0.8, label='silvers', color='silver', bottom=bronzes)
+    plt.bar(ind, bronzes, width=0.8, label='bronzes', color='#CD853F')
+
+    plt.xticks(ind, countries)
+    plt.ylabel("Medals")
+    plt.xlabel("Countries")
+    plt.legend(loc="upper right")
+    plt.title("2012 Olympics Top Scorers")
+
+    plt.show()

@@ -24,7 +24,7 @@ from tensorflow import keras
 from tensorflow.python.keras.backend import placeholder
 from tqdm import tqdm
 from mrnn.utils import plot_loss_curve, plot_model_struct, plot_heatmap_imstep, initialise_time_matrix, MinMaxScaler, \
-  MinMaxScaler_
+  MinMaxScaler_, Denormalization
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import logging
@@ -376,10 +376,10 @@ class mrnn ():
         no, seq_len, dim = x.shape
 
         m_ = m.copy()
-        for k in range(no):
-          for j in range(seq_len):
-            if np.all(m[k, j, :] == 0):
-              fc_imputed_x[k, j, :] = x_mean[j, :]
+        # for k in range(no):
+        #   for j in range(seq_len):
+        #     if np.all(m[k, j, :] == 0):
+        #       fc_imputed_x[k, j, :] = x_mean[j, :]
               # m_[k, j, :] = np.ones(x_mean[j, :].shape)
 
         #plot_heatmap_imstep(self.streams, fc_imputed_x, "4 fully connected output after point interpolation", train_test_label, self.run_id, self.missing_rate, self.seq_len, self.iteration, self.weather_str, self.n, i=i)
@@ -495,12 +495,18 @@ class mrnn ():
         pass
         #print(f"mrnn did not train on stream {s}!")
       test_sample_before_imp = np.concatenate(x_test[i][0:days, :, 0]) #all streams are identical
+
       sample_imputed = np.concatenate(imputed[0:days, :, stream_idx])
+      sample_imputed = sample_imputed[::-1]
+      sample_imputed = Denormalization(sample_imputed, norm_parameters)
 
       #resize sample to original size to offset mrnn edge effect
       size = X.shape[1]
       t = size - len(sample_imputed)
       sample_imputed = np.pad(sample_imputed, pad_width=(0, t), mode='constant')
+      plt.plot(sample_imputed)
+      plt.plot(test_sample_before_imp)
+      plt.show()
 
       imputed_list.append(sample_imputed)
     return np.array(imputed_list)
