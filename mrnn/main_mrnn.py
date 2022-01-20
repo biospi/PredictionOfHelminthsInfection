@@ -409,6 +409,7 @@ def main(args):
 
 
 def start_mrnn(farmname, filepath, run_id=0, seq_len=1440, stride=1440, filter_training=False, iteration=1):
+
     print("fitting fold data with mrnn...")
     path = Path(os.path.dirname(os.path.dirname(__file__))) / "mrnn"
     print(f"set current dir to {path}")
@@ -418,9 +419,9 @@ def start_mrnn(farmname, filepath, run_id=0, seq_len=1440, stride=1440, filter_t
         streams = [
             "40101310013",
             "40101310040",
-            "40101310069",
-            "40101310085",
-            "40101310098"
+            "40101310069"
+            # "40101310085",
+            # "40101310098"
             # "40101310109",
             # "40101310110",
             # "40101310134",
@@ -617,6 +618,7 @@ def start_mrnn(farmname, filepath, run_id=0, seq_len=1440, stride=1440, filter_t
     )
 
     args = parser.parse_args()
+    #args, unknown = parser.parse_known_args()
 
     model, norm_parameters = main(args)
     # print("mrrn imputation done!")

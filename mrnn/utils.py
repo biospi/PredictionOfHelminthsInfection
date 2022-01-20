@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import tensorflow as tf
+#import tensorflow as tf
 import pandas as pd
 from scipy.interpolate import interp1d
 import matplotlib

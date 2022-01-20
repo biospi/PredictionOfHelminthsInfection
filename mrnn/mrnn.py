@@ -179,7 +179,14 @@ class mrnn ():
       backward_input = np.zeros([self.no, self.seq_len, 3])
       backward_input[:,1:,:] = temp_input_reverse[:,:(self.seq_len-1),:]
 
+      # import os
+      # root = Path(os.path.dirname(os.path.dirname(__file__)))
+
       save_file_name = f"tmp/mrnn_imputation_{self.start_i}_{self.end_i}_{self.iteration}_{self.seq_len}_{self.n}_{self.run_id}/rnn_feature_" + str(f+1)  + '/'
+
+      # filepath = root / 'mrnn' / save_file_name
+      #
+      # save_file_name = str(filepath)
 
       # Load saved model
       graph = tf.Graph()
@@ -411,16 +418,31 @@ class mrnn ():
     self.fc_train(x, m, t)
     print('Finish M-RNN training with both RNN and FC for imputation')
 
-  def reshape_external_sample(self, X, norm_parameters):
-    x_test_list, m_test_list, t_test_list = [], [], []
-    for x in X:
-      df = pd.DataFrame(x)
-      df = pd.concat([df] * (self.x_train_shape[2]), axis=1, ignore_index=True).values
-      data = MinMaxScaler_(df, norm_parameters)
-      # Reverse time order
-      data = data[::-1]
+  def reshape_external_sample(self, X, meta, norm_parameters):
+    x_test_list, m_test_list, t_test_list, stream_idx_list = [], [], [], []
+    for i in range(X.shape[0]):
+      x = X[i]
+      mrnn_window = pd.read_csv(meta[i][3])
+      n_stream_to_keep = self.x_train_shape[2]
+      id = str(int(meta[i][0]))
+      sample_stream = mrnn_window[id]
+      mrnn_window = mrnn_window.drop(id, 1)
+      mrnn_window = mrnn_window.iloc[:, :n_stream_to_keep-1]
+      mrnn_window[id] = sample_stream
 
-      no, dim = data.shape
+      assert np.array_equal(mrnn_window[id].values, x, equal_nan=True), 'error! could not find sample in mrnn window!'
+
+      data_to_impute = mrnn_window.values
+      stream_idx = mrnn_window.columns.tolist().index(id)
+      stream_idx_list.append(stream_idx)
+
+      #df = pd.concat([df] * (self.x_train_shape[2]), axis=1, ignore_index=True).values
+      #data = MinMaxScaler_(df, norm_parameters)
+
+      # Reverse time order
+      data_to_impute = data_to_impute[::-1]
+
+      no, dim = data_to_impute.shape
       # Define original data
       ori_x = list()
       #print("define original data...")
@@ -428,7 +450,7 @@ class mrnn ():
         start = i
         end = i + self.seq_len
         # print(start, end)
-        temp_ori_x = data[start: end]
+        temp_ori_x = data_to_impute[start: end]
         if temp_ori_x.shape[0] != self.seq_len:
           continue
         ori_x = ori_x + [temp_ori_x]
@@ -474,39 +496,40 @@ class mrnn ():
       m_test[0:x.shape[0], :, :] = m
       t_test[0:x.shape[0], :, :] = t
 
-      x_test_list.append(x_test)
-      m_test_list.append(m_test)
-      t_test_list.append(t_test)
+      x_test_list.append(x)
+      m_test_list.append(m)
+      t_test_list.append(t)
 
-    return x_test_list, m_test_list, t_test_list
+    return x_test_list, m_test_list, t_test_list, stream_idx_list
 
-  def transform_(self, X, meta, streams, days, norm_parameters):
+  def transform_(self, X, meta, full_data, streams, days, norm_parameters):
     #print(X)
     print("applying mrnn to fold test data...")
-    x_test, m_test, t_test = self.reshape_external_sample(X, norm_parameters)
+    x_test, m_test, t_test, stream_idx_list = self.reshape_external_sample(X, meta, norm_parameters)
     imputed_list = []
     for i in tqdm(range(len(x_test))):
       imputed = self.transform(x_test[i], m_test[i], t_test[i], 0, tag="reshaped_testing")
-      stream_idx = 0
-      s = str(int(meta[i][0]))
-      if s in streams:
-        stream_idx = streams.index(s)
-      else:
-        pass
+      #imputed = Denormalization(imputed, norm_parameters)
+      stream_idx = stream_idx_list[i]
+      # s = str(int(meta[i][0]))
+      # if s in streams:
+      #   stream_idx = streams.index(s)
+      # else:
+      #   pass
         #print(f"mrnn did not train on stream {s}!")
       test_sample_before_imp = np.concatenate(x_test[i][0:days, :, 0]) #all streams are identical
 
       sample_imputed = np.concatenate(imputed[0:days, :, stream_idx])
-      sample_imputed = sample_imputed[::-1]
-      sample_imputed = Denormalization(sample_imputed, norm_parameters)
 
       #resize sample to original size to offset mrnn edge effect
       size = X.shape[1]
       t = size - len(sample_imputed)
       sample_imputed = np.pad(sample_imputed, pad_width=(0, t), mode='constant')
-      plt.plot(sample_imputed)
-      plt.plot(test_sample_before_imp)
-      plt.show()
+      #inverse mrnn native preproc
+      sample_imputed = sample_imputed[::-1]
+      # plt.plot(sample_imputed)
+      # plt.plot(test_sample_before_imp)
+      # plt.show()
 
       imputed_list.append(sample_imputed)
     return np.array(imputed_list)

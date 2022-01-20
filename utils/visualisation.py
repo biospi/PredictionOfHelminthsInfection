@@ -1,36 +1,27 @@
-import glob
 import os
 import pathlib
-
-import matplotlib
-import pandas as pd
-import sklearn
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.lines import Line2D
-from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-import matplotlib.pyplot as plt
-import numpy as np
-from datetime import datetime, timedelta
-
-from sklearn.metrics import auc, precision_recall_curve
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
-from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
-from utils.Utils import anscombe, chunks
 import random
-import matplotlib.dates as mdates
-from plotly.subplots import make_subplots
-import plotly.graph_objs as go
-import plotly.express as px
-from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
-from tqdm import tqdm
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from utils._normalisation import CenterScaler
-
-import numpy as np
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objs as go
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
+from plotly.subplots import make_subplots
+from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
+from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.metrics import auc, precision_recall_curve
+from tqdm import tqdm
+
+from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
+from utils.Utils import anscombe
+from utils._normalisation import CenterScaler
 
 
 def get_time_ticks(nticks):

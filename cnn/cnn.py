@@ -29,7 +29,7 @@ from utils.visualisation import plot_roc_range, plot_pr_range
 #from keras.utils.vis_utils import plot_model
 import time
 import os
-import tensorflow as tf
+#import tensorflow as tf
 #os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 

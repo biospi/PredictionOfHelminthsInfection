@@ -14,7 +14,7 @@ import itertools
 from pathlib import Path
 from model.data_loader import load_activity_data
 from mrnn.main_mrnn import start_mrnn
-from utils._anscombe import Anscombe
+from utils._anscombe import Anscombe, anscombe
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from datetime import datetime
@@ -81,35 +81,39 @@ def remove_testing_samples(activity_file, out_dir, ifold, df, to_remove, nmin=10
 
 
 class RepeatedKFoldCustom:
-    def __init__(self, n_splits, n_repeats, random_state=0, farmname='', out_dir = None, metadata = None,
-                 full_activity_data_file = None, days = None, method = None):
+    def __init__(self, n_splits, n_repeats, random_state=0, out_dir = None, metadata = None,
+                 full_activity_data_file = None, days = None, method = None, farmname=None, N_META=None):
         self.n_splits = n_splits
         self.n_repeats = n_repeats
         self.random_state = random_state
-        self.farmname = farmname
         self.out_dir = out_dir
         self.metadata = metadata
         self.full_activity_data_file = full_activity_data_file
         self.days = days
         self.method = method
+        self.N_META = N_META
+        self.farmname = farmname
 
     def split(self, X, y=None, groups=None):
         print('imputing...')
         df = pd.read_csv(self.full_activity_data_file)
-        #X_i, y_i = [], []
         rkf = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
         for ifold, (train_index, test_index) in enumerate(rkf.split(X, y)):
+
             X_train_meta, X_test_meta = self.metadata[train_index], self.metadata[test_index]
-            df, file_without_test, transponders = remove_testing_samples(self.full_activity_data_file, out_dir, ifold, df, X_test_meta)
+            df, file_without_test, transponders = remove_testing_samples(self.full_activity_data_file, self.out_dir, ifold, df, X_test_meta)
+
             if self.method == "MRNN":
                 model, norm_parameters, streams = start_mrnn(self.farmname, file_without_test)
             if self.method == "GAIN":
                 model, norm_parameters, streams = start_mrnn(self.farmname, file_without_test)
+
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
-            X_train = model.transform_(X_train, X_train_meta, streams, self.days, norm_parameters)
-            X_test = model.transform_(X_test, X_test_meta, streams, self.days, norm_parameters)
+
+            X_train = model.transform_(X_train, X_train_meta, df, streams, self.days, norm_parameters)
+            X_test = model.transform_(X_test, X_test_meta, df, streams, self.days, norm_parameters)
             X[train_index] = X_train
             X[test_index] = X_test
             yield train_index, test_index
@@ -265,6 +269,31 @@ if __name__ == "__main__":
     out_dir = Path("E:/Data2/cv_test")
     day = 7
     imputed_days = 7
+
+
+    # print(f"loading dataset file {file} ...")
+    # (
+    #     data_frame_,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    # ) = load_activity_data(file, day, ["1To1"], ["2To2"], preprocessing_steps=[['LINEAR']])
+    #
+    # X_ = data_frame_.iloc[:, :-N_META].values
+    # y_ = data_frame_["target"].values
+    #
+    # rkf = RepeatedKFold(2, 2)
+    # clf_std_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
+    # # cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
+    # scores = cross_validate(clf_std_svc, X_.copy(), y_.copy(), cv=rkf, scoring=scoring, n_jobs=-1)
+    #
+    # df_score = pd.DataFrame(scores)
+    # acc = np.mean(df_score["test_balanced_accuracy_score"].values)
+    # print(df_score)
+    # print(acc)
+
     print(f"loading dataset file {file} ...")
     (
         data_frame,
@@ -273,34 +302,10 @@ if __name__ == "__main__":
         class_unhealthy_target,
         label_series,
         samples,
-    ) = load_activity_data(file, day, ["1To1"], ["2To2"])
+    ) = load_activity_data(out_dir, file, day, ["1To1"], ["2To2"])
 
     X = data_frame.iloc[:, :-N_META].values
     y = data_frame["target"].values
-
-
-    print(f"loading dataset file {file} ...")
-    (
-        data_frame_,
-        _,
-        _,
-        _,
-        _,
-        _,
-    ) = load_activity_data(file, day, ["1To1"], ["2To2"], preprocessing_steps=[['LINEAR']])
-
-    X_ = data_frame_.iloc[:, :-N_META].values
-    y_ = data_frame_["target"].values
-
-    rkf = RepeatedKFold(2, 2)
-    clf_std_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    # cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
-    scores = cross_validate(clf_std_svc, X_.copy(), y_.copy(), cv=rkf, scoring=scoring, n_jobs=-1)
-
-    df_score = pd.DataFrame(scores)
-    acc = np.mean(df_score["test_balanced_accuracy_score"].values)
-    print(df_score)
-    print(acc)
 
     meta = data_frame.iloc[:, data_frame.shape[1]-N_META:].values
 
@@ -309,11 +314,12 @@ if __name__ == "__main__":
                                days=day,
                                method="MRNN",
                                out_dir=out_dir,
+                               N_META = 4,
                                full_activity_data_file=Path("C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/activity_data.csv"))
 
     clf_std_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
     # cv_std_svc = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=F)
-    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=rkfc, scoring=scoring, n_jobs=-1)
+    scores = cross_validate(clf_std_svc, X.copy(), y.copy(), cv=rkfc, scoring=scoring, n_jobs=-1, return_estimator=True)
 
     df_score = pd.DataFrame(scores)
     acc = np.mean(df_score["test_balanced_accuracy_score"].values)

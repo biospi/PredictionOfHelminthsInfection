@@ -4,10 +4,9 @@ import numpy as np
 import umap
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from cwt._cwt import STFT, CWT, CWTVisualisation
-from data_imputation.model_utils import MinMaxScaler
 
 from utils._anscombe import Anscombe, Sqrt, Log
 from utils._normalisation import BaseLineScaler, CenterScaler, QuotientNormalizer
@@ -51,9 +50,9 @@ def apply_preprocessing_steps(
     step_slug = farm_name + "_" + step_slug
     graph_outputdir = setupGraphOutputPath(output_dir) / clf_name / step_slug
 
-    if len(steps) == 0:
-        print("no steps to apply! return data as is")
-        return df
+    # if len(steps) == 0:
+    #     print("no steps to apply! return data as is")
+    #     return df
     print("BEFORE STEP ->", df)
     # plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_before_%s" % step_slug)
     for step in steps:

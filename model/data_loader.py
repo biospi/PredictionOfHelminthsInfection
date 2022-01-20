@@ -3,21 +3,26 @@ import numpy as np
 from scipy.stats import entropy
 import matplotlib.pyplot as plt
 from collections import Counter
+from pathlib import Path
 
-def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
+
+def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
                        preprocessing_steps=[['MRNN', 'QN', 'ANSCOMBE', 'LOG']]):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    N_META = 4
+    N_META = 5
+    hearder[-4] = 'mrnn_file'
     hearder[-4] = 'label'
     hearder[-3] = 'id'
     hearder[-2] = 'imputed_days'
     hearder[-1] = 'date'
     data_frame.columns = hearder
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
+    mrnn_files = [str(x) for x in list((Path(filepath).parent / "mrnn_windows").glob("*.csv"))]
+    data_frame["mrnn_file"] = mrnn_files
     #data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
     #data_frame = data_frame.dropna()
 
@@ -26,7 +31,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
     if 'ZEROPAD' in preprocessing_steps[0]:
         data_frame = data_frame.fillna(0)
     if 'LINEAR' in preprocessing_steps[0]:
-        data_frame.iloc[:, :-N_META] = data_frame.iloc[:, :-N_META].interpolate(axis=0, limit_direction='both')
+        data_frame.iloc[:, :-N_META] = data_frame.iloc[:, :-N_META].interpolate(axis=1, limit_direction='both')
 
     #data_frame = data_frame[(data_frame == 0).sum(axis=1) / len(data_frame.columns) <= 0.5]
     # filter with imputed_days count
@@ -170,6 +175,8 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
         df = df.drop('label', 1)
         samples[label] = df
 
+    plot_samples_distribution(out_dir, samples, "distrib_all_samples.png")
+
     class_count = {}
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     label_series_inverse = dict((v, k) for k, v in label_series.items())
@@ -213,7 +220,7 @@ def load_activity_data(filepath, day, class_healthy, class_unhealthy, keep_2_onl
 
     data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
 
-    #plot_samples_distribution(samples)
+    #plot_samples_distribution(out_dir, samples, "distrib_hold_out.png")
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 
@@ -233,42 +240,38 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-def plot_samples_distribution(samples):
+def plot_samples_distribution(out_dir, samples, filename):
+    out_dir.mkdir(parents=True, exist_ok=True)
     print(samples)
-    t = []
     d = []
     for key, value in samples.items():
-        ids = value['id'].apply(str)
-        t.extend(ids.tolist())
         value['id'] = [key+"_"+str(x) for x in value['id']]
-        d.append(dict(ids.value_counts()))
+        d.append(dict(value['id'].value_counts()))
 
-    t = list(set(t))
     c = Counter()
     for dct in d:
         c.update(dct)
     c = dict(c)
-    print(c)
 
-    # for transp in t:
-    #     for k, v in c:
-    #         if transp in k:
+    df_list = []
+    for k, v in c.items():
+        split = k.split('_')
+        df_list.append([split[0], split[1], v])
+    df = pd.DataFrame(df_list, columns=["Famacha label", "id", "count"])
+    df['id'] = df['id'].str.split('.').str[0]
 
+    info = {}
+    for l in samples.keys():
+        total = df[df["Famacha label"] == l]["count"].sum()
+        info[l] = total
 
-    countries = ['USA', 'GB', 'China', 'Russia', 'Germany']
-    bronzes = np.array([38, 17, 26, 19, 15])
-    silvers = np.array([37, 23, 18, 18, 10])
-    golds = np.array([46, 27, 26, 19, 17])
-    ind = [x for x, _ in enumerate(countries)]
-
-    plt.bar(ind, golds, width=0.8, label='golds', color='gold', bottom=silvers + bronzes)
-    plt.bar(ind, silvers, width=0.8, label='silvers', color='silver', bottom=bronzes)
-    plt.bar(ind, bronzes, width=0.8, label='bronzes', color='#CD853F')
-
-    plt.xticks(ind, countries)
-    plt.ylabel("Medals")
-    plt.xlabel("Countries")
-    plt.legend(loc="upper right")
-    plt.title("2012 Olympics Top Scorers")
-
-    plt.show()
+    plt.clf()
+    plt.figure(figsize=(12.80, 7.20))
+    df.groupby(['id', 'Famacha label']).sum().unstack().plot(kind='bar', y='count',
+                                                     stacked=True,
+                                                     xlabel="Transponders",
+                                                     ylabel="Number of samples",
+                                                     title=f"Distribution of samples accross transponders\n{str(info)}")
+    filepath = str(out_dir / filename)
+    print(filepath)
+    plt.savefig(filepath, bbox_inches = 'tight')

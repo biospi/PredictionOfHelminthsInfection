@@ -187,6 +187,5 @@ def data_loader (file_name, seq_len, missing_rate, start_i, end_i, has_weather, 
   x_mean = np.nanmean(x_, axis=(0))
   x_median = np.nanmedian(x_, axis=(0))
 
-
   return x, m, t, ori_x, data_o, features, norm_parameters, w_str, data_mask, timestamp, date_str
    
