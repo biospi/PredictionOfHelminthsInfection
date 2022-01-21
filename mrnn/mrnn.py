@@ -174,7 +174,7 @@ class mrnn ():
       temp_input_reverse = np.flip(temp_input, 1)
 
       forward_input = np.zeros([self.no, self.seq_len, 3])
-      forward_input[:,1:,:] = temp_input[:,:(self.seq_len-1), :]
+      forward_input[:,1:,:] = temp_input[:, :(self.seq_len-1), :]
 
       backward_input = np.zeros([self.no, self.seq_len, 3])
       backward_input[:,1:,:] = temp_input_reverse[:,:(self.seq_len-1),:]
@@ -429,8 +429,8 @@ class mrnn ():
       mrnn_window = mrnn_window.drop(id, 1)
       mrnn_window = mrnn_window.iloc[:, :n_stream_to_keep-1]
       mrnn_window[id] = sample_stream
-
-      assert np.array_equal(mrnn_window[id].values, x, equal_nan=True), 'error! could not find sample in mrnn window!'
+      #todo unit test
+      #assert np.array_equal(mrnn_window[id].values, x, equal_nan=True), 'error! could not find sample in mrnn window!'
 
       data_to_impute = mrnn_window.values
       stream_idx = mrnn_window.columns.tolist().index(id)
@@ -496,9 +496,9 @@ class mrnn ():
       m_test[0:x.shape[0], :, :] = m
       t_test[0:x.shape[0], :, :] = t
 
-      x_test_list.append(x)
-      m_test_list.append(m)
-      t_test_list.append(t)
+      x_test_list.append(x_test)
+      m_test_list.append(m_test)
+      t_test_list.append(t_test)
 
     return x_test_list, m_test_list, t_test_list, stream_idx_list
 
@@ -517,7 +517,7 @@ class mrnn ():
       # else:
       #   pass
         #print(f"mrnn did not train on stream {s}!")
-      test_sample_before_imp = np.concatenate(x_test[i][0:days, :, 0]) #all streams are identical
+      test_sample_before_imp = np.concatenate(x_test[i][0:days, :, stream_idx]) #all streams are identical
 
       sample_imputed = np.concatenate(imputed[0:days, :, stream_idx])
 

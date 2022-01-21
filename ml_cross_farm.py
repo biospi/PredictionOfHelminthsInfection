@@ -29,8 +29,10 @@ def main(
     output_dir: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    class_healthy: str = "1To1",
-    class_unhealthy: str = "2To2",
+    class_healthy_f1: List[str] = ["1To1"],
+    class_unhealthy_f1: List[str] = ["2To2"],
+    class_healthy_f2: List[str] = ["1To1"],
+    class_unhealthy_f2: List[str] = ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
     steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
 ):
     """This script train a ml model(SVM) on all the data of 1 dataset and test on a different dataset\n
@@ -52,19 +54,42 @@ def main(
         class_healthy_target,
         class_unhealthy_target,
         label_series,
-        samples
+        samples,
     ) = load_activity_data(
-        find_dataset(str(farm1_path)), days, class_healthy, class_unhealthy, keep_2_only=True
+        output_dir,
+        find_dataset(str(farm1_path)),
+        days,
+        class_healthy_f1,
+        class_unhealthy_f1,
+        imputed_days = 5,
+        keep_2_only=True,
+        hold_out_pct=0,
+        preprocessing_steps = steps
     )
-    dataset2, _, _, _, _ = load_activity_data(
-        find_dataset(str(farm2_path)), days, class_healthy, class_unhealthy, keep_2_only=True
+
+    dataset2, _, _, _, _, _ = load_activity_data(
+        output_dir,
+        find_dataset(str(farm2_path)),
+        days,
+        class_healthy_f2,
+        class_unhealthy_f2,
+        imputed_days = 5,
+        farm='cedara',
+        keep_2_only=True,
+        hold_out_pct=0,
+        preprocessing_steps=steps,
     )
+
+    if 'mrnn_file' in dataset1.columns:
+        dataset1 = dataset1.drop("mrnn_file", 1)
+    if 'mrnn_file' in dataset2.columns:
+        dataset2 = dataset2.drop("mrnn_file", 1)
 
     print(dataset1)
     print(dataset2)
 
     dataframe = pd.concat([dataset1, dataset2], axis=0)
-    #dataframe = dataframe["target"].isin([class_healthy_target, class_unhealthy_target])
+    # dataframe = dataframe["target"].isin([class_healthy_target, class_unhealthy_target])
 
     # df_processed = applyPreprocessingSteps(
     #     days,
@@ -90,17 +115,47 @@ def main(
     # df1_processed = df_processed.iloc[0: dataset1.shape[0], :]
     # df2_processed = df_processed.iloc[dataset1.shape[0]:, :]
 
-    df1_processed = apply_preprocessing_steps(days, None, None, None, None, None,
-                                              dataset1.copy(), N_META, output_dir, steps,
-                                              class_healthy, class_unhealthy, class_healthy_target,
-                                              class_unhealthy_target, clf_name="SVM", output_dim=dataset1.shape[0],
-                                              n_scales=None, farm_name="FARM1")
+    df1_processed = apply_preprocessing_steps(
+        days,
+        None,
+        None,
+        None,
+        None,
+        None,
+        dataset1.copy(),
+        N_META,
+        output_dir,
+        steps,
+        class_healthy_f1,
+        class_unhealthy_f1,
+        class_healthy_target,
+        class_unhealthy_target,
+        clf_name="SVM",
+        output_dim=dataset1.shape[0],
+        n_scales=None,
+        farm_name="FARM1",
+    )
 
-    df2_processed = apply_preprocessing_steps(days, None, None, None, None, None,
-                                              dataset2.copy(), N_META, output_dir, steps,
-                                              class_healthy, class_unhealthy, class_healthy_target,
-                                              class_unhealthy_target, clf_name="SVM", output_dim=dataset2.shape[0],
-                                              n_scales=None, farm_name="FARM2")
+    df2_processed = apply_preprocessing_steps(
+        days,
+        None,
+        None,
+        None,
+        None,
+        None,
+        dataset2.copy(),
+        N_META,
+        output_dir,
+        steps,
+        class_healthy_f2,
+        class_unhealthy_f2,
+        class_healthy_target,
+        class_unhealthy_target,
+        clf_name="SVM",
+        output_dim=dataset2.shape[0],
+        n_scales=None,
+        farm_name="FARM2",
+    )
     print(df1_processed)
     print(df2_processed)
 
@@ -110,6 +165,8 @@ def main(
     slug = "_".join(steps)
     clf_best, X, y = processSVM(X1, X2, y1, y2, output_dir)
     make_roc_curve(
+        class_healthy_target,
+        class_unhealthy_target,
         str(clf_best),
         output_dir,
         clf_best,
@@ -126,4 +183,9 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    # typer.run(main)
+    main(
+        farm2_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+        farm1_path=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"),
+        output_dir=Path("E:\Data2\debug3\cross_farm_1"),
+    )

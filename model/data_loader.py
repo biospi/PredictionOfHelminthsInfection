@@ -6,15 +6,14 @@ from collections import Counter
 from pathlib import Path
 
 
-def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=6,
-                       preprocessing_steps=[['MRNN', 'QN', 'ANSCOMBE', 'LOG']]):
+def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
+                       preprocessing_steps=[['QN', 'ANSCOMBE', 'LOG']], hold_out_pct = 0, farm='delmas'):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    N_META = 5
-    hearder[-4] = 'mrnn_file'
+    N_META = 4
     hearder[-4] = 'label'
     hearder[-3] = 'id'
     hearder[-2] = 'imputed_days'
@@ -22,12 +21,16 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     data_frame.columns = hearder
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
     mrnn_files = [str(x) for x in list((Path(filepath).parent / "mrnn_windows").glob("*.csv"))]
-    data_frame["mrnn_file"] = mrnn_files
-    #data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
-    #data_frame = data_frame.dropna()
+
+    if len(mrnn_files) > 0:
+        data_frame["mrnn_file"] = mrnn_files
+
+    data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
 
     data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(subset=data_frame.columns[:-N_META], how='all')
+    data_frame = data_frame.dropna()
+
     if 'ZEROPAD' in preprocessing_steps[0]:
         data_frame = data_frame.fillna(0)
     if 'LINEAR' in preprocessing_steps[0]:
@@ -40,16 +43,16 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
 
     # data_frame = data_frame[data_frame["label"].isin(["1To2", "1To1", "2To2"])]
 
-    if class_unhealthy is None:
-        data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
-        flabels = [x for x in data_frame_labeled.columns if 'label' in x]
-        data_frame["target"] = 0
-        for i, flabel in enumerate(flabels):
-            data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
-            data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
-        label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
-        data_frame = data_frame.drop('label', 1)
-        return data_frame, N_META, None, None, label_series
+    # if class_unhealthy is None:
+    #     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
+    #     flabels = [x for x in data_frame_labeled.columns if 'label' in x]
+    #     data_frame["target"] = 0
+    #     for i, flabel in enumerate(flabels):
+    #         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
+    #         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
+    #     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
+    #     data_frame = data_frame.drop('label', 1)
+    #     return data_frame, N_META, None, None, label_series
 
     # #1To1 1To2 2To2 2To1
     # new_label = []
@@ -175,7 +178,7 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
         df = df.drop('label', 1)
         samples[label] = df
 
-    plot_samples_distribution(out_dir, samples, "distrib_all_samples.png")
+    plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
 
     class_count = {}
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
@@ -205,22 +208,22 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     # data_frame = data_frame.drop('e', 1)
 
     #setup holdout!
-    pct = 10
-    class_1_hds = int(data_frame[data_frame['target'] == class_healthy].shape[0] * pct/100)
-    class_2_hds = int(data_frame[data_frame['target'] == class_unhealthy].shape[0] * pct / 100)
+    # if hold_out_pct > 0:
+    #     class_1_hds = int(data_frame[data_frame['target'] == class_healthy].shape[0] * hold_out_pct/100)
+    #     class_2_hds = int(data_frame[data_frame['target'] == class_unhealthy].shape[0] * hold_out_pct / 100)
+    #
+    #     hould_out_1 = data_frame[data_frame['target'] == class_healthy].sample(n=class_1_hds, random_state=0)
+    #     hould_out_2 = data_frame[data_frame['target'] == class_unhealthy].sample(n=class_2_hds, random_state=0)
+    #
+    #     data_frame = data_frame.drop(hould_out_1.index)
+    #     data_frame = data_frame.drop(hould_out_2.index)
+    #
+    #     samples[label_series[class_healthy]] = hould_out_1
+    #     samples[label_series[class_unhealthy]] = hould_out_2
+    #
+    # data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
 
-    hould_out_1 = data_frame[data_frame['target'] == class_healthy].sample(n=class_1_hds, random_state=0)
-    hould_out_2 = data_frame[data_frame['target'] == class_unhealthy].sample(n=class_2_hds, random_state=0)
-
-    data_frame = data_frame.drop(hould_out_1.index)
-    data_frame = data_frame.drop(hould_out_2.index)
-
-    samples[label_series[class_healthy]] = hould_out_1
-    samples[label_series[class_unhealthy]] = hould_out_2
-
-    data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
-
-    #plot_samples_distribution(out_dir, samples, "distrib_hold_out.png")
+    #plot_samples_distribution(out_dir, samples, f"distrib_hold_out_{Path(filepath).stem}.png")
 
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 

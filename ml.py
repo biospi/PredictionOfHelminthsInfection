@@ -281,34 +281,34 @@ def main(
         # )
         ################################################################################################################
         # keep only two class of samples
-        data_frame = data_frame[
-            data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
-        ]
+        # data_frame = data_frame[
+        #     data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
+        # ]
         animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
         preprocessing_steps = [""]
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
-            # df_processed = apply_preprocessing_steps(
-            #     days,
-            #     df_hum,
-            #     df_temp,
-            #     sfft_window,
-            #     wavelet_f0,
-            #     animal_ids,
-            #     data_frame.copy(),
-            #     N_META,
-            #     output_dir,
-            #     steps,
-            #     class_healthy_label,
-            #     class_unhealthy_label,
-            #     class_healthy_target,
-            #     class_unhealthy_target,
-            #     clf_name="SVM",
-            #     output_dim=data_frame.shape[0],
-            #     n_scales=n_scales,
-            # )
+            df_processed = apply_preprocessing_steps(
+                days,
+                df_hum,
+                df_temp,
+                sfft_window,
+                wavelet_f0,
+                animal_ids,
+                data_frame.copy(),
+                N_META,
+                output_dir,
+                steps,
+                class_healthy_label,
+                class_unhealthy_label,
+                class_healthy_target,
+                class_unhealthy_target,
+                clf_name="SVM",
+                output_dim=data_frame.shape[0],
+                n_scales=n_scales,
+            )
 
             df_processed = data_frame
             targets = data_frame["target"]
@@ -523,7 +523,7 @@ if __name__ == "__main__":
         slug = "_".join(steps[0])
         main(
             output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-            dataset_folder=Path("E:\Data2\debug3\delmas\datasetraw_none_7day"),
+            dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
             preprocessing_steps=steps,
         )
 
