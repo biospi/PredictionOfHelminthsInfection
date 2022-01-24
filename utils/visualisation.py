@@ -1600,6 +1600,50 @@ def plot_2D_decision_boundaries(
     else:
         fig.show()
 
+
+def build_roc_curve(output_dir, label_unhealthy, scores):
+    print("build_roc_curve...")
+
+
+def build_proba_hist(output_dir, label_unhealthy, scores):
+    for k in scores.keys():
+        if 'probas' not in k:
+            continue
+        score = scores[k]
+        hist_data = {}
+        for label in score.keys():
+            data_list = score[label]
+            label_data = []
+            for elem in data_list:
+                data_array = elem['test_y_pred_proba_1']
+                label_data.append(data_array)
+            hist_data[label] = np.concatenate(label_data)
+
+        plt.clf()
+        plt.figure(figsize=(8, 6))
+        plt.xlabel(f"Probability to be unhealthy({label_unhealthy})", size=14)
+        plt.ylabel("Density", size=14)
+
+        info = {}
+        for key, value in hist_data.items():
+            info[key] = hist_data[key].shape[0]
+
+        for key, value in hist_data.items():
+            plt.hist(value, density=True, bins=100, alpha=0.5, label=f"{key}")
+            plt.xlim(xmin=0, xmax=1)
+            plt.title(
+                f"Histograms of prediction probabilities\n{info}"
+            )
+
+        plt.axvline(x=0.5, color='gray', ls='--')
+        plt.legend(loc="upper right")
+        #plt.show()
+        filename = f"histogram_of_prob_{k}.png"
+        out = output_dir / filename
+        print(out)
+        plt.savefig(str(out))
+
+
 def plot_histogram(x, farm_id, threshold_gap, title):
     try:
         if len(x) == 0:

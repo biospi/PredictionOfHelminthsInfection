@@ -84,9 +84,9 @@ def main(
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 5,
-    n_repeats: int = 10,
-    cv: str = "RepeatedKFoldMRNN",
+    n_splits: int = 2,
+    n_repeats: int = 2,
+    cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
 ):
@@ -310,16 +310,7 @@ def main(
                 n_scales=n_scales,
             )
 
-            df_processed = data_frame
-            targets = data_frame["target"]
-            df_processed = df_processed.iloc[:, :-N_META]
-            df_processed["target"] = targets
-            meta = data_frame.iloc[:, data_frame.shape[1] - N_META :]
-            meta['index'] = meta.index
-            meta = meta.values
-
             model_files = process_data_frame_svm(
-                meta,
                 N_META,
                 output_dir,
                 animal_ids,
@@ -514,7 +505,7 @@ if __name__ == "__main__":
     #          dataset_folder=Path("E:\Data2\debug3\delmas\dataset_gain_7day"), preprocessing_steps=steps)
 
     for steps in [
-        [["None"]],
+        [["QN", "ANSCOMBE", "LOG"]],
         [["LINEAR"]],
         [["LINEAR", "QN"]],
         [["LINEAR", "QN", "ANSCOMBE"]],
