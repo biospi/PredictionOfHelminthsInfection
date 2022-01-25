@@ -740,7 +740,6 @@ def fold_worker(
     fold_probas,
     label_series,
     mean_fpr,
-    ax_roc,
     clf,
     X,
     y,
@@ -748,6 +747,7 @@ def fold_worker(
     test_index,
     class_healthy,
     class_unhealthy,
+    axis,
     ifold,
     nfold
 ):
@@ -781,9 +781,10 @@ def fold_worker(
         label=None,
         alpha=0.3,
         lw=1,
-        ax=ax_roc,
+        ax=None,
         c="tab:blue",
     )
+    axis.append(viz_roc)
 
     interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
     interp_tpr[0] = 0.0
@@ -862,11 +863,12 @@ def cross_validate_custom_fast(
         with Manager() as manager:
             #create result holders
             tprs = manager.list()
+            axis = manager.list()
             aucs_roc = manager.list()
             fold_results = manager.list()
             fold_probas = manager.dict()
             for k in label_series.values():
-                fold_probas[k] = []
+                fold_probas[k] = manager.list()
 
             pool = Pool(processes=n_job)
             start = time.time()
@@ -880,7 +882,6 @@ def cross_validate_custom_fast(
                     fold_probas,
                     label_series,
                     mean_fpr,
-                    ax_roc,
                     clf,
                     X,
                     y,
@@ -888,17 +889,28 @@ def cross_validate_custom_fast(
                     test_index,
                     class_healthy,
                     class_unhealthy,
+                    axis,
                     ifold,
                     cross_validation_method.get_n_splits()
                 ))
             pool.close()
             pool.join()
             end = time.time()
+            fold_results = list(fold_results)
+            axis = list(axis)
+            tprs = list(tprs)
+            aucs_roc = list(aucs_roc)
+            fold_probas = dict(fold_probas)
+            fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
             print('total time (s)= ' + str(end - start))
 
-        fold_results = list(fold_results)
-        fold_probas = dict(fold_probas)
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y == class_healthy)} unhealthy:{np.sum(y == class_unhealthy)}"
+        for a in axis:
+            f, ax = a.figure_, a.ax_
+            xdata = ax.lines[0].get_xdata()
+            ydata = ax.lines[0].get_ydata()
+            ax_roc.plot(xdata, ydata, color='tab:blue', alpha=.3, linewidth=1)
+
         mean_auc = plot_roc_range(
             ax_roc,
             tprs,
