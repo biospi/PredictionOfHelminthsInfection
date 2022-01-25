@@ -246,6 +246,7 @@ def parse_param_from_filename(file):
 def plot_samples_distribution(out_dir, samples, filename):
     out_dir.mkdir(parents=True, exist_ok=True)
     print(samples)
+    #bar plot
     d = []
     for key, value in samples.items():
         value['id'] = [key+"_"+str(x) for x in value['id']]
@@ -274,7 +275,23 @@ def plot_samples_distribution(out_dir, samples, filename):
                                                      stacked=True,
                                                      xlabel="Transponders",
                                                      ylabel="Number of samples",
-                                                     title=f"Distribution of samples accross transponders\n{str(info)}")
+                                                     title=f"Distribution of samples across transponders\n{str(info)}")
     filepath = str(out_dir / filename)
     print(filepath)
     plt.savefig(filepath, bbox_inches = 'tight')
+
+    # pie chart
+    plt.clf()
+    labels = list(samples.keys())
+    sizes = []
+    for k, v in samples.items():
+        sizes.append(len(v))
+    fig1, ax1 = plt.subplots()
+    ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
+            shadow=False, startangle=90)
+    ax1.axis('equal')
+    ax1.set_title(f"Distribution of usable samples across herd\n{info}")
+    filepath = str(out_dir / f'pie_{filename}')
+    print(filepath)
+    plt.savefig(filepath, bbox_inches = 'tight')
+

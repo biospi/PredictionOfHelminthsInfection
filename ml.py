@@ -84,13 +84,13 @@ def main(
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 2,
-    n_repeats: int = 2,
+    n_splits: int = 5,
+    n_repeats: int = 10,
     cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
 ):
-    """ML\n
+    """ML Main machine learning script\n
     Args:\n
         output_dir: Output directory
         dataset_folder: Dataset input directory
@@ -330,105 +330,105 @@ def main(
                 cv=cv,
             )
 
-            for model_file in model_files:
-                with open(str(model_file), "rb") as f:
-                    clf = pickle.load(f)
-
-                predict_list = []
-                test_labels = []
-                test_size = []
-                for test_label, X in samples.items():
-                    print(f"eval model {test_label} {model_file}...")
-                    df_processed = apply_preprocessing_steps(
-                        days,
-                        df_hum,
-                        df_temp,
-                        sfft_window,
-                        wavelet_f0,
-                        animal_ids,
-                        X.copy(),
-                        N_META,
-                        output_dir,
-                        steps,
-                        class_healthy_label,
-                        class_unhealthy_label,
-                        class_healthy_target,
-                        class_unhealthy_target,
-                        clf_name="SVM",
-                        output_dim=data_frame.shape[0],
-                        n_scales=None,
-                        keep_meta=False,
-                    )
-
-                    X_test = df_processed.iloc[:, :-1].values
-                    y_test = df_processed["target"].values
-                    # predict = clf.predict(X_test)
-                    predict = clf.predict_proba(X_test)[:, 1]
-                    predict_list.append(predict)
-                    test_labels.append(test_label)
-                    test_size.append(X_test.shape[0])
-
-                    print(predict)
-                    plt.clf()
-                    plt.xlabel("Probability to be unhealthy(2To2)", size=14)
-                    plt.ylabel("Count", size=14)
-                    plt.hist(predict, bins=30)
-                    plt.title(
-                        f"Histogram of predictions test_label={test_label} test_size={X_test.shape[0]}"
-                    )
-
-                    filename = f"{test_label}_{model_file.stem}.png"
-                    out = output_dir / filename
-                    print(out)
-                    plt.savefig(str(out))
-
-                i_h = 0
-                i_uh = 0
-                for bin_size in [5, 10, 30, 50, 100]:
-                    plt.clf()
-                    test_label_str = ""
-                    test_size_str = ""
-                    for i, (data, label, size) in enumerate(
-                        zip(predict_list, test_labels, test_size)
-                    ):
-                        test_label_str += label + ","
-                        test_size_str += str(size) + ","
-                        if label in class_healthy_label:
-                            i_h = i
-                            continue
-                        if label in class_unhealthy_label:
-                            i_uh = i
-                            continue
-                        plt.hist(
-                            data,
-                            bins=bin_size,
-                            alpha=0.5,
-                            label=f"{label}({str(size)})",
-                        )
-
-                    plt.hist(
-                        predict_list[i_h],
-                        bins=bin_size,
-                        alpha=0.5,
-                        label=f"{test_labels[i_h]}({str(test_size[i_h])})",
-                    )
-                    plt.hist(
-                        predict_list[i_uh],
-                        bins=bin_size,
-                        alpha=0.5,
-                        label=f"{test_labels[i_uh]}({str(test_size[i_uh])})",
-                    )
-
-                    plt.xlabel("Probability to be unhealthy(2To2)", size=14)
-                    plt.ylabel("Count", size=14)
-                    plt.title(
-                        f"Histogram of predictions (bin size={bin_size})\n test_label={test_label_str[:-1]} test_size={test_size_str[:-1]}"
-                    )
-                    plt.legend(loc="upper right")
-                    filename = f"binsize_{bin_size}_{test_label_str.replace(',', '_')}_{model_file.stem}.png"
-                    out = output_dir / filename
-                    print(out)
-                    plt.savefig(str(out))
+            # for model_file in model_files:
+            #     with open(str(model_file), "rb") as f:
+            #         clf = pickle.load(f)
+            #
+            #     predict_list = []
+            #     test_labels = []
+            #     test_size = []
+            #     for test_label, X in samples.items():
+            #         print(f"eval model {test_label} {model_file}...")
+            #         df_processed = apply_preprocessing_steps(
+            #             days,
+            #             df_hum,
+            #             df_temp,
+            #             sfft_window,
+            #             wavelet_f0,
+            #             animal_ids,
+            #             X.copy(),
+            #             N_META,
+            #             output_dir,
+            #             steps,
+            #             class_healthy_label,
+            #             class_unhealthy_label,
+            #             class_healthy_target,
+            #             class_unhealthy_target,
+            #             clf_name="SVM",
+            #             output_dim=data_frame.shape[0],
+            #             n_scales=None,
+            #             keep_meta=False,
+            #         )
+            #
+            #         X_test = df_processed.iloc[:, :-1].values
+            #         y_test = df_processed["target"].values
+            #         # predict = clf.predict(X_test)
+            #         predict = clf.predict_proba(X_test)[:, 1]
+            #         predict_list.append(predict)
+            #         test_labels.append(test_label)
+            #         test_size.append(X_test.shape[0])
+            #
+            #         print(predict)
+            #         plt.clf()
+            #         plt.xlabel("Probability to be unhealthy(2To2)", size=14)
+            #         plt.ylabel("Count", size=14)
+            #         plt.hist(predict, bins=30)
+            #         plt.title(
+            #             f"Histogram of predictions test_label={test_label} test_size={X_test.shape[0]}"
+            #         )
+            #
+            #         filename = f"{test_label}_{model_file.stem}.png"
+            #         out = output_dir / filename
+            #         print(out)
+            #         plt.savefig(str(out))
+            #
+            #     i_h = 0
+            #     i_uh = 0
+            #     for bin_size in [5, 10, 30, 50, 100]:
+            #         plt.clf()
+            #         test_label_str = ""
+            #         test_size_str = ""
+            #         for i, (data, label, size) in enumerate(
+            #             zip(predict_list, test_labels, test_size)
+            #         ):
+            #             test_label_str += label + ","
+            #             test_size_str += str(size) + ","
+            #             if label in class_healthy_label:
+            #                 i_h = i
+            #                 continue
+            #             if label in class_unhealthy_label:
+            #                 i_uh = i
+            #                 continue
+            #             plt.hist(
+            #                 data,
+            #                 bins=bin_size,
+            #                 alpha=0.5,
+            #                 label=f"{label}({str(size)})",
+            #             )
+            #
+            #         plt.hist(
+            #             predict_list[i_h],
+            #             bins=bin_size,
+            #             alpha=0.5,
+            #             label=f"{test_labels[i_h]}({str(test_size[i_h])})",
+            #         )
+            #         plt.hist(
+            #             predict_list[i_uh],
+            #             bins=bin_size,
+            #             alpha=0.5,
+            #             label=f"{test_labels[i_uh]}({str(test_size[i_uh])})",
+            #         )
+            #
+            #         plt.xlabel("Probability to be unhealthy(2To2)", size=14)
+            #         plt.ylabel("Count", size=14)
+            #         plt.title(
+            #             f"Histogram of predictions (bin size={bin_size})\n test_label={test_label_str[:-1]} test_size={test_size_str[:-1]}"
+            #         )
+            #         plt.legend(loc="upper right")
+            #         filename = f"binsize_{bin_size}_{test_label_str.replace(',', '_')}_{model_file.stem}.png"
+            #         out = output_dir / filename
+            #         print(out)
+            #         plt.savefig(str(out))
 
         # 2DCNN
         # for steps in [["QN", "ANSCOMBE", "LOG"]]:
