@@ -458,32 +458,34 @@ def process_data_frame_svm(
     #     class1_count, sampling)
     report_rows_list = []
 
-    scores = cross_validate_custom_fast(
-        output_dir,
-        steps,
-        cv,
-        days,
-        label_series,
-        class_healthy,
-        class_unhealthy,
-        cross_validation_method,
-        X,
-        y,
-        n_job,
-    )
-
-    # scores = cross_validate_custom(
-    #     output_dir,
-    #     steps,
-    #     cv,
-    #     days,
-    #     label_series,
-    #     class_healthy,
-    #     class_unhealthy,
-    #     cross_validation_method,
-    #     X,
-    #     y,
-    # )
+    #todo test fast with n_job=1 (should only have 1 func)
+    if n_job > 0:
+        scores = cross_validate_custom_fast(
+            output_dir,
+            steps,
+            cv,
+            days,
+            label_series,
+            class_healthy,
+            class_unhealthy,
+            cross_validation_method,
+            X,
+            y,
+            n_job,
+        )
+    else:
+        scores = cross_validate_custom(
+            output_dir,
+            steps,
+            cv,
+            days,
+            label_series,
+            class_healthy,
+            class_unhealthy,
+            cross_validation_method,
+            X,
+            y,
+        )
 
     build_proba_hist(output_dir, class_unhealthy_label, scores)
 
