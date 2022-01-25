@@ -1,49 +1,40 @@
 import os
 import pathlib
-import pickle
 import time
-from itertools import cycle
+from multiprocessing import Manager, Pool
+from pathlib import Path
 from sys import exit
-from tqdm import tqdm
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.metrics import precision_recall_curve, precision_recall_fscore_support
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.metrics import average_precision_score
-from sklearn.cross_decomposition import PLSRegression
-from pathlib import Path
 from sklearn.metrics import (
-    make_scorer,
     balanced_accuracy_score,
     precision_score,
-    recall_score,
-    f1_score,
     plot_roc_curve,
     auc,
     roc_curve,
     precision_recall_curve,
     classification_report,
 )
+from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     RepeatedKFold,
     LeaveOneOut,
-    cross_validate,
     GridSearchCV,
 )
 from sklearn.svm import SVC
 
-from utils._custom_split import StratifiedLeaveTwoOut, RepeatedKFoldCustom
+#from utils._custom_split import StratifiedLeaveTwoOut
 from utils.visualisation import (
-    plot_2d_space,
     plot_roc_range,
     plot_pr_range,
     plotHeatmap,
     plot_2D_decision_boundaries,
     plot_3D_decision_boundaries,
-    plotAllFeatures,
-    build_proba_hist, build_roc_curve)
+    build_proba_hist,
+)
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -334,6 +325,7 @@ def process_data_frame_svm(
     class_unhealthy_label,
     y_col="target",
     cv=None,
+    n_job=6,
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -348,15 +340,15 @@ def process_data_frame_svm(
     # animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
 
-    if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
-            animal_ids, sample_idxs, stratified=True, verbose=True
-        )
-
-    if cv == "LeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
-            animal_ids, sample_idxs, stratified=False, verbose=True
-        )
+    # if cv == "StratifiedLeaveTwoOut":
+    #     cross_validation_method = StratifiedLeaveTwoOut(
+    #         animal_ids, sample_idxs, stratified=True, verbose=True
+    #     )
+    #
+    # if cv == "LeaveTwoOut":
+    #     cross_validation_method = StratifiedLeaveTwoOut(
+    #         animal_ids, sample_idxs, stratified=False, verbose=True
+    #     )
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(
@@ -369,6 +361,7 @@ def process_data_frame_svm(
         )
 
     if cv == "RepeatedKFoldMRNN":
+        from utils._custom_split import RepeatedKFoldCustom
         cross_validation_method = RepeatedKFoldCustom(
             2,
             2,
@@ -426,34 +419,34 @@ def process_data_frame_svm(
     class0_count = str(y[y == class_healthy].size)
     class1_count = str(y[y == class_unhealthy].size)
     print("X-> class0=" + class0_count + " class1=" + class1_count)
-    try:
-        if int(class1_count) < 2 or int(class0_count) < 2:
-            print("not enough samples!")
-            return
-    except ValueError as e:
-        print(e)
-        return
-
-    classes_all = np.unique(y)
-
-    scoring = {
-        "balanced_accuracy_score": make_scorer(balanced_accuracy_score),
-        # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
-        "precision_score0": make_scorer(
-            precision_score, average=None, labels=[class_healthy]
-        ),
-        "precision_score1": make_scorer(
-            precision_score, average=None, labels=[class_unhealthy]
-        ),
-        "recall_score0": make_scorer(
-            recall_score, average=None, labels=[class_healthy]
-        ),
-        "recall_score1": make_scorer(
-            recall_score, average=None, labels=[class_unhealthy]
-        ),
-        "f1_score0": make_scorer(f1_score, average=None, labels=[class_healthy]),
-        "f1_score1": make_scorer(f1_score, average=None, labels=[class_unhealthy]),
-    }
+    # try:
+    #     if int(class1_count) < 2 or int(class0_count) < 2:
+    #         print("not enough samples!")
+    #         return
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    #
+    # classes_all = np.unique(y)
+    #
+    # scoring = {
+    #     "balanced_accuracy_score": make_scorer(balanced_accuracy_score),
+    #     # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
+    #     "precision_score0": make_scorer(
+    #         precision_score, average=None, labels=[class_healthy]
+    #     ),
+    #     "precision_score1": make_scorer(
+    #         precision_score, average=None, labels=[class_unhealthy]
+    #     ),
+    #     "recall_score0": make_scorer(
+    #         recall_score, average=None, labels=[class_healthy]
+    #     ),
+    #     "recall_score1": make_scorer(
+    #         recall_score, average=None, labels=[class_unhealthy]
+    #     ),
+    #     "f1_score0": make_scorer(f1_score, average=None, labels=[class_healthy]),
+    #     "f1_score1": make_scorer(f1_score, average=None, labels=[class_unhealthy]),
+    # }
 
     # for c_a in classes_all:
     #     scoring[f"precision_score{c_a}"] = make_scorer(precision_score, average=None, labels=[c_a])
@@ -465,9 +458,32 @@ def process_data_frame_svm(
     #     class1_count, sampling)
     report_rows_list = []
 
-    scores = cross_validate_custom(
-        output_dir, steps, cv, days, label_series, class_healthy, class_unhealthy, cross_validation_method, X, y
+    scores = cross_validate_custom_fast(
+        output_dir,
+        steps,
+        cv,
+        days,
+        label_series,
+        class_healthy,
+        class_unhealthy,
+        cross_validation_method,
+        X,
+        y,
+        n_job,
     )
+
+    # scores = cross_validate_custom(
+    #     output_dir,
+    #     steps,
+    #     cv,
+    #     days,
+    #     label_series,
+    #     class_healthy,
+    #     class_unhealthy,
+    #     cross_validation_method,
+    #     X,
+    #     y,
+    # )
 
     build_proba_hist(output_dir, class_unhealthy_label, scores)
 
@@ -564,23 +580,32 @@ def process_data_frame_svm(
         print("filename=", filename)
         del scores
 
-    model_files = []
-    for clf_fitted in [
-        SVC(kernel="linear", probability=True, class_weight="balanced"),
-        SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    ]:
-        clf_fitted = clf_fitted.fit(X.copy(), y.copy())
-        filename = output_dir / cv / f"model_{days}_{steps}_{clf_fitted.kernel}.pkl"
-        model_files.append(filename)
-        print("saving classifier...")
-        print(filename)
-        with open(str(filename), "wb") as f:
-            pickle.dump(clf_fitted, f)
-    return model_files
+    # model_files = []
+    # for clf_fitted in [
+    #     SVC(kernel="linear", probability=True, class_weight="balanced"),
+    #     SVC(kernel="rbf", probability=True, class_weight="balanced"),
+    # ]:
+    #     clf_fitted = clf_fitted.fit(X.copy(), y.copy())
+    #     filename = output_dir / cv / f"model_{days}_{steps}_{clf_fitted.kernel}.pkl"
+    #     model_files.append(filename)
+    #     print("saving classifier...")
+    #     print(filename)
+    #     with open(str(filename), "wb") as f:
+    #         pickle.dump(clf_fitted, f)
+    # return model_files
 
 
 def cross_validate_custom(
-    out_dir, steps, cv_name, days, label_series, class_healthy, class_unhealthy, cross_validation_method, X, y
+    out_dir,
+    steps,
+    cv_name,
+    days,
+    label_series,
+    class_healthy,
+    class_unhealthy,
+    cross_validation_method,
+    X,
+    y,
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -611,9 +636,8 @@ def cross_validate_custom(
 
         tprs = []
         aucs_roc = []
-
-        for ifold, (train_index, test_index) in tqdm(enumerate(
-            cross_validation_method.split(X, y))
+        for ifold, (train_index, test_index) in enumerate(
+            cross_validation_method.split(X, y)
         ):
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
@@ -632,11 +656,11 @@ def cross_validate_custom(
 
             clf.fit(X_train, y_train)
 
-            #test healthy/unhealthy
+            # test healthy/unhealthy
             y_pred = clf.predict(X_test)
             y_pred_proba = clf.predict_proba(X_test)
 
-            #prep for roc curve
+            # prep for roc curve
             viz_roc = plot_roc_curve(
                 clf,
                 X_test,
@@ -655,22 +679,37 @@ def cross_validate_custom(
             aucs_roc.append(viz_roc.roc_auc)
 
             accuracy = balanced_accuracy_score(y_test, y_pred)
-            precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
+            precision, recall, fscore, support = precision_recall_fscore_support(
+                y_test, y_pred
+            )
 
-            fold_result = {"target": class_unhealthy, "accuracy": accuracy, "class_healthy": class_healthy,
-                           "class_unhealthy": class_unhealthy, "y_test": y_test, "test_precision_score_0": precision[0],
-                           "test_precision_score_1": precision[1], "test_recall_0": recall[0],
-                           "test_recall_1": recall[1], "test_fscore_0": fscore[0], "test_fscore_1": fscore[1],
-                           "test_support_0": support[0], "test_support_1": support[1]}
+            fold_result = {
+                "target": class_unhealthy,
+                "accuracy": accuracy,
+                "class_healthy": class_healthy,
+                "class_unhealthy": class_unhealthy,
+                "y_test": y_test,
+                "test_precision_score_0": precision[0],
+                "test_precision_score_1": precision[1],
+                "test_recall_0": recall[0],
+                "test_recall_1": recall[1],
+                "test_fscore_0": fscore[0],
+                "test_fscore_1": fscore[1],
+                "test_support_0": support[0],
+                "test_support_1": support[1],
+            }
             fold_results.append(fold_result)
 
-            #test individual labels and store probabilities to be healthy/unhealthy
+            # test individual labels and store probabilities to be healthy/unhealthy
             for y_f in y_fold:
                 label = label_series[y_f]
                 X_test = X_fold[y_fold == y_f]
                 y_test = y_fold[y_fold == y_f]
                 y_pred_proba = clf.predict_proba(X_test)
-                fold_proba = {"test_y_pred_proba_0": y_pred_proba[:, 0], "test_y_pred_proba_1": y_pred_proba[:, 1]}
+                fold_proba = {
+                    "test_y_pred_proba_0": y_pred_proba[:, 0],
+                    "test_y_pred_proba_1": y_pred_proba[:, 1],
+                }
                 fold_probas[label].append(fold_proba)
 
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y == class_healthy)} unhealthy:{np.sum(y == class_unhealthy)}"
@@ -685,7 +724,193 @@ def cross_validate_custom(
             cv_name,
             days,
             info=info,
-            tag=f"{type(clf).__name__}_{clf.kernel}"
+            tag=f"{type(clf).__name__}_{clf.kernel}",
+        )
+
+        scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
+        scores[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
+
+    return scores
+
+
+def fold_worker(
+    tprs,
+    aucs_roc,
+    fold_results,
+    fold_probas,
+    label_series,
+    mean_fpr,
+    ax_roc,
+    clf,
+    X,
+    y,
+    train_index,
+    test_index,
+    class_healthy,
+    class_unhealthy,
+    ifold,
+    nfold
+):
+    print(f"process id={ifold}/{nfold}...")
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+
+    # hold all extra label
+    fold_index = np.array(train_index.tolist() + test_index.tolist())
+    X_fold = X[fold_index]
+    y_fold = y[fold_index]
+
+    # keep healthy and unhealthy only
+    X_train = X_train[np.isin(y_train, [class_healthy, class_unhealthy])]
+    y_train = y_train[np.isin(y_train, [class_healthy, class_unhealthy])]
+
+    X_test = X_test[np.isin(y_test, [class_healthy, class_unhealthy])]
+    y_test = y_test[np.isin(y_test, [class_healthy, class_unhealthy])]
+
+    clf.fit(X_train, y_train)
+
+    # test healthy/unhealthy
+    y_pred = clf.predict(X_test)
+    y_pred_proba = clf.predict_proba(X_test)
+
+    # prep for roc curve
+    viz_roc = plot_roc_curve(
+        clf,
+        X_test,
+        y_test,
+        label=None,
+        alpha=0.3,
+        lw=1,
+        ax=ax_roc,
+        c="tab:blue",
+    )
+
+    interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+    interp_tpr[0] = 0.0
+    print("auc=", viz_roc.roc_auc)
+    tprs.append(interp_tpr)
+    aucs_roc.append(viz_roc.roc_auc)
+
+    accuracy = balanced_accuracy_score(y_test, y_pred)
+    precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
+
+    fold_result = {
+        "target": class_unhealthy,
+        "accuracy": accuracy,
+        "class_healthy": class_healthy,
+        "class_unhealthy": class_unhealthy,
+        "y_test": y_test,
+        "test_precision_score_0": precision[0],
+        "test_precision_score_1": precision[1],
+        "test_recall_0": recall[0],
+        "test_recall_1": recall[1],
+        "test_fscore_0": fscore[0],
+        "test_fscore_1": fscore[1],
+        "test_support_0": support[0],
+        "test_support_1": support[1],
+    }
+    fold_results.append(fold_result)
+
+    # test individual labels and store probabilities to be healthy/unhealthy
+    for y_f in y_fold:
+        label = label_series[y_f]
+        X_test = X_fold[y_fold == y_f]
+        y_test = y_fold[y_fold == y_f]
+        y_pred_proba = clf.predict_proba(X_test)
+        fold_proba = {
+            "test_y_pred_proba_0": y_pred_proba[:, 0],
+            "test_y_pred_proba_1": y_pred_proba[:, 1],
+        }
+        fold_probas[label].append(fold_proba)
+
+
+def cross_validate_custom_fast(
+    out_dir,
+    steps,
+    cv_name,
+    days,
+    label_series,
+    class_healthy,
+    class_unhealthy,
+    cross_validation_method,
+    X,
+    y,
+    n_job=None,
+):
+    """Cross validate X,y data and plot roc curve with range
+    Args:
+        out_dir: output directory to save figures to
+        steps: postprocessing steps
+        cv_name: name of cross validation method
+        days: count of activity days in sample
+        label_series: dict that holds famacha label/target
+        class_healthy: target integer of healthy class
+        class_unhealthy: target integer of unhealthy class
+        cross_validation_method: Cv object
+        X: samples
+        y: targets
+    """
+    scores = {}
+    for clf in [
+        SVC(kernel="linear", probability=True, class_weight="balanced"),
+        SVC(kernel="rbf", probability=True, class_weight="balanced"),
+    ]:
+        plt.clf()
+        fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
+        mean_fpr = np.linspace(0, 1, 100)
+
+        with Manager() as manager:
+            #create result holders
+            tprs = manager.list()
+            aucs_roc = manager.list()
+            fold_results = manager.list()
+            fold_probas = manager.dict()
+            for k in label_series.values():
+                fold_probas[k] = []
+
+            pool = Pool(processes=n_job)
+            start = time.time()
+            for ifold, (train_index, test_index) in enumerate(
+                cross_validation_method.split(X, y)
+            ):
+                pool.apply_async(fold_worker, (
+                    tprs,
+                    aucs_roc,
+                    fold_results,
+                    fold_probas,
+                    label_series,
+                    mean_fpr,
+                    ax_roc,
+                    clf,
+                    X,
+                    y,
+                    train_index,
+                    test_index,
+                    class_healthy,
+                    class_unhealthy,
+                    ifold,
+                    cross_validation_method.get_n_splits()
+                ))
+            pool.close()
+            pool.join()
+            end = time.time()
+            print('total time (s)= ' + str(end - start))
+
+        fold_results = list(fold_results)
+        fold_probas = dict(fold_probas)
+        info = f"X shape:{str(X.shape)} healthy:{np.sum(y == class_healthy)} unhealthy:{np.sum(y == class_unhealthy)}"
+        mean_auc = plot_roc_range(
+            ax_roc,
+            tprs,
+            mean_fpr,
+            aucs_roc,
+            out_dir,
+            steps,
+            fig_roc,
+            cv_name,
+            days,
+            info=info,
+            tag=f"{type(clf).__name__}_{clf.kernel}",
         )
 
         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results

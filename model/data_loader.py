@@ -1,9 +1,9 @@
-import pandas as pd
-import numpy as np
-from scipy.stats import entropy
-import matplotlib.pyplot as plt
 from collections import Counter
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
@@ -293,5 +293,51 @@ def plot_samples_distribution(out_dir, samples, filename):
     ax1.set_title(f"Distribution of usable samples across herd\n{info}")
     filepath = str(out_dir / f'pie_{filename}')
     print(filepath)
-    plt.savefig(filepath, bbox_inches = 'tight')
+    plt.savefig(filepath, bbox_inches='tight')
+
+    #grid chart
+    max_famacha = np.array([[x[0], x[-1]] for x in samples.keys()]).flatten().astype(int).max()
+    mat_label = np.zeros((max_famacha, max_famacha), dtype=object)
+    for i in range(mat_label.shape[0]):
+        for j in range(mat_label.shape[1]):
+            mat_label[i, j] = f"{i+1}To{j+1}"
+    mat_label = np.flip(mat_label, axis=0)
+
+    mat_value = np.zeros(mat_label.shape)
+    for i in range(mat_value.shape[0]):
+        for j in range(mat_value.shape[1]):
+            mat_value[i, j] = len(samples[mat_label[i, j]])
+
+    yaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value)+1)][::-1]
+
+    xaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value)+1)]
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(mat_value)
+    cbar = ax.figure.colorbar(im, ax=ax)
+    cbar.ax.set_ylabel("Number of samples", rotation=-90, va="bottom")
+
+    # Show all ticks and label them with the respective list entries
+    ax.set_xticks(np.arange(len(xaxis)))
+    ax.set_yticks(np.arange(len(yaxis)))
+    ax.set_xticklabels(xaxis)
+    ax.set_yticklabels(yaxis)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(yaxis)):
+        for j in range(len(xaxis)):
+            text = ax.text(j, i, mat_label[i, j],
+                           ha="center", va="center", color="green")
+
+    ax.set_title(f"Distribution of usable samples across herd\n{info}")
+    fig.tight_layout()
+    filepath = str(out_dir / f'grid_{filename}')
+    print(filepath)
+    plt.savefig(filepath, bbox_inches='tight')
+
+
 

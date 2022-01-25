@@ -1,32 +1,28 @@
 import os
+import random
+from datetime import datetime, timedelta
+from sys import exit
 
-import matplotlib
-import pywt
-from matplotlib.ticker import ScalarFormatter
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.utils import check_array
-from sklearn.base import TransformerMixin, BaseEstimator
-import pycwt as wavelet
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from plotly.subplots import make_subplots
+import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from sys import exit
-import random
+import pycwt as wavelet
+import pywt
+from plotly.subplots import make_subplots
+from scipy import signal
+from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.metrics import auc
+from sklearn.metrics import make_scorer
+from sklearn.metrics import plot_roc_curve
+from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.model_selection import cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
-from sklearn.model_selection import cross_validate
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
-from sklearn.metrics import make_scorer
-from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
-from sklearn.metrics import auc
-from sklearn.metrics import plot_roc_curve
-import plotly.express as px
-from scipy import signal
+from tqdm import tqdm
 
 #from utils.Utils import anscombe
 # import matlab.engine

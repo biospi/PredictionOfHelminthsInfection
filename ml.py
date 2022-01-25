@@ -24,50 +24,21 @@
 # %%
 
 import os
-import pickle
-import time
 from pathlib import Path
 from typing import List, Optional
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import typer
-from sklearn.metrics import (
-    make_scorer,
-    balanced_accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    plot_roc_curve,
-    auc,
-    roc_curve,
-    precision_recall_curve,
-)
-from sklearn.model_selection import (
-    RepeatedStratifiedKFold,
-    RepeatedKFold,
-    LeaveOneOut,
-    cross_validate,
-)
-from sklearn.svm import SVC
 
 from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
-
-from utils._custom_split import StratifiedLeaveTwoOut, RepeatedKFoldCustom
+from preprocessing.preprocessing import apply_preprocessing_steps
+from utils.visualisation import (
+    plotHeatmap,
+)
 from utils.visualisation import (
     plotMlReport,
 )
-from utils.visualisation import (
-    plot_roc_range,
-    plot_pr_range,
-    plotHeatmap,
-    plot_2D_decision_boundaries,
-    plot_3D_decision_boundaries,
-)
-
-from preprocessing.preprocessing import apply_preprocessing_steps
 
 
 def main(
@@ -77,18 +48,19 @@ def main(
     dataset_folder: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    preprocessing_steps: List[str] = [["MRNN", "QN", "ANSCOMBE", "LOG"]],
+    preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
     imputed_days: int = 7,
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 5,
-    n_repeats: int = 10,
+    n_splits: int = 2,
+    n_repeats: int = 2,
     cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
+    n_job: int = 6,
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -108,7 +80,7 @@ def main(
         wavelet_f0: Mother Wavelet frequency for CWT
         sfft_window: STFT window size
         epochs: Cnn epochs
-        n_process:Number of threads to use.
+        n_job: Number of threads to use for cross validation.
     """
 
     enable_downsample_df = False
@@ -287,7 +259,6 @@ def main(
         animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
-        preprocessing_steps = [""]
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
             df_processed = apply_preprocessing_steps(
@@ -328,107 +299,8 @@ def main(
                 class_healthy_label,
                 class_unhealthy_label,
                 cv=cv,
+                n_job=n_job
             )
-
-            # for model_file in model_files:
-            #     with open(str(model_file), "rb") as f:
-            #         clf = pickle.load(f)
-            #
-            #     predict_list = []
-            #     test_labels = []
-            #     test_size = []
-            #     for test_label, X in samples.items():
-            #         print(f"eval model {test_label} {model_file}...")
-            #         df_processed = apply_preprocessing_steps(
-            #             days,
-            #             df_hum,
-            #             df_temp,
-            #             sfft_window,
-            #             wavelet_f0,
-            #             animal_ids,
-            #             X.copy(),
-            #             N_META,
-            #             output_dir,
-            #             steps,
-            #             class_healthy_label,
-            #             class_unhealthy_label,
-            #             class_healthy_target,
-            #             class_unhealthy_target,
-            #             clf_name="SVM",
-            #             output_dim=data_frame.shape[0],
-            #             n_scales=None,
-            #             keep_meta=False,
-            #         )
-            #
-            #         X_test = df_processed.iloc[:, :-1].values
-            #         y_test = df_processed["target"].values
-            #         # predict = clf.predict(X_test)
-            #         predict = clf.predict_proba(X_test)[:, 1]
-            #         predict_list.append(predict)
-            #         test_labels.append(test_label)
-            #         test_size.append(X_test.shape[0])
-            #
-            #         print(predict)
-            #         plt.clf()
-            #         plt.xlabel("Probability to be unhealthy(2To2)", size=14)
-            #         plt.ylabel("Count", size=14)
-            #         plt.hist(predict, bins=30)
-            #         plt.title(
-            #             f"Histogram of predictions test_label={test_label} test_size={X_test.shape[0]}"
-            #         )
-            #
-            #         filename = f"{test_label}_{model_file.stem}.png"
-            #         out = output_dir / filename
-            #         print(out)
-            #         plt.savefig(str(out))
-            #
-            #     i_h = 0
-            #     i_uh = 0
-            #     for bin_size in [5, 10, 30, 50, 100]:
-            #         plt.clf()
-            #         test_label_str = ""
-            #         test_size_str = ""
-            #         for i, (data, label, size) in enumerate(
-            #             zip(predict_list, test_labels, test_size)
-            #         ):
-            #             test_label_str += label + ","
-            #             test_size_str += str(size) + ","
-            #             if label in class_healthy_label:
-            #                 i_h = i
-            #                 continue
-            #             if label in class_unhealthy_label:
-            #                 i_uh = i
-            #                 continue
-            #             plt.hist(
-            #                 data,
-            #                 bins=bin_size,
-            #                 alpha=0.5,
-            #                 label=f"{label}({str(size)})",
-            #             )
-            #
-            #         plt.hist(
-            #             predict_list[i_h],
-            #             bins=bin_size,
-            #             alpha=0.5,
-            #             label=f"{test_labels[i_h]}({str(test_size[i_h])})",
-            #         )
-            #         plt.hist(
-            #             predict_list[i_uh],
-            #             bins=bin_size,
-            #             alpha=0.5,
-            #             label=f"{test_labels[i_uh]}({str(test_size[i_uh])})",
-            #         )
-            #
-            #         plt.xlabel("Probability to be unhealthy(2To2)", size=14)
-            #         plt.ylabel("Count", size=14)
-            #         plt.title(
-            #             f"Histogram of predictions (bin size={bin_size})\n test_label={test_label_str[:-1]} test_size={test_size_str[:-1]}"
-            #         )
-            #         plt.legend(loc="upper right")
-            #         filename = f"binsize_{bin_size}_{test_label_str.replace(',', '_')}_{model_file.stem}.png"
-            #         out = output_dir / filename
-            #         print(out)
-            #         plt.savefig(str(out))
 
         # 2DCNN
         # for steps in [["QN", "ANSCOMBE", "LOG"]]:
@@ -470,6 +342,7 @@ def main(
     df_final.to_csv(filename, sep=",", index=False)
     print(df_final)
     plotMlReport(filename, output_dir)
+
 
 if __name__ == "__main__":
     # typer.run(main)
