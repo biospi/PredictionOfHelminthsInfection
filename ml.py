@@ -55,8 +55,8 @@ def main(
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 5,
-    n_repeats: int = 10,
+    n_splits: int = 2,
+    n_repeats: int = 2,
     cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -377,29 +377,31 @@ if __name__ == "__main__":
     #     main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
     #          dataset_folder=Path("E:\Data2\debug3\delmas\dataset_gain_7day"), preprocessing_steps=steps)
 
-    for steps in [
-        [["QN", "ANSCOMBE", "LOG"]],
-        [["LINEAR"]],
-        [["LINEAR", "QN"]],
-        [["LINEAR", "QN", "ANSCOMBE"]],
-        [["LINEAR", "QN", "ANSCOMBE", "LOG"]],
-    ]:
-        slug = "_".join(steps[0])
-        main(
-            output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-            dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-            preprocessing_steps=steps,
-        )
-
-    # for steps in [[['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
+    # for steps in [
+    #     [["QN", "ANSCOMBE", "LOG"]],
+    #     [["LINEAR"]],
+    #     [["LINEAR", "QN"]],
+    #     [["LINEAR", "QN", "ANSCOMBE"]],
+    #     [["LINEAR", "QN", "ANSCOMBE", "LOG"]],
+    # ]:
+    #     slug = "_".join(steps[0])
+    #     main(
+    #         output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+    #         dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+    #         preprocessing_steps=steps,
+    #     )
+    #
+    # for steps in [[["QN", "ANSCOMBE", "LOG"]],
+    #               [['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
     #               [['MRNN', "QN", "ANSCOMBE", "LOG"]]]:
     #     slug = '_'.join(steps[0])
-    #     for day in [0, 1, 2, 3, 4, 5, 6, 7]:
+    #     for day in [7]:
     #         main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
     #              dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
     #              imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-    #
-    # for steps in [[['ZEROPAD']], [['ZEROPAD', "QN"]], [['ZEROPAD', "QN", "ANSCOMBE"]], [['ZEROPAD', "QN", "ANSCOMBE", "LOG"]],
+
+    # for steps in [[["QN", "ANSCOMBE", "LOG"]],
+    #               [['ZEROPAD']], [['ZEROPAD', "QN"]], [['ZEROPAD', "QN", "ANSCOMBE"]], [['ZEROPAD', "QN", "ANSCOMBE", "LOG"]],
     #               [['LINEAR']], [['LINEAR', "QN"]], [['LINEAR', "QN", "ANSCOMBE"]], [['LINEAR', "QN", "ANSCOMBE", "LOG"]]]:
     #     slug = '_'.join(steps[0])
     #     main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{slug}"),
@@ -420,3 +422,16 @@ if __name__ == "__main__":
     # df_final.to_csv(filename, sep=",", index=False)
     # print(df_final)
     # plotMlReport(filename, output_dir)
+
+    steps = [["QN", "ANSCOMBE", "LOG"]]
+    slug = "_".join(steps[0])
+    day = 7
+    main(
+        output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+        dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+        preprocessing_steps=steps,
+    )
+
+    main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+         dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+         imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])

@@ -1620,7 +1620,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             hist_data[label] = np.concatenate(label_data)
 
         plt.clf()
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(19.20, 10.80))
         plt.xlabel(f"Probability to be unhealthy({label_unhealthy})", size=14)
         plt.ylabel("Density", size=14)
 
@@ -1629,7 +1629,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             info[key] = hist_data[key].shape[0]
 
         for key, value in hist_data.items():
-            plt.hist(value, density=True, bins=100, alpha=0.5, label=f"{key}")
+            plt.hist(value, density=True, bins=50, alpha=0.5, label=f"{key}")
             plt.xlim(xmin=0, xmax=1)
             plt.title(
                 f"Histograms of prediction probabilities\n{info}"
@@ -1639,6 +1639,28 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
         plt.legend(loc="upper right")
         #plt.show()
         filename = f"histogram_of_prob_{k}.png"
+        out = output_dir / filename
+        print(out)
+        plt.savefig(str(out))
+
+        fig, axs = plt.subplots(3, 2, facecolor='white', figsize=(24.0, 10.80))
+        if 'cedara' in str(output_dir):
+            fig, axs = plt.subplots(3, 5, facecolor='white', figsize=(24.0, 10.80))
+
+        fig.suptitle(f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14)
+        axs = axs.ravel()
+        for i, (key, value) in enumerate(sorted(hist_data.items())):
+            # axs[i].set_xlabel(f"Probability to be unhealthy({label_unhealthy})", size=14)
+            axs[i].set_ylabel("Density", size=14)
+            axs[i].hist(value, density=True, bins=50, alpha=1, label=f"{key}")
+            axs[i].set_xlim(xmin=0, xmax=1)
+            # axs[i].set_title(
+            #     f"Histograms of prediction probabilities {key}"
+            # )
+            axs[i].axvline(x=0.5, color='gray', ls='--')
+            axs[i].legend(loc="upper right")
+            # plt.show()
+        filename = f"histogram_of_prob_{k}_grid.png"
         out = output_dir / filename
         print(out)
         plt.savefig(str(out))

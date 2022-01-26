@@ -286,8 +286,11 @@ def plot_samples_distribution(out_dir, samples, filename):
     sizes = []
     for k, v in samples.items():
         sizes.append(len(v))
-    fig1, ax1 = plt.subplots()
-    ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
+    fig1, ax1 = plt.subplots(figsize=(12.80, 7.20))
+    explode = None
+    if 'cedara' in str(out_dir):
+        explode = (0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3)
+    ax1.pie(sizes, labels=labels, autopct='%1.1f%%', explode=explode,
             shadow=False, startangle=90)
     ax1.axis('equal')
     ax1.set_title(f"Distribution of usable samples across herd\n{info}")
@@ -306,7 +309,10 @@ def plot_samples_distribution(out_dir, samples, filename):
     mat_value = np.zeros(mat_label.shape)
     for i in range(mat_value.shape[0]):
         for j in range(mat_value.shape[1]):
-            mat_value[i, j] = len(samples[mat_label[i, j]])
+            k = mat_label[i, j]
+            if k not in samples:
+                continue
+            mat_value[i, j] = len(samples[k])
 
     yaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value)+1)][::-1]
 
@@ -331,7 +337,7 @@ def plot_samples_distribution(out_dir, samples, filename):
     for i in range(len(yaxis)):
         for j in range(len(xaxis)):
             text = ax.text(j, i, mat_label[i, j],
-                           ha="center", va="center", color="green")
+                           ha="center", va="center", color="red")
 
     ax.set_title(f"Distribution of usable samples across herd\n{info}")
     fig.tight_layout()
