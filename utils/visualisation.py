@@ -1643,7 +1643,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
         print(out)
         plt.savefig(str(out))
 
-        fig, axs = plt.subplots(3, 2, facecolor='white', figsize=(24.0, 10.80))
+        fig, axs = plt.subplots(2, 2, facecolor='white', figsize=(24.0, 10.80))
         if 'cedara' in str(output_dir):
             fig, axs = plt.subplots(3, 5, facecolor='white', figsize=(24.0, 10.80))
 
