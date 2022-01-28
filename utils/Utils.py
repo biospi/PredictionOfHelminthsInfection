@@ -172,3 +172,7 @@ def getXY(df):
     X = df.iloc[:, :-1].values
     y = df["target"].values
     return X, y
+
+
+def binarize(tagets, healty_target=1):
+    return (tagets != healty_target).astype(int)

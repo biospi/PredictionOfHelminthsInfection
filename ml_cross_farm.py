@@ -32,8 +32,9 @@ def main(
     class_healthy_f1: List[str] = ["1To1"],
     class_unhealthy_f1: List[str] = ["2To2"],
     class_healthy_f2: List[str] = ["1To1"],
-    class_unhealthy_f2: List[str] = ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
+    class_unhealthy_f2: List[str] = ["2To2"],
     steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    n_fold: int = 50,
 ):
     """This script train a ml model(SVM) on all the data of 1 dataset and test on a different dataset\n
     Args:\n
@@ -46,6 +47,10 @@ def main(
 
     print(f"farm_1 {farm1_path}")
     print(f"farm_2{farm2_path}")
+    info = {"farm1": {"healthy":class_healthy_f1, "unhealthy":class_unhealthy_f1},
+            "farm2": {"healthy":class_healthy_f2, "unhealthy":class_unhealthy_f2}}
+    print(info)
+
 
     days, farm_id, option, sampling = parse_param_from_filename(str(farm1_path))
     (
@@ -53,7 +58,7 @@ def main(
         N_META,
         class_healthy_target,
         class_unhealthy_target,
-        label_series,
+        label_series_f1,
         samples,
     ) = load_activity_data(
         output_dir,
@@ -67,7 +72,7 @@ def main(
         preprocessing_steps = steps
     )
 
-    dataset2, _, _, _, _, _ = load_activity_data(
+    dataset2, _, _, _, label_series_f2, _ = load_activity_data(
         output_dir,
         find_dataset(str(farm2_path)),
         days,
@@ -162,30 +167,33 @@ def main(
     X1, y1 = getXY(df1_processed)
     X2, y2 = getXY(df2_processed)
 
-    slug = "_".join(steps)
-    clf_best, X, y = processSVM(X1, X2, y1, y2, output_dir)
-    make_roc_curve(
-        class_healthy_target,
-        class_unhealthy_target,
-        str(clf_best),
-        output_dir,
-        clf_best,
-        X,
-        y,
-        None,
-        slug,
-        "Split",
-        None,
-        days,
-        split1=y1.size,
-        split2=y2.size,
-    )
+    processSVM(label_series_f1, label_series_f2, info, steps, n_fold, X1, X2, y1, y2, output_dir)
+
+    processSVM(label_series_f2, label_series_f1, info, steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
+
+    # for clf_best, X, y in results:
+    #     make_roc_curve(
+    #         class_healthy_target,
+    #         class_unhealthy_target,
+    #         str(clf_best),
+    #         output_dir,
+    #         clf_best,
+    #         X,
+    #         y,
+    #         None,
+    #         slug,
+    #         "Split",
+    #         None,
+    #         days,
+    #         split1=y1.size,
+    #         split2=y2.size,
+    #     )
 
 
 if __name__ == "__main__":
     # typer.run(main)
     main(
-        farm2_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-        farm1_path=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"),
-        output_dir=Path("E:\Data2\debug3\cross_farm_1"),
+        farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+        farm2_path=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"),
+        output_dir=Path("E:\Data2\debug3\cross_farm_2"),
     )

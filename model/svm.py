@@ -27,6 +27,7 @@ from sklearn.model_selection import (
 from sklearn.svm import SVC
 
 #from utils._custom_split import StratifiedLeaveTwoOut
+from utils.Utils import binarize
 from utils.visualisation import (
     plot_roc_range,
     plot_pr_range,
@@ -1285,37 +1286,116 @@ def makeYHist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
 #     return model_files
 
 
-def processSVM(X_train, X_test, y_train, y_test, output_dir):
-    clf_svc = SVC(kernel="rbf", probability=True, class_weight="balanced")
-    tuned_parameters = [
-        {
-            "kernel": ["rbf"],
-            "gamma": ["scale", 1e-1, 1e-3, 1e-4],
-            "class_weight": [None, "balanced"],
-            "C": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000],
-        },
-        {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
-    ]
+def processSVM(label_series_f1, label_series_f2, info_, steps, n_fold,
+               X_train, X_test, y_train, y_test, output_dir):
 
-    clf = GridSearchCV(
-        clf_svc,
-        tuned_parameters,
-        scoring=["roc_auc", "accuracy", "precision"],
-        refit="accuracy",
-        n_jobs=-1,
+    label_series_f1_r = {v: k for k, v in label_series_f1.items()}
+    label_series_f2_r = {v: k for k, v in label_series_f2.items()}
+    #prep the data
+    mask = np.isin(y_train, [1, label_series_f1_r['2To2']])
+    X_train = X_train[mask]
+    y_train = y_train[mask]
+
+    mask = np.isin(y_test, [1, label_series_f2_r['2To2']])
+    X_test = X_test[mask]
+    y_test = y_test[mask]
+
+    #build 90% folds
+    folds = []
+    cpt_fold = 0
+    while True:
+        df = pd.DataFrame(X_train)
+        df['target'] = y_train
+        fold = df.sample(frac=0.9, random_state=cpt_fold)
+        y = fold["target"].values
+        fold = fold.drop("target", 1)
+        X = fold.values
+        if len(np.unique(y)) == 1:
+            print("Only one class present in y_true. skip.")
+            continue
+        folds.append([X, y])
+        # print(y)
+        cpt_fold += 1
+        if cpt_fold >= n_fold:
+            print(f"found {n_fold} 90% folds.")
+            break
+
+    # results = []
+    plt.clf()
+    fig_roc, ax_roc = plt.subplots(figsize=(19.20, 10.80))
+    mean_fpr = np.linspace(0, 1, 100)
+    tprs = []
+    aucs_roc = []
+    for i, (X_t, y_t) in enumerate(folds):
+        print(f"progress {i}/{n_fold} ...")
+        y_t = binarize(y_t.copy())
+        y_test = binarize(y_test)
+        clf_svc = SVC(kernel="rbf", probability=True, class_weight="balanced")
+        tuned_parameters = [
+            {
+                "kernel": ["rbf"],
+                "gamma": ["scale", 1e-1, 1e-3, 1e-4],
+                "class_weight": [None, "balanced"],
+                "C": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000],
+            },
+            {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
+        ]
+
+        clf = GridSearchCV(
+            clf_svc,
+            tuned_parameters,
+            scoring=["roc_auc", "accuracy", "precision"],
+            refit="accuracy",
+            n_jobs=-1,
+        )
+        clf.fit(X_t.copy(), y_t.copy())
+        clf_best = clf.best_estimator_
+        print("Best estimator from gridsearch=")
+        print(clf_best)
+        y_pred = clf.predict(X_test.copy())
+        print(classification_report(y_test, y_pred))
+        print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
+
+        pathlib.Path(output_dir / 'reports').mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True))
+
+        filename = f"{output_dir / 'reports'}/report_{i}.csv"
+        print(filename)
+        df.to_csv(filename)
+        # X = np.array(X_train.tolist() + X_test.tolist())
+        # y = np.array(y_train.tolist() + y_test.tolist())
+        # results.append([clf_best, X, y])
+
+        viz_roc = plot_roc_curve(
+            clf,
+            X_test,
+            y_test,
+            label=None,
+            alpha=0.3,
+            lw=1,
+            ax=ax_roc,
+            c="tab:blue",
+        )
+        interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+        interp_tpr[0] = 0.0
+        print("auc=", viz_roc.roc_auc)
+        tprs.append(interp_tpr)
+        aucs_roc.append(viz_roc.roc_auc)
+
+    info = f"X_train shape:{str(X_train.shape)} healthy:{np.sum(y_train == 0)} unhealthy:{np.sum(y_train == 1)} \n " \
+           f"X_test shape:{str(X_test.shape)} healthy:{np.sum(y_test == 0)} unhealthy:{np.sum(y_test == 1)} \n {info_}"
+    mean_auc = plot_roc_range(
+        ax_roc,
+        tprs,
+        mean_fpr,
+        aucs_roc,
+        output_dir,
+        steps,
+        fig_roc,
+        f"90% fold {n_fold}",
+        7,
+        info=info,
+        tag=f"{type(clf).__name__}",
     )
-    clf.fit(X_train.copy(), y_train.copy())
-    clf_best = clf.best_estimator_
-    print("Best estimator from gridsearch=")
-    print(clf_best)
-    y_pred = clf.predict(X_test.copy())
-    print(classification_report(y_test, y_pred))
-    print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
-    filename = "%s/report.csv" % output_dir
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    print(filename)
-    df = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True))
-    df.to_csv(filename)
-    X = np.array(X_train.tolist() + X_test.tolist())
-    y = np.array(y_train.tolist() + y_test.tolist())
-    return clf_best, X, y
+
+    # return results
