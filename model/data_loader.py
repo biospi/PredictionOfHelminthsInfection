@@ -19,6 +19,12 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     hearder[-2] = 'imputed_days'
     hearder[-1] = 'date'
     data_frame.columns = hearder
+
+    if day is not None:
+        df_activity_window = data_frame.iloc[:, 0:day*24*60]
+        df_meta = data_frame.iloc[:, -N_META:]
+        data_frame = pd.concat([df_activity_window, df_meta], axis=1)
+
     data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
     mrnn_files = [str(x) for x in list((Path(filepath).parent / "mrnn_windows").glob("*.csv"))]
 

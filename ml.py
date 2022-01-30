@@ -52,6 +52,7 @@ def main(
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
     imputed_days: int = 7,
+    n_activity_days: int = 7,
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
@@ -121,7 +122,7 @@ def main(
         print(df_hum_temp.shape)
 
     for file in files:
-        days, farm_id, option, sampling = parse_param_from_filename(file)
+        _, farm_id, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
         (
             data_frame,
@@ -133,7 +134,7 @@ def main(
         ) = load_activity_data(
             output_dir,
             file,
-            day,
+            n_activity_days,
             class_healthy_label,
             class_unhealthy_label,
             imputed_days=imputed_days,
@@ -262,7 +263,7 @@ def main(
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
             df_processed = apply_preprocessing_steps(
-                days,
+                n_activity_days,
                 df_hum,
                 df_temp,
                 sfft_window,
@@ -286,7 +287,7 @@ def main(
                 output_dir,
                 animal_ids,
                 df_processed,
-                days,
+                n_activity_days,
                 farm_id,
                 step_slug,
                 n_splits,
@@ -326,22 +327,22 @@ def main(
         #     process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
         #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv=cv)
 
-    output_dir = output_dir / cv
-    output_dir.mkdir(parents=True, exist_ok=True)
-    files = [
-        output_dir / file for file in os.listdir(output_dir) if file.endswith(".csv")
-    ]
-    print("found %d files." % len(files))
-    if len(files) == 0:
-        return
-    print("compiling final file...")
-
-    dfs = [pd.read_csv(file, sep=",") for file in files]
-    df_final = pd.concat(dfs)
-    filename = output_dir / "final_classification_report.csv"
-    df_final.to_csv(filename, sep=",", index=False)
-    print(df_final)
-    plotMlReport(filename, output_dir)
+    # output_dir = output_dir / cv
+    # output_dir.mkdir(parents=True, exist_ok=True)
+    # files = [
+    #     output_dir / file for file in os.listdir(output_dir) if file.endswith(".csv")
+    # ]
+    # print("found %d files." % len(files))
+    # if len(files) == 0:
+    #     return
+    # print("compiling final file...")
+    #
+    # dfs = [pd.read_csv(file, sep=",") for file in files]
+    # df_final = pd.concat(dfs)
+    # filename = output_dir / "final_classification_report.csv"
+    # df_final.to_csv(filename, sep=",", index=False)
+    # print(df_final)
+    # plotMlReport(filename, output_dir)
 
 
 if __name__ == "__main__":

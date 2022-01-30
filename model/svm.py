@@ -4,6 +4,7 @@ import time
 from multiprocessing import Manager, Pool
 from pathlib import Path
 from sys import exit
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -460,6 +461,7 @@ def process_data_frame_svm(
     report_rows_list = []
 
     #todo test fast with n_job=1 (should only have 1 func)
+    n_job = -1
     if n_job > 0:
         scores = cross_validate_custom_fast(
             output_dir,
@@ -733,6 +735,12 @@ def cross_validate_custom(
         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
         scores[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
 
+    print("export results to json...")
+    filepath = out_dir / "results.json"
+    print(filepath)
+    with open(str(filepath), 'w') as fp:
+        json.dump(scores, fp)
+
     return scores
 
 
@@ -844,7 +852,7 @@ def cross_validate_custom_fast(
     """Cross validate X,y data and plot roc curve with range
     Args:
         out_dir: output directory to save figures to
-        steps: postprocessing steps
+        steps: preprocessing steps
         cv_name: name of cross validation method
         days: count of activity days in sample
         label_series: dict that holds famacha label/target
@@ -1286,8 +1294,21 @@ def makeYHist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
 #     return model_files
 
 
-def processSVM(label_series_f1, label_series_f2, info_, steps, n_fold,
-               X_train, X_test, y_train, y_test, output_dir):
+def process_clf(label_series_f1, label_series_f2, info_, steps, n_fold,
+                X_train, X_test, y_train, y_test, output_dir, n_job=None):
+    """Trains multiple model with n 90% samples
+    Args:
+        label_series_f1: famacha/target dict for famr1
+        label_series_f2: famacha/target dict for famr2
+        info_: meta on healthy/unhealthy target
+        steps: preprocessing steps
+        n_fold: number of 90% chunks
+        X_train: all samples in farm 1
+        X_test: all samples in farm 2
+        y_train: all targets in farm 1
+        y_test: all targets in farm 2
+        output_dir: figure output directory
+    """
 
     label_series_f1_r = {v: k for k, v in label_series_f1.items()}
     label_series_f2_r = {v: k for k, v in label_series_f2.items()}

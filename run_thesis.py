@@ -1,0 +1,147 @@
+import typer
+import ml as main_experiment
+import ml_cross_farm_validation as cross_farm_validation
+import ml_temporal_validation as temporal_validation
+from pathlib import Path
+
+
+def main(
+    exp1: bool = True,
+    exp2: bool = True,
+    exp3: bool = True,
+    output_dir: Path = Path("E:/thesis"),
+):
+    """Thesis script run all key experiments for data exploration chapter
+    Args:\n
+        output_dir: Output directory
+    """
+    
+    if exp1:
+        print("experiment 1: main pipeline")
+
+        steps = [["QN", "ANSCOMBE", "LOG"]]
+        slug = "_".join(steps[0])
+
+        for i_day in [7, 6, 5, 4, 3, 2, 1, 0]:
+            for a_day in [7, 6, 5, 4, 3, 2, 1]:
+                main_experiment.main(
+                    output_dir=output_dir
+                    / "main_experiment"
+                    / f"delmas_{i_day}_{slug}"
+                    / "2To2",
+                    dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                    preprocessing_steps=steps,
+                    imputed_days=i_day,
+                    n_activity_days=a_day,
+                )
+
+                main_experiment.main(
+                    output_dir=output_dir
+                    / "main_experiment"
+                    / f"delmas_{i_day}_{slug}"
+                    / "1To2",
+                    dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                    preprocessing_steps=steps,
+                    imputed_days=i_day,
+                    n_activity_days=a_day,
+                    class_unhealthy_label=["1To2"],
+                )
+
+                main_experiment.main(
+                    output_dir=output_dir
+                    / "main_experiment"
+                    / f"cedara_{i_day}_{slug}"
+                    / "2To2",
+                    dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+                    preprocessing_steps=steps,
+                    imputed_days=i_day,
+                    n_activity_days=a_day,
+                    class_unhealthy_label=["2To2"],
+                )
+
+                main_experiment.main(
+                    output_dir=output_dir
+                    / "main_experiment"
+                    / f"cedara_{i_day}_{slug}"
+                    / "4To4_3To5_4To3_5To3_2To5_2To2",
+                    dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+                    preprocessing_steps=steps,
+                    imputed_days=i_day,
+                    n_activity_days=a_day,
+                    class_unhealthy_label=[
+                        "4To4",
+                        "3To5",
+                        "4To3",
+                        "5To3",
+                        "2To5",
+                        "2To2",
+                    ],
+                )
+
+    if exp2:
+        print("experiment 2: temporal validation")
+        for i in [0, 1, 2, 3, 4, 5, 6, 7]:
+            temporal_validation.main(
+                output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
+                dataset_folder=Path("E:/Data2/debug/delmas/dataset_mrnn_7day"),
+                imputed_days=i,
+            )
+
+        for i in [0, 1, 2, 3, 4, 5, 6, 7]:
+            temporal_validation.main(
+                output_dir=output_dir
+                / "temporal_validation"
+                / f"cedara_{i}"
+                / "4To4_3To5_4To3_5To3_2To5_2To2",
+                dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+                imputed_days=i,
+                class_unhealthy_label=[
+                    "4To4",
+                    "3To5",
+                    "4To3",
+                    "5To3",
+                    "2To5",
+                    "2To2",
+                ],
+            )
+
+            temporal_validation.main(
+                output_dir=output_dir / "temporal_validation" / f"cedara_{i}" / "2To2",
+                dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+                imputed_days=i,
+            )
+
+    if exp3:
+        print("experiment 3: cross farm validation")
+        for imp_d in [7, 6, 5, 4, 3, 2, 1, 0]:
+            for a_act_day in [7, 6, 5, 4, 3, 2, 1]:
+                cross_farm_validation.main(
+                    farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+                    farm2_path=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"),
+                    output_dir=output_dir / f"cross_farm_{imp_d}_{a_act_day}" / "2To2",
+                    n_imputed_days=imp_d,
+                    n_activity_days=a_act_day,
+                    class_unhealthy_f2=["2To2"],
+                )
+
+                cross_farm_validation.main(
+                    farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+                    farm2_path=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"),
+                    output_dir=output_dir
+                    / f"cross_farm_{imp_d}_{a_act_day}"
+                    / "4To4_3To5_4To3_5To3_2To5_2To2",
+                    n_imputed_days=imp_d,
+                    n_activity_days=a_act_day,
+                    class_unhealthy_f2=[
+                        "4To4",
+                        "3To5",
+                        "4To3",
+                        "5To3",
+                        "2To5",
+                        "2To2",
+                    ],
+                )
+
+
+if __name__ == "__main__":
+    typer.run(main)
