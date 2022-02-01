@@ -42,65 +42,6 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     if 'LINEAR' in preprocessing_steps[0]:
         data_frame.iloc[:, :-N_META] = data_frame.iloc[:, :-N_META].interpolate(axis=1, limit_direction='both')
 
-    #data_frame = data_frame[(data_frame == 0).sum(axis=1) / len(data_frame.columns) <= 0.5]
-    # filter with imputed_days count
-    # if 'cat' not in filepath:#todo parametarize
-    #     data_frame = data_frame[data_frame["imputed_days"] >= day]
-
-    # data_frame = data_frame[data_frame["label"].isin(["1To2", "1To1", "2To2"])]
-
-    # if class_unhealthy is None:
-    #     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
-    #     flabels = [x for x in data_frame_labeled.columns if 'label' in x]
-    #     data_frame["target"] = 0
-    #     for i, flabel in enumerate(flabels):
-    #         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
-    #         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
-    #     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
-    #     data_frame = data_frame.drop('label', 1)
-    #     return data_frame, N_META, None, None, label_series
-
-    # #1To1 1To2 2To2 2To1
-    # new_label = []
-    # for v in data_frame["label"].values:
-    #     if v in ["1To1"]:
-    #         new_label.append("1To1")
-    #         continue
-    #     new_label.append("2To2")
-    #
-    # data_frame["label"] = new_label
-
-
-    # if filter:
-    #     if "cedara" in filepath:#todo parametarize
-    #         new_label = []
-    #         for v in data_frame["label"].values:
-    #             if v in ["1To1", "2To2"]:
-    #                 new_label.append("1To1")
-    #                 continue
-    #             if v in ["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"]:
-    #                 new_label.append("2To2")
-    #                 continue
-    #             new_label.append(np.nan)
-    #
-    #         data_frame["label"] = new_label
-    #
-    #     if "delmas" in filepath:#todo parametarize
-    #         new_label = []
-    #         for v in data_frame["label"].values:
-    #             if v in ["1To1"]:
-    #                 new_label.append("1To1")
-    #                 continue
-    #             if v in ["2To2"]:
-    #                 new_label.append("2To2")
-    #                 continue
-    #             new_label.append(np.nan)
-    #
-    #         data_frame["label"] = new_label
-    #
-    #     if keep_2_only:
-    #         data_frame = data_frame.dropna()
-
     new_label = []
     #data_frame_health = data_frame.copy()
     for v in data_frame["label"].values:
@@ -113,58 +54,6 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
         new_label.append(-1)
 
     data_frame["health"] = new_label
-    #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
-    #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}
-    #{2: '1To2', 4: '2To2', 3: '2To1', 1: '1To1', 6: '3To2', 8: '4To2', 5: '3To1', 10: '5To2', 7: '3To3', 9: '4To3'}
-    # if True:
-    #     new_label = []
-    #     for v in data_frame["label"].values:
-    #         if v in ["2To1"]:
-    #             new_label.append("1To1")
-    #             continue
-    #         if v in ["1To2"]:
-    #             new_label.append("2To2")
-    #             continue
-    #         new_label.append("ignore")
-    #     data_frame["label"] = new_label
-    # if True:
-    #     new_label = []
-    #     for v in data_frame["label"].values:
-    #         if v in ["2To1", "1To1"]:
-    #             new_label.append("1To1")
-    #             continue
-    #         if v in ["2To2", "1To2"]:
-    #             new_label.append("2To2")
-    #             continue
-    #         new_label.append("ignore")
-    #     data_frame["label"] = new_label
-
-
-    # up_down = True
-    # if up_down:
-    #     new_label = []
-    #     for v in data_frame["label"].values:
-    #         split = v.split("To")
-    #         a = int(split[0])
-    #         b = int(split[1])
-    #         # if a == 1 or b == 1:
-    #         #     new_label.append("1To1")
-    #         #     continue
-    #         # if a == b:
-    #         #     new_label.append("2To2")
-    #         #     continue
-    #         if a > b:
-    #             new_label.append("1To1")
-    #             continue
-    #         if a < b:
-    #             new_label.append("2To2")
-    #             continue
-    #         new_label.append(np.nan)
-    #     data_frame["label"] = new_label
-
-    #data_frame = data_frame.dropna()
-    #data_frame_o = data_frame.copy()
-    #print(data_frame)
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
@@ -214,24 +103,6 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     # data_frame = data_frame.sort_values(by=['e'], ascending=False)
     # data_frame = data_frame[data_frame["e"] > 150]
     # data_frame = data_frame.drop('e', 1)
-
-    #setup holdout!
-    # if hold_out_pct > 0:
-    #     class_1_hds = int(data_frame[data_frame['target'] == class_healthy].shape[0] * hold_out_pct/100)
-    #     class_2_hds = int(data_frame[data_frame['target'] == class_unhealthy].shape[0] * hold_out_pct / 100)
-    #
-    #     hould_out_1 = data_frame[data_frame['target'] == class_healthy].sample(n=class_1_hds, random_state=0)
-    #     hould_out_2 = data_frame[data_frame['target'] == class_unhealthy].sample(n=class_2_hds, random_state=0)
-    #
-    #     data_frame = data_frame.drop(hould_out_1.index)
-    #     data_frame = data_frame.drop(hould_out_2.index)
-    #
-    #     samples[label_series[class_healthy]] = hould_out_1
-    #     samples[label_series[class_unhealthy]] = hould_out_2
-    #
-    # data_frame = data_frame[data_frame['target'].isin([class_healthy, class_unhealthy])]
-
-    #plot_samples_distribution(out_dir, samples, f"distrib_hold_out_{Path(filepath).stem}.png")
 
     N_META = N_META+1 #add health column
 
@@ -304,7 +175,7 @@ def plot_samples_distribution(out_dir, samples_, filename):
     ax1.pie(sizes, labels=labels, autopct='%1.1f%%', explode=explode,
             shadow=False, startangle=90)
     ax1.axis('equal')
-    ax1.set_title(f"Distribution of usable samples across herd\n{info}")
+    ax1.set_title(f"Famacha transition of samples across herd\n{info}")
     filepath = str(out_dir / f'pie_{filename}')
     print(filepath)
     plt.savefig(filepath, bbox_inches='tight')
@@ -350,7 +221,7 @@ def plot_samples_distribution(out_dir, samples_, filename):
             text = ax.text(j, i, mat_label[i, j],
                            ha="center", va="center", color="red")
 
-    ax.set_title(f"Distribution of usable samples across herd\n{info}")
+    ax.set_title(f"Famacha transition of samples across herd\n{info}")
     fig.tight_layout()
     filepath = str(out_dir / f'grid_{filename}')
     print(filepath)
