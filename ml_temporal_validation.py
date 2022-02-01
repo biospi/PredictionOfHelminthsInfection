@@ -46,15 +46,15 @@ def main(
         (
             data_frame,
             N_META,
-            class_healthy_target,
-            class_unhealthy_target,
+            _,
+            _,
             label_series,
             samples,
         ) = load_activity_data(output_dir, file, n_activity_days, class_healthy_label, class_unhealthy_label,
                                imputed_days=imputed_days)
 
         data_frame = data_frame[
-            data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
+            data_frame["health"].isin([0, 1])
         ]
 
         data_frame["date_"] = pd.to_datetime(data_frame["date"], dayfirst=True)
@@ -91,8 +91,6 @@ def main(
             steps,
             class_healthy_label,
             class_unhealthy_label,
-            class_healthy_target,
-            class_unhealthy_target,
             clf_name="SVM",
             n_scales=None,
             farm_name="FARMS",
@@ -110,7 +108,7 @@ def main(
         plot_heatmap(X1, y1, X2, y2, output_dir, p1_start, p1_end, p2_start, p2_end)
 
         process_clf(label_series, label_series, info, steps, n_fold, X1, X2, y1, y2, output_dir)
-        process_clf(label_series, label_series, info, steps, n_fold, X2, X1, y2, y1, output_dir)
+        process_clf(label_series, label_series, info, steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
 
 
 if __name__ == "__main__":

@@ -169,8 +169,8 @@ def plot_heatmap(X1, y1, X2, y2, out_dir, p1_start, p1_end, p2_start, p2_end):
 
 def getXY(df):
     print(df)
-    X = df.iloc[:, :-1].values
-    y = df["target"].values
+    X = df.iloc[:, :-2].values
+    y = df["health"].values
     return X, y
 
 

@@ -58,7 +58,7 @@ def main(
     temp_file: Optional[Path] = Path("."),
     n_splits: int = 5,
     n_repeats: int = 10,
-    cv: str = "RepeatedKFold",
+    cv: str = "RepeatedStratifiedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     n_job: int = 6,
@@ -127,8 +127,8 @@ def main(
         (
             data_frame,
             N_META,
-            class_healthy_target,
-            class_unhealthy_target,
+            _,
+            _,
             label_series,
             samples,
         ) = load_activity_data(
@@ -275,14 +275,12 @@ def main(
                 steps,
                 class_healthy_label,
                 class_unhealthy_label,
-                class_healthy_target,
-                class_unhealthy_target,
                 clf_name="SVM",
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
             )
 
-            model_files = process_data_frame_svm(
+            process_data_frame_svm(
                 N_META,
                 output_dir,
                 animal_ids,
@@ -295,8 +293,6 @@ def main(
                 sampling,
                 enable_downsample_df,
                 label_series,
-                class_healthy_target,
-                class_unhealthy_target,
                 class_healthy_label,
                 class_unhealthy_label,
                 cv=cv,

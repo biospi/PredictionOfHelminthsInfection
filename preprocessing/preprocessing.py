@@ -38,8 +38,6 @@ def apply_preprocessing_steps(
     steps,
     class_healthy_label,
     class_unhealthy_label,
-    class_healthy_target,
-    class_unhealthy_target,
     clf_name="",
     output_dim=2,
     n_scales=None,
@@ -296,8 +294,8 @@ def apply_preprocessing_steps(
                 data_frame_cwt,
                 class_healthy_label,
                 class_unhealthy_label,
-                class_healthy_target,
-                class_unhealthy_target,
+                0,
+                1,
             )
 
             data_frame_cwt_raw.index = (
@@ -355,11 +353,13 @@ def apply_preprocessing_steps(
     # if "PCA" in step_slug:
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
     targets = df["target"]
+    health = df["health"]
     if keep_meta:
         df = df.iloc[:, :]
     else:
         df = df.iloc[:, :-N_META]
     df["target"] = targets
+    df["health"] = health
     print(df)
     return df
 

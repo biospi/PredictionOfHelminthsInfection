@@ -58,39 +58,34 @@ def main(
     (
         dataset1,
         N_META,
-        class_healthy_target,
-        class_unhealthy_target,
+        _,
+        _,
         label_series_f1,
-        samples,
+        samples_f1,
     ) = load_activity_data(
         output_dir,
         find_dataset(str(farm1_path)),
         n_activity_days,
         class_healthy_f1,
         class_unhealthy_f1,
-        imputed_days = n_imputed_days,
+        imputed_days=n_imputed_days,
         keep_2_only=True,
         hold_out_pct=0,
-        preprocessing_steps = steps
+        preprocessing_steps=steps
     )
 
-    dataset2, _, _, _, label_series_f2, _ = load_activity_data(
+    dataset2, _, _, _, label_series_f2, samples_f2 = load_activity_data(
         output_dir,
         find_dataset(str(farm2_path)),
         n_activity_days,
         class_healthy_f2,
         class_unhealthy_f2,
-        imputed_days = n_imputed_days,
+        imputed_days=n_imputed_days,
         farm='cedara',
         keep_2_only=True,
         hold_out_pct=0,
         preprocessing_steps=steps,
     )
-
-    if 'mrnn_file' in dataset1.columns:
-        dataset1 = dataset1.drop("mrnn_file", 1)
-    if 'mrnn_file' in dataset2.columns:
-        dataset2 = dataset2.drop("mrnn_file", 1)
 
     print(dataset1)
     print(dataset2)
@@ -110,8 +105,6 @@ def main(
         steps,
         class_healthy_f1,
         class_unhealthy_f1,
-        class_healthy_target,
-        class_unhealthy_target,
         clf_name="SVM",
         output_dim=dataset1.shape[0],
         n_scales=None,

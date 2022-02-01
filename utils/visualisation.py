@@ -1645,7 +1645,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
 
         fig, axs = plt.subplots(2, 2, facecolor='white', figsize=(24.0, 10.80))
         if 'cedara' in str(output_dir):
-            fig, axs = plt.subplots(3, 5, facecolor='white', figsize=(24.0, 10.80))
+            fig, axs = plt.subplots(3, 7, facecolor='white', figsize=(24.0, 8.80))
 
         fig.suptitle(f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14)
         axs = axs.ravel()
@@ -1661,6 +1661,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             axs[i].legend(loc="upper right")
             # plt.show()
         filename = f"histogram_of_prob_{k}_grid.png"
+        fig.tight_layout()
         out = output_dir / filename
         print(out)
         plt.savefig(str(out))

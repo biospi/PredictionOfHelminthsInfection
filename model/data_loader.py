@@ -102,18 +102,17 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     #         data_frame = data_frame.dropna()
 
     new_label = []
+    #data_frame_health = data_frame.copy()
     for v in data_frame["label"].values:
         if v in class_healthy:
-            new_label.append("1To1")
+            new_label.append(0)
             continue
         if v in class_unhealthy:
-            new_label.append("2To2")
+            new_label.append(1)
             continue
-        new_label.append(v)
+        new_label.append(-1)
 
-    data_frame["label"] = new_label
-
-
+    data_frame["health"] = new_label
     #{4: '2To2', 2: '1To2', 1: '1To1', 3: '2To1'}
     #{'2To2_4': 71, '1To2_2': 47, '1To1_1': 67, '2To1_3': 50}
     #{2: '1To2', 4: '2To2', 3: '2To1', 1: '1To1', 6: '3To2', 8: '4To2', 5: '3To1', 10: '5To2', 7: '3To3', 9: '4To3'}
@@ -179,6 +178,9 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     #store all samples for later testing after binary fitting
     labels = data_frame["label"].drop_duplicates().values
     samples = {}
+
+    # samples['healthy'] = data_frame[data_frame_health['health'] == 'healthy']
+    # samples['unhealthy'] = data_frame[data_frame_health['health'] == 'unhealthy']
     for label in labels:
         df = data_frame[data_frame["label"] == label]
         df = df.drop('label', 1)
@@ -231,6 +233,8 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
 
     #plot_samples_distribution(out_dir, samples, f"distrib_hold_out_{Path(filepath).stem}.png")
 
+    N_META = N_META+1 #add health column
+
     return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
 
 
@@ -249,12 +253,14 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-def plot_samples_distribution(out_dir, samples, filename):
+def plot_samples_distribution(out_dir, samples_, filename):
     out_dir.mkdir(parents=True, exist_ok=True)
-    print(samples)
+    sample_data = samples_.copy()
+
+    print(sample_data)
     #bar plot
     d = []
-    for key, value in samples.items():
+    for key, value in sample_data.items():
         value['id'] = [key+"_"+str(x) for x in value['id']]
         d.append(dict(value['id'].value_counts()))
 
@@ -271,13 +277,12 @@ def plot_samples_distribution(out_dir, samples, filename):
     df['id'] = df['id'].str.split('.').str[0]
 
     info = {}
-    for l in samples.keys():
+    for l in sample_data.keys():
         total = df[df["Famacha label"] == l]["count"].sum()
         info[l] = total
 
     plt.clf()
-    plt.figure(figsize=(12.80, 7.20))
-    df.groupby(['id', 'Famacha label']).sum().unstack().plot(kind='bar', y='count',
+    df.groupby(['id', 'Famacha label']).sum().unstack().plot(kind='bar', y='count', figsize=(9.20, 9.20),
                                                      stacked=True,
                                                      xlabel="Transponders",
                                                      ylabel="Number of samples",
@@ -288,14 +293,14 @@ def plot_samples_distribution(out_dir, samples, filename):
 
     # pie chart
     plt.clf()
-    labels = list(samples.keys())
+    labels = list(sample_data.keys())
     sizes = []
-    for k, v in samples.items():
+    for k, v in sample_data.items():
         sizes.append(len(v))
     fig1, ax1 = plt.subplots(figsize=(12.80, 7.20))
     explode = None
     if 'cedara' in str(out_dir):
-        explode = (0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3)
+        explode = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3)
     ax1.pie(sizes, labels=labels, autopct='%1.1f%%', explode=explode,
             shadow=False, startangle=90)
     ax1.axis('equal')
@@ -305,7 +310,7 @@ def plot_samples_distribution(out_dir, samples, filename):
     plt.savefig(filepath, bbox_inches='tight')
 
     #grid chart
-    max_famacha = np.array([[x[0], x[-1]] for x in samples.keys()]).flatten().astype(int).max()
+    max_famacha = np.array([[x[0], x[-1]] for x in sample_data.keys()]).flatten().astype(int).max()
     mat_label = np.zeros((max_famacha, max_famacha), dtype=object)
     for i in range(mat_label.shape[0]):
         for j in range(mat_label.shape[1]):
@@ -316,9 +321,9 @@ def plot_samples_distribution(out_dir, samples, filename):
     for i in range(mat_value.shape[0]):
         for j in range(mat_value.shape[1]):
             k = mat_label[i, j]
-            if k not in samples:
+            if k not in sample_data:
                 continue
-            mat_value[i, j] = len(samples[k])
+            mat_value[i, j] = len(sample_data[k])
 
     yaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value)+1)][::-1]
 
