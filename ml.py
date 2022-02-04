@@ -56,8 +56,8 @@ def main(
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 5,
-    n_repeats: int = 10,
+    n_splits: int = 2,
+    n_repeats: int = 2,
     cv: str = "RepeatedStratifiedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -257,7 +257,8 @@ def main(
         # data_frame = data_frame[
         #     data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
         # ]
-        animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+        sample_dates = pd.to_datetime(data_frame['date'], format="%d/%m/%Y").values.astype(float)
+        animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
         # cv = "StratifiedLeaveTwoOut"
 
         for steps in preprocessing_steps:
@@ -284,6 +285,7 @@ def main(
                 N_META,
                 output_dir,
                 animal_ids,
+                sample_dates,
                 df_processed,
                 n_activity_days,
                 farm_id,

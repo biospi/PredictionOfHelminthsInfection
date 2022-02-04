@@ -36,7 +36,7 @@ from utils.visualisation import (
     plot_2D_decision_boundaries,
     plot_3D_decision_boundaries,
     build_proba_hist,
-)
+    build_individual_animal_pred)
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -312,6 +312,7 @@ def process_data_frame_svm(
     N_META,
     output_dir,
     animal_ids,
+    sample_dates,
     data_frame,
     days,
     farm_id,
@@ -379,6 +380,7 @@ def process_data_frame_svm(
     if cv == "LeaveOneOut":
         cross_validation_method = LeaveOneOut()
 
+    ids = data_frame["id"].values
     data_frame = data_frame.drop("id", 1)
 
     y_h = data_frame['health'].values.flatten()
@@ -468,9 +470,12 @@ def process_data_frame_svm(
         cross_validation_method,
         X,
         y,
-        y_h
+        y_h,
+        ids,
+        sample_dates
     )
 
+    build_individual_animal_pred(output_dir, class_unhealthy_label, scores, ids)
     build_proba_hist(output_dir, class_unhealthy_label, scores)
 
     # exit()
@@ -590,7 +595,9 @@ def cross_validate_custom(
     cross_validation_method,
     X,
     y,
-    y_h
+    y_h,
+    ids,
+    sample_dates
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -627,12 +634,16 @@ def cross_validate_custom(
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
             y_h_train, y_h_test = y_h[train_index], y_h[test_index]
+            ids_train, ids_test = ids[train_index], ids[test_index]
+            sample_dates_train, sample_dates_test = sample_dates[train_index], sample_dates[test_index]
             class_healthy, class_unhealthy = 0, 1
 
             # hold all extra label
             fold_index = np.array(train_index.tolist() + test_index.tolist())
             X_fold = X[fold_index]
             y_fold = y[fold_index]
+            ids_fold = ids[fold_index]
+            sample_dates_fold = sample_dates[fold_index]
 
             # keep healthy and unhealthy only
             X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
@@ -640,6 +651,8 @@ def cross_validate_custom(
 
             X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
             y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+            ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+            sample_dates_test = sample_dates_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
 
             clf.fit(X_train, y_train)
 
@@ -669,6 +682,7 @@ def cross_validate_custom(
             precision, recall, fscore, support = precision_recall_fscore_support(
                 y_test, y_pred
             )
+            correct_predictions = (y_test == y_pred).astype(int)
 
             fold_result = {
                 "target": int(class_unhealthy),
@@ -676,6 +690,9 @@ def cross_validate_custom(
                 "class_healthy": int(class_healthy),
                 "class_unhealthy": int(class_unhealthy),
                 "y_test": y_test.tolist(),
+                "ids_test": ids_test.tolist(),
+                "sample_dates_test": sample_dates_test.tolist(),
+                "correct_predictions": correct_predictions.tolist(),
                 "test_precision_score_0": float(precision[0]),
                 "test_precision_score_1": float(precision[1]),
                 "test_recall_0": float(recall[0]),
@@ -692,10 +709,12 @@ def cross_validate_custom(
                 label = label_series[y_f]
                 X_test = X_fold[y_fold == y_f]
                 y_test = y_fold[y_fold == y_f]
+                ids_test = ids_fold[y_fold == y_f]
                 y_pred_proba = clf.predict_proba(X_test)
                 fold_proba = {
                     "test_y_pred_proba_0": y_pred_proba[:, 0].tolist(),
                     "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
+                    "ids_test": ids_test.tolist()
                 }
                 fold_probas[label].append(fold_proba)
 
@@ -1078,7 +1097,7 @@ def makeYHist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
 #     return model_files
 
 
-def process_clf(label_series_f1, label_series_f2, info_, steps, n_fold,
+def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fold,
                 X_train, X_test, y_train, y_test, output_dir, n_job=None):
     """Trains multiple model with n 90% samples
     Args:
@@ -1111,7 +1130,7 @@ def process_clf(label_series_f1, label_series_f2, info_, steps, n_fold,
     while True:
         df = pd.DataFrame(X_train)
         df['target'] = y_train
-        fold = df.sample(frac=0.9, random_state=cpt_fold)
+        fold = df.sample(frac=train_size, random_state=cpt_fold)
         y = fold["target"].values
         fold = fold.drop("target", 1)
         X = fold.values
@@ -1133,28 +1152,28 @@ def process_clf(label_series_f1, label_series_f2, info_, steps, n_fold,
     aucs_roc = []
     for i, (X_t, y_t) in enumerate(folds):
         print(f"progress {i}/{n_fold} ...")
-        y_t = binarize(y_t.copy())
-        y_test = binarize(y_test)
-        clf_svc = SVC(kernel="rbf", probability=True, class_weight="balanced")
-        tuned_parameters = [
-            {
-                "kernel": ["rbf"],
-                "gamma": ["scale", 1e-1, 1e-3, 1e-4],
-                "class_weight": [None, "balanced"],
-                "C": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000],
-            },
-            {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
-        ]
+        #y_t = binarize(y_t.copy())
+        #y_test = binarize(y_test)
+        clf = SVC(kernel="linear", probability=True, class_weight="balanced")
+        # tuned_parameters = [
+        #     {
+        #         "kernel": ["rbf"],
+        #         "gamma": ["scale", 1e-1, 1e-3, 1e-4],
+        #         "class_weight": [None, "balanced"],
+        #         "C": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000],
+        #     },
+        #     {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
+        # ]
 
-        clf = GridSearchCV(
-            clf_svc,
-            tuned_parameters,
-            scoring=["roc_auc", "accuracy", "precision"],
-            refit="accuracy",
-            n_jobs=-1,
-        )
+        # clf = GridSearchCV(
+        #     clf_svc,
+        #     tuned_parameters,
+        #     scoring=["roc_auc", "accuracy", "precision"],
+        #     refit="accuracy",
+        #     n_jobs=-1,
+        # )
         clf.fit(X_t.copy(), y_t.copy())
-        clf_best = clf.best_estimator_
+        clf_best = clf
         print("Best estimator from gridsearch=")
         print(clf_best)
         y_pred = clf.predict(X_test.copy())

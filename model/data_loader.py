@@ -20,6 +20,9 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     hearder[-1] = 'date'
     data_frame.columns = hearder
 
+    #cast transponder ids to string instead of float
+    data_frame['id'] = data_frame['id'].astype(str).str.split('.', expand = True, n=0)[0]
+
     if day is not None:
         df_activity_window = data_frame.iloc[:, 0:day*24*60]
         df_meta = data_frame.iloc[:, -N_META:]
@@ -163,22 +166,22 @@ def plot_samples_distribution(out_dir, samples_, filename):
     plt.savefig(filepath, bbox_inches = 'tight')
 
     # pie chart
-    plt.clf()
-    labels = list(sample_data.keys())
-    sizes = []
-    for k, v in sample_data.items():
-        sizes.append(len(v))
-    fig1, ax1 = plt.subplots(figsize=(12.80, 7.20))
-    explode = None
-    if 'cedara' in str(out_dir):
-        explode = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3)
-    ax1.pie(sizes, labels=labels, autopct='%1.1f%%', explode=explode,
-            shadow=False, startangle=90)
-    ax1.axis('equal')
-    ax1.set_title(f"Famacha transition of samples across herd\n{info}")
-    filepath = str(out_dir / f'pie_{filename}')
-    print(filepath)
-    plt.savefig(filepath, bbox_inches='tight')
+    # plt.clf()
+    # labels = list(sample_data.keys())
+    # sizes = []
+    # for k, v in sample_data.items():
+    #     sizes.append(len(v))
+    # fig1, ax1 = plt.subplots(figsize=(12.80, 7.20))
+    # explode = None
+    # if 'cedara' in str(out_dir):
+    #     explode = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3)
+    # ax1.pie(sizes, labels=labels, autopct='%1.1f%%', explode=explode,
+    #         shadow=False, startangle=90)
+    # ax1.axis('equal')
+    # ax1.set_title(f"Famacha transition of samples across herd\n{info}")
+    # filepath = str(out_dir / f'pie_{filename}')
+    # print(filepath)
+    # plt.savefig(filepath, bbox_inches='tight')
 
     #grid chart
     max_famacha = np.array([[x[0], x[-1]] for x in sample_data.keys()]).flatten().astype(int).max()

@@ -1605,6 +1605,82 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
     print("build_roc_curve...")
 
 
+def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
+    print("build_individual_animal_pred...")
+    for k, v in scores.items():
+        if 'probas' in k:
+            continue
+        #prepare data holder
+        data_c, data_u = {}, {}
+
+        for id in ids:
+            data_c[id] = 0
+            data_u[id] = 0
+
+        score = scores[k]
+        data_dates, data_corr, data_ids = [], [], []
+        for s in score:
+            dates = pd.to_datetime(s['sample_dates_test']).tolist()
+            correct_predictions = s['correct_predictions']
+            ids_test = s['ids_test']
+
+            data_dates.extend(dates)
+            data_corr.extend(correct_predictions)
+            data_ids.extend(ids_test)
+
+            for i in range(len(ids_test)):
+                if correct_predictions[i] == 1:
+                    data_c[ids_test[i]] += data_c[ids_test[i]] + 1
+                else:
+                    data_u[ids_test[i]] += data_u[ids_test[i]] + 1
+
+        #print figure
+        labels = list(data_c.keys())
+        correct_pred = list(data_c.values())
+        uncorrect_pred = list(data_u.values())
+        df = pd.DataFrame({'correct prediction': correct_pred,
+                           'uncorrect prediction': uncorrect_pred}, index=labels)
+        ax = df.plot.bar(rot=90, log=True, title=f'Classifier predictions per individual label_unhealthy={label_unhealthy}')
+        ax.set_xlabel("Animals")
+        ax.set_ylabel('Number of predictions')
+        fig = ax.get_figure()
+        filepath = output_dir / f"predictions_per_individual_{k}.png"
+        print(filepath)
+        fig.tight_layout()
+        fig.savefig(filepath)
+
+        #figure with time
+        df = pd.DataFrame({"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids})
+        dfs = [group for _, group in df.groupby(df['data_dates'].dt.strftime('%B'))]
+
+        fig, axs = plt.subplots(3, int(np.ceil(len(dfs)/3)), facecolor='white', figsize=(24.0, 10.80))
+        fig.suptitle(f'Classifier predictions per individual across study time label_unhealthy={label_unhealthy}',
+                     fontsize=14)
+        axs = axs.ravel()
+
+        for i, d in enumerate(dfs):
+            data_c, data_u = {}, {}
+            for id in ids:
+                data_c[id] = 0
+                data_u[id] = 0
+            for index, row in d.iterrows():
+                if row['data_corr'] == 1:
+                    data_c[row['data_ids']] += data_c[row['data_ids']] + 1
+                else:
+                    data_u[row['data_ids']] += data_u[row['data_ids']] + 1
+            labels = list(data_c.keys())
+            correct_pred = list(data_c.values())
+            uncorrect_pred = list(data_u.values())
+            df = pd.DataFrame({'correct prediction': correct_pred,
+                               'uncorrect prediction': uncorrect_pred}, index=labels)
+            df.plot.bar(ax=axs[i], rot=90, log=True, title=pd.to_datetime(d['data_dates'].values[0]).strftime("%B %Y"))
+            axs[i].set_ylabel('Number of predictions')
+        filepath = output_dir / f"predictions_per_individual_across_study_time_{k}.png"
+        print(filepath)
+        fig.tight_layout()
+        fig.savefig(filepath)
+
+
 def build_proba_hist(output_dir, label_unhealthy, scores):
     for k in scores.keys():
         if 'probas' not in k:
