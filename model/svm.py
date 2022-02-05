@@ -28,7 +28,7 @@ from sklearn.model_selection import (
 )
 from sklearn.svm import SVC
 
-#from utils._custom_split import StratifiedLeaveTwoOut
+# from utils._custom_split import StratifiedLeaveTwoOut
 from utils.Utils import binarize
 from utils.visualisation import (
     plot_roc_range,
@@ -37,7 +37,11 @@ from utils.visualisation import (
     plot_2D_decision_boundaries,
     plot_3D_decision_boundaries,
     build_proba_hist,
-    build_individual_animal_pred, plot_ml_report, build_report, plot_ml_report_final)
+    build_individual_animal_pred,
+    plot_ml_report,
+    build_report,
+    plot_ml_report_final,
+)
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -315,7 +319,8 @@ def process_data_frame_svm(
     animal_ids,
     sample_dates,
     data_frame,
-    days,
+    activity_days,
+    n_imputed_days,
     farm_id,
     steps,
     n_splits,
@@ -364,11 +369,12 @@ def process_data_frame_svm(
 
     if cv == "RepeatedKFoldMRNN":
         from utils._custom_split import RepeatedKFoldCustom
+
         cross_validation_method = RepeatedKFoldCustom(
             2,
             2,
             metadata=None,
-            days=days,
+            days=activity_days,
             farmname="delmas",
             method="MRNN",
             out_dir=output_dir,
@@ -384,10 +390,12 @@ def process_data_frame_svm(
     ids = data_frame["id"].values
     data_frame = data_frame.drop("id", 1)
 
-    y_h = data_frame['health'].values.flatten()
+    y_h = data_frame["health"].values.flatten()
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
-    X = data_frame[data_frame.columns[0: data_frame.shape[1] - 2]].values #remove target and health columns
+    X = data_frame[
+        data_frame.columns[0 : data_frame.shape[1] - 2]
+    ].values  # remove target and health columns
 
     print("release data_frame memory...")
     del data_frame
@@ -428,20 +436,34 @@ def process_data_frame_svm(
         output_dir,
         steps,
         cv,
-        days,
+        activity_days,
         label_series,
         cross_validation_method,
         X,
         y,
         y_h,
         ids,
-        sample_dates
+        sample_dates,
     )
 
     build_individual_animal_pred(output_dir, class_unhealthy_label, scores, ids)
     build_proba_hist(output_dir, class_unhealthy_label, scores_proba)
-    build_report(output_dir, scores, y_h, steps, farm_id, sampling, downsample_false_class, days, cv,
-                 cross_validation_method, class_healthy_label, class_unhealthy_label)
+    build_report(
+        output_dir,
+        n_imputed_days,
+        activity_days,
+        scores,
+        y_h,
+        steps,
+        farm_id,
+        sampling,
+        downsample_false_class,
+        activity_days,
+        cv,
+        cross_validation_method,
+        class_healthy_label,
+        class_unhealthy_label,
+    )
     plot_ml_report_final(output_dir.parent.parent.parent)
 
 
@@ -456,7 +478,7 @@ def cross_validate_custom(
     y,
     y_h,
     ids,
-    sample_dates
+    sample_dates,
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -494,7 +516,10 @@ def cross_validate_custom(
             y_train, y_test = y[train_index], y[test_index]
             y_h_train, y_h_test = y_h[train_index], y_h[test_index]
             ids_train, ids_test = ids[train_index], ids[test_index]
-            sample_dates_train, sample_dates_test = sample_dates[train_index], sample_dates[test_index]
+            sample_dates_train, sample_dates_test = (
+                sample_dates[train_index],
+                sample_dates[test_index],
+            )
             class_healthy, class_unhealthy = 0, 1
 
             # hold all extra label
@@ -511,13 +536,17 @@ def cross_validate_custom(
             X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
             y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
             ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
-            sample_dates_test = sample_dates_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+            sample_dates_test = sample_dates_test[
+                np.isin(y_h_test, [class_healthy, class_unhealthy])
+            ]
 
             start_time = time.time()
             clf.fit(X_train, y_train)
             fit_time = time.time() - start_time
 
-            models_dir = out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+            models_dir = (
+                out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+            )
             models_dir.mkdir(parents=True, exist_ok=True)
             filename = models_dir / f"model_{ifold}.pkl"
             print("saving classifier...")
@@ -572,7 +601,7 @@ def cross_validate_custom(
                 "test_fscore_1": float(fscore[1]),
                 "test_support_0": float(support[0]),
                 "test_support_1": float(support[1]),
-                "fit_time": fit_time
+                "fit_time": fit_time,
             }
             fold_results.append(fold_result)
 
@@ -586,7 +615,7 @@ def cross_validate_custom(
                 fold_proba = {
                     "test_y_pred_proba_0": y_pred_proba[:, 0].tolist(),
                     "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
-                    "ids_test": ids_test.tolist()
+                    "ids_test": ids_test.tolist(),
                 }
                 fold_probas[label].append(fold_proba)
 
@@ -611,11 +640,11 @@ def cross_validate_custom(
     print("export results to json...")
     filepath = out_dir / "results.json"
     print(filepath)
-    with open(str(filepath), 'w') as fp:
+    with open(str(filepath), "w") as fp:
         json.dump(scores, fp)
     filepath = out_dir / "results_proba.json"
     print(filepath)
-    with open(str(filepath), 'w') as fp:
+    with open(str(filepath), "w") as fp:
         json.dump(scores_proba, fp)
 
     return scores, scores_proba
@@ -973,8 +1002,20 @@ def makeYHist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
 #     return model_files
 
 
-def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fold,
-                X_train, X_test, y_train, y_test, output_dir, n_job=None):
+def process_clf(
+    train_size,
+    label_series_f1,
+    label_series_f2,
+    info_,
+    steps,
+    n_fold,
+    X_train,
+    X_test,
+    y_train,
+    y_test,
+    output_dir,
+    n_job=None,
+):
     """Trains multiple model with n 90% samples
     Args:
         label_series_f1: famacha/target dict for famr1
@@ -991,7 +1032,7 @@ def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fo
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     label_series_f1_r = {v: k for k, v in label_series_f1.items()}
     label_series_f2_r = {v: k for k, v in label_series_f2.items()}
-    #prep the data
+    # prep the data
     mask = np.isin(y_train, [0, 1])
     X_train = X_train[mask]
     y_train = y_train[mask]
@@ -1000,12 +1041,12 @@ def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fo
     X_test = X_test[mask]
     y_test = y_test[mask]
 
-    #build 90% folds
+    # build 90% folds
     folds = []
     cpt_fold = 0
     while True:
         df = pd.DataFrame(X_train)
-        df['target'] = y_train
+        df["target"] = y_train
         fold = df.sample(frac=train_size, random_state=cpt_fold)
         y = fold["target"].values
         fold = fold.drop("target", 1)
@@ -1028,8 +1069,8 @@ def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fo
     aucs_roc = []
     for i, (X_t, y_t) in enumerate(folds):
         print(f"progress {i}/{n_fold} ...")
-        #y_t = binarize(y_t.copy())
-        #y_test = binarize(y_test)
+        # y_t = binarize(y_t.copy())
+        # y_test = binarize(y_test)
         clf = SVC(kernel="linear", probability=True, class_weight="balanced")
         # tuned_parameters = [
         #     {
@@ -1056,7 +1097,7 @@ def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fo
         print(classification_report(y_test, y_pred))
         print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
 
-        pathlib.Path(output_dir / 'reports').mkdir(parents=True, exist_ok=True)
+        pathlib.Path(output_dir / "reports").mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True))
 
         filename = f"{output_dir / 'reports'}/report_{i}.csv"
@@ -1082,8 +1123,10 @@ def process_clf(train_size, label_series_f1, label_series_f2, info_, steps, n_fo
         tprs.append(interp_tpr)
         aucs_roc.append(viz_roc.roc_auc)
 
-    info = f"X_train shape:{str(X_train.shape)} healthy:{np.sum(y_train == 0)} unhealthy:{np.sum(y_train == 1)} \n " \
-           f"X_test shape:{str(X_test.shape)} healthy:{np.sum(y_test == 0)} unhealthy:{np.sum(y_test == 1)} \n {info_}"
+    info = (
+        f"X_train shape:{str(X_train.shape)} healthy:{np.sum(y_train == 0)} unhealthy:{np.sum(y_train == 1)} \n "
+        f"X_test shape:{str(X_test.shape)} healthy:{np.sum(y_test == 0)} unhealthy:{np.sum(y_test == 1)} \n {info_}"
+    )
     mean_auc = plot_roc_range(
         ax_roc,
         tprs,

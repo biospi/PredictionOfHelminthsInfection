@@ -406,10 +406,10 @@ def plot_ml_report_final(output_dir):
     print("building report visualisation...")
     dfs = []
     label_dict = {}
-    paths = list(output_dir.glob('**/*.csv'))
+    paths = list(output_dir.glob("**/*.csv"))
 
     for path in paths:
-        if 'report' not in str(path):
+        if "report" not in str(path):
             continue
         df = pd.read_csv(str(path), index_col=None)
         medians = []
@@ -773,7 +773,17 @@ def plot_pr_range(
 
 
 def plot_roc_range(
-    ax, tprs, mean_fpr, aucs, out_dir, classifier_name, fig, cv_name, days, info="None", tag=''
+    ax,
+    tprs,
+    mean_fpr,
+    aucs,
+    out_dir,
+    classifier_name,
+    fig,
+    cv_name,
+    days,
+    info="None",
+    tag="",
 ):
     ax.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -785,7 +795,9 @@ def plot_roc_range(
     # std_auc = np.std(aucs)
     lo, hi = mean_confidence_interval(aucs)
 
-    label = f"Mean ROC (Median AUC = {np.median(aucs):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+    label = (
+        f"Mean ROC (Median AUC = {np.median(aucs):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+    )
     if len(aucs) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs)
     ax.plot(mean_fpr, mean_tpr, color="black", label=label, lw=2, alpha=1)
@@ -793,7 +805,7 @@ def plot_roc_range(
     ax.set(
         xlim=[-0.05, 1.05],
         ylim=[-0.05, 1.05],
-        title=f"Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}"
+        title=f"Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
     )
     ax.legend(loc="lower right")
     # fig.show()
@@ -831,6 +843,7 @@ def figures_to_html(figs, filename="dashboard.html"):
         inner_html = fig.to_html().split("<body>")[1].split("</body>")[0]
         dashboard.write(inner_html)
     dashboard.write("</body></html>" + "\n")
+
 
 # def figures_to_html(figs, out_dir, ncol=2, maxrow=15):
 #     fig_list = chunks(figs, maxrow*2)
@@ -874,6 +887,7 @@ def figures_to_html(figs, filename="dashboard.html"):
 #     #
 #     # dashboard.write("</body></html>" + "\n")
 #
+
 
 def rolling_window(array, window_size, freq):
     shape = (array.shape[0] - window_size + 1, window_size)
@@ -1585,7 +1599,7 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
 def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
     print("build_individual_animal_pred...")
     for k, v in scores.items():
-        #prepare data holder
+        # prepare data holder
         data_c, data_u = {}, {}
 
         for id in ids:
@@ -1595,9 +1609,9 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
         score = scores[k]
         data_dates, data_corr, data_ids = [], [], []
         for s in score:
-            dates = pd.to_datetime(s['sample_dates_test']).tolist()
-            correct_predictions = s['correct_predictions']
-            ids_test = s['ids_test']
+            dates = pd.to_datetime(s["sample_dates_test"]).tolist()
+            correct_predictions = s["correct_predictions"]
+            ids_test = s["ids_test"]
 
             data_dates.extend(dates)
             data_corr.extend(correct_predictions)
@@ -1609,28 +1623,43 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
                 else:
                     data_u[ids_test[i]] += data_u[ids_test[i]] + 1
 
-        #print figure
+        # print figure
         labels = list(data_c.keys())
         correct_pred = list(data_c.values())
         uncorrect_pred = list(data_u.values())
-        df = pd.DataFrame({'correct prediction': correct_pred,
-                           'uncorrect prediction': uncorrect_pred}, index=labels)
-        ax = df.plot.bar(rot=90, log=True, title=f'Classifier predictions per individual label_unhealthy={label_unhealthy}')
+        df = pd.DataFrame(
+            {
+                "correct prediction": correct_pred,
+                "uncorrect prediction": uncorrect_pred,
+            },
+            index=labels,
+        )
+        ax = df.plot.bar(
+            rot=90,
+            log=True,
+            title=f"Classifier predictions per individual label_unhealthy={label_unhealthy}",
+        )
         ax.set_xlabel("Animals")
-        ax.set_ylabel('Number of predictions')
+        ax.set_ylabel("Number of predictions")
         fig = ax.get_figure()
         filepath = output_dir / f"predictions_per_individual_{k}.png"
         print(filepath)
         fig.tight_layout()
         fig.savefig(filepath)
 
-        #figure with time
-        df = pd.DataFrame({"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids})
-        dfs = [group for _, group in df.groupby(df['data_dates'].dt.strftime('%B'))]
+        # figure with time
+        df = pd.DataFrame(
+            {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids}
+        )
+        dfs = [group for _, group in df.groupby(df["data_dates"].dt.strftime("%B"))]
 
-        fig, axs = plt.subplots(3, int(np.ceil(len(dfs)/3)), facecolor='white', figsize=(24.0, 10.80))
-        fig.suptitle(f'Classifier predictions per individual across study time label_unhealthy={label_unhealthy}',
-                     fontsize=14)
+        fig, axs = plt.subplots(
+            3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(24.0, 10.80)
+        )
+        fig.suptitle(
+            f"Classifier predictions per individual across study time label_unhealthy={label_unhealthy}",
+            fontsize=14,
+        )
         axs = axs.ravel()
 
         for i, d in enumerate(dfs):
@@ -1639,17 +1668,27 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
                 data_c[id] = 0
                 data_u[id] = 0
             for index, row in d.iterrows():
-                if row['data_corr'] == 1:
-                    data_c[row['data_ids']] += data_c[row['data_ids']] + 1
+                if row["data_corr"] == 1:
+                    data_c[row["data_ids"]] += data_c[row["data_ids"]] + 1
                 else:
-                    data_u[row['data_ids']] += data_u[row['data_ids']] + 1
+                    data_u[row["data_ids"]] += data_u[row["data_ids"]] + 1
             labels = list(data_c.keys())
             correct_pred = list(data_c.values())
             uncorrect_pred = list(data_u.values())
-            df = pd.DataFrame({'correct prediction': correct_pred,
-                               'uncorrect prediction': uncorrect_pred}, index=labels)
-            df.plot.bar(ax=axs[i], rot=90, log=True, title=pd.to_datetime(d['data_dates'].values[0]).strftime("%B %Y"))
-            axs[i].set_ylabel('Number of predictions')
+            df = pd.DataFrame(
+                {
+                    "correct prediction": correct_pred,
+                    "uncorrect prediction": uncorrect_pred,
+                },
+                index=labels,
+            )
+            df.plot.bar(
+                ax=axs[i],
+                rot=90,
+                log=True,
+                title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
+            )
+            axs[i].set_ylabel("Number of predictions")
         filepath = output_dir / f"predictions_per_individual_across_study_time_{k}.png"
         print(filepath)
         fig.tight_layout()
@@ -1664,7 +1703,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             data_list = score[label]
             label_data = []
             for elem in data_list:
-                data_array = elem['test_y_pred_proba_1']
+                data_array = elem["test_y_pred_proba_1"]
                 label_data.append(data_array)
             hist_data[label] = np.concatenate(label_data)
 
@@ -1680,23 +1719,23 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
         for key, value in hist_data.items():
             plt.hist(value, density=True, bins=50, alpha=0.5, label=f"{key}")
             plt.xlim(xmin=0, xmax=1)
-            plt.title(
-                f"Histograms of prediction probabilities\n{info}"
-            )
+            plt.title(f"Histograms of prediction probabilities\n{info}")
 
-        plt.axvline(x=0.5, color='gray', ls='--')
+        plt.axvline(x=0.5, color="gray", ls="--")
         plt.legend(loc="upper right")
-        #plt.show()
+        # plt.show()
         filename = f"histogram_of_prob_{k}.png"
         out = output_dir / filename
         print(out)
         plt.savefig(str(out))
 
-        fig, axs = plt.subplots(2, 2, facecolor='white', figsize=(24.0, 10.80))
-        if 'cedara' in str(output_dir):
-            fig, axs = plt.subplots(3, 7, facecolor='white', figsize=(24.0, 8.80))
+        fig, axs = plt.subplots(2, 2, facecolor="white", figsize=(24.0, 10.80))
+        if "cedara" in str(output_dir):
+            fig, axs = plt.subplots(3, 7, facecolor="white", figsize=(24.0, 8.80))
 
-        fig.suptitle(f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14)
+        fig.suptitle(
+            f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14
+        )
         axs = axs.ravel()
         for i, (key, value) in enumerate(sorted(hist_data.items())):
             # axs[i].set_xlabel(f"Probability to be unhealthy({label_unhealthy})", size=14)
@@ -1706,7 +1745,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             # axs[i].set_title(
             #     f"Histograms of prediction probabilities {key}"
             # )
-            axs[i].axvline(x=0.5, color='gray', ls='--')
+            axs[i].axvline(x=0.5, color="gray", ls="--")
             axs[i].legend(loc="upper right")
             # plt.show()
         filename = f"histogram_of_prob_{k}_grid.png"
@@ -1770,7 +1809,22 @@ def plot_histogram(x, farm_id, threshold_gap, title):
     # fig.savefig('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
 
 
-def build_report(output_dir, data, y, steps, farm_id, sampling, downsample, days, cv, cross_validation_method, class_healthy_label, class_unhealthy_label):
+def build_report(
+    output_dir,
+    n_imputed_days,
+    activity_days,
+    data,
+    y,
+    steps,
+    farm_id,
+    sampling,
+    downsample,
+    days,
+    cv,
+    cross_validation_method,
+    class_healthy_label,
+    class_unhealthy_label,
+):
 
     for k, v in data.items():
         scores = {}
@@ -1783,22 +1837,24 @@ def build_report(output_dir, data, y, steps, farm_id, sampling, downsample, days
         aucs = []
         fit_times = []
         for item in v:
-            test_precision_score0.append(item['test_precision_score_0'])
-            test_precision_score1.append(item['test_precision_score_1'])
-            test_precision_recall0.append(item['test_recall_0'])
-            test_precision_recall1.append(item['test_recall_1'])
-            test_precision_fscore0.append(item['test_fscore_0'])
-            test_precision_fscore1.append(item['test_fscore_1'])
-            test_precision_support0.append(item['test_support_0'])
-            test_precision_support1.append(item['test_support_1'])
-            fit_times.append(item['fit_time'])
+            test_precision_score0.append(item["test_precision_score_0"])
+            test_precision_score1.append(item["test_precision_score_1"])
+            test_precision_recall0.append(item["test_recall_0"])
+            test_precision_recall1.append(item["test_recall_1"])
+            test_precision_fscore0.append(item["test_fscore_0"])
+            test_precision_fscore1.append(item["test_fscore_1"])
+            test_precision_support0.append(item["test_support_0"])
+            test_precision_support1.append(item["test_support_1"])
+            fit_times.append(item["fit_time"])
             test_balanced_accuracy_score.append(item["accuracy"])
-            aucs.append(item['auc'])
+            aucs.append(item["auc"])
 
         scores["downsample"] = downsample
         scores["class0"] = y[y == 0].size
         scores["class1"] = y[y == 1].size
-        scores["steps"] = steps
+        scores[
+            "steps"
+        ] = f"ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->{steps}"
         scores["days"] = days
         scores["farm_id"] = farm_id
         scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)
@@ -1838,7 +1894,7 @@ def build_report(output_dir, data, y, steps, farm_id, sampling, downsample, days
         out.mkdir(parents=True, exist_ok=True)
         filename = (
             out
-            / f"{k}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
+            / f"{k}_{str(class_unhealthy_label)}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
         )
         df_report.to_csv(filename, sep=",", index=False)
         print("filename=", filename)

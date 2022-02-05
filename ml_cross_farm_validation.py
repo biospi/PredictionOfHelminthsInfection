@@ -33,7 +33,7 @@ def main(
     class_unhealthy_f1: List[str] = ["2To2"],
     class_healthy_f2: List[str] = ["1To1"],
     class_unhealthy_f2: List[str] = ["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "CWT"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     n_fold: int = 50,
     n_imputed_days: int = 7,
     n_activity_days: int = 7,

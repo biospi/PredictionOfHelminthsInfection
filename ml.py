@@ -46,7 +46,7 @@ def main(
     preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
-    imputed_days: int = 7,
+    n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
@@ -131,7 +131,7 @@ def main(
             n_activity_days,
             class_healthy_label,
             class_unhealthy_label,
-            imputed_days=imputed_days,
+            imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
         )
 
@@ -282,6 +282,7 @@ def main(
                 sample_dates,
                 df_processed,
                 n_activity_days,
+                n_imputed_days,
                 farm_id,
                 step_slug,
                 n_splits,

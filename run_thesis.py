@@ -22,8 +22,8 @@ def main(
         steps = [["QN", "ANSCOMBE", "LOG"]]
         slug = "_".join(steps[0])
 
-        for i_day in [7]:
-            for a_day in [7]:
+        for i_day in [7, 0]:
+            for a_day in [7, 1]:
                 for cv in ['RepeatedKFold', 'RepeatedStratifiedKFold']:
                     main_experiment.main(
                         output_dir=output_dir
@@ -32,7 +32,7 @@ def main(
                         / "2To2",
                         dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
                         preprocessing_steps=steps,
-                        imputed_days=i_day,
+                        n_imputed_days=i_day,
                         n_activity_days=a_day,
                         cv=cv
                     )
@@ -44,7 +44,7 @@ def main(
                         / "1To2",
                         dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
                         preprocessing_steps=steps,
-                        imputed_days=i_day,
+                        n_imputed_days=i_day,
                         n_activity_days=a_day,
                         class_unhealthy_label=["1To2"],
                         cv=cv
@@ -57,7 +57,7 @@ def main(
                         / "2To2",
                         dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
                         preprocessing_steps=steps,
-                        imputed_days=i_day,
+                        n_imputed_days=i_day,
                         n_activity_days=a_day,
                         class_unhealthy_label=["2To2"],
                         cv=cv
@@ -70,7 +70,7 @@ def main(
                         / "4To4_3To5_4To3_5To3_2To5_2To2",
                         dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
                         preprocessing_steps=steps,
-                        imputed_days=i_day,
+                        n_imputed_days=i_day,
                         n_activity_days=a_day,
                         class_unhealthy_label=[
                             "4To4",
