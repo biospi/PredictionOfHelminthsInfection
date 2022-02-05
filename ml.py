@@ -23,7 +23,6 @@
 
 # %%
 
-import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -34,11 +33,7 @@ from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
-    plotHeatmap,
-)
-from utils.visualisation import (
-    plotMlReport,
-)
+    plotHeatmap)
 
 
 def main(
@@ -56,8 +51,8 @@ def main(
     n_scales: int = 8,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 2,
-    n_repeats: int = 2,
+    n_splits: int = 5,
+    n_repeats: int = 10,
     cv: str = "RepeatedStratifiedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -85,7 +80,6 @@ def main(
     """
 
     enable_downsample_df = False
-    day = int([a for a in dataset_folder.name.split("_") if "day" in a][0][0])
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
 
@@ -325,26 +319,9 @@ def main(
         #     process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, df_processed, days, farm_id, step_slug, n_splits, n_repeats, sampling,
         #                    enable_downsample_df, label_series, class_healthy, class_unhealthy, cv=cv)
 
-    # output_dir = output_dir / cv
-    # output_dir.mkdir(parents=True, exist_ok=True)
-    # files = [
-    #     output_dir / file for file in os.listdir(output_dir) if file.endswith(".csv")
-    # ]
-    # print("found %d files." % len(files))
-    # if len(files) == 0:
-    #     return
-    # print("compiling final file...")
-    #
-    # dfs = [pd.read_csv(file, sep=",") for file in files]
-    # df_final = pd.concat(dfs)
-    # filename = output_dir / "final_classification_report.csv"
-    # df_final.to_csv(filename, sep=",", index=False)
-    # print(df_final)
-    # plotMlReport(filename, output_dir)
-
 
 if __name__ == "__main__":
-    # typer.run(main)
+    typer.run(main)
 
     # --output-dir E:\Data2\debug\mrnn_median_ml\debug --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
     # --output-dir E:\Data2\debug\mrnn_median_ml\debug\cedara --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
@@ -422,15 +399,15 @@ if __name__ == "__main__":
     # print(df_final)
     # plotMlReport(filename, output_dir)
 
-    steps = [["QN", "ANSCOMBE", "LOG"]]
-    slug = "_".join(steps[0])
-    day = 7
-    main(
-        output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-        dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-        preprocessing_steps=steps,
-    )
-
-    main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-         dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-         imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+    # steps = [["QN", "ANSCOMBE", "LOG"]]
+    # slug = "_".join(steps[0])
+    # day = 7
+    # main(
+    #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+    #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+    #     preprocessing_steps=steps,
+    # )
+    #
+    # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+    #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+    #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])

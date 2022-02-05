@@ -22,7 +22,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from cwt._cwt import compute_spectogram_matlab
-from utils.visualisation import plotMlReport, plotMlReportFinal
+from utils.visualisation import plot_ml_report, plot_ml_report_final
 
 
 def mean_confidence_interval(x):

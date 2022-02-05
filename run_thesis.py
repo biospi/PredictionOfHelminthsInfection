@@ -22,8 +22,8 @@ def main(
         steps = [["QN", "ANSCOMBE", "LOG"]]
         slug = "_".join(steps[0])
 
-        for i_day in [7, 3, 0]:
-            for a_day in [7, 6, 5, 4, 3, 2, 1]:
+        for i_day in [7]:
+            for a_day in [7]:
                 for cv in ['RepeatedKFold', 'RepeatedStratifiedKFold']:
                     main_experiment.main(
                         output_dir=output_dir

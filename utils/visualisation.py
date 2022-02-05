@@ -1,6 +1,7 @@
 import os
 import pathlib
 import random
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -401,19 +402,15 @@ def formatForBoxPlot(df):
     return formated
 
 
-def plotMlReportFinal(paths, output_dir):
+def plot_ml_report_final(output_dir):
     print("building report visualisation...")
     dfs = []
     label_dict = {}
+    paths = list(output_dir.glob('**/*.csv'))
+
     for path in paths:
-        path = path.replace("\\", "/")
-        target_label = [x for x in path.split("/")[4].split("_") if "to" in x.lower()][
-            0
-        ]
-        meta = path.split("/")[4].split("_")[-1] + "->"
-        if "night" not in meta:
-            meta = "entireday->"
-        print(target_label)
+        if 'report' not in str(path):
+            continue
         df = pd.read_csv(str(path), index_col=None)
         medians = []
         for value in df["roc_auc_scores"].values:
@@ -421,31 +418,11 @@ def plotMlReportFinal(paths, output_dir):
             medians.append(np.median(v))
         df["median_auc"] = medians
 
-        df["config"] = [
-            (
-                "%s" % meta
-                + "%s->" % target_label.upper()
-                + "%dDAYS->" % df["days"].values[0]
-                + format(str(x))
-            )
-            .replace("STANDARDSCALER", "STSC")
-            .replace("ANSCOMBE", "ANS")
-            for x in list(zip(df.steps, df.classifier))
-        ]
+        df["config"] = f"{df.steps[0]}{df.classifier[0]}"
         df = df.sort_values("median_auc")
         df = df.drop_duplicates(subset=["config"], keep="first")
-        label_dict[
-            target_label.replace("1To1", "Healthy")
-            .replace("1To2", "Unhealthy")
-            .replace("2to2", "Unhealthy")
-        ] = df["class1"].values[0]
-        label_dict[
-            df["class_0_label"]
-            .values[0]
-            .replace("1To1", "Healthy")
-            .replace("1To2", "Unhealthy")
-            .replace("2to2", "Unhealthy")
-        ] = df["class0"].values[0]
+        label_dict["UnHealthy"] = df["class1"].values[0]
+        label_dict["Healthy"] = df["class0"].values[0]
         dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
@@ -520,7 +497,7 @@ def plotMlReportFinal(paths, output_dir):
     # fig.show()
 
 
-def plotMlReport(path, output_dir):
+def plot_ml_report(clf_name, path, output_dir):
     print("building report visualisation...")
     df = pd.read_csv(str(path), index_col=None)
     medians = []
@@ -529,7 +506,7 @@ def plotMlReport(path, output_dir):
         medians.append(np.median(v))
     df["median_auc"] = medians
 
-    df["config"] = [format(str(x)) for x in list(zip(df.steps, df.classifier))]
+    df["config"] = f"{df.steps[0]}{df.classifier[0]}"
     df = df.sort_values("median_auc")
     df = df.drop_duplicates(subset=["config"], keep="first")
     print(df)
@@ -613,7 +590,7 @@ def plotMlReport(path, output_dir):
     fig.update_yaxes(showgrid=True, gridwidth=1)
     fig.update_xaxes(showgrid=True, gridwidth=1)
     output_dir.mkdir(parents=True, exist_ok=True)
-    filepath = output_dir / "ML_performance_2.html"
+    filepath = output_dir / f"ML_performance_{clf_name}.html"
     print(filepath)
     fig.write_html(str(filepath))
     # fig.show()
@@ -1608,8 +1585,6 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
 def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
     print("build_individual_animal_pred...")
     for k, v in scores.items():
-        if 'probas' in k:
-            continue
         #prepare data holder
         data_c, data_u = {}, {}
 
@@ -1683,8 +1658,6 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
 
 def build_proba_hist(output_dir, label_unhealthy, scores):
     for k in scores.keys():
-        if 'probas' not in k:
-            continue
         score = scores[k]
         hist_data = {}
         for label in score.keys():
@@ -1795,6 +1768,81 @@ def plot_histogram(x, farm_id, threshold_gap, title):
     # plt.show()
     # print('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
     # fig.savefig('histogram_of_gap_duration_%s_%d.png' % (farm_id, threshold_gap))
+
+
+def build_report(output_dir, data, y, steps, farm_id, sampling, downsample, days, cv, cross_validation_method, class_healthy_label, class_unhealthy_label):
+
+    for k, v in data.items():
+        scores = {}
+        report_rows_list = []
+        test_precision_score0, test_precision_score1 = [], []
+        test_precision_recall0, test_precision_recall1 = [], []
+        test_precision_fscore0, test_precision_fscore1 = [], []
+        test_precision_support0, test_precision_support1 = [], []
+        test_balanced_accuracy_score = []
+        aucs = []
+        fit_times = []
+        for item in v:
+            test_precision_score0.append(item['test_precision_score_0'])
+            test_precision_score1.append(item['test_precision_score_1'])
+            test_precision_recall0.append(item['test_recall_0'])
+            test_precision_recall1.append(item['test_recall_1'])
+            test_precision_fscore0.append(item['test_fscore_0'])
+            test_precision_fscore1.append(item['test_fscore_1'])
+            test_precision_support0.append(item['test_support_0'])
+            test_precision_support1.append(item['test_support_1'])
+            fit_times.append(item['fit_time'])
+            test_balanced_accuracy_score.append(item["accuracy"])
+            aucs.append(item['auc'])
+
+        scores["downsample"] = downsample
+        scores["class0"] = y[y == 0].size
+        scores["class1"] = y[y == 1].size
+        scores["steps"] = steps
+        scores["days"] = days
+        scores["farm_id"] = farm_id
+        scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)
+        scores["test_balanced_accuracy_score"] = test_balanced_accuracy_score
+        scores["precision_score0_mean"] = np.mean(test_precision_score0)
+        scores["test_precision_score0"] = test_precision_score0
+        scores["precision_score1_mean"] = np.mean(test_precision_score1)
+        scores["test_precision_score1"] = test_precision_score1
+        scores["recall_score0_mean"] = np.mean(test_precision_recall0)
+        scores["test_recall_score0"] = test_precision_recall0
+        scores["recall_score1_mean"] = np.mean(test_precision_recall1)
+        scores["test_recall_score1"] = test_precision_recall1
+        scores["f1_score0_mean"] = np.mean(test_precision_recall0)
+        scores["f1_score1_mean"] = np.mean(test_precision_recall1)
+        scores["test_f1_score0"] = test_precision_fscore0
+        scores["test_f1_score1"] = test_precision_fscore1
+        scores["sampling"] = sampling
+        scores["classifier"] = f"->{k}"
+        scores["classifier_details"] = k
+        scores["roc_auc_score_mean"] = np.mean(aucs)
+        scores["roc_auc_scores"] = aucs
+        scores["fit_time"] = fit_times
+        report_rows_list.append(scores)
+
+        df_report = pd.DataFrame(report_rows_list)
+
+        df_report["class_0_label"] = str(class_healthy_label)
+        df_report["class_1_label"] = str(class_unhealthy_label)
+        df_report["nfold"] = cross_validation_method.get_n_splits()
+
+        df_report["total_fit_time"] = [
+            time.strftime("%H:%M:%S", time.gmtime(np.nansum(x)))
+            for x in df_report["fit_time"].values
+        ]
+
+        out = output_dir / cv
+        out.mkdir(parents=True, exist_ok=True)
+        filename = (
+            out
+            / f"{k}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
+        )
+        df_report.to_csv(filename, sep=",", index=False)
+        print("filename=", filename)
+        plot_ml_report(k, filename, out)
 
 
 if __name__ == "__main__":

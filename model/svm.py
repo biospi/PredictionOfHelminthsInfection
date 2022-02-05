@@ -1,5 +1,6 @@
 import os
 import pathlib
+import pickle
 import time
 from multiprocessing import Manager, Pool
 from pathlib import Path
@@ -36,7 +37,7 @@ from utils.visualisation import (
     plot_2D_decision_boundaries,
     plot_3D_decision_boundaries,
     build_proba_hist,
-    build_individual_animal_pred)
+    build_individual_animal_pred, plot_ml_report, build_report, plot_ml_report_final)
 
 
 def downsampleDf(data_frame, class_healthy, class_unhealthy):
@@ -422,46 +423,8 @@ def process_data_frame_svm(
     class0_count = str(y_h[y_h == 0].size)
     class1_count = str(y_h[y_h == 1].size)
     print("X-> class0=" + class0_count + " class1=" + class1_count)
-    # try:
-    #     if int(class1_count) < 2 or int(class0_count) < 2:
-    #         print("not enough samples!")
-    #         return
-    # except ValueError as e:
-    #     print(e)
-    #     return
-    #
-    # classes_all = np.unique(y)
-    #
-    # scoring = {
-    #     "balanced_accuracy_score": make_scorer(balanced_accuracy_score),
-    #     # 'roc_auc_score': make_scorer(roc_auc_score, average='weighted'),
-    #     "precision_score0": make_scorer(
-    #         precision_score, average=None, labels=[class_healthy]
-    #     ),
-    #     "precision_score1": make_scorer(
-    #         precision_score, average=None, labels=[class_unhealthy]
-    #     ),
-    #     "recall_score0": make_scorer(
-    #         recall_score, average=None, labels=[class_healthy]
-    #     ),
-    #     "recall_score1": make_scorer(
-    #         recall_score, average=None, labels=[class_unhealthy]
-    #     ),
-    #     "f1_score0": make_scorer(f1_score, average=None, labels=[class_healthy]),
-    #     "f1_score1": make_scorer(f1_score, average=None, labels=[class_unhealthy]),
-    # }
 
-    # for c_a in classes_all:
-    #     scoring[f"precision_score{c_a}"] = make_scorer(precision_score, average=None, labels=[c_a])
-    #     scoring[f"recall_score{c_a}"] = make_scorer(recall_score, average=None, labels=[c_a])
-    #     scoring[f"f1_score{c_a}"] = make_scorer(f1_score, average=None, labels=[c_a])
-
-    # param_str = "option_%s_downsample_%s_days_%d_farmid_%s_nrepeat_%d_nsplits_%d_class0_%s_class1_%s_sampling_%s" % (
-    #     steps, str(downsample_false_class), days, farm_id, n_repeats, n_splits, class0_count,
-    #     class1_count, sampling)
-    report_rows_list = []
-
-    scores = cross_validate_custom(
+    scores, scores_proba = cross_validate_custom(
         output_dir,
         steps,
         cv,
@@ -476,114 +439,10 @@ def process_data_frame_svm(
     )
 
     build_individual_animal_pred(output_dir, class_unhealthy_label, scores, ids)
-    build_proba_hist(output_dir, class_unhealthy_label, scores)
-
-    # exit()
-    #
-    # for clf_svc in [
-    #     SVC(kernel="linear", probability=True, class_weight="balanced"),
-    #     SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    # ]:
-    #
-    #     # tuned_parameters = [{'kernel': ['rbf'], 'gamma': ['scale', 1e-1, 1e-3, 1e-4], 'class_weight': [None, 'balanced'],
-    #     #                      'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]},
-    #     #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    #     # clf = GridSearchCV(clf_svc, tuned_parameters, cv=cross_validation_method, scoring='roc_auc', n_jobs=-1)
-    #     # clf.fit(X.copy(), y.copy())
-    #     # clf_best = clf.best_estimator_
-    #     # print("Best estimator from gridsearch=")
-    #     # print(clf_best)
-    #     # scores = cross_validate(
-    #     #     clf_svc,
-    #     #     X.copy(),
-    #     #     y.copy(),
-    #     #     cv=cross_validation_method,
-    #     #     scoring=scoring,
-    #     #     n_jobs=-1,
-    #     #     return_estimator=True,
-    #     # )
-    #
-    #     scores["downsample"] = downsample_false_class
-    #     scores["class0"] = y[y == class_healthy].size
-    #     scores["class1"] = y[y == class_unhealthy].size
-    #     scores["steps"] = steps
-    #     scores["days"] = days
-    #     scores["farm_id"] = farm_id
-    #     scores["balanced_accuracy_score_mean"] = np.mean(
-    #         scores["test_balanced_accuracy_score"]
-    #     )
-    #     scores["precision_score0_mean"] = np.mean(scores["test_precision_score0"])
-    #     scores["precision_score1_mean"] = np.mean(scores["test_precision_score1"])
-    #     scores["recall_score0_mean"] = np.mean(scores["test_recall_score0"])
-    #     scores["recall_score1_mean"] = np.mean(scores["test_recall_score1"])
-    #     scores["f1_score0_mean"] = np.mean(scores["test_f1_score0"])
-    #     scores["f1_score1_mean"] = np.mean(scores["test_f1_score1"])
-    #     scores["sampling"] = sampling
-    #     scores["classifier"] = "->SVC(%s)" % clf_svc.kernel
-    #     scores["classifier_details"] = str(clf_svc).replace("\n", "").replace(" ", "")
-    #
-    #     # clf_svc = make_pipeline(SVC(probability=True, class_weight='balanced'))
-    #     auc_m, aucs = make_roc_curve(
-    #         class_healthy,
-    #         class_unhealthy,
-    #         scores["classifier"].replace("->", ""),
-    #         output_dir,
-    #         clf_svc,
-    #         X.copy(),
-    #         y.copy(),
-    #         cross_validation_method,
-    #         steps,
-    #         cv,
-    #         animal_ids,
-    #         days,
-    #     )
-    #     scores["roc_auc_score_mean"] = auc_m
-    #     scores["roc_auc_scores"] = aucs
-    #     report_rows_list.append(scores)
-    #
-    #     df_report = pd.DataFrame(report_rows_list)
-    #     df_report["class_0_label"] = str(class_healthy_label)
-    #     df_report["class_1_label"] = str(class_unhealthy_label)
-    #     df_report["nfold"] = (
-    #         cross_validation_method.nfold
-    #         if hasattr(cross_validation_method, "nfold")
-    #         else np.nan
-    #     )
-    #     # df_report["n_splits"] = cross_validation_method.cvargs['n_splits'] if hasattr(cross_validation_method,
-    #     #                                                                               'cvargs') else np.nan
-    #     # df_report["n_repeats"] = cross_validation_method.n_repeats if hasattr(cross_validation_method,
-    #     #                                                                       'n_repeats') else np.nan
-    #     df_report["total_fit_time"] = [
-    #         time.strftime("%H:%M:%S", time.gmtime(np.nansum(x)))
-    #         for x in df_report["fit_time"].values
-    #     ]
-    #     # filename = "%s/%s/%s_%s_classification_report_days_%d_option_%s_downsampled_%s_sampling_%s.csv" % (
-    #     #     output_dir, cv, scores["classifier"].replace("->", ""), farm_id, days, steps, downsample_false_class, sampling)
-    #
-    #     out = output_dir / cv
-    #     out.mkdir(parents=True, exist_ok=True)
-    #     filename = (
-    #         out
-    #         / f"{scores['classifier'].replace('->', '')}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample_false_class}_sampling_{sampling}.csv"
-    #     )
-    #     # create_rec_dir(filename)
-    #     df_report.to_csv(filename, sep=",", index=False)
-    #     print("filename=", filename)
-    #     del scores
-    #
-    # # model_files = []
-    # # for clf_fitted in [
-    # #     SVC(kernel="linear", probability=True, class_weight="balanced"),
-    # #     SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    # # ]:
-    # #     clf_fitted = clf_fitted.fit(X.copy(), y.copy())
-    # #     filename = output_dir / cv / f"model_{days}_{steps}_{clf_fitted.kernel}.pkl"
-    # #     model_files.append(filename)
-    # #     print("saving classifier...")
-    # #     print(filename)
-    # #     with open(str(filename), "wb") as f:
-    # #         pickle.dump(clf_fitted, f)
-    # # return model_files
+    build_proba_hist(output_dir, class_unhealthy_label, scores_proba)
+    build_report(output_dir, scores, y_h, steps, farm_id, sampling, downsample_false_class, days, cv,
+                 cross_validation_method, class_healthy_label, class_unhealthy_label)
+    plot_ml_report_final(output_dir.parent.parent.parent)
 
 
 def cross_validate_custom(
@@ -612,7 +471,7 @@ def cross_validate_custom(
         X: samples
         y: targets
     """
-    scores = {}
+    scores, scores_proba = {}, {}
     for clf in [
         SVC(kernel="linear", probability=True, class_weight="balanced"),
         SVC(kernel="rbf", probability=True, class_weight="balanced"),
@@ -654,7 +513,17 @@ def cross_validate_custom(
             ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
             sample_dates_test = sample_dates_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
 
+            start_time = time.time()
             clf.fit(X_train, y_train)
+            fit_time = time.time() - start_time
+
+            models_dir = out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+            models_dir.mkdir(parents=True, exist_ok=True)
+            filename = models_dir / f"model_{ifold}.pkl"
+            print("saving classifier...")
+            print(filename)
+            with open(str(filename), "wb") as f:
+                pickle.dump(clf, f)
 
             # test healthy/unhealthy
             y_pred = clf.predict(X_test)
@@ -674,9 +543,10 @@ def cross_validate_custom(
 
             interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
             interp_tpr[0] = 0.0
-            print("auc=", viz_roc.roc_auc)
+            auc_value = viz_roc.roc_auc
+            print("auc=", auc_value)
             tprs.append(interp_tpr)
-            aucs_roc.append(viz_roc.roc_auc)
+            aucs_roc.append(auc_value)
 
             accuracy = balanced_accuracy_score(y_test, y_pred)
             precision, recall, fscore, support = precision_recall_fscore_support(
@@ -686,6 +556,7 @@ def cross_validate_custom(
 
             fold_result = {
                 "target": int(class_unhealthy),
+                "auc": auc_value,
                 "accuracy": float(accuracy),
                 "class_healthy": int(class_healthy),
                 "class_unhealthy": int(class_unhealthy),
@@ -701,6 +572,7 @@ def cross_validate_custom(
                 "test_fscore_1": float(fscore[1]),
                 "test_support_0": float(support[0]),
                 "test_support_1": float(support[1]),
+                "fit_time": fit_time
             }
             fold_results.append(fold_result)
 
@@ -734,15 +606,19 @@ def cross_validate_custom(
         )
 
         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
-        scores[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
+        scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
 
     print("export results to json...")
     filepath = out_dir / "results.json"
     print(filepath)
     with open(str(filepath), 'w') as fp:
         json.dump(scores, fp)
+    filepath = out_dir / "results_proba.json"
+    print(filepath)
+    with open(str(filepath), 'w') as fp:
+        json.dump(scores_proba, fp)
 
-    return scores
+    return scores, scores_proba
 
 
 def LeaveOnOutRoc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
