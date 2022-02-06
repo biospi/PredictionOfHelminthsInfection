@@ -33,7 +33,7 @@ from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
-    plotHeatmap)
+    plotHeatmap, plot_ml_report_final)
 
 
 def main(

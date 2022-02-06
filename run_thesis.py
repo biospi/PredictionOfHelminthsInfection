@@ -85,7 +85,7 @@ def main(
 
     if exp_temporal:
         print("experiment 2: temporal validation")
-        for i in [5, 6, 7]:
+        for i in [0, 7]:
             temporal_validation.main(
                 output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
                 dataset_folder=Path("E:/Data2/debug/delmas/dataset_mrnn_7day"),
@@ -117,7 +117,7 @@ def main(
 
     if exp_cross_farm:
         print("experiment 3: cross farm validation")
-        for imp_d in [7]:
+        for imp_d in [0, 7]:
             for a_act_day in [7]:
                 cross_farm_validation.main(
                     farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),

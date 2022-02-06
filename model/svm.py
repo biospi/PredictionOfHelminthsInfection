@@ -464,7 +464,7 @@ def process_data_frame_svm(
         class_healthy_label,
         class_unhealthy_label,
     )
-    plot_ml_report_final(output_dir.parent.parent.parent)
+    plot_ml_report_final(output_dir.parent.parent)
 
 
 def cross_validate_custom(

@@ -425,6 +425,9 @@ def plot_ml_report_final(output_dir):
         label_dict["Healthy"] = df["class0"].values[0]
         dfs.append(df)
 
+    if len(dfs) == 0:
+        print("no reports available.")
+        return
     df = pd.concat(dfs, axis=0)
     df = df.sort_values("median_auc")
 
@@ -1634,6 +1637,7 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
             },
             index=labels,
         )
+        df = df.astype(float)
         ax = df.plot.bar(
             rot=90,
             log=True,
@@ -1894,7 +1898,7 @@ def build_report(
         out.mkdir(parents=True, exist_ok=True)
         filename = (
             out
-            / f"{k}_{str(class_unhealthy_label)}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
+            / f"{k}_{activity_days}_{n_imputed_days}_{str(class_unhealthy_label)}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
         )
         df_report.to_csv(filename, sep=",", index=False)
         print("filename=", filename)
