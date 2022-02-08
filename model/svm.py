@@ -405,14 +405,14 @@ def process_data_frame_svm(
         print("mkdir", output_dir)
         os.makedirs(output_dir)
 
-    plotHeatmap(
-        X,
-        output_dir,
-        "CLF_INPUT_%s" % steps,
-        "CLF_INPUT_%s.html" % steps,
-        xaxis="features",
-        yaxis="value",
-    )
+    # plotHeatmap(
+    #     X,
+    #     output_dir,
+    #     "CLF_INPUT_%s" % steps,
+    #     "CLF_INPUT_%s.html" % steps,
+    #     xaxis="features",
+    #     yaxis="value",
+    # )
     # plotAllFeatures(X, y, output_dir, filename="CLF_ALLFEATURES_%s.html" % steps)
 
     # filename_2d_scatter = (

@@ -23,7 +23,7 @@ from tqdm import tqdm
 from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
 from utils.Utils import anscombe
 from utils._normalisation import CenterScaler
-
+from PIL import Image
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -63,8 +63,6 @@ def plot_groups(
     animal_ids,
     class_healthy_label,
     class_unhealthy_label,
-    class_healthy,
-    class_unhealthy,
     graph_outputdir,
     df,
     title="title",
@@ -84,8 +82,8 @@ def plot_groups(
     Keyword arguments:
     df -- input dataframe containing samples (activity data, label/target)
     """
-    df_healthy = df[df["target"] == class_healthy].iloc[:, :-N_META].values
-    df_unhealthy = df[df["target"] == class_unhealthy].iloc[:, :-N_META].values
+    df_healthy = df[df["health"] == 0].iloc[:, :-N_META].values
+    df_unhealthy = df[df["health"] == 1].iloc[:, :-N_META].values
 
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(34.80, 7.20))
@@ -220,8 +218,8 @@ def plot_groups(
     df_ = df.copy()
     df_["animal_ids"] = animal_ids
 
-    df_healthy_ = add_separator(df_[df_["target"] == class_healthy])
-    df_unhealthy_ = add_separator(df_[df_["target"] == class_unhealthy])
+    df_healthy_ = add_separator(df_[df_["health"] == 0])
+    df_unhealthy_ = add_separator(df_[df_["health"] == 1])
 
     t1 = "Healthy(%s) %d animals  %d samples" % (
         class_healthy_label,
@@ -600,6 +598,7 @@ def plot_ml_report(clf_name, path, output_dir):
 
 
 def plot_zeros_distrib(
+    a_days,
     label_series,
     data_frame_no_norm,
     graph_outputdir,
@@ -611,11 +610,11 @@ def plot_zeros_distrib(
     z_prct = []
 
     for index, row in data_frame_no_norm.iterrows():
-        a = row[:-1].values
-        label = label_series[row[-1]]
+        a = row[0:a_days*1440].values
+        label = label_series[row['target']]
 
         target_labels.append(label)
-        z_prct.append(np.sum(a == np.log(anscombe(0))) / len(a))
+        z_prct.append(np.sum(a == 0) / len(a))
 
         if label not in data.keys():
             data[label] = a
@@ -656,6 +655,7 @@ def plot_zeros_distrib(
     filename = f"zero_percent_{title.lower().replace(' ', '_')}.png"
     filepath = graph_outputdir / filename
     # print('saving fig...')
+    print(filepath)
     fig.savefig(filepath)
     # print("saved!")
     fig.clear()
@@ -899,7 +899,36 @@ def rolling_window(array, window_size, freq):
     return rolled[np.arange(0, shape[0], freq)]
 
 
-def plotMeanGroups(
+def concatenate_images(images_list, out_dir):
+    imgs = [Image.open(str(i)) for i in images_list]
+
+    # If you're using an older version of Pillow, you might have to use .size[0] instead of .width
+    # and later on, .size[1] instead of .height
+    min_img_width = min(i.width for i in imgs)
+
+    total_height = 0
+    for i, img in enumerate(imgs):
+        # If the image is larger than the minimum width, resize it
+        if img.width > min_img_width:
+            imgs[i] = img.resize((min_img_width, int(img.height / img.width * min_img_width)), Image.ANTIALIAS)
+        total_height += imgs[i].height
+
+    # I have picked the mode of the first image to be generic. You may have other ideas
+    # Now that we know the total height of all of the resized images, we know the height of our final image
+    img_merge = Image.new(imgs[0].mode, (min_img_width, total_height))
+    y = 0
+    for img in imgs:
+        img_merge.paste(img, (0, y))
+
+        y += img.height
+
+    filename = "mean_cwt_per_label"
+    file_path = out_dir / filename
+    print(filename)
+    img_merge.save(str(filename))
+
+
+def plot_mean_groups(
     n_scales,
     sfft_window,
     wavelet_f0,
@@ -968,6 +997,8 @@ def plotMeanGroups(
                 targets=[],
                 dates=[],
                 n_scales=n_scales,
+                vmin=0,
+                vmax=1
             ).transform([s])
 
         if sfft_window is not None:
@@ -1020,6 +1051,9 @@ def plotMeanGroups(
     file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
     figures_to_html(traces, filename=str(file_path))
+    #stack cwt figures
+    files = out_dir.glob("*.png")
+    concatenate_images(files, out_dir)
 
 
 def plot_mosaic(cv_name, directory_t, filename, subdir):
@@ -1858,7 +1892,7 @@ def build_report(
         scores["class1"] = y[y == 1].size
         scores[
             "steps"
-        ] = f"ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->{steps}"
+        ] = f"{farm_id}->ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->{steps}->{cv}"
         scores["days"] = days
         scores["farm_id"] = farm_id
         scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)

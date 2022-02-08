@@ -19,11 +19,11 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps = [["QN", "ANSCOMBE", "LOG"]]
+        steps = [["QN", "ANSCOMBE", "LOG", "CWT"]]
         slug = "_".join(steps[0])
 
-        for i_day in [7, 0]:
-            for a_day in [7, 1]:
+        for i_day in [7]:
+            for a_day in [7]:
                 for cv in ['RepeatedKFold', 'RepeatedStratifiedKFold']:
                     main_experiment.main(
                         output_dir=output_dir
@@ -34,7 +34,8 @@ def main(
                         preprocessing_steps=steps,
                         n_imputed_days=i_day,
                         n_activity_days=a_day,
-                        cv=cv
+                        cv=cv,
+                        farm_id="delmas"
                     )
 
                     main_experiment.main(
@@ -47,7 +48,8 @@ def main(
                         n_imputed_days=i_day,
                         n_activity_days=a_day,
                         class_unhealthy_label=["1To2"],
-                        cv=cv
+                        cv=cv,
+                        farm_id="delmas"
                     )
 
                     main_experiment.main(
@@ -60,7 +62,8 @@ def main(
                         n_imputed_days=i_day,
                         n_activity_days=a_day,
                         class_unhealthy_label=["2To2"],
-                        cv=cv
+                        cv=cv,
+                        farm_id="cedara"
                     )
 
                     main_experiment.main(
@@ -80,7 +83,8 @@ def main(
                             "2To5",
                             "2To2",
                         ],
-                        cv=cv
+                        cv=cv,
+                        farm_id="cedara"
                     )
 
     if exp_temporal:

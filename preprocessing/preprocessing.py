@@ -243,7 +243,7 @@ def apply_preprocessing_steps(
                 out_dir=graph_outputdir / step,
                 step_slug=step_slug,
                 animal_ids=animal_ids,
-                targets=df["target"].tolist(),
+                targets=df["health"].tolist(),
                 dates=df["date"].tolist(),
             )
             d = STFT_Transform.transform(df.copy().iloc[:, :-N_META].values)
@@ -261,7 +261,7 @@ def apply_preprocessing_steps(
                 step_slug=step_slug,
                 n_scales=n_scales,
                 animal_ids=animal_ids,
-                targets=df["target"].tolist(),
+                targets=df["health"].tolist(),
                 dates=df["date"].tolist(),
             )
             data_frame_cwt, data_frame_cwt_raw = CWT_Transform.transform(
@@ -284,6 +284,7 @@ def apply_preprocessing_steps(
 
             data_frame_cwt.index = df.index  # need to keep original sample index!!!!
             CWTVisualisation(
+                N_META,
                 step_slug,
                 graph_outputdir,
                 CWT_Transform.shape,
@@ -293,9 +294,7 @@ def apply_preprocessing_steps(
                 df_o.copy(),
                 data_frame_cwt,
                 class_healthy_label,
-                class_unhealthy_label,
-                0,
-                1,
+                class_unhealthy_label
             )
 
             data_frame_cwt_raw.index = (
