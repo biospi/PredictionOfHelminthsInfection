@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
+def load_activity_data(out_dir, filepath, a_day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
                        preprocessing_steps=[['QN', 'ANSCOMBE', 'LOG']], hold_out_pct = 0, farm='delmas'):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -19,26 +19,25 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
     hearder[-2] = 'imputed_days'
     hearder[-1] = 'date'
     data_frame.columns = hearder
-
+    data_frame['label'] = data_frame['label'].astype(int).astype(str)
+    data_frame['date'] = data_frame['date'].astype(str).str.replace("'", "")
     #cast transponder ids to string instead of float
     data_frame['id'] = data_frame['id'].astype(str).str.split('.', expand = True, n=0)[0]
-
-    if day is not None:
-        df_activity_window = data_frame.iloc[:, 0:day*24*60]
+    if a_day is not None:
+        df_activity_window = data_frame.iloc[:, 0:a_day * 24 * 60]
         df_meta = data_frame.iloc[:, -N_META:]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
 
-    data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
-    mrnn_files = [str(x) for x in list((Path(filepath).parent / "mrnn_windows").glob("*.csv"))]
-
-    if len(mrnn_files) > 0:
-        data_frame["mrnn_file"] = mrnn_files
-
-    data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
+    if imputed_days > 0:
+        data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
+        data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
 
     data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(subset=data_frame.columns[:-N_META], how='all')
     data_frame = data_frame.dropna()
+
+    #clip negative values
+    data_frame[data_frame.columns.values[:-N_META]] = data_frame[data_frame.columns.values[:-N_META]].clip(lower=0)
 
     if 'ZEROPAD' in preprocessing_steps[0]:
         data_frame = data_frame.fillna(0)
@@ -78,14 +77,15 @@ def load_activity_data(out_dir, filepath, day, class_healthy, class_unhealthy, k
         df = df.drop('label', 1)
         samples[label] = df
 
-    plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
+    if a_day is not None:
+        plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
 
     class_count = {}
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     label_series_inverse = dict((v, k) for k, v in label_series.items())
     print(label_series_inverse)
-    class_healthy = label_series_inverse["1To1"]
-    class_unhealthy = label_series_inverse["2To2"]
+    # class_healthy = label_series_inverse["1To1"]
+    # class_unhealthy = label_series_inverse["2To2"]
     print(label_series)
     for k in label_series.keys():
         class_count[label_series[k] + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]

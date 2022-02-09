@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
+import umap
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from plotly.subplots import make_subplots
@@ -24,6 +25,8 @@ from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
 from utils.Utils import anscombe
 from utils._normalisation import CenterScaler
 from PIL import Image
+import umap.plot
+import seaborn as sns
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -290,7 +293,7 @@ def plot_groups(
     return idx_healthy, idx_unhealthy
 
 
-def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title"):
+def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors=None):
     fig, ax = plt.subplots(figsize=(12.80, 7.20))
     print("plot_2d_space")
     if len(X[0]) == 1:
@@ -311,6 +314,25 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title"):
     # plt.show()
     plt.close(fig)
     plt.clf()
+
+
+def plot_umap(
+    meta_size, df, output_dir, label_series, title="title", y_col="label"
+):
+    df_before_reduction = df.iloc[:, :-meta_size].values
+    ids = df["id"].values
+    X = umap.UMAP().fit_transform(df_before_reduction)
+    y = df["target"].astype(int)
+    filename = title.replace(" ", "_")
+    filepath = output_dir / filename
+    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(int))
+
+    filepath = output_dir / f"umapplot_{filename}.png"
+    mapper = umap.UMAP().fit(df_before_reduction)
+    fig, ax = plt.subplots(figsize=(14.00, 14.00))
+    plot = umap.plot.points(mapper, labels=ids, ax=ax, background='black')
+    print(filepath)
+    fig.savefig(filepath)
 
 
 def plot_time_pca(
@@ -510,6 +532,7 @@ def plot_ml_report(clf_name, path, output_dir):
     df["config"] = f"{df.steps[0]}{df.classifier[0]}"
     df = df.sort_values("median_auc")
     df = df.drop_duplicates(subset=["config"], keep="first")
+    df = df.fillna(-1)
     print(df)
     t4 = "AUC performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
         df["days"].values[0],
@@ -604,6 +627,9 @@ def plot_zeros_distrib(
     graph_outputdir,
     title="Percentage of zeros in activity per sample",
 ):
+    if a_days is None:
+        print("skip plot_zeros_distrib.")
+        return
     print("plot_zeros_distrib...")
     data = {}
     target_labels = []
@@ -922,10 +948,10 @@ def concatenate_images(images_list, out_dir):
 
         y += img.height
 
-    filename = "mean_cwt_per_label"
-    file_path = out_dir / filename
-    print(filename)
-    img_merge.save(str(filename))
+    filename = "mean_cwt_per_label.png"
+    file_path = out_dir.parent / filename
+    print(file_path)
+    img_merge.save(str(file_path))
 
 
 def plot_mean_groups(
@@ -1052,7 +1078,7 @@ def plot_mean_groups(
     print(file_path)
     figures_to_html(traces, filename=str(file_path))
     #stack cwt figures
-    files = out_dir.glob("*.png")
+    files = list((out_dir / "_cwt").glob("*.png"))
     concatenate_images(files, out_dir)
 
 
@@ -1767,7 +1793,9 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
         print(out)
         plt.savefig(str(out))
 
-        fig, axs = plt.subplots(2, 2, facecolor="white", figsize=(24.0, 10.80))
+        fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
+        if "delmas" in str(output_dir):
+            fig, axs = plt.subplots(2, 2, facecolor="white", figsize=(24.0, 10.80))
         if "cedara" in str(output_dir):
             fig, axs = plt.subplots(3, 7, facecolor="white", figsize=(24.0, 8.80))
 

@@ -1,7 +1,7 @@
 from sklearn.model_selection import RepeatedStratifiedKFold, RepeatedKFold, LeaveOneOut
 
 from cnn.cnn import run1DCnn, run2DCnn
-from model.svm import downsampleDf
+from model.svm import downsample_df
 from utils._custom_split import StratifiedLeaveTwoOut
 
 
@@ -12,7 +12,7 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
-        data_frame = downsampleDf(data_frame, class_healthy, class_unhealthy)
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
 
     sample_idxs = data_frame.index.tolist()
 
@@ -47,7 +47,7 @@ def process_data_frame_2dcnn(wavelet_f0, epochs, stratify, animal_ids, output_di
     data_frame["id"] = animal_ids
     data_frame = data_frame.loc[data_frame['target'].isin([class_healthy, class_unhealthy])]
     if downsample_false_class:
-        data_frame = downsampleDf(data_frame, class_healthy, class_unhealthy)
+        data_frame = downsample_df(data_frame, class_healthy, class_unhealthy)
 
     sample_idxs = data_frame.index.tolist()
 

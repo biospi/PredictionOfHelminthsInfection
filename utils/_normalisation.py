@@ -18,6 +18,10 @@ def normalize(X, out_dir):
     traces = []
     X = X.astype(np.float)
     zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+    if np.isinf(zmin) or np.isnan(zmin):
+        zmin = 0
+    if np.isinf(zmax) or np.isnan(zmax):
+        zmax = 1
     # zmin, zmax = None, None
 
     traces.append(
@@ -264,7 +268,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         return norm
 
 
-def createSynthetic(activity):
+def create_synthetic(activity):
     pure = activity
     noise = np.random.normal(0, 200, len(activity))
     signal = pure + noise
@@ -377,7 +381,7 @@ def createSyntheticActivityData(n_samples=4):
 
     dataset = []
     for j in range(n_samples):
-        A = createSynthetic(activity)
+        A = create_synthetic(activity)
         dataset.append(A)
 
     return dataset

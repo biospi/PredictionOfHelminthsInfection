@@ -29,7 +29,8 @@ from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
-    plotHeatmap, plot_ml_report_final, plot_zeros_distrib, plot_mean_groups, plot_time_pca, plot_time_lda, plot_groups)
+    plotHeatmap, plot_ml_report_final, plot_zeros_distrib, plot_mean_groups, plot_time_pca, plot_time_lda, plot_groups,
+    plot_umap)
 
 
 def main(
@@ -53,7 +54,8 @@ def main(
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     farm_id: str = "farm",
-    n_job: int = 9,
+    sampling: str = "T",
+    n_job: int = 6,
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -113,7 +115,7 @@ def main(
         print(df_hum_temp.shape)
 
     for file in files:
-        _, _, option, sampling = parse_param_from_filename(file)
+        #_, _, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
         (
             data_frame,
@@ -154,6 +156,8 @@ def main(
             output_dim=data_frame.shape[0],
             n_scales=n_scales
         )
+
+
         #df_meta = data_frame.iloc[:, -N_META:]
         #df_norm_meta = pd.concat([df_norm, df_meta], axis=1)
 
@@ -179,6 +183,14 @@ def main(
             label_series,
             N_META,
             output_dir / "raw_after_qn",
+        )
+
+        plot_umap(
+            N_META,
+            data_frame.copy(),
+            output_dir,
+            label_series,
+            title="UMAP time domain before normalisation",
         )
 
         plot_time_pca(
@@ -315,7 +327,7 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    #typer.run(main)
 
     # --output-dir E:\Data2\debug\mrnn_median_ml\debug --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
     # --output-dir E:\Data2\debug\mrnn_median_ml\debug\cedara --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
@@ -393,7 +405,7 @@ if __name__ == "__main__":
     # print(df_final)
     # plotMlReport(filename, output_dir)
 
-    # steps = [["QN", "ANSCOMBE", "LOG"]]
+    steps = [["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT"]]
     # slug = "_".join(steps[0])
     # day = 7
     # main(
@@ -405,3 +417,6 @@ if __name__ == "__main__":
     # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
     #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
     #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+    main(output_dir=Path(f"E:/Cats/ml/ml_min/day_w"),
+         dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"), preprocessing_steps=steps,
+         n_imputed_days=-1, n_activity_days=None, class_healthy_label=['0'], class_unhealthy_label=['1'], n_splits=5, n_repeats=2, n_job=5)
