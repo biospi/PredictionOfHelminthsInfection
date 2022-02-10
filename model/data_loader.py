@@ -6,26 +6,28 @@ import numpy as np
 import pandas as pd
 
 
-def load_activity_data(out_dir, filepath, a_day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
+def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, class_unhealthy, keep_2_only=True, imputed_days=7,
                        preprocessing_steps=[['QN', 'ANSCOMBE', 'LOG']], hold_out_pct = 0, farm='delmas'):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
+    if "health" not in data_frame.columns:
+        print("missing health column in dataset!")
+        data_frame["health"] = 0
+
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
-    N_META = 4
-    hearder[-4] = 'label'
-    hearder[-3] = 'id'
-    hearder[-2] = 'imputed_days'
-    hearder[-1] = 'date'
+
+    for i, m in enumerate(meta_columns[::-1]):
+        hearder[-i-1] = m
     data_frame.columns = hearder
-    data_frame['label'] = data_frame['label'].astype(int).astype(str)
+    #data_frame['label'] = data_frame['label'].astype(int).astype(str)
     data_frame['date'] = data_frame['date'].astype(str).str.replace("'", "")
     #cast transponder ids to string instead of float
     data_frame['id'] = data_frame['id'].astype(str).str.split('.', expand = True, n=0)[0]
     if a_day is not None:
-        df_activity_window = data_frame.iloc[:, 0:a_day * 24 * 60]
-        df_meta = data_frame.iloc[:, -N_META:]
+        df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
+        df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
 
     if imputed_days > 0:
@@ -33,16 +35,16 @@ def load_activity_data(out_dir, filepath, a_day, class_healthy, class_unhealthy,
         data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
 
     data_frame = data_frame[data_frame.nunique(1) > 10]
-    data_frame = data_frame.dropna(subset=data_frame.columns[:-N_META], how='all')
+    data_frame = data_frame.dropna(subset=data_frame.columns[:-len(meta_columns)], how='all')
     data_frame = data_frame.dropna()
 
     #clip negative values
-    data_frame[data_frame.columns.values[:-N_META]] = data_frame[data_frame.columns.values[:-N_META]].clip(lower=0)
+    data_frame[data_frame.columns.values[:-len(meta_columns)]] = data_frame[data_frame.columns.values[:-len(meta_columns)]].clip(lower=0)
 
     if 'ZEROPAD' in preprocessing_steps[0]:
         data_frame = data_frame.fillna(0)
     if 'LINEAR' in preprocessing_steps[0]:
-        data_frame.iloc[:, :-N_META] = data_frame.iloc[:, :-N_META].interpolate(axis=1, limit_direction='both')
+        data_frame.iloc[:, :-len(meta_columns)] = data_frame.iloc[:, :-len(meta_columns)].interpolate(axis=1, limit_direction='both')
 
     new_label = []
     #data_frame_health = data_frame.copy()
@@ -91,6 +93,7 @@ def load_activity_data(out_dir, filepath, a_day, class_healthy, class_unhealthy,
         class_count[label_series[k] + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]
     print(class_count)
     # drop label column stored previously, just keep target for ml
+    meta_data = data_frame[meta_columns].values
     data_frame = data_frame.drop('label', 1)
 
     print(data_frame)
@@ -107,9 +110,7 @@ def load_activity_data(out_dir, filepath, a_day, class_healthy, class_unhealthy,
     # data_frame = data_frame[data_frame["e"] > 150]
     # data_frame = data_frame.drop('e', 1)
 
-    N_META = N_META+1 #add health column
-
-    return data_frame, N_META, class_healthy, class_unhealthy, label_series, samples
+    return data_frame, meta_data, class_healthy, class_unhealthy, label_series, samples
 
 
 def parse_param_from_filename(file):

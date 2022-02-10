@@ -19,7 +19,7 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps = [["QN", "ANSCOMBE", "LOG", "CWT"]]
+        steps = [["QN", "ANSCOMBE", "LOG"]]
         slug = "_".join(steps[0])
 
         for i_day in [7]:

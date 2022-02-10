@@ -27,6 +27,7 @@ from utils._normalisation import CenterScaler
 from PIL import Image
 import umap.plot
 import seaborn as sns
+from collections import Counter
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -325,7 +326,7 @@ def plot_umap(
     y = df["target"].astype(int)
     filename = title.replace(" ", "_")
     filepath = output_dir / filename
-    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(int))
+    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(float))
 
     filepath = output_dir / f"umapplot_{filename}.png"
     mapper = umap.UMAP().fit(df_before_reduction)
@@ -852,7 +853,7 @@ def plot_roc_range(
     return mean_auc
 
 
-def plotDistribution(X, output_dir, filename):
+def plot_distribution(X, output_dir, filename):
     print("plot data distribution...")
     hist_array = X.flatten()
     hist_array_nrm = hist_array[~np.isnan(hist_array)]
@@ -1659,41 +1660,81 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
     print("build_roc_curve...")
 
 
-def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
+def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids, meta_columns, tt="test"):
     print("build_individual_animal_pred...")
     for k, v in scores.items():
         # prepare data holder
-        data_c, data_u = {}, {}
+        data_c, data_u, data_m = {}, {}, {}
 
         for id in ids:
             data_c[id] = 0
             data_u[id] = 0
+            d = {}
+            for m in meta_columns:
+                d[m] = []
+            data_m[id] = d
 
         score = scores[k]
-        data_dates, data_corr, data_ids = [], [], []
+        data_dates, data_corr, data_ids, data_meta = [], [], [], []
         for s in score:
-            dates = pd.to_datetime(s["sample_dates_test"]).tolist()
-            correct_predictions = s["correct_predictions"]
-            ids_test = s["ids_test"]
+            dates = pd.to_datetime(s[f"sample_dates_{tt}"]).tolist()
+            correct_predictions = s[f"correct_predictions_{tt}"]
+            ids_test = s[f"ids_{tt}"]
+            meta_test = s[f"meta_{tt}"]
 
             data_dates.extend(dates)
             data_corr.extend(correct_predictions)
             data_ids.extend(ids_test)
+            data_meta.extend(meta_test)
 
             for i in range(len(ids_test)):
+
+                for j, m in enumerate(meta_columns):
+                    data_m[ids_test[i]][m].append(meta_test[i][j])
+
                 if correct_predictions[i] == 1:
                     data_c[ids_test[i]] += data_c[ids_test[i]] + 1
                 else:
                     data_u[ids_test[i]] += data_u[ids_test[i]] + 1
 
-        # print figure
         labels = list(data_c.keys())
         correct_pred = list(data_c.values())
-        uncorrect_pred = list(data_u.values())
+        incorrect_pred = list(data_u.values())
+        meta_pred = list(data_m.values())
+        #make table
+        df_table = pd.DataFrame(meta_pred, index=labels)
+        for m in meta_columns:
+            df_table[m] = [str(dict(Counter(x))) for x in df_table[m]]
+
+        df_table["individual id"] = labels
+        df_table["correct prediction"] = correct_pred
+        df_table["incorrect prediction"] = incorrect_pred
+        df_table["ratio of correct prediction (percent)"] = (df_table["correct prediction"] / (df_table["correct prediction"] + df_table["incorrect prediction"]))*100
+        filename = f"table_data_{tt}_{k}.csv"
+        filepath = output_dir / filename
+        print(filepath)
+        df_table = df_table.sort_values("ratio of correct prediction (percent)", ascending=False)
+        df_table.to_csv(filepath, index=False)
+
+        fig = go.Figure(data=[go.Table(
+            header=dict(values=list(df_table.columns),
+                        fill_color='paleturquoise',
+                        align='left'),
+            cells=dict(values=df_table.transpose().values.tolist(),
+                       fill_color='lavender',
+                       align='left'))
+        ])
+
+        filename = f"table_data_{tt}_{k}.html"
+        filepath = output_dir / filename
+        print(filepath)
+        fig.write_html(str(filepath))
+
+        # print figure
         df = pd.DataFrame(
             {
                 "correct prediction": correct_pred,
-                "uncorrect prediction": uncorrect_pred,
+                "incorrect prediction": incorrect_pred,
             },
             index=labels,
         )
@@ -1701,12 +1742,13 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
         ax = df.plot.bar(
             rot=90,
             log=True,
-            title=f"Classifier predictions per individual label_unhealthy={label_unhealthy}",
+            figsize=(19.20, 10.80),
+            title=f"Classifier predictions ({tt}) per individual label_unhealthy={label_unhealthy}",
         )
         ax.set_xlabel("Animals")
         ax.set_ylabel("Number of predictions")
         fig = ax.get_figure()
-        filepath = output_dir / f"predictions_per_individual_{k}.png"
+        filepath = output_dir / f"predictions_per_individual_{k}_{steps}_{tt}.png"
         print(filepath)
         fig.tight_layout()
         fig.savefig(filepath)
@@ -1721,7 +1763,7 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
             3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(24.0, 10.80)
         )
         fig.suptitle(
-            f"Classifier predictions per individual across study time label_unhealthy={label_unhealthy}",
+            f"Classifier predictions ({tt}) per individual across study time label_unhealthy={label_unhealthy}",
             fontsize=14,
         )
         axs = axs.ravel()
@@ -1738,11 +1780,11 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
                     data_u[row["data_ids"]] += data_u[row["data_ids"]] + 1
             labels = list(data_c.keys())
             correct_pred = list(data_c.values())
-            uncorrect_pred = list(data_u.values())
+            incorrect_pred = list(data_u.values())
             df = pd.DataFrame(
                 {
                     "correct prediction": correct_pred,
-                    "uncorrect prediction": uncorrect_pred,
+                    "incorrect prediction": incorrect_pred,
                 },
                 index=labels,
             )
@@ -1753,13 +1795,13 @@ def build_individual_animal_pred(output_dir, label_unhealthy, scores, ids):
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
             axs[i].set_ylabel("Number of predictions")
-        filepath = output_dir / f"predictions_per_individual_across_study_time_{k}.png"
+        filepath = output_dir / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
         print(filepath)
         fig.tight_layout()
         fig.savefig(filepath)
 
 
-def build_proba_hist(output_dir, label_unhealthy, scores):
+def build_proba_hist(output_dir, steps, label_unhealthy, scores):
     for k in scores.keys():
         score = scores[k]
         hist_data = {}
@@ -1788,7 +1830,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
         plt.axvline(x=0.5, color="gray", ls="--")
         plt.legend(loc="upper right")
         # plt.show()
-        filename = f"histogram_of_prob_{k}.png"
+        filename = f"histogram_of_prob_{k}_{steps}.png"
         out = output_dir / filename
         print(out)
         plt.savefig(str(out))
@@ -1814,7 +1856,7 @@ def build_proba_hist(output_dir, label_unhealthy, scores):
             axs[i].axvline(x=0.5, color="gray", ls="--")
             axs[i].legend(loc="upper right")
             # plt.show()
-        filename = f"histogram_of_prob_{k}_grid.png"
+        filename = f"histogram_of_prob_{k}_{steps}_grid.png"
         fig.tight_layout()
         out = output_dir / filename
         print(out)

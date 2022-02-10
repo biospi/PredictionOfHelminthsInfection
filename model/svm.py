@@ -314,7 +314,7 @@ def make_roc_curve(
 
 
 def process_data_frame_svm(
-    N_META,
+    meta_data,
     output_dir,
     animal_ids,
     sample_dates,
@@ -330,6 +330,7 @@ def process_data_frame_svm(
     label_series,
     class_healthy_label,
     class_unhealthy_label,
+    meta_columns,
     y_col="target",
     cv=None,
     n_job=6,
@@ -338,9 +339,6 @@ def process_data_frame_svm(
     mlp_layers = (1000, 500, 100, 45, 30, 15)
     print(label_series)
     data_frame["id"] = animal_ids
-    # data_frame = data_frame.loc[
-    #     data_frame["target"].isin([class_healthy, class_unhealthy])
-    # ]
     if downsample_false_class:
         data_frame = downsample_df(data_frame, 0, 1)
 
@@ -378,7 +376,7 @@ def process_data_frame_svm(
             farmname="delmas",
             method="MRNN",
             out_dir=output_dir,
-            N_META=N_META,
+            N_META=len(meta_columns),
             full_activity_data_file=Path(
                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/delmas_activity_data_weather.csv"
             ),
@@ -388,14 +386,11 @@ def process_data_frame_svm(
         cross_validation_method = LeaveOneOut()
 
     ids = data_frame["id"].values
-    data_frame = data_frame.drop("id", 1)
-
     y_h = data_frame["health"].values.flatten()
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
-    X = data_frame[
-        data_frame.columns[0 : data_frame.shape[1] - 2]
-    ].values  # remove target and health columns
+
+    X = data_frame.iloc[:, :-len(meta_columns)].values  # remove meta columns
 
     print("release data_frame memory...")
     del data_frame
@@ -443,26 +438,28 @@ def process_data_frame_svm(
         y,
         y_h,
         ids,
+        meta_data,
         sample_dates,
         n_job,
     )
 
-    scores, scores_proba = cross_validate_custom(
-        output_dir,
-        steps,
-        cv,
-        activity_days,
-        label_series,
-        cross_validation_method,
-        X,
-        y,
-        y_h,
-        ids,
-        sample_dates,
-    )
+    # scores, scores_proba = cross_validate_custom(
+    #     output_dir,
+    #     steps,
+    #     cv,
+    #     activity_days,
+    #     label_series,
+    #     cross_validation_method,
+    #     X,
+    #     y,
+    #     y_h,
+    #     ids,
+    #     sample_dates,
+    # )
 
-    build_individual_animal_pred(output_dir, class_unhealthy_label, scores, ids)
-    build_proba_hist(output_dir, class_unhealthy_label, scores_proba)
+    build_individual_animal_pred(output_dir, steps, class_unhealthy_label, scores, ids, meta_columns)
+    build_individual_animal_pred(output_dir, steps, class_unhealthy_label, scores, ids, meta_columns, tt="train")
+    build_proba_hist(output_dir, steps, class_unhealthy_label, scores_proba)
     build_report(
         output_dir,
         n_imputed_days,
@@ -486,6 +483,7 @@ def fold_worker(
     out_dir,
     y_h,
     ids,
+    meta,
     sample_dates,
     days,
     steps,
@@ -509,6 +507,9 @@ def fold_worker(
     y_train, y_test = y[train_index], y[test_index]
     y_h_train, y_h_test = y_h[train_index], y_h[test_index]
     ids_train, ids_test = ids[train_index], ids[test_index]
+
+    meta_train, meta_test = meta[train_index], meta[test_index]
+
     sample_dates_train, sample_dates_test = (
         sample_dates[train_index],
         sample_dates[test_index],
@@ -525,12 +526,20 @@ def fold_worker(
     # keep healthy and unhealthy only
     X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
     y_train = y_h_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    meta_train = meta_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
 
     X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+
+    meta_test = meta_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     sample_dates_test = sample_dates_test[
         np.isin(y_h_test, [class_healthy, class_unhealthy])
+    ]
+
+    ids_train = ids_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    sample_dates_train = sample_dates_train[
+        np.isin(y_h_train, [class_healthy, class_unhealthy])
     ]
 
     start_time = time.time()
@@ -577,16 +586,30 @@ def fold_worker(
     )
     correct_predictions = (y_test == y_pred).astype(int)
 
+    #data for training
+    y_pred_train = clf.predict(X_train)
+    accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
+    precision_train, recall_train, fscore_train, support_train = precision_recall_fscore_support(
+        y_train, y_pred_train
+    )
+    correct_predictions_train = (y_train == y_pred_train).astype(int)
+
     fold_result = {
         "target": int(class_unhealthy),
         "auc": auc_value,
         "accuracy": float(accuracy),
+        "accuracy_train": float(accuracy_train),
         "class_healthy": int(class_healthy),
         "class_unhealthy": int(class_unhealthy),
         "y_test": y_test.tolist(),
         "ids_test": ids_test.tolist(),
+        "ids_train": ids_train.tolist(),
         "sample_dates_test": sample_dates_test.tolist(),
-        "correct_predictions": correct_predictions.tolist(),
+        "sample_dates_train": sample_dates_train.tolist(),
+        "meta_test": meta_test.tolist(),
+        "meta_train": meta_train.tolist(),
+        "correct_predictions_test": correct_predictions.tolist(),
+        "correct_predictions_train": correct_predictions_train.tolist(),
         "test_precision_score_0": float(precision[0]),
         "test_precision_score_1": float(precision[1]),
         "test_recall_0": float(recall[0]),
@@ -595,6 +618,14 @@ def fold_worker(
         "test_fscore_1": float(fscore[1]),
         "test_support_0": float(support[0]),
         "test_support_1": float(support[1]),
+        "train_precision_score_0": float(precision_train[0]),
+        "train_precision_score_1": float(precision_train[1]),
+        "train_recall_0": float(recall_train[0]),
+        "train_recall_1": float(recall_train[1]),
+        "train_fscore_0": float(fscore_train[0]),
+        "train_fscore_1": float(fscore_train[1]),
+        "train_support_0": float(support_train[0]),
+        "train_support_1": float(support_train[1]),
         "fit_time": fit_time,
     }
     fold_results.append(fold_result)
@@ -623,6 +654,7 @@ def cross_validate_custom_fast(
     y,
     y_h,
     ids,
+    meta,
     sample_dates,
     n_job=None,
 ):
@@ -667,6 +699,7 @@ def cross_validate_custom_fast(
                     out_dir,
                     y_h,
                     ids,
+                    meta,
                     sample_dates,
                     days,
                     steps,

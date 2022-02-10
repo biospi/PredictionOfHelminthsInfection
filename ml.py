@@ -43,13 +43,14 @@ def main(
     preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
+    meta_columns: List[str] = ["label", "id", "imputed_days", "date", "health"],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 6,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
-    n_splits: int = 5,
-    n_repeats: int = 10,
+    n_splits: int = 2,
+    n_repeats: int = 2,
     cv: str = "RepeatedStratifiedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -63,6 +64,7 @@ def main(
         dataset_folder: Dataset input directory
         class_healthy: Label for healthy class
         class_unhealthy: Label for unhealthy class
+        meta_columns: List of names of the metadata columns in the dataset file.
         stratify: Enable stratiy for cross validation
         s_output: Output sample files
         cwt: Enable freq domain (cwt)
@@ -119,13 +121,14 @@ def main(
         print(f"loading dataset file {file} ...")
         (
             data_frame,
-            N_META,
+            meta_data,
             _,
             _,
             label_series,
             samples,
         ) = load_activity_data(
             output_dir,
+            meta_columns,
             file,
             n_activity_days,
             class_healthy_label,
@@ -135,134 +138,136 @@ def main(
         )
 
         # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
-        ###############
-        # VISUALISATION
-        ###############
-        animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
-        df_norm = apply_preprocessing_steps(
-            n_activity_days,
-            df_hum,
-            df_temp,
-            sfft_window,
-            wavelet_f0,
-            animal_ids,
-            data_frame.copy(),
-            N_META,
-            output_dir,
-            ["QN"],
-            class_healthy_label,
-            class_unhealthy_label,
-            clf_name="SVM_QN_VISU",
-            output_dim=data_frame.shape[0],
-            n_scales=n_scales
-        )
+        #############################################################################################################
+        #                                           VISUALISATION                                                   #
+        #############################################################################################################
+        # animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
+        # df_norm = apply_preprocessing_steps(
+        #     n_activity_days,
+        #     df_hum,
+        #     df_temp,
+        #     sfft_window,
+        #     wavelet_f0,
+        #     animal_ids,
+        #     data_frame.copy(),
+        #     N_META,
+        #     output_dir,
+        #     ["QN"],
+        #     class_healthy_label,
+        #     class_unhealthy_label,
+        #     clf_name="SVM_QN_VISU",
+        #     output_dim=data_frame.shape[0],
+        #     n_scales=n_scales,
+        #     keep_meta=True
+        # )
+        #
+        # plot_zeros_distrib(
+        #     n_activity_days,
+        #     label_series,
+        #     df_norm,
+        #     output_dir,
+        #     title="Percentage of zeros in activity per sample after normalisation",
+        # )
+        # plot_zeros_distrib(
+        #     n_activity_days,
+        #     label_series,
+        #     data_frame.copy(),
+        #     output_dir,
+        #     title="Percentage of zeros in activity per sample before normalisation",
+        # )
+        # plot_mean_groups(
+        #     n_scales,
+        #     sfft_window,
+        #     wavelet_f0,
+        #     df_norm,
+        #     label_series,
+        #     N_META,
+        #     output_dir / "raw_after_qn",
+        # )
+        #
+        # plot_umap(
+        #     N_META,
+        #     data_frame.copy(),
+        #     output_dir,
+        #     label_series,
+        #     title="UMAP time domain before normalisation",
+        # )
+        #
+        # plot_umap(
+        #     N_META,
+        #     df_norm.copy(),
+        #     output_dir,
+        #     label_series,
+        #     title="UMAP time domain after normalisation",
+        # )
+        #
+        # plot_time_pca(
+        #     N_META,
+        #     data_frame.copy(),
+        #     output_dir,
+        #     label_series,
+        #     title="PCA time domain before normalisation",
+        # )
+        # plot_time_pca(
+        #     N_META,
+        #     df_norm,
+        #     output_dir,
+        #     label_series,
+        #     title="PCA time domain after normalisation",
+        # )
+        #
+        # plot_time_lda(
+        #     N_META,
+        #     data_frame.copy(),
+        #     output_dir,
+        #     label_series,
+        #     title="LDA time domain before normalisation",
+        # )
+        # plot_time_lda(
+        #     N_META,
+        #     data_frame.copy(),
+        #     output_dir,
+        #     label_series,
+        #     title="LDA time domain after normalisation",
+        # )
+        #
+        # ntraces = 2
+        # idx_healthy, idx_unhealthy = plot_groups(
+        #     N_META,
+        #     animal_ids,
+        #     class_healthy_label,
+        #     class_unhealthy_label,
+        #     output_dir,
+        #     data_frame.copy(),
+        #     title="Raw imputed",
+        #     xlabel="Time",
+        #     ylabel="activity",
+        #     ntraces=ntraces,
+        # )
+        # plot_groups(
+        #     N_META,
+        #     animal_ids,
+        #     class_healthy_label,
+        #     class_unhealthy_label,
+        #     output_dir,
+        #     df_norm,
+        #     title="Normalised(Quotient Norm) samples",
+        #     xlabel="Time",
+        #     ylabel="activity",
+        #     idx_healthy=idx_healthy,
+        #     idx_unhealthy=idx_unhealthy,
+        #     stepid=2,
+        #     ntraces=ntraces,
+        # )
+        # ################################################################################################################
 
-
-        #df_meta = data_frame.iloc[:, -N_META:]
-        #df_norm_meta = pd.concat([df_norm, df_meta], axis=1)
-
-        plot_zeros_distrib(
-            n_activity_days,
-            label_series,
-            df_norm,
-            output_dir,
-            title="Percentage of zeros in activity per sample after normalisation",
-        )
-        plot_zeros_distrib(
-            n_activity_days,
-            label_series,
-            data_frame.copy(),
-            output_dir,
-            title="Percentage of zeros in activity per sample before normalisation",
-        )
-        plot_mean_groups(
-            n_scales,
-            sfft_window,
-            wavelet_f0,
-            df_norm,
-            label_series,
-            N_META,
-            output_dir / "raw_after_qn",
-        )
-
-        plot_umap(
-            N_META,
-            data_frame.copy(),
-            output_dir,
-            label_series,
-            title="UMAP time domain before normalisation",
-        )
-
-        plot_time_pca(
-            N_META,
-            data_frame.copy(),
-            output_dir,
-            label_series,
-            title="PCA time domain before normalisation",
-        )
-        plot_time_pca(
-            N_META,
-            df_norm,
-            output_dir,
-            label_series,
-            title="PCA time domain after normalisation",
-        )
-
-        plot_time_lda(
-            N_META,
-            data_frame.copy(),
-            output_dir,
-            label_series,
-            title="LDA time domain before normalisation",
-        )
-        plot_time_lda(
-            N_META,
-            data_frame.copy(),
-            output_dir,
-            label_series,
-            title="LDA time domain after normalisation",
-        )
-
-        ntraces = 2
-        idx_healthy, idx_unhealthy = plot_groups(
-            N_META,
-            animal_ids,
-            class_healthy_label,
-            class_unhealthy_label,
-            output_dir,
-            data_frame.copy(),
-            title="Raw imputed",
-            xlabel="Time",
-            ylabel="activity",
-            ntraces=ntraces,
-        )
-        plot_groups(
-            N_META,
-            animal_ids,
-            class_healthy_label,
-            class_unhealthy_label,
-            output_dir,
-            df_norm,
-            title="Normalised(Quotient Norm) samples",
-            xlabel="Time",
-            ylabel="activity",
-            idx_healthy=idx_healthy,
-            idx_unhealthy=idx_unhealthy,
-            stepid=2,
-            ntraces=ntraces,
-        )
-        ################################################################################################################
-        # keep only two class of samples
-        # data_frame = data_frame[
-        #     data_frame["target"].isin([class_healthy_target, class_unhealthy_target])
-        # ]
         sample_dates = pd.to_datetime(data_frame['date'], format="%d/%m/%Y").values.astype(float)
         animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
-        # cv = "StratifiedLeaveTwoOut"
 
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
             df_processed = apply_preprocessing_steps(
+                meta_columns,
                 n_activity_days,
                 df_hum,
                 df_temp,
@@ -270,7 +275,6 @@ def main(
                 wavelet_f0,
                 animal_ids,
                 data_frame.copy(),
-                N_META,
                 output_dir,
                 steps,
                 class_healthy_label,
@@ -281,7 +285,7 @@ def main(
             )
 
             process_data_frame_svm(
-                N_META,
+                meta_data,
                 output_dir,
                 animal_ids,
                 sample_dates,
@@ -297,6 +301,7 @@ def main(
                 label_series,
                 class_healthy_label,
                 class_unhealthy_label,
+                meta_columns,
                 cv=cv,
                 n_job=n_job
             )
@@ -405,7 +410,7 @@ if __name__ == "__main__":
     # print(df_final)
     # plotMlReport(filename, output_dir)
 
-    steps = [["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT"]]
+    steps = [["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
     # slug = "_".join(steps[0])
     # day = 7
     # main(

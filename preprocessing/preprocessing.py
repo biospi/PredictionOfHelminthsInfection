@@ -10,7 +10,7 @@ from cwt._cwt import STFT, CWT, CWTVisualisation
 
 from utils._anscombe import Anscombe, Sqrt, Log
 from utils._normalisation import BaseLineScaler, CenterScaler, QuotientNormalizer
-from utils.visualisation import plotDistribution
+from utils.visualisation import plot_distribution
 
 
 def setupGraphOutputPath(output_dir):
@@ -26,6 +26,7 @@ def setupGraphOutputPath(output_dir):
 
 
 def apply_preprocessing_steps(
+    meta_columns,
     days,
     df_hum,
     df_temp,
@@ -33,7 +34,6 @@ def apply_preprocessing_steps(
     wavelet_f0,
     animal_ids,
     df,
-    N_META,
     output_dir,
     steps,
     class_healthy_label,
@@ -44,6 +44,7 @@ def apply_preprocessing_steps(
     farm_name="",
     keep_meta=False
 ):
+    N_META = len(meta_columns)
     step_slug = "_".join(steps)
     step_slug = farm_name + "_" + step_slug
     graph_outputdir = setupGraphOutputPath(output_dir) / clf_name / step_slug
@@ -343,7 +344,7 @@ def apply_preprocessing_steps(
 
         print("AFTER STEP ->", df)
         if "CWT" not in step_slug:
-            plotDistribution(
+            plot_distribution(
                 df.iloc[:, :-N_META].values,
                 graph_outputdir,
                 f"data_distribution_after_{step}",
