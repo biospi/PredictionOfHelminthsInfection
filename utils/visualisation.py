@@ -1738,15 +1738,18 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
             },
             index=labels,
         )
-        df = df.astype(float)
+        df = df.astype(np.double)
+        df["correct prediction"] = (df_table["correct prediction"] / (df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
+        df["incorrect prediction"] = (df_table["incorrect prediction"] / (
+                    df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
         ax = df.plot.bar(
             rot=90,
-            log=True,
+            log=False,
             figsize=(19.20, 10.80),
             title=f"Classifier predictions ({tt}) per individual label_unhealthy={label_unhealthy}",
         )
         ax.set_xlabel("Animals")
-        ax.set_ylabel("Number of predictions")
+        ax.set_ylabel("Percent of predictions (pred/tot_pred per indiv)")
         fig = ax.get_figure()
         filepath = output_dir / f"predictions_per_individual_{k}_{steps}_{tt}.png"
         print(filepath)
@@ -1788,13 +1791,17 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 },
                 index=labels,
             )
+            df["correct prediction"] = (df_table["correct prediction"] / (
+                        df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
+            df["incorrect prediction"] = (df_table["incorrect prediction"] / (
+                    df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
             df.plot.bar(
                 ax=axs[i],
                 rot=90,
-                log=True,
+                log=False,
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
-            axs[i].set_ylabel("Number of predictions")
+            axs[i].set_ylabel("Percent of predictions")
         filepath = output_dir / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
         print(filepath)
         fig.tight_layout()
