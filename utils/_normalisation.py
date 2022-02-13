@@ -13,7 +13,7 @@ from utils.Utils import anscombe
 np.random.seed(0)
 
 
-def normalize(X, out_dir):
+def normalize(X, out_dir, output_graph):
     out_dir_ = out_dir / "_normalisation"
     traces = []
     X = X.astype(np.float)
@@ -24,29 +24,31 @@ def normalize(X, out_dir):
         zmax = 1
     # zmin, zmax = None, None
 
-    traces.append(
-        plotHeatmap(
-            zmin,
-            zmax,
-            np.array(X).copy(),
-            out_dir_,
-            "STEP 0 | Samples",
-            "0_X_samples.html",
-            y_log=True,
+    if output_graph:
+        traces.append(
+            plotHeatmap(
+                zmin,
+                zmax,
+                np.array(X).copy(),
+                out_dir_,
+                "STEP 0 | Samples",
+                "0_X_samples.html",
+                y_log=True,
+            )
         )
-    )
 
     # step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
     median_array[median_array == 0] = 1
-    traces.append(
-        plotLine(
-            [median_array],
-            out_dir_,
-            "STEP 1 | find pointwise median sample [median of col1, .... median of col n]",
-            "1_median_array.html",
+    if output_graph:
+        traces.append(
+            plotLine(
+                [median_array],
+                out_dir_,
+                "STEP 1 | find pointwise median sample [median of col1, .... median of col n]",
+                "1_median_array.html",
+            )
         )
-    )
     # cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
 
     # step 2 divide each sample by median array keep div by 0 as NaN!!
@@ -57,18 +59,19 @@ def normalize(X, out_dir):
         div[div == np.inf] = np.nan
         div[div == 0] = np.nan
         X_median.append(div)
-    traces.append(
-        plotHeatmap(
-            zmin,
-            zmax,
-            np.array(X_median).copy(),
-            out_dir_,
-            "STEP 2 | divide each sample by median array "
-            "keep div by 0 as NaN, set 0 to NaN",
-            "2_X_median.html",
-            y_log=True,
+    if output_graph:
+        traces.append(
+            plotHeatmap(
+                zmin,
+                zmax,
+                np.array(X_median).copy(),
+                out_dir_,
+                "STEP 2 | divide each sample by median array "
+                "keep div by 0 as NaN, set 0 to NaN",
+                "2_X_median.html",
+                y_log=True,
+            )
         )
-    )
 
     # step 3 Within each sample (from iii) store the median value of the sample(excluding 0 value!), which will produce an array of
     # median values (1 per samples).
@@ -76,54 +79,58 @@ def normalize(X, out_dir):
     for msample in X_median:
         clean_sample = msample[~np.isnan(msample)]
         within_median.append(np.median(clean_sample))
-    traces.append(
-        plotLine(
-            [within_median],
-            out_dir_,
-            "STEP 3 | Within each sample (rows from step2) store the median"
-            " value of the sample, which will produce an array of median "
-            "values (1 per samples)",
-            "3_within_median.html",
-            x_axis_count=True,
-            y_log=True,
+    if output_graph:
+        traces.append(
+            plotLine(
+                [within_median],
+                out_dir_,
+                "STEP 3 | Within each sample (rows from step2) store the median"
+                " value of the sample, which will produce an array of median "
+                "values (1 per samples)",
+                "3_within_median.html",
+                x_axis_count=True,
+                y_log=True,
+            )
         )
-    )
 
     # step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
     for i, s in enumerate(X):
         qnorm_samples.append(np.divide(s, within_median[i]))
-    traces.append(
-        plotHeatmap(
-            zmin,
-            zmax,
-            np.array(qnorm_samples).copy(),
-            out_dir_,
-            "STEP 4 | Use the array of medians"
-            " to scale(divide) each original sample,"
-            " which will give all quotient normalized samples.",
-            "4_qnorm_sample.html",
-            y_log=True,
+    if output_graph:
+        traces.append(
+            plotHeatmap(
+                zmin,
+                zmax,
+                np.array(qnorm_samples).copy(),
+                out_dir_,
+                "STEP 4 | Use the array of medians"
+                " to scale(divide) each original sample,"
+                " which will give all quotient normalized samples.",
+                "4_qnorm_sample.html",
+                y_log=True,
+            )
         )
-    )
 
     # step 5 substract step 4 from step 1
     diff = np.log(anscombe(np.array(qnorm_samples))) - np.log(anscombe(median_array))
 
-    traces.append(
-        plotHeatmap(
-            zmin,
-            zmax,
-            diff,
-            out_dir_,
-            "STEP 5 | Substract step 4 (quotient normalised samples)"
-            " from step 1 (median array)",
-            "5_diff.html",
-            y_log=False,
+    if output_graph:
+        traces.append(
+            plotHeatmap(
+                zmin,
+                zmax,
+                diff,
+                out_dir_,
+                "STEP 5 | Substract step 4 (quotient normalised samples)"
+                " from step 1 (median array)",
+                "5_diff.html",
+                y_log=False,
+            )
         )
-    )
 
-    plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
+    if output_graph:
+        plot_all(traces, out_dir_, title="Quotient Normalisation 5 STEPS")
 
     df_norm = np.array(qnorm_samples)
     return df_norm
@@ -232,10 +239,11 @@ class CenterScaler(TransformerMixin, BaseEstimator):
 
 
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
-    def __init__(self, norm="q", *, out_dir=None, copy=True):
+    def __init__(self, norm="q", *, out_dir=None, copy=True, output_graph=False):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
+        self.output_graph = output_graph
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -263,7 +271,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         """
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse="csr")
-        norm = normalize(X, self.out_dir)
+        norm = normalize(X, self.out_dir, self.output_graph)
         # norm_simple = normalize_simple(X, self.out_dir)
         return norm
 

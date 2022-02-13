@@ -32,8 +32,7 @@ from tqdm import tqdm
 # from utils.Utils import anscombe
 # import matlab.engine
 # matlab = matlab.engine.start_matlab()
-from utils.Utils import anscombe
-from utils.visualisation import concatenate_images
+from utils.Utils import concatenate_images
 
 matlab = None
 
@@ -619,12 +618,12 @@ def CWTVisualisation(
             cwt_m = np.mean(df_cwt.loc[idx_target].values, axis=0).reshape(shape)
             activity = np.mean(df_timedomain[df_timedomain["target"] == target].iloc[:, :-N_META].values, axis=0)
             plot_cwt_power(
-                None,
-                None,
+                0,
+                3,
                 0,
                 f"Element wise mean for label({label})",
                 "",
-                target,
+                len(idx_target),
                 step_slug,
                 out_dir,
                 0,
@@ -1023,9 +1022,9 @@ def compute_cwt(
         #cwt_raw.append(np.array(raw.flatten())) #todo test
         # cwt.append(power_flatten_masked_fft)
         i += 1
-    print("convert cwt list to np array...")
+    #print("convert cwt list to np array...")
     cwt = np.array(cwt)
-    print("done.")
+    #print("done.")
     # cwt_full = np.array(cwt_full)
 
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)

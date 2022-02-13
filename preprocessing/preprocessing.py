@@ -44,7 +44,8 @@ def apply_preprocessing_steps(
     farm_name="",
     keep_meta=False,
     plot_all_target=None,
-    enable_graph_out=None
+    enable_graph_out=None,
+    output_qn_graph=False
 ):
     N_META = len(meta_columns)
     step_slug = "_".join(steps)
@@ -238,7 +239,7 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
             df.iloc[:, :-N_META] = QuotientNormalizer(
-                out_dir=graph_outputdir / step
+                out_dir=graph_outputdir / step, output_graph=output_qn_graph
             ).transform(df.iloc[:, :-N_META].values)
         if "STFT" in step:
             STFT_Transform = STFT(

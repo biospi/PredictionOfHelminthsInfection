@@ -25,12 +25,12 @@ from typing import List, Optional
 import pandas as pd
 import typer
 
-from model.data_loader import load_activity_data, parse_param_from_filename
+from model.data_loader import load_activity_data
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
-    plotHeatmap, plot_ml_report_final, plot_zeros_distrib, plot_mean_groups, plot_time_pca, plot_time_lda, plot_groups,
-    plot_umap, concatenate_images)
+    plotHeatmap, plot_zeros_distrib, plot_mean_groups, plot_time_pca, plot_time_lda, plot_groups,
+    plot_umap)
 
 
 def main(
@@ -145,6 +145,7 @@ def main(
             #############################################################################################################
             animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
             N_META = len(meta_columns)
+
             df_norm = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
@@ -161,29 +162,8 @@ def main(
                 clf_name="SVM_QN_VISU",
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
-                keep_meta=True
-            )
-
-            #plot median wise cwt for each target(label)
-            apply_preprocessing_steps(
-                meta_columns,
-                n_activity_days,
-                df_hum,
-                df_temp,
-                sfft_window,
-                wavelet_f0,
-                animal_ids,
-                df_norm.copy(),
-                output_dir / "groups_after_qn" / "time_freq",
-                ["CENTER", "CWT"],
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="CWT_VISU",
-                output_dim=df_norm.shape[0],
-                n_scales=n_scales,
                 keep_meta=True,
-                plot_all_target=True,
-                enable_graph_out=False
+                output_qn_graph=True
             )
 
             plot_zeros_distrib(
@@ -208,6 +188,28 @@ def main(
                 label_series,
                 N_META,
                 output_dir / "groups_after_qn",
+            )
+
+            #plot median wise cwt for each target(label)
+            apply_preprocessing_steps(
+                meta_columns,
+                n_activity_days,
+                df_hum,
+                df_temp,
+                sfft_window,
+                wavelet_f0,
+                animal_ids,
+                df_norm.copy(),
+                output_dir / "groups_after_qn" ,
+                ["ANSCOMBE", "LOG", "CENTER", "CWT"],
+                class_healthy_label,
+                class_unhealthy_label,
+                clf_name="QN_CWT_VISU",
+                output_dim=data_frame.shape[0],
+                n_scales=n_scales,
+                keep_meta=True,
+                plot_all_target=True,
+                enable_graph_out=False
             )
 
             plot_umap(
