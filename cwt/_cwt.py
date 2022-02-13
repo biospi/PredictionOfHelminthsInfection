@@ -33,6 +33,7 @@ from tqdm import tqdm
 # import matlab.engine
 # matlab = matlab.engine.start_matlab()
 from utils.Utils import anscombe
+from utils.visualisation import concatenate_images
 
 matlab = None
 
@@ -100,7 +101,7 @@ def plot_cwt_power_sidebyside(
 
     # ax3.plot(np.log(coi_line_array), linestyle="--", linewidth=3, c="yellow")
     imshow_y_axis = []
-    p0 = anscombe(power_cwt_healthy.copy())
+    p0 = power_cwt_healthy.copy()
     # if "anscombe" in step_slug.lower():
     #         p0 = anscombe(p0)
     # if "log" in step_slug.lower():
@@ -131,7 +132,7 @@ def plot_cwt_power_sidebyside(
     # ax3.set_xticklabels(labels_)
 
     # ax4.plot(coi_line_array, linestyle="--", linewidth=3, c="yellow")
-    p1 = anscombe(power_cwt_unhealthy.copy())
+    p1 = power_cwt_unhealthy.copy()
     # if "anscombe" in step_slug.lower():
     #         p1 = anscombe(p1)
     # if "log" in step_slug.lower():
@@ -573,7 +574,7 @@ def mask_cwt(cwt, coi):
 def CWTVisualisation(
     N_META,
     step_slug,
-    graph_outputdir,
+    out_dir,
     shape,
     coi_mask,
     scales,
@@ -583,32 +584,60 @@ def CWTVisualisation(
     class_healthy_label,
     class_unhealthy_label,
     filename_sub="power",
+    plot_all_target = None
 ):
     print("CWTVisualisation")
-    idx_healthy = df_timedomain[df_timedomain["health"] == 0].index.tolist()
-    idx_unhealthy = df_timedomain[df_timedomain["health"] == 1].index.tolist()
-    # coi_mask_ = coi_mask.astype(int)
-    # idxs = np.where(coi_mask_ == 1)
-    # df_cwt.columns = [str(x) for x in list(df_cwt.columns)]
-    h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
-    uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
-    plot_cwt_power_sidebyside(
-        filename_sub,
-        step_slug,
-        True,
-        class_healthy_label,
-        class_unhealthy_label,
-        idx_healthy,
-        idx_unhealthy,
-        coi_line_array,
-        df_timedomain,
-        graph_outputdir,
-        h_m,
-        uh_m,
-        scales,
-        meta_size=N_META,
-        ntraces=2,
-    )
+    if plot_all_target is None:
+        idx_healthy = df_timedomain[df_timedomain["health"] == 0].index.tolist()
+        idx_unhealthy = df_timedomain[df_timedomain["health"] == 1].index.tolist()
+        # coi_mask_ = coi_mask.astype(int)
+        # idxs = np.where(coi_mask_ == 1)
+        # df_cwt.columns = [str(x) for x in list(df_cwt.columns)]
+        h_m = np.mean(df_cwt.loc[idx_healthy].values, axis=0).reshape(shape)
+        uh_m = np.mean(df_cwt.loc[idx_unhealthy].values, axis=0).reshape(shape)
+        plot_cwt_power_sidebyside(
+            filename_sub,
+            step_slug,
+            True,
+            class_healthy_label,
+            class_unhealthy_label,
+            idx_healthy,
+            idx_unhealthy,
+            coi_line_array,
+            df_timedomain,
+            out_dir,
+            h_m,
+            uh_m,
+            scales,
+            meta_size=N_META,
+            ntraces=2,
+        )
+    else:
+        for target in df_timedomain["target"].drop_duplicates().values:
+            label = df_timedomain[df_timedomain["target"] == target]["label"].values[0]
+            idx_target = df_timedomain[df_timedomain["target"] == target].index.tolist()
+            cwt_m = np.mean(df_cwt.loc[idx_target].values, axis=0).reshape(shape)
+            activity = np.mean(df_timedomain[df_timedomain["target"] == target].iloc[:, :-N_META].values, axis=0)
+            plot_cwt_power(
+                None,
+                None,
+                0,
+                f"Element wise mean for label({label})",
+                "",
+                target,
+                step_slug,
+                out_dir,
+                0,
+                activity,
+                cwt_m.copy(),
+                None,
+                scales,
+                log_yaxis=False,
+                format_xaxis=False,
+            )
+        # stack cwt figures
+        files = list(out_dir.glob("*.png"))
+        concatenate_images(files, out_dir, filename="elemwise_mean_cwt_per_label.png")
 
 
 def check_scale_spacing(scales):
@@ -683,7 +712,7 @@ def compute_cwt_paper_sd(activity, scales):
 
 
 def compute_cwt_paper_hd(activity, scales, wavelet_f0, step_slug):
-    print("compute_cwt...")
+    #print("compute_cwt...")
     w = wavelet.Morlet(wavelet_f0)
     if "MEXH" in step_slug:
         w = wavelet.MexicanHat()
@@ -832,7 +861,7 @@ def cwt_power(
     avg=0,
     nscales=10,
     enable_graph_out=True,
-    enable_coi=False,
+    enable_coi=True,
 ):
     # y = center_signal(activity, avg)
     # scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
@@ -850,7 +879,7 @@ def cwt_power(
     #     #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6)])
     # else:
     scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])
-    print(scales)
+    #print(scales)
 
     # scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
     # scales = np.concatenate(
@@ -890,14 +919,15 @@ def cwt_power(
     #     plot_cwt_power(vmin, vmax, epoch, date, animal_id, target, step_slug, out_dir, i, activity, coefs.copy().real, coi, scales,
     #                    format_xaxis=format_xaxis, wavelet=None, log_yaxis=False, filename_sub="real")
 
-    print("number of scales is %d" % len(scales))
-    print(scales)
+    # print("number of scales is %d" % len(scales))
+    # print(scales)
     # conver cwt coefs to power
     coefs_cc = np.conj(coefs)
     power_cwt = np.real(np.multiply(coefs, coefs_cc))
     # power_cwt = coefs.real
     if enable_coi:
         power_masked = mask_cwt(power_cwt.copy(), coi)
+        power_cwt = power_masked
     else:
         power_masked = power_cwt.copy()
 
@@ -952,8 +982,9 @@ def compute_cwt(
     format_xaxis,
     vmin,
     vmax,
+    enable_graph_out = None
 ):
-    print("compute_cwt...")
+    #print("compute_cwt...")
     out_dir = out_dir / "_cwt"
     # plotHeatmap(X, out_dir=out_dir, title="Time domain samples", force_xrange=True, filename="time_domain_samples.html")
     cwt = []
@@ -981,6 +1012,7 @@ def compute_cwt(
             avg=np.average(X),
             nscales=n_scales,
             enable_coi=True,
+            enable_graph_out=enable_graph_out
         )
         power_flatten = np.array(power.flatten())
         # cwt_full.append(power_flatten_masked)
@@ -988,7 +1020,7 @@ def compute_cwt(
         # power_flatten_masked = power_flatten_masked[~np.isnan(power_flatten_masked)]  # remove masked values
         # power_flatten_masked_fft = np.concatenate([power_flatten_masked, power_fft])
         cwt.append(power_flatten)
-        cwt_raw.append(np.array(raw.flatten()))
+        #cwt_raw.append(np.array(raw.flatten())) #todo test
         # cwt.append(power_flatten_masked_fft)
         i += 1
     print("convert cwt list to np array...")
@@ -1045,6 +1077,7 @@ class CWT(TransformerMixin, BaseEstimator):
         dates=None,
         vmin=None,
         vmax=None,
+        enable_graph_out=None
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1063,6 +1096,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.vmax = vmax
         self.hd = hd
         self.scales = None
+        self.enable_graph_out = enable_graph_out
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -1093,6 +1127,7 @@ class CWT(TransformerMixin, BaseEstimator):
             self.format_xaxis,
             self.vmin,
             self.vmax,
+            self.enable_graph_out
         )
         self.freqs = freqs
         self.coi = coi
@@ -1166,7 +1201,7 @@ def createSynthetic(activity):
     return synt.astype(int)
 
 
-def createSyntheticActivityData(n_samples=4):
+def create_synthetic_activity_data(n_samples=4):
     print("createSyntheticActivityData")
     samples_path = (
         "F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv"
@@ -1184,7 +1219,7 @@ def createSyntheticActivityData(n_samples=4):
     return dataset
 
 
-def plotLine(X, out_dir, title="title", filename="file.html"):
+def plot_line(X, out_dir, title="title", filename="file.html"):
     # fig = make_subplots(rows=len(transponders), cols=1)
     fig = make_subplots(rows=1, cols=1)
     for i, sample in enumerate(X):
@@ -1213,7 +1248,7 @@ def get_time_ticks(nticks):
     return date_list
 
 
-def plotHeatmap(
+def plot_heatmap(
     X,
     out_dir="",
     title="Heatmap",

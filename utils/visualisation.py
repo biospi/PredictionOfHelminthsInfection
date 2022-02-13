@@ -21,7 +21,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import auc, precision_recall_curve
 from tqdm import tqdm
 
-from cwt._cwt import CWT, plotLine, STFT, plot_cwt_power, plot_stft_power
+from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power
 from utils.Utils import anscombe
 from utils._normalisation import CenterScaler
 from PIL import Image
@@ -330,7 +330,7 @@ def plot_umap(
 
     filepath = output_dir / f"umapplot_{filename}.png"
     mapper = umap.UMAP().fit(df_before_reduction)
-    fig, ax = plt.subplots(figsize=(14.00, 14.00))
+    fig, ax = plt.subplots(figsize=(9.00, 9.00))
     plot = umap.plot.points(mapper, labels=ids, ax=ax, background='black')
     print(filepath)
     fig.savefig(filepath)
@@ -926,7 +926,7 @@ def rolling_window(array, window_size, freq):
     return rolled[np.arange(0, shape[0], freq)]
 
 
-def concatenate_images(images_list, out_dir):
+def concatenate_images(images_list, out_dir, filename = "mean_cwt_per_label.png"):
     imgs = [Image.open(str(i)) for i in images_list]
 
     # If you're using an older version of Pillow, you might have to use .size[0] instead of .width
@@ -949,7 +949,6 @@ def concatenate_images(images_list, out_dir):
 
         y += img.height
 
-    filename = "mean_cwt_per_label.png"
     file_path = out_dir.parent / filename
     print(file_path)
     img_merge.save(str(file_path))
@@ -989,29 +988,13 @@ def plot_mean_groups(
         s = mean.values
         s = anscombe(s)
         s = np.log(s)
-        # s = StandardScaler().fit_transform(s.reshape(-1, 1)).flatten()
-        # s = MinMaxScaler(feature_range=(0, 1)).fit_transform(s.reshape(-1, 1)).flatten()
-        # s = BaselineRemoval(s).ZhangFit()
-        # s = sklearn.preprocessing.normalize(s)
-        # s = BaselineRemoval(s).ModPoly(2)
 
-        # stop = s.copy()
-        # stop[stop >= 0] = 0
-        # stop = CenterScaler().transform(stop)
-        #
-        # sbottom = s.copy()
-        # sbottom[sbottom < 0] = 0
-        # sbottom = CenterScaler().transform(sbottom)
-
-        plotLine(
+        plot_line(
             np.array([s]),
             out_dir,
             label + "_" + str(df_.shape[0]),
             label + "_" + str(df_.shape[0]) + ".html",
         )
-        #
-        # slices = rolling_window(s, 400, 400)
-        # for i, s in enumerate(slices):
         s = CenterScaler(divide_by_std=False).transform(s)
         i = 0
         if wavelet_f0 is not None:
@@ -1664,26 +1647,28 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
     print("build_individual_animal_pred...")
     for k, v in scores.items():
         # prepare data holder
-        data_c, data_u, data_m = {}, {}, {}
+        data_c, data_i, data_m = {}, {}, {}
 
         for id in ids:
             data_c[id] = 0
-            data_u[id] = 0
+            data_i[id] = 0
             d = {}
             for m in meta_columns:
                 d[m] = []
             data_m[id] = d
 
         score = scores[k]
-        data_dates, data_corr, data_ids, data_meta = [], [], [], []
+        data_dates, data_corr, data_incorr, data_ids, data_meta = [], [], [], [], []
         for s in score:
             dates = pd.to_datetime(s[f"sample_dates_{tt}"]).tolist()
             correct_predictions = s[f"correct_predictions_{tt}"]
+            incorrect_predictions = s[f"incorrect_predictions_{tt}"]
             ids_test = s[f"ids_{tt}"]
             meta_test = s[f"meta_{tt}"]
 
             data_dates.extend(dates)
             data_corr.extend(correct_predictions)
+            data_incorr.extend(incorrect_predictions)
             data_ids.extend(ids_test)
             data_meta.extend(meta_test)
 
@@ -1692,14 +1677,12 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 for j, m in enumerate(meta_columns):
                     data_m[ids_test[i]][m].append(meta_test[i][j])
 
-                if correct_predictions[i] == 1:
-                    data_c[ids_test[i]] += data_c[ids_test[i]] + 1
-                else:
-                    data_u[ids_test[i]] += data_u[ids_test[i]] + 1
+                data_c[ids_test[i]] += correct_predictions[i]
+                data_i[ids_test[i]] += incorrect_predictions[i]
 
         labels = list(data_c.keys())
         correct_pred = list(data_c.values())
-        incorrect_pred = list(data_u.values())
+        incorrect_pred = list(data_i.values())
         meta_pred = list(data_m.values())
         #make table
         df_table = pd.DataFrame(meta_pred, index=labels)
@@ -1749,7 +1732,7 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
             title=f"Classifier predictions ({tt}) per individual label_unhealthy={label_unhealthy}",
         )
         ax.set_xlabel("Animals")
-        ax.set_ylabel("Percent of predictions (pred/tot_pred per indiv)")
+        ax.set_ylabel("Number of predictions")
         fig = ax.get_figure()
         filepath = output_dir / f"predictions_per_individual_{k}_{steps}_{tt}.png"
         print(filepath)
@@ -1801,7 +1784,7 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 log=False,
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
-            axs[i].set_ylabel("Percent of predictions")
+            axs[i].set_ylabel("Number of predictions")
         filepath = output_dir / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
         print(filepath)
         fig.tight_layout()

@@ -584,7 +584,8 @@ def fold_worker(
     precision, recall, fscore, support = precision_recall_fscore_support(
         y_test, y_pred
     )
-    correct_predictions = (y_test == y_pred).astype(int)
+    correct_predictions_test = (y_test == y_pred).astype(int)
+    incorrect_predictions_test = (y_test != y_pred).astype(int)
 
     #data for training
     y_pred_train = clf.predict(X_train)
@@ -593,6 +594,7 @@ def fold_worker(
         y_train, y_pred_train
     )
     correct_predictions_train = (y_train == y_pred_train).astype(int)
+    incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
         "target": int(class_unhealthy),
@@ -608,8 +610,10 @@ def fold_worker(
         "sample_dates_train": sample_dates_train.tolist(),
         "meta_test": meta_test.tolist(),
         "meta_train": meta_train.tolist(),
-        "correct_predictions_test": correct_predictions.tolist(),
+        "correct_predictions_test": correct_predictions_test.tolist(),
+        "incorrect_predictions_test": incorrect_predictions_test.tolist(),
         "correct_predictions_train": correct_predictions_train.tolist(),
+        "incorrect_predictions_train": incorrect_predictions_train.tolist(),
         "test_precision_score_0": float(precision[0]),
         "test_precision_score_1": float(precision[1]),
         "test_recall_0": float(recall[0]),

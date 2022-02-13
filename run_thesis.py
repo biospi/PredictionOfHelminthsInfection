@@ -22,8 +22,8 @@ def main(
         steps = [["QN", "ANSCOMBE", "LOG"]]
         slug = "_".join(steps[0])
 
-        for i_day in [7]:
-            for a_day in [7]:
+        for i_day in [7, 5, 0]:
+            for a_day in [7, 5, 1]:
                 for cv in ['RepeatedKFold']:
                     main_experiment.main(
                         output_dir=output_dir
@@ -93,7 +93,7 @@ def main(
             temporal_validation.main(
                 output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
                 dataset_folder=Path("E:/Data2/debug/delmas/dataset_mrnn_7day"),
-                imputed_days=i,
+                n_imputed_days=i,
             )
 
             temporal_validation.main(
@@ -102,7 +102,7 @@ def main(
                 / f"cedara_{i}"
                 / "4To4_3To5_4To3_5To3_2To5_2To2",
                 dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
-                imputed_days=i,
+                n_imputed_days=i,
                 class_unhealthy_label=[
                     "4To4",
                     "3To5",
@@ -116,7 +116,7 @@ def main(
             temporal_validation.main(
                 output_dir=output_dir / "temporal_validation" / f"cedara_{i}" / "2To2",
                 dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
-                imputed_days=i,
+                n_imputed_days=i,
             )
 
     if exp_cross_farm:

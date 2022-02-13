@@ -34,6 +34,7 @@ def main(
     class_healthy_f2: List[str] = ["1To1"],
     class_unhealthy_f2: List[str] = ["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
     steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    meta_columns: List[str] = ["label", "id", "imputed_days", "date", "health"],
     n_fold: int = 50,
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
@@ -58,13 +59,14 @@ def main(
     _, farm_id, option, sampling = parse_param_from_filename(str(farm1_path))
     (
         dataset1,
-        N_META,
+        meta_data,
         _,
         _,
         label_series_f1,
         samples_f1,
     ) = load_activity_data(
         output_dir,
+        meta_columns,
         find_dataset(str(farm1_path)),
         n_activity_days,
         class_healthy_f1,
@@ -77,6 +79,7 @@ def main(
 
     dataset2, _, _, _, label_series_f2, samples_f2 = load_activity_data(
         output_dir,
+        meta_columns,
         find_dataset(str(farm2_path)),
         n_activity_days,
         class_healthy_f2,
@@ -94,6 +97,7 @@ def main(
     dataframe = pd.concat([dataset1, dataset2], axis=0)
 
     dfs_processed = apply_preprocessing_steps(
+        meta_columns,
         n_activity_days,
         None,
         None,
@@ -101,7 +105,6 @@ def main(
         None,
         None,
         dataframe.copy(),
-        N_META,
         output_dir,
         steps,
         class_healthy_f1,

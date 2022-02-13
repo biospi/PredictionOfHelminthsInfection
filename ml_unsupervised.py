@@ -112,7 +112,7 @@ def main(
 
         umap.plot.output_file(str(filepath))
 
-        p = umap.plot.interactive(mapper, labels=y, point_size=10, hover_data=hover_data, width=1000, height=1000)
+        p = umap.plot.interactive(mapper, labels=y, point_size=10, hover_data=hover_data, width=900, height=900)
         umap.plot.show(p)
 
         # plot_2d_space(X, y, filepath, label_series, title="Umap")

@@ -13,6 +13,9 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     if "health" not in data_frame.columns:
         print("missing health column in dataset!")
         data_frame["health"] = 0
+    if "target" not in data_frame.columns:
+        print("missing target column in dataset!")
+        data_frame["target"] = 0
 
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
@@ -62,7 +65,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
     flabels = [x for x in data_frame_labeled.columns if 'label' in x]
-    data_frame["target"] = 0
+
     for i, flabel in enumerate(flabels):
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
@@ -76,7 +79,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     # samples['unhealthy'] = data_frame[data_frame_health['health'] == 'unhealthy']
     for label in labels:
         df = data_frame[data_frame["label"] == label]
-        df = df.drop('label', 1)
+        #df = df.drop('label', 1)
         samples[label] = df
 
     if a_day is not None:
@@ -94,7 +97,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     print(class_count)
     # drop label column stored previously, just keep target for ml
     meta_data = data_frame[meta_columns].values
-    data_frame = data_frame.drop('label', 1)
+    #data_frame = data_frame.drop('label', 1)
 
     print(data_frame)
     # entropy_rows = []

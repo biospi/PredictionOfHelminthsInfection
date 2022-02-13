@@ -42,7 +42,9 @@ def apply_preprocessing_steps(
     output_dim=2,
     n_scales=None,
     farm_name="",
-    keep_meta=False
+    keep_meta=False,
+    plot_all_target=None,
+    enable_graph_out=None
 ):
     N_META = len(meta_columns)
     step_slug = "_".join(steps)
@@ -264,12 +266,13 @@ def apply_preprocessing_steps(
                 animal_ids=animal_ids,
                 targets=df["health"].tolist(),
                 dates=df["date"].tolist(),
+                enable_graph_out=enable_graph_out,
             )
-            data_frame_cwt, data_frame_cwt_raw = CWT_Transform.transform(
+            data_frame_cwt, _ = CWT_Transform.transform(
                 df.copy().iloc[:, :-N_META].values
             )
             data_frame_cwt = pd.DataFrame(data_frame_cwt)
-            data_frame_cwt_raw = pd.DataFrame(data_frame_cwt_raw)
+            #data_frame_cwt_raw = pd.DataFrame(data_frame_cwt_raw)
 
             # data_frame_cwt.index = df.index  # need to keep original sample index!!!!
             # df_meta = df.iloc[:, -N_META:]
@@ -295,19 +298,20 @@ def apply_preprocessing_steps(
                 df_o.copy(),
                 data_frame_cwt,
                 class_healthy_label,
-                class_unhealthy_label
+                class_unhealthy_label,
+                plot_all_target=plot_all_target
             )
 
-            data_frame_cwt_raw.index = (
+            data_frame_cwt.index = (
                 df.index
             )  # need to keep original sample index!!!!
-            df = pd.concat([data_frame_cwt_raw, df_meta], axis=1)
+            df = pd.concat([data_frame_cwt, df_meta], axis=1)
             # CWTVisualisation(step_slug, graph_outputdir, CWT_Transform.shape, CWT_Transform.coi_mask, CWT_Transform.scales, CWT_Transform.coi, df_o.copy(),
             #                  data_frame_cwt_raw, class_healthy_label, class_unhealthy_label, class_healthy, class_unhealthy, filename_sub="real")
 
             df = df.dropna(axis=1, how="all")  # removes nan from coi
             del data_frame_cwt
-            del data_frame_cwt_raw
+            #del data_frame_cwt_raw
         if "TSNE" in step:
             tsne_dim = int(step[step.find("(") + 1 : step.find(")")])
             print("tsne_dim", tsne_dim)

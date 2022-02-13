@@ -18,11 +18,12 @@ def main(
     dataset_folder: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    imputed_days: int = 7,
+    n_imputed_days: int = 7,
     n_activity_days: int = 7,
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    meta_columns: List[str] = ["label", "id", "imputed_days", "date", "health"],
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     train_size: float = 0.9,
     n_fold: int = 50
 ):
@@ -46,13 +47,21 @@ def main(
         print(f"loading dataset file {file} ...")
         (
             data_frame,
-            N_META,
+            meta_data,
             _,
             _,
             label_series,
             samples,
-        ) = load_activity_data(output_dir, file, n_activity_days, class_healthy_label, class_unhealthy_label,
-                               imputed_days=imputed_days)
+        ) = load_activity_data(
+            output_dir,
+            meta_columns,
+            file,
+            n_activity_days,
+            class_healthy_label,
+            class_unhealthy_label,
+            imputed_days=n_imputed_days,
+            preprocessing_steps=preprocessing_steps,
+        )
 
         # data_frame = data_frame[
         #     data_frame["health"].isin([0, 1])
@@ -80,6 +89,7 @@ def main(
         )
 
         data_frame = apply_preprocessing_steps(
+            meta_columns,
             None,
             None,
             None,
@@ -87,9 +97,8 @@ def main(
             None,
             None,
             data_frame.copy(),
-            N_META,
             output_dir,
-            steps,
+            preprocessing_steps,
             class_healthy_label,
             class_unhealthy_label,
             clf_name="SVM",
@@ -108,8 +117,8 @@ def main(
 
         plot_heatmap(X1, y1, X2, y2, output_dir, p1_start, p1_end, p2_start, p2_end)
 
-        process_clf(train_size, label_series, label_series, info, steps, n_fold, X1, X2, y1, y2, output_dir)
-        process_clf(train_size, label_series, label_series, info, steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
+        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir)
+        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
 
 
 if __name__ == "__main__":
