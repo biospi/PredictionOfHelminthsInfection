@@ -211,6 +211,26 @@ def main(
                 plot_all_target=True,
                 enable_graph_out=False
             )
+            apply_preprocessing_steps(
+                meta_columns,
+                n_activity_days,
+                df_hum,
+                df_temp,
+                sfft_window,
+                wavelet_f0,
+                animal_ids,
+                df_norm.copy(),
+                output_dir / "groups_after_qn" ,
+                ["ANSCOMBE", "LOG", "CENTER", "CWT", "LOG"],
+                class_healthy_label,
+                class_unhealthy_label,
+                clf_name="QN_CWT_LOG_VISU",
+                output_dim=data_frame.shape[0],
+                n_scales=n_scales,
+                keep_meta=True,
+                plot_all_target=True,
+                enable_graph_out=False
+            )
 
             plot_umap(
                 N_META,

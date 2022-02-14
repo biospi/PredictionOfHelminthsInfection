@@ -1713,6 +1713,7 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
         fig.savefig(filepath)
 
         # figure with time
+        plt.clf()
         df = pd.DataFrame(
             {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids}
         )
@@ -1734,9 +1735,9 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 data_u[id] = 0
             for index, row in d.iterrows():
                 if row["data_corr"] == 1:
-                    data_c[row["data_ids"]] += data_c[row["data_ids"]] + 1
+                    data_c[row["data_ids"]] += 1
                 else:
-                    data_u[row["data_ids"]] += data_u[row["data_ids"]] + 1
+                    data_u[row["data_ids"]] += 1
             labels = list(data_c.keys())
             correct_pred = list(data_c.values())
             incorrect_pred = list(data_u.values())
@@ -1747,10 +1748,6 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 },
                 index=labels,
             )
-            df["correct prediction"] = (df_table["correct prediction"] / (
-                        df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
-            df["incorrect prediction"] = (df_table["incorrect prediction"] / (
-                    df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
             df.plot.bar(
                 ax=axs[i],
                 rot=90,

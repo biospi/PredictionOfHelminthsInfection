@@ -23,8 +23,8 @@ def main(
         for steps in steps_list:
             slug = "_".join(steps[0])
 
-            for i_day in [7, 5, 0]:
-                for a_day in [7, 5, 1]:
+            for i_day in [7]:
+                for a_day in [7]:
                     for cv in ['RepeatedKFold']:
                         main_experiment.main(
                             output_dir=output_dir
