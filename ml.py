@@ -77,12 +77,12 @@ def main(
     Args:\n
         output_dir: Output directory
         dataset_folder: Dataset input directory
-        class_healthy: Label for healthy class
-        class_unhealthy: Label for unhealthy class
+        preprocessing_steps: preprocessing steps
+        class_healthy_label: Label for healthy class
+        class_unhealthy_label: Label for unhealthy class
         meta_columns: List of names of the metadata columns in the dataset file.
-        stratify: Enable stratiy for cross validation
-        s_output: Output sample files
-        cwt: Enable freq domain (cwt)
+        n_imputed_days: number of imputed days allowed in a sample
+        n_activity_days: number of activity days in a sample
         n_scales: n scales in dyadic array [2^2....2^n].
         temp_file: csv file containing temperature features.
         hum_file: csv file containing humidity features.
@@ -91,7 +91,10 @@ def main(
         cv: RepeatedKFold
         wavelet_f0: Mother Wavelet frequency for CWT
         sfft_window: STFT window size
-        epochs: Cnn epochs
+        farm_id: farm id
+        sampling: Activity bin resolution
+        pre_visu: Enable initial visualisation of dataset before classification
+        output_qn_graph: Output Quotient Normalisation steps figures
         n_job: Number of threads to use for cross validation.
     """
     enable_downsample_df = False
@@ -416,3 +419,5 @@ if __name__ == "__main__":
     #     n_repeats=10,
     #     n_job=5,
     # )
+
+
