@@ -297,21 +297,30 @@ def plot_groups(
     return idx_healthy, idx_unhealthy
 
 
-def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=2):
+def plot_2d_space(
+    X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=2
+):
     fig, ax = plt.subplots(figsize=(8.0, 8.0))
     print("plot_2d_space")
     if len(X[0]) == 1:
         for l in zip(np.unique(y)):
-            ax.scatter(X[y == l, 0], np.zeros(X[y == l, 0].size), label=l, s=marker_size)
+            ax.scatter(
+                X[y == l, 0], np.zeros(X[y == l, 0].size), label=l, s=marker_size
+            )
     else:
         for l in zip(np.unique(y)):
-            ax.scatter(X[y == l[0]][:, 0], X[y == l[0]][:, 1], label=label_series[l[0]], s=marker_size)
+            ax.scatter(
+                X[y == l[0]][:, 0],
+                X[y == l[0]][:, 1],
+                label=label_series[l[0]],
+                s=marker_size,
+            )
 
     colormap = cm.get_cmap("Spectral")
     colorst = [colormap(i) for i in np.linspace(0, 0.9, len(ax.collections))]
     for t, j1 in enumerate(ax.collections):
         j1.set_color(colorst[t])
-    ax.patch.set_facecolor('black')
+    ax.patch.set_facecolor("black")
     ax.set_title(title)
     ax.legend(loc="upper center", ncol=5)
     ax.set_xlabel("Component 1")
@@ -325,43 +334,57 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors
     plt.clf()
 
 
-def plot_umap(
-    meta_columns, df, output_dir, label_series, title="title", y_col="label"
-):
+def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="label"):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    df_before_reduction = df.iloc[:, :-len(meta_columns)].values
+    df_before_reduction = df.iloc[:, : -len(meta_columns)].values
     ids = df["id"].values
     X = umap.UMAP().fit_transform(df_before_reduction)
     y = df["target"].astype(int)
     filename = f"{title.replace(' ', '_')}.png"
     filepath = output_dir / filename
-    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(float), marker_size=4)
+    plot_2d_space(
+        X,
+        y,
+        filepath,
+        label_series,
+        title=title,
+        colors=ids.astype(float),
+        marker_size=4,
+    )
 
     filepath = output_dir / f"umap_plot_{filename}"
     mapper = umap.UMAP().fit(df_before_reduction)
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
-    umap.plot.points(mapper, labels=ids, ax=ax, background='black')
+    umap.plot.points(mapper, labels=ids, ax=ax, background="black")
     fig.savefig(filepath)
     print(filepath)
 
-    #interactive umap
-    hover_data = pd.DataFrame({'index': np.arange(df_before_reduction.shape[0]),
-                               'label': ids})
-    #build meta list
+    # interactive umap
+    hover_data = pd.DataFrame(
+        {"index": np.arange(df_before_reduction.shape[0]), "label": ids}
+    )
+    # build meta list
     meta_list = []
     for index, row in df[meta_columns].iterrows():
-        meta_str = ''
+        meta_str = ""
         for i, m in enumerate(meta_columns):
-            if m == 'id' or m == 'target':
+            if m == "id" or m == "target":
                 continue
             meta_str += f"{m}={str(row[m])} "
         meta_list.append(meta_str)
-    hover_data['item'] = meta_list
+    hover_data["item"] = meta_list
     print(hover_data)
     print("saving interactive umap...")
-    p = umap.plot.interactive(mapper, labels=ids, hover_data=hover_data, point_size=5, background="black", interactive_text_search=True)
+    p = umap.plot.interactive(
+        mapper,
+        labels=ids,
+        hover_data=hover_data,
+        point_size=5,
+        background="black",
+        interactive_text_search=True,
+    )
     filepath = output_dir / f"umap_iplot_{title.replace(' ', '_')}.html"
-    output_file(str(filepath), mode='inline')
+    output_file(str(filepath), mode="inline")
     save(p)
     print(filepath)
 
@@ -669,8 +692,8 @@ def plot_zeros_distrib(
     z_prct = []
 
     for index, row in data_frame_no_norm.iterrows():
-        a = row[0:a_days*1440].values
-        label = label_series[row['target']]
+        a = row[0 : a_days * 1440].values
+        label = label_series[row["target"]]
 
         target_labels.append(label)
         z_prct.append(np.sum(a == 0) / len(a))
@@ -1013,7 +1036,7 @@ def plot_mean_groups(
                 n_scales=n_scales,
                 vmin=0,
                 vmax=3,
-                enable_graph_out=True
+                enable_graph_out=True,
             ).transform([s])
 
         if sfft_window is not None:
@@ -1066,12 +1089,12 @@ def plot_mean_groups(
     file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
     figures_to_html(traces, filename=str(file_path))
-    #stack cwt figures
+    # stack cwt figures
     files = list((out_dir / "_cwt").glob("*.png"))
     concatenate_images(files, out_dir)
 
 
-def plot_mosaic(cv_name, directory_t, filename, subdir):
+def plot_mosaic(output_dir, cv_name, directory_t, filename, subdir):
 
     cv_dir = []
     for item in directory_t:
@@ -1648,7 +1671,9 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
     print("build_roc_curve...")
 
 
-def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids, meta_columns, tt="test"):
+def build_individual_animal_pred(
+    output_dir, steps, label_unhealthy, scores, ids, meta_columns, tt="test"
+):
     print("build_individual_animal_pred...")
     for k, v in scores.items():
         # prepare data holder
@@ -1689,7 +1714,7 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
         correct_pred = list(data_c.values())
         incorrect_pred = list(data_i.values())
         meta_pred = list(data_m.values())
-        #make table
+        # make table
         df_table = pd.DataFrame(meta_pred, index=labels)
         for m in meta_columns:
             df_table[m] = [str(dict(Counter(x))) for x in df_table[m]]
@@ -1697,21 +1722,34 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
         df_table["individual id"] = labels
         df_table["correct prediction"] = correct_pred
         df_table["incorrect prediction"] = incorrect_pred
-        df_table["ratio of correct prediction (percent)"] = (df_table["correct prediction"] / (df_table["correct prediction"] + df_table["incorrect prediction"]))*100
+        df_table["ratio of correct prediction (percent)"] = (
+            df_table["correct prediction"]
+            / (df_table["correct prediction"] + df_table["incorrect prediction"])
+        ) * 100
         filename = f"table_data_{tt}_{k}.csv"
         filepath = output_dir / filename
         print(filepath)
-        df_table = df_table.sort_values("ratio of correct prediction (percent)", ascending=False)
+        df_table = df_table.sort_values(
+            "ratio of correct prediction (percent)", ascending=False
+        )
         df_table.to_csv(filepath, index=False)
 
-        fig = go.Figure(data=[go.Table(
-            header=dict(values=list(df_table.columns),
-                        fill_color='paleturquoise',
-                        align='left'),
-            cells=dict(values=df_table.transpose().values.tolist(),
-                       fill_color='lavender',
-                       align='left'))
-        ])
+        fig = go.Figure(
+            data=[
+                go.Table(
+                    header=dict(
+                        values=list(df_table.columns),
+                        fill_color="paleturquoise",
+                        align="left",
+                    ),
+                    cells=dict(
+                        values=df_table.transpose().values.tolist(),
+                        fill_color="lavender",
+                        align="left",
+                    ),
+                )
+            ]
+        )
 
         filename = f"table_data_{tt}_{k}.html"
         filepath = output_dir / filename
@@ -1727,9 +1765,14 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
             index=labels,
         )
         df = df.astype(np.double)
-        df["correct prediction"] = (df_table["correct prediction"] / (df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
-        df["incorrect prediction"] = (df_table["incorrect prediction"] / (
-                    df_table["correct prediction"] + df_table["incorrect prediction"])) * 100
+        df["correct prediction"] = (
+            df_table["correct prediction"]
+            / (df_table["correct prediction"] + df_table["incorrect prediction"])
+        ) * 100
+        df["incorrect prediction"] = (
+            df_table["incorrect prediction"]
+            / (df_table["correct prediction"] + df_table["incorrect prediction"])
+        ) * 100
         ax = df.plot.bar(
             rot=90,
             log=False,
@@ -1787,7 +1830,10 @@ def build_individual_animal_pred(output_dir, steps, label_unhealthy, scores, ids
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
             axs[i].set_ylabel("Number of predictions")
-        filepath = output_dir / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
+        filepath = (
+            output_dir
+            / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
+        )
         print(filepath)
         fig.tight_layout()
         fig.savefig(filepath)
@@ -2002,33 +2048,7 @@ def build_report(
 
 
 if __name__ == "__main__":
-
-    import sklearn.datasets
-    from bokeh.plotting import figure, output_file, save
-
-    fmnist = sklearn.datasets.fetch_openml('Fashion-MNIST')
-    mapper = umap.UMAP().fit(fmnist.data[:30000])
-    hover_data = pd.DataFrame({'index': np.arange(30000),
-                               'label': fmnist.target[:30000]})
-    hover_data['item'] = hover_data.label.map(
-        {
-            '0': 'T-shirt/top',
-            '1': 'Trouser',
-            '2': 'Pullover',
-            '3': 'Dress',
-            '4': 'Coat',
-            '5': 'Sandal',
-            '6': 'Shirt',
-            '7': 'Sneaker',
-            '8': 'Bag',
-            '9': 'Ankle Boot',
-        }
-    )
-    p = umap.plot.interactive(mapper, labels=fmnist.target[:30000], hover_data=hover_data, point_size=2)
-    #umap.plot.show(p)
-    output_file('plot.html', mode='inline')
-    save(p)
-
+    print()
     # dir_path = "F:/Data2/job_debug/ml"
     # output_dir = "F:/Data2/job_debug/ml"
     # build_roc_mosaic(dir_path, output_dir)

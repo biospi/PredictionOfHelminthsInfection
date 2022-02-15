@@ -29,8 +29,14 @@ from model.data_loader import load_activity_data
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
-    plotHeatmap, plot_zeros_distrib, plot_mean_groups, plot_time_pca, plot_time_lda, plot_groups,
-    plot_umap)
+    plotHeatmap,
+    plot_zeros_distrib,
+    plot_mean_groups,
+    plot_time_pca,
+    plot_time_lda,
+    plot_groups,
+    plot_umap,
+)
 
 
 def main(
@@ -43,7 +49,14 @@ def main(
     preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
-    meta_columns: List[str] = ["label", "id", "imputed_days", "date", "health", "target"],
+    meta_columns: List[str] = [
+        "label",
+        "id",
+        "imputed_days",
+        "date",
+        "health",
+        "target",
+    ],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 9,
@@ -117,16 +130,9 @@ def main(
         print(df_hum_temp.shape)
 
     for file in files:
-        #_, _, option, sampling = parse_param_from_filename(file)
+        # _, _, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
-        (
-            data_frame,
-            meta_data,
-            _,
-            _,
-            label_series,
-            samples,
-        ) = load_activity_data(
+        (data_frame, meta_data, _, _, label_series, samples,) = load_activity_data(
             output_dir,
             meta_columns,
             file,
@@ -142,7 +148,9 @@ def main(
             #############################################################################################################
             #                                           VISUALISATION                                                   #
             #############################################################################################################
-            animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
+            animal_ids = (
+                data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+            )
             N_META = len(meta_columns)
 
             df_norm = apply_preprocessing_steps(
@@ -162,7 +170,7 @@ def main(
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
                 keep_meta=True,
-                output_qn_graph=True
+                output_qn_graph=True,
             )
 
             plot_zeros_distrib(
@@ -189,7 +197,7 @@ def main(
                 output_dir / "groups_after_qn",
             )
 
-            #plot median wise cwt for each target(label)
+            # plot median wise cwt for each target(label)
             apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
@@ -199,7 +207,7 @@ def main(
                 wavelet_f0,
                 animal_ids,
                 df_norm.copy(),
-                output_dir / "groups_after_qn" ,
+                output_dir / "groups_after_qn",
                 ["ANSCOMBE", "LOG", "CENTER", "CWT"],
                 class_healthy_label,
                 class_unhealthy_label,
@@ -208,7 +216,7 @@ def main(
                 n_scales=n_scales,
                 keep_meta=True,
                 plot_all_target=True,
-                enable_graph_out=False
+                enable_graph_out=False,
             )
             apply_preprocessing_steps(
                 meta_columns,
@@ -219,7 +227,7 @@ def main(
                 wavelet_f0,
                 animal_ids,
                 df_norm.copy(),
-                output_dir / "groups_after_qn" ,
+                output_dir / "groups_after_qn",
                 ["ANSCOMBE", "LOG", "CENTER", "CWT", "LOG"],
                 class_healthy_label,
                 class_unhealthy_label,
@@ -228,7 +236,7 @@ def main(
                 n_scales=n_scales,
                 keep_meta=True,
                 plot_all_target=True,
-                enable_graph_out=False
+                enable_graph_out=False,
             )
 
             plot_umap(
@@ -307,8 +315,10 @@ def main(
             )
             ################################################################################################################
 
-        sample_dates = pd.to_datetime(data_frame['date'], format="%d/%m/%Y").values.astype(float)
-        animal_ids = data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
+        sample_dates = pd.to_datetime(
+            data_frame["date"], format="%d/%m/%Y"
+        ).values.astype(float)
+        animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
 
         for steps in preprocessing_steps:
             step_slug = "_".join(steps)
@@ -349,7 +359,7 @@ def main(
                 class_unhealthy_label,
                 meta_columns,
                 cv=cv,
-                n_job=n_job
+                n_job=n_job,
             )
 
         # 2DCNN
@@ -378,84 +388,7 @@ def main(
 
 
 if __name__ == "__main__":
-    #typer.run(main)
-
-    # --output-dir E:\Data2\debug\mrnn_median_ml\debug --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
-    # --output-dir E:\Data2\debug\mrnn_median_ml\debug\cedara --dataset-folder E:\Data2\debug\delmas\dataset_mrnn_7day
-    # --imputed-days 4 --output-dir E:\Data2\mrnn_median_ml\10080_100_2To2_4 --dataset-folder F:\Data2\mrnn_datasets2\median_10080_100\dataset_gain_7day
-
-    # for i in [7, 6, 5, 4, 3, 2, 1, 0]:
-    #     for healthy_l, unhealthy_l in zip([['1To1', '1To2'], ['1To1', '2To1'], ['1To1', '2To1'], ['1To1'], ['1To1']], [['2To2'], ['2To2'], ['2To2', '1To2'], ['2To2'], ['1To2']]):
-    #         main(imputed_days=i, output_dir=Path(f"E:/Data2/mrnn_median_ml_weather/10080_100_{healthy_l}__{unhealthy_l}_{i}"),
-    #              dataset_folder=Path("E:\Data2\mrnn_datasets2\median_10080_100_weather\dataset_gain_7day"),
-    #              class_healthy_label=healthy_l, class_unhealthy_label=unhealthy_l)
-
-    # for steps in [[["ZEROPAD", "QN"]], [["ZEROPAD", "QN", "ANSCOMBE"]],
-    #               [["ZEROPAD", "QN", "ANSCOMBE", "LOG"]]]:
-    #     slug = '_'.join(steps[0])
-    #     for day in [7]:
-    #         main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_li_{day}_{slug}"),
-    #              dataset_folder=Path("E:\Data2\debug3\delmas\dataset_li_7day"), preprocessing_steps=steps, imputed_days=day)
-
-    # for steps in [[['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
-    #               [['MRNN', "QN", "ANSCOMBE", "LOG"]]]:
-    #     slug = '_'.join(steps[0])
-    #     for day in [0, 1, 2, 3, 4, 5, 6, 7]:
-    #         main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{day}_{slug}"),
-    #              dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"), preprocessing_steps=steps, imputed_days=day)
-
-    # for steps in [[['GAIN']], [['GAIN', "QN"]], [['GAIN', "QN", "ANSCOMBE"]],
-    #               [['GAIN', "QN", "ANSCOMBE", "LOG"]]]:
-    #     slug = '_'.join(steps[0])
-    #     main(output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-    #          dataset_folder=Path("E:\Data2\debug3\delmas\dataset_gain_7day"), preprocessing_steps=steps)
-
-    # for steps in [
-    #     [["QN", "ANSCOMBE", "LOG"]],
-    #     [["LINEAR"]],
-    #     [["LINEAR", "QN"]],
-    #     [["LINEAR", "QN", "ANSCOMBE"]],
-    #     [["LINEAR", "QN", "ANSCOMBE", "LOG"]],
-    # ]:
-    #     slug = "_".join(steps[0])
-    #     main(
-    #         output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-    #         dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-    #         preprocessing_steps=steps,
-    #     )
-    #
-    # for steps in [[["QN", "ANSCOMBE", "LOG"]],
-    #               [['MRNN']], [['MRNN', "QN"]], [['MRNN', "QN", "ANSCOMBE"]],
-    #               [['MRNN', "QN", "ANSCOMBE", "LOG"]]]:
-    #     slug = '_'.join(steps[0])
-    #     for day in [7]:
-    #         main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-    #              dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-    #              imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-
-    # for steps in [[["QN", "ANSCOMBE", "LOG"]],
-    #               [['ZEROPAD']], [['ZEROPAD', "QN"]], [['ZEROPAD', "QN", "ANSCOMBE"]], [['ZEROPAD', "QN", "ANSCOMBE", "LOG"]],
-    #               [['LINEAR']], [['LINEAR', "QN"]], [['LINEAR', "QN", "ANSCOMBE"]], [['LINEAR', "QN", "ANSCOMBE", "LOG"]]]:
-    #     slug = '_'.join(steps[0])
-    #     main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{slug}"),
-    #          dataset_folder=Path("E:\Data2\debug3\cedara_\datasetraw_none_7day"), preprocessing_steps=steps,
-    #          class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-
-    # output_dir = Path(f"E:\Data2\debugfinal3")
-    # files = output_dir.rglob("*.csv")
-    # dfs = []
-    # for file in files:
-    #     if 'final_classification_report' in str(file):
-    #         continue
-    #     print(file)
-    #     dfs.append(pd.read_csv(file))
-    # #dfs = [pd.read_csv(file, sep=",") for file in files if 'final' not in file]
-    # df_final = pd.concat(dfs).drop_duplicates()
-    # filename = output_dir / "final_classification_report.csv"
-    # df_final.to_csv(filename, sep=",", index=False)
-    # print(df_final)
-    # plotMlReport(filename, output_dir)
-
+    # typer.run(main)
     steps = [["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
     slug = "_".join(steps[0])
     day = 7
@@ -463,7 +396,7 @@ if __name__ == "__main__":
         output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
         dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
         preprocessing_steps=steps,
-        n_imputed_days=0
+        n_imputed_days=0,
     )
     #
     # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
