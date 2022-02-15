@@ -46,7 +46,7 @@ def main(
     dataset_folder: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    preprocessing_steps: List[str] = [["QN", "ANSCOMBE", "LOG"]],
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
     meta_columns: List[str] = [
@@ -324,47 +324,46 @@ def main(
         ).values.astype(float)
         animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
 
-        for steps in preprocessing_steps:
-            step_slug = "_".join(steps)
-            df_processed = apply_preprocessing_steps(
-                meta_columns,
-                n_activity_days,
-                df_hum,
-                df_temp,
-                sfft_window,
-                wavelet_f0,
-                animal_ids,
-                data_frame.copy(),
-                output_dir,
-                steps,
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="SVM",
-                output_dim=data_frame.shape[0],
-                n_scales=n_scales,
-            )
+        step_slug = "_".join(preprocessing_steps)
+        df_processed = apply_preprocessing_steps(
+            meta_columns,
+            n_activity_days,
+            df_hum,
+            df_temp,
+            sfft_window,
+            wavelet_f0,
+            animal_ids,
+            data_frame.copy(),
+            output_dir,
+            preprocessing_steps,
+            class_healthy_label,
+            class_unhealthy_label,
+            clf_name="SVM",
+            output_dim=data_frame.shape[0],
+            n_scales=n_scales,
+        )
 
-            process_data_frame_svm(
-                meta_data,
-                output_dir,
-                animal_ids,
-                sample_dates,
-                df_processed,
-                n_activity_days,
-                n_imputed_days,
-                farm_id,
-                step_slug,
-                n_splits,
-                n_repeats,
-                sampling,
-                enable_downsample_df,
-                label_series,
-                class_healthy_label,
-                class_unhealthy_label,
-                meta_columns,
-                cv=cv,
-                n_job=n_job,
-            )
+        process_data_frame_svm(
+            meta_data,
+            output_dir,
+            animal_ids,
+            sample_dates,
+            df_processed,
+            n_activity_days,
+            n_imputed_days,
+            farm_id,
+            step_slug,
+            n_splits,
+            n_repeats,
+            sampling,
+            enable_downsample_df,
+            label_series,
+            class_healthy_label,
+            class_unhealthy_label,
+            meta_columns,
+            cv=cv,
+            n_job=n_job,
+        )
 
         # 2DCNN
         # for steps in [["QN", "ANSCOMBE", "LOG"]]:
