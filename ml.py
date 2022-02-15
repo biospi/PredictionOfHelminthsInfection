@@ -80,7 +80,6 @@ def main(
         epochs: Cnn epochs
         n_job: Number of threads to use for cross validation.
     """
-
     enable_downsample_df = False
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
@@ -233,17 +232,17 @@ def main(
             )
 
             plot_umap(
-                N_META,
+                meta_columns,
                 data_frame.copy(),
-                output_dir,
+                output_dir / "umap",
                 label_series,
                 title="UMAP time domain before normalisation",
             )
 
             plot_umap(
-                N_META,
+                meta_columns,
                 df_norm.copy(),
-                output_dir,
+                output_dir / "umap",
                 label_series,
                 title="UMAP time domain after normalisation",
             )

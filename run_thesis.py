@@ -23,7 +23,7 @@ def main(
         for steps in steps_list:
             slug = "_".join(steps[0])
 
-            for i_day in [7]:
+            for i_day in [6]:
                 for a_day in [7]:
                     for cv in ['RepeatedKFold']:
                         main_experiment.main(
@@ -90,7 +90,7 @@ def main(
 
     if exp_temporal:
         print("experiment 2: temporal validation")
-        for i in [0, 7]:
+        for i in [6, 5]:
             temporal_validation.main(
                 output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
                 dataset_folder=Path("E:/Data2/debug/delmas/dataset_mrnn_7day"),
@@ -122,7 +122,7 @@ def main(
 
     if exp_cross_farm:
         print("experiment 3: cross farm validation")
-        for imp_d in [0, 7]:
+        for imp_d in [6, 5]:
             for a_act_day in [7]:
                 cross_farm_validation.main(
                     farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),

@@ -28,6 +28,9 @@ from utils._normalisation import CenterScaler
 import umap.plot
 import seaborn as sns
 from collections import Counter
+import matplotlib.cm as cm
+from bokeh.plotting import figure, output_file, save
+
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -294,18 +297,23 @@ def plot_groups(
     return idx_healthy, idx_unhealthy
 
 
-def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors=None):
-    fig, ax = plt.subplots(figsize=(12.80, 7.20))
+def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=2):
+    fig, ax = plt.subplots(figsize=(8.0, 8.0))
     print("plot_2d_space")
     if len(X[0]) == 1:
         for l in zip(np.unique(y)):
-            ax.scatter(X[y == l, 0], np.zeros(X[y == l, 0].size), label=l)
+            ax.scatter(X[y == l, 0], np.zeros(X[y == l, 0].size), label=l, s=marker_size)
     else:
         for l in zip(np.unique(y)):
-            ax.scatter(X[y == l[0]][:, 0], X[y == l[0]][:, 1], label=label_series[l[0]])
+            ax.scatter(X[y == l[0]][:, 0], X[y == l[0]][:, 1], label=label_series[l[0]], s=marker_size)
 
+    colormap = cm.get_cmap("Spectral")
+    colorst = [colormap(i) for i in np.linspace(0, 0.9, len(ax.collections))]
+    for t, j1 in enumerate(ax.collections):
+        j1.set_color(colorst[t])
+    ax.patch.set_facecolor('black')
     ax.set_title(title)
-    ax.legend(loc="upper right")
+    ax.legend(loc="upper center", ncol=5)
     ax.set_xlabel("Component 1")
     ax.set_ylabel("Component 2")
     print(filename_2d_scatter)
@@ -318,27 +326,50 @@ def plot_2d_space(X, y, filename_2d_scatter, label_series, title="title", colors
 
 
 def plot_umap(
-    meta_size, df, output_dir, label_series, title="title", y_col="label"
+    meta_columns, df, output_dir, label_series, title="title", y_col="label"
 ):
-    df_before_reduction = df.iloc[:, :-meta_size].values
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    df_before_reduction = df.iloc[:, :-len(meta_columns)].values
     ids = df["id"].values
     X = umap.UMAP().fit_transform(df_before_reduction)
     y = df["target"].astype(int)
-    filename = title.replace(" ", "_")
+    filename = f"{title.replace(' ', '_')}.png"
     filepath = output_dir / filename
-    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(float))
+    plot_2d_space(X, y, filepath, label_series, title=title, colors=ids.astype(float), marker_size=4)
 
-    filepath = output_dir / f"umapplot_{filename}.png"
+    filepath = output_dir / f"umap_plot_{filename}"
     mapper = umap.UMAP().fit(df_before_reduction)
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
-    plot = umap.plot.points(mapper, labels=ids, ax=ax, background='black')
-    print(filepath)
+    umap.plot.points(mapper, labels=ids, ax=ax, background='black')
     fig.savefig(filepath)
+    print(filepath)
+
+    #interactive umap
+    hover_data = pd.DataFrame({'index': np.arange(df_before_reduction.shape[0]),
+                               'label': ids})
+    #build meta list
+    meta_list = []
+    for index, row in df[meta_columns].iterrows():
+        meta_str = ''
+        for i, m in enumerate(meta_columns):
+            if m == 'id' or m == 'target':
+                continue
+            meta_str += f"{m}={str(row[m])} "
+        meta_list.append(meta_str)
+    hover_data['item'] = meta_list
+    print(hover_data)
+    print("saving interactive umap...")
+    p = umap.plot.interactive(mapper, labels=ids, hover_data=hover_data, point_size=5, background="black", interactive_text_search=True)
+    filepath = output_dir / f"umap_iplot_{title.replace(' ', '_')}.html"
+    output_file(str(filepath), mode='inline')
+    save(p)
+    print(filepath)
 
 
 def plot_time_pca(
     meta_size, df, output_dir, label_series, title="title", y_col="label"
 ):
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     X = pd.DataFrame(PCA(n_components=2).fit_transform(df.iloc[:, :-meta_size])).values
     y = df["target"].astype(int)
     ##y_label = df_time_domain["label"]
@@ -348,6 +379,7 @@ def plot_time_pca(
 
 
 def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="label"):
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     y = df["target"].astype(int).values
     X = df.iloc[:, :-N_META].values
     n_components = np.unique(y).size - 1
@@ -1799,7 +1831,7 @@ def build_proba_hist(output_dir, steps, label_unhealthy, scores):
         if "delmas" in str(output_dir):
             fig, axs = plt.subplots(2, 2, facecolor="white", figsize=(24.0, 10.80))
         if "cedara" in str(output_dir):
-            fig, axs = plt.subplots(3, 7, facecolor="white", figsize=(24.0, 8.80))
+            fig, axs = plt.subplots(3, 7, facecolor="white", figsize=(26.0, 8.80))
 
         fig.suptitle(
             f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14
@@ -1970,6 +2002,33 @@ def build_report(
 
 
 if __name__ == "__main__":
-    dir_path = "F:/Data2/job_debug/ml"
-    output_dir = "F:/Data2/job_debug/ml"
-    build_roc_mosaic(dir_path, output_dir)
+
+    import sklearn.datasets
+    from bokeh.plotting import figure, output_file, save
+
+    fmnist = sklearn.datasets.fetch_openml('Fashion-MNIST')
+    mapper = umap.UMAP().fit(fmnist.data[:30000])
+    hover_data = pd.DataFrame({'index': np.arange(30000),
+                               'label': fmnist.target[:30000]})
+    hover_data['item'] = hover_data.label.map(
+        {
+            '0': 'T-shirt/top',
+            '1': 'Trouser',
+            '2': 'Pullover',
+            '3': 'Dress',
+            '4': 'Coat',
+            '5': 'Sandal',
+            '6': 'Shirt',
+            '7': 'Sneaker',
+            '8': 'Bag',
+            '9': 'Ankle Boot',
+        }
+    )
+    p = umap.plot.interactive(mapper, labels=fmnist.target[:30000], hover_data=hover_data, point_size=2)
+    #umap.plot.show(p)
+    output_file('plot.html', mode='inline')
+    save(p)
+
+    # dir_path = "F:/Data2/job_debug/ml"
+    # output_dir = "F:/Data2/job_debug/ml"
+    # build_roc_mosaic(dir_path, output_dir)
