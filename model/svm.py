@@ -632,7 +632,6 @@ def fold_worker(
         "train_support_1": float(support_train[1]),
         "fit_time": fit_time,
     }
-    print(fold_result)
     fold_results.append(fold_result)
 
     # test individual labels and store probabilities to be healthy/unhealthy
@@ -646,7 +645,6 @@ def fold_worker(
             "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
         }
         fold_probas[label].append(fold_proba)
-        print(fold_proba)
 
 
 def cross_validate_custom_fast(
