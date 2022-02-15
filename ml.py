@@ -97,8 +97,8 @@ def main(
         output_qn_graph: Output Quotient Normalisation steps figures
         n_job: Number of threads to use for cross validation.
     """
-    meta_columns = list(meta_columns)
-    preprocessing_steps = list(preprocessing_steps)
+    meta_columns = [x.replace("'", '') for x in meta_columns]
+    preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
     print(f"preprocessing_steps={preprocessing_steps}")
     enable_downsample_df = False
