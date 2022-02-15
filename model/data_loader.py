@@ -11,15 +11,15 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
 
-    #todo remove
-    if "Cat" not in str(out_dir):
-        if "health" not in data_frame.columns:
-            print("missing health column in dataset!")
-            data_frame["health"] = 0
-        if "target" not in data_frame.columns:
-            print("missing target column in dataset!")
-            data_frame["target"] = 0
-    # todo remove
+    # #todo remove
+    # if "Cat" not in str(out_dir):
+    #     if "health" not in data_frame.columns:
+    #         print("missing health column in dataset!")
+    #         data_frame["health"] = 0
+    #     if "target" not in data_frame.columns:
+    #         print("missing target column in dataset!")
+    #         data_frame["target"] = 0
+    # # todo remove
 
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
