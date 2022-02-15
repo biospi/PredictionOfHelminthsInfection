@@ -202,6 +202,6 @@ def concatenate_images(images_list, out_dir, filename = "mean_cwt_per_label.png"
 
         y += img.height
 
-    file_path = out_dir.parent / filename
+    file_path = out_dir.parent.parent.parent.parent / filename
     print(file_path)
     img_merge.save(str(file_path))

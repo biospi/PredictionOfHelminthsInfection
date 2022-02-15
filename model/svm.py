@@ -34,14 +34,16 @@ from utils.visualisation import (
     plot_roc_range,
     plot_pr_range,
     plotHeatmap,
-    plot_2D_decision_boundaries,
+    plot_2d_decision_boundaries,
     plot_3D_decision_boundaries,
     build_proba_hist,
     build_individual_animal_pred,
     plot_ml_report,
     build_report,
     plot_ml_report_final,
-)
+    plot_high_dimension_db)
+
+
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -219,7 +221,7 @@ def make_roc_curve(
             interp_tpr[0] = 0.0
             print("auc=", viz_roc.roc_auc)
             if "TSNE(2)" in steps or "UMAP" in steps:
-                plot_2D_decision_boundaries(
+                plot_2d_decision_boundaries(
                     viz_roc.roc_auc,
                     i,
                     X,
@@ -232,7 +234,7 @@ def make_roc_curve(
                     classifier,
                     out_dir,
                     steps,
-                    DR="TSNE",
+                    dimensionality_reduction="TSNE",
                 )
             if "PCA(3)" in steps and "linear" in steps.lower():
                 plot_3D_decision_boundaries(
@@ -577,6 +579,9 @@ def fold_worker(
     interp_tpr[0] = 0.0
     auc_value = viz_roc.roc_auc
     print("auc=", auc_value)
+
+    plot_high_dimension_db(out_dir, X, y, train_index, clf, days, steps, ifold)
+
     tprs.append(interp_tpr)
     aucs_roc.append(auc_value)
 

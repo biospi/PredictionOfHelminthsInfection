@@ -15,7 +15,7 @@ import umap
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from plotly.subplots import make_subplots
-from plotnine import ggplot, aes, geom_jitter, stat_summary, theme
+from plotnine import ggplot, aes, geom_jitter, stat_summary, theme, element_text
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import auc, precision_recall_curve
@@ -30,7 +30,7 @@ import seaborn as sns
 from collections import Counter
 import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
-
+from highdimensional_decision_boundary_plot.decisionboundaryplot import DBPlot
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -680,6 +680,7 @@ def plot_ml_report(clf_name, path, output_dir):
 
 
 def plot_zeros_distrib(
+    meta_columns,
     a_days,
     label_series,
     data_frame_no_norm,
@@ -695,7 +696,7 @@ def plot_zeros_distrib(
     z_prct = []
 
     for index, row in data_frame_no_norm.iterrows():
-        a = row[0 : a_days * 1440].values
+        a = row[:-len(meta_columns)].values
         label = label_series[row["target"]]
 
         target_labels.append(label)
@@ -731,7 +732,7 @@ def plot_zeros_distrib(
         )  # defining what variable to use
         + geom_jitter()  # defining the type of plot to use
         + stat_summary(geom="crossbar", color="black", width=0.2)
-        + theme(subplots_adjust={"right": 0.82})
+        + theme(subplots_adjust={"right": 0.82}, axis_text_x=element_text(angle=90, hjust=1))
     )
 
     fig = g.draw()
@@ -747,7 +748,7 @@ def plot_zeros_distrib(
     plt.close(fig)
 
 
-def plotAllFeatures(
+def plot_all_features(
     X,
     y,
     out_dir,
@@ -1491,14 +1492,32 @@ def plot_3D_decision_boundaries(
 #     plot3ddb(nnew, robjects.IntVector(train_y + 1), r_dataframe, 'radial', gamma, coef0, cost, tolerance, probability_,
 #              r_dataframe_test, True, title, filename)
 #
-#     # input('hello')
+#
+
+def plot_high_dimension_db(out_dir, X, y, train_index, clf, days, steps, ifold):
+    """
+    Plot high-dimensional decision boundary
+    """
+    db = DBPlot(clf)
+    db.fit(X, y, training_indices=train_index)
+    fig, ax = plt.subplots(figsize=(19.20, 19.20))
+    db.plot(
+        ax, generate_testpoints=True
+    )  # set generate_testpoints=False to speed up plotting
+    models_visu_dir = (
+            out_dir / "models_visu" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+    )
+    models_visu_dir.mkdir(parents=True, exist_ok=True)
+    filepath = models_visu_dir / f"{ifold}.png"
+    print(filepath)
+    plt.savefig(filepath)
 
 
-def plot_2D_decision_boundaries(
+def plot_2d_decision_boundaries(
     auc,
     i,
-    X_,
-    y_,
+    X,
+    y,
     X_test,
     y_test,
     X_train,
@@ -1509,21 +1528,18 @@ def plot_2D_decision_boundaries(
     sub_dir_name,
     n_bin=8,
     save=True,
-    DR="PCA",
+    dimensionality_reduction="PCA",
 ):
-    y_ = (y_ != 1).astype(int)
+    y = (y != 1).astype(int)
     y_test = (y_test != 1).astype(int)
-    # print('graph...')
-    # plt.subplots_adjust(top=0.75)
-    # fig = plt.figure(figsize=(7, 6), dpi=100)
     fig, ax = plt.subplots(figsize=(7.0, 4.8))
-    # plt.subplots_adjust(top=0.75)
-    min = abs(X_.min()) + 1
-    max = abs(X_.max()) + 1
+
+    min = abs(X.min()) + 1
+    max = abs(X.max()) + 1
     # print(X_lda.shape)
     # print(min, max)
-    if np.max([min, max]) > 100:
-        return
+    # if np.max([min, max]) > 100:
+    #     return
     xx, yy = np.mgrid[-min:max:0.01, -min:max:0.01]
     grid = np.c_[xx.ravel(), yy.ravel()]
     probs = clf.predict_proba(grid)[:, 1].reshape(xx.shape)
@@ -1563,15 +1579,15 @@ def plot_2D_decision_boundaries(
 
     ax_c.set_label("$P(y = 1)$")
 
-    X_lda_0 = X_[y_ == 0]
-    X_lda_1 = X_[y_ == 1]
+    X_0 = X[y == 0]
+    X_1 = X[y == 1]
 
-    X_lda_0_t = X_test[y_test == 0]
-    X_lda_1_t = X_test[y_test == 1]
+    X_0_t = X_test[y_test == 0]
+    X_1_t = X_test[y_test == 1]
     marker_size = 150
     ax.scatter(
-        X_lda_0[:, 0],
-        X_lda_0[:, 1],
+        X_0[:, 0],
+        X_0[:, 1],
         c=(39 / 255, 111 / 255, 158 / 255),
         s=marker_size,
         vmin=-0.2,
@@ -1585,8 +1601,8 @@ def plot_2D_decision_boundaries(
     )
 
     ax.scatter(
-        X_lda_1[:, 0],
-        X_lda_1[:, 1],
+        X_1[:, 0],
+        X_1[:, 1],
         c=(251 / 255, 119 / 255, 0 / 255),
         s=marker_size,
         vmin=-0.2,
@@ -1600,8 +1616,8 @@ def plot_2D_decision_boundaries(
     )
 
     ax.scatter(
-        X_lda_0_t[:, 0],
-        X_lda_0_t[:, 1],
+        X_0_t[:, 0],
+        X_0_t[:, 1],
         s=marker_size - 10,
         vmin=-0.2,
         vmax=1.2,
@@ -1612,8 +1628,8 @@ def plot_2D_decision_boundaries(
     )
 
     ax.scatter(
-        X_lda_1_t[:, 0],
-        X_lda_1_t[:, 1],
+        X_1_t[:, 0],
+        X_1_t[:, 1],
         s=marker_size - 10,
         vmin=-0.2,
         vmax=1.2,
@@ -1650,24 +1666,12 @@ def plot_2D_decision_boundaries(
     ttl = ax.title
     ttl.set_position([0.57, 0.97])
 
-    if save:
-        path = "%s/decision_boundaries_graphs/%s/" % (folder, sub_dir_name)
-        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        filename = "%s_fold_%d.png" % (DR, i)
-        final_path = "%s/%s" % (path, filename)
-        print(final_path)
-        try:
-            plt.savefig(final_path, bbox_inches="tight")
-        except FileNotFoundError as e:
-            print(e)
-            exit()
-
-        plt.close()
-        # fig.show()
-        plt.close()
-        fig.clear()
-    else:
-        fig.show()
+    path = folder / "decision_boundaries_graphs" / sub_dir_name
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    filename = f"{dimensionality_reduction}_fold_{i}.png"
+    final_path = path / filename
+    print(final_path)
+    plt.savefig(str(final_path), bbox_inches="tight")
 
 
 def build_roc_curve(output_dir, label_unhealthy, scores):

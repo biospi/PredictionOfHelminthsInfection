@@ -11,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pycwt as wavelet
 import pywt
+from matplotlib.colors import LogNorm
 from plotly.subplots import make_subplots
 from scipy import signal
 from sklearn.base import TransformerMixin, BaseEstimator
@@ -485,14 +486,15 @@ def plot_cwt_power(
         pos = axs[1].imshow(
             p,
             extent=[0, p.shape[1], p.shape[0], 1],
-            vmin=vmin,
-            vmax=vmax,
+            # vmin=vmin,
+            # vmax=vmax,
             interpolation="nearest",
+            norm=LogNorm(vmin=0.01, vmax=1)
         )
     else:
         # p = StandardScaler(with_mean=False, with_std=True).fit_transform(p)
         pos = axs[1].imshow(
-            p, extent=[0, p.shape[1], p.shape[0], 1], interpolation="nearest"
+            p, extent=[0, p.shape[1], p.shape[0], 1], interpolation="nearest", norm=LogNorm(vmin=0.01, vmax=1)
         )
 
     fig.colorbar(pos, ax=axs[1])
