@@ -92,6 +92,9 @@ def plot_groups(
     df_healthy = df[df["health"] == 0].iloc[:, :-N_META].values
     df_unhealthy = df[df["health"] == 1].iloc[:, :-N_META].values
 
+    assert len(df_healthy) > 0, "no healthy samples!"
+    assert len(df_unhealthy) > 0, "no unhealthy samples!"
+
     plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(34.80, 7.20))
     fig.suptitle(title, fontsize=18)
@@ -298,7 +301,7 @@ def plot_groups(
 
 
 def plot_2d_space(
-    X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=2
+    X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=4
 ):
     fig, ax = plt.subplots(figsize=(8.0, 8.0))
     print("plot_2d_space")

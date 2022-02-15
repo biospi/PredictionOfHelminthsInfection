@@ -348,12 +348,12 @@ def apply_preprocessing_steps(
             del data_frame_umap
 
         print("AFTER STEP ->", df)
-        if "CWT" not in step_slug:
-            plot_distribution(
-                df.iloc[:, :-N_META].values,
-                graph_outputdir,
-                f"data_distribution_after_{step}",
-            )
+        # if "CWT" not in step_slug:
+        #     plot_distribution(
+        #         df.iloc[:, :-N_META].values,
+        #         graph_outputdir,
+        #         f"data_distribution_after_{step}",
+        #     )
 
     # if "PCA" in step_slug:
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)

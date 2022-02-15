@@ -70,6 +70,7 @@ def main(
     farm_id: str = "farm",
     sampling: str = "T",
     pre_visu: bool = True,
+    output_qn_graph: bool = False,
     n_job: int = 6,
 ):
     """ML Main machine learning script\n
@@ -170,7 +171,7 @@ def main(
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
                 keep_meta=True,
-                output_qn_graph=True,
+                output_qn_graph=output_qn_graph,
             )
 
             plot_zeros_distrib(
@@ -198,46 +199,46 @@ def main(
             )
 
             # plot median wise cwt for each target(label)
-            apply_preprocessing_steps(
-                meta_columns,
-                n_activity_days,
-                df_hum,
-                df_temp,
-                sfft_window,
-                wavelet_f0,
-                animal_ids,
-                df_norm.copy(),
-                output_dir / "groups_after_qn",
-                ["ANSCOMBE", "LOG", "CENTER", "CWT"],
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="QN_CWT_VISU",
-                output_dim=data_frame.shape[0],
-                n_scales=n_scales,
-                keep_meta=True,
-                plot_all_target=True,
-                enable_graph_out=False,
-            )
-            apply_preprocessing_steps(
-                meta_columns,
-                n_activity_days,
-                df_hum,
-                df_temp,
-                sfft_window,
-                wavelet_f0,
-                animal_ids,
-                df_norm.copy(),
-                output_dir / "groups_after_qn",
-                ["ANSCOMBE", "LOG", "CENTER", "CWT", "LOG"],
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="QN_CWT_LOG_VISU",
-                output_dim=data_frame.shape[0],
-                n_scales=n_scales,
-                keep_meta=True,
-                plot_all_target=True,
-                enable_graph_out=False,
-            )
+            # apply_preprocessing_steps(
+            #     meta_columns,
+            #     n_activity_days,
+            #     df_hum,
+            #     df_temp,
+            #     sfft_window,
+            #     wavelet_f0,
+            #     animal_ids,
+            #     df_norm.copy(),
+            #     output_dir / "groups_after_qn",
+            #     ["ANSCOMBE", "LOG", "CENTER", "CWT"],
+            #     class_healthy_label,
+            #     class_unhealthy_label,
+            #     clf_name="QN_CWT_VISU",
+            #     output_dim=data_frame.shape[0],
+            #     n_scales=n_scales,
+            #     keep_meta=True,
+            #     plot_all_target=True,
+            #     enable_graph_out=False,
+            # )
+            # apply_preprocessing_steps(
+            #     meta_columns,
+            #     n_activity_days,
+            #     df_hum,
+            #     df_temp,
+            #     sfft_window,
+            #     wavelet_f0,
+            #     animal_ids,
+            #     df_norm.copy(),
+            #     output_dir / "groups_after_qn",
+            #     ["ANSCOMBE", "LOG", "CENTER", "CWT", "LOG"],
+            #     class_healthy_label,
+            #     class_unhealthy_label,
+            #     clf_name="QN_CWT_LOG_VISU",
+            #     output_dim=data_frame.shape[0],
+            #     n_scales=n_scales,
+            #     keep_meta=True,
+            #     plot_all_target=True,
+            #     enable_graph_out=False,
+            # )
 
             plot_umap(
                 meta_columns,
@@ -258,14 +259,14 @@ def main(
             plot_time_pca(
                 N_META,
                 data_frame.copy(),
-                output_dir,
+                output_dir / "pca",
                 label_series,
                 title="PCA time domain before normalisation",
             )
             plot_time_pca(
                 N_META,
                 df_norm,
-                output_dir,
+                output_dir / "pca",
                 label_series,
                 title="PCA time domain after normalisation",
             )
@@ -273,46 +274,46 @@ def main(
             plot_time_lda(
                 N_META,
                 data_frame.copy(),
-                output_dir,
+                output_dir / "lda",
                 label_series,
                 title="LDA time domain before normalisation",
             )
             plot_time_lda(
                 N_META,
                 data_frame.copy(),
-                output_dir,
+                output_dir / "lda",
                 label_series,
                 title="LDA time domain after normalisation",
             )
 
-            ntraces = 2
-            idx_healthy, idx_unhealthy = plot_groups(
-                N_META,
-                animal_ids,
-                class_healthy_label,
-                class_unhealthy_label,
-                output_dir,
-                data_frame.copy(),
-                title="Raw imputed",
-                xlabel="Time",
-                ylabel="activity",
-                ntraces=ntraces,
-            )
-            plot_groups(
-                N_META,
-                animal_ids,
-                class_healthy_label,
-                class_unhealthy_label,
-                output_dir,
-                df_norm,
-                title="Normalised(Quotient Norm) samples",
-                xlabel="Time",
-                ylabel="activity",
-                idx_healthy=idx_healthy,
-                idx_unhealthy=idx_unhealthy,
-                stepid=2,
-                ntraces=ntraces,
-            )
+            # ntraces = 2
+            # idx_healthy, idx_unhealthy = plot_groups(
+            #     N_META,
+            #     animal_ids,
+            #     class_healthy_label,
+            #     class_unhealthy_label,
+            #     output_dir,
+            #     data_frame.copy(),
+            #     title="Raw imputed",
+            #     xlabel="Time",
+            #     ylabel="activity",
+            #     ntraces=ntraces,
+            # )
+            # plot_groups(
+            #     N_META,
+            #     animal_ids,
+            #     class_healthy_label,
+            #     class_unhealthy_label,
+            #     output_dir,
+            #     df_norm,
+            #     title="Normalised(Quotient Norm) samples",
+            #     xlabel="Time",
+            #     ylabel="activity",
+            #     idx_healthy=idx_healthy,
+            #     idx_unhealthy=idx_unhealthy,
+            #     stepid=2,
+            #     ntraces=ntraces,
+            # )
             ################################################################################################################
 
         sample_dates = pd.to_datetime(
@@ -388,20 +389,30 @@ def main(
 
 
 if __name__ == "__main__":
-    # typer.run(main)
-    steps = [["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
-    slug = "_".join(steps[0])
-    day = 7
-    main(
-        output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-        dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-        preprocessing_steps=steps,
-        n_imputed_days=0,
-    )
-    #
-    # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-    #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-    #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-    # main(output_dir=Path(f"E:/Cats/ml/ml_min/day_w"),
-    #      dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"), preprocessing_steps=steps,
-    #      n_imputed_days=-1, n_activity_days=None, class_healthy_label=['0'], class_unhealthy_label=['1'], n_splits=5, n_repeats=2, n_job=5)
+    typer.run(main)
+    # steps = [["LINEAR", "QN", "ANSCOMBE", "LOG"]]
+    # # slug = "_".join(steps[0])
+    # # day = 7
+    # # main(
+    # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+    # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+    # #     preprocessing_steps=steps,
+    # #     n_imputed_days=0,
+    # # )
+    # #
+    # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+    # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+    # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+    # main(
+    #     output_dir=Path(f"E:/Cats/ml/ml_sec/day_w"),
+    #     dataset_folder=Path("E:/Cats/build_sec/dataset/training_sets/day_w"),
+    #     preprocessing_steps=steps,
+    #     meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+    #     n_imputed_days=-1,
+    #     n_activity_days=None,
+    #     class_healthy_label=["0.0"],
+    #     class_unhealthy_label=["1.0"],
+    #     n_splits=5,
+    #     n_repeats=10,
+    #     n_job=5,
+    # )

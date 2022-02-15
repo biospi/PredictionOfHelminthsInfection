@@ -10,12 +10,16 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
                        preprocessing_steps=[['QN', 'ANSCOMBE', 'LOG']], hold_out_pct = 0, farm='delmas'):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
-    if "health" not in data_frame.columns:
-        print("missing health column in dataset!")
-        data_frame["health"] = 0
-    if "target" not in data_frame.columns:
-        print("missing target column in dataset!")
-        data_frame["target"] = 0
+
+    #todo remove
+    if "Cat" not in str(out_dir):
+        if "health" not in data_frame.columns:
+            print("missing health column in dataset!")
+            data_frame["health"] = 0
+        if "target" not in data_frame.columns:
+            print("missing target column in dataset!")
+            data_frame["target"] = 0
+    # todo remove
 
     data_frame = data_frame.astype(dtype=float, errors='ignore')  # cast numeric values as float
     data_point_count = data_frame.shape[1]
@@ -39,7 +43,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
 
     data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(subset=data_frame.columns[:-len(meta_columns)], how='all')
-    data_frame = data_frame.dropna()
+    #data_frame = data_frame.dropna()
 
     #clip negative values
     data_frame[data_frame.columns.values[:-len(meta_columns)]] = data_frame[data_frame.columns.values[:-len(meta_columns)]].clip(lower=0)
@@ -49,6 +53,8 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     if 'LINEAR' in preprocessing_steps[0]:
         data_frame.iloc[:, :-len(meta_columns)] = data_frame.iloc[:, :-len(meta_columns)].interpolate(axis=1, limit_direction='both')
 
+    data_frame['target'] = data_frame['target'].astype(int)
+    data_frame['label'] = data_frame['label'].astype(str)
     new_label = []
     #data_frame_health = data_frame.copy()
     for v in data_frame["label"].values:
@@ -70,7 +76,6 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
         data_frame_labeled[flabel] = data_frame_labeled[flabel] * (i + 1)
         data_frame["target"] = data_frame["target"] + data_frame_labeled[flabel]
 
-
     #store all samples for later testing after binary fitting
     labels = data_frame["label"].drop_duplicates().values
     samples = {}
@@ -89,11 +94,9 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     label_series = dict(data_frame[['target', 'label']].drop_duplicates().values)
     label_series_inverse = dict((v, k) for k, v in label_series.items())
     print(label_series_inverse)
-    # class_healthy = label_series_inverse["1To1"]
-    # class_unhealthy = label_series_inverse["2To2"]
     print(label_series)
     for k in label_series.keys():
-        class_count[label_series[k] + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]
+        class_count[str(label_series[k]) + "_" + str(k)] = data_frame[data_frame['target'] == k].shape[0]
     print(class_count)
     # drop label column stored previously, just keep target for ml
     meta_data = data_frame[meta_columns].values
