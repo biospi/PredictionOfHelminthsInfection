@@ -97,6 +97,8 @@ def main(
         output_qn_graph: Output Quotient Normalisation steps figures
         n_job: Number of threads to use for cross validation.
     """
+    print(meta_columns)
+    print(preprocessing_steps)
     enable_downsample_df = False
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
