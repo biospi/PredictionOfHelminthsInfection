@@ -32,7 +32,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     data_frame['date'] = data_frame['date'].astype(str).str.replace("'", "")
     #cast transponder ids to string instead of float
     data_frame['id'] = data_frame['id'].astype(str).str.split('.', expand = True, n=0)[0]
-    if a_day is not None:
+    if a_day > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
         df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
