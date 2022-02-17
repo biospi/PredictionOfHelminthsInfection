@@ -71,7 +71,7 @@ def main(
     sampling: str = "T",
     pre_visu: bool = True,
     output_qn_graph: bool = False,
-    n_job: int = 6,
+    n_job: int = 7,
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -151,6 +151,7 @@ def main(
             preprocessing_steps=preprocessing_steps,
         )
 
+        N_META = len(meta_columns)
         if pre_visu:
             # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
             #############################################################################################################
@@ -159,9 +160,7 @@ def main(
             animal_ids = (
                 data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
             )
-            N_META = len(meta_columns)
-
-            df_norm = apply_preprocessing_steps(
+            df_norm, _ = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
                 df_hum,
@@ -326,7 +325,7 @@ def main(
         animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
 
         step_slug = "_".join(preprocessing_steps)
-        df_processed = apply_preprocessing_steps(
+        df_processed, df_processed_meta = apply_preprocessing_steps(
             meta_columns,
             n_activity_days,
             df_hum,
@@ -342,6 +341,30 @@ def main(
             clf_name="SVM",
             output_dim=data_frame.shape[0],
             n_scales=n_scales,
+        )
+
+        plot_umap(
+            meta_columns,
+            df_processed_meta.copy(),
+            output_dir / f"umap_{step_slug}",
+            label_series,
+            title=f"UMAP after {step_slug}",
+        )
+
+        plot_time_pca(
+            N_META,
+            df_processed_meta,
+            output_dir / f"pca_{step_slug}",
+            label_series,
+            title=f"PCA after {step_slug}",
+        )
+
+        plot_time_pls(
+            N_META,
+            df_processed_meta.copy(),
+            output_dir / f"pls_{step_slug}",
+            label_series,
+            title=f"PLS after {step_slug}",
         )
 
         process_data_frame_svm(

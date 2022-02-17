@@ -89,7 +89,7 @@ def main(
             )
         )
 
-        data_frame = apply_preprocessing_steps(
+        data_frame, _ = apply_preprocessing_steps(
             meta_columns,
             None,
             None,

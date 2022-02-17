@@ -359,6 +359,7 @@ def apply_preprocessing_steps(
     #     plotDistribution(df.iloc[:, :-N_META].values, graph_outputdir, "data_distribution_after_%s" % step_slug)
     targets = df["target"]
     health = df["health"]
+    df_with_meta = df.copy()
     if keep_meta:
         df = df.iloc[:, :]
     else:
@@ -366,7 +367,7 @@ def apply_preprocessing_steps(
     df["target"] = targets
     df["health"] = health
     print(df)
-    return df
+    return df, df_with_meta
 
 
 def main():

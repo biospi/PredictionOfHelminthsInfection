@@ -176,7 +176,7 @@ def plot_cwt_power_sidebyside(
         % (class_healthy_label, df_healthy.shape[0])
     )
     ax3.set_xlabel("Time")
-    ax3.set_ylabel("Wave length of wavelet (in minute)")
+    ax3.set_ylabel(f"Wave length of wavelet (in minute) (n_scales={len(scales)})")
     # ax3.set_yscale('log')
 
     ax4.set_aspect("auto")
@@ -185,7 +185,7 @@ def plot_cwt_power_sidebyside(
         % (class_unhealthy_label, df_unhealthy.shape[0])
     )
     ax4.set_xlabel("Time")
-    ax4.set_ylabel("Wave length of wavelet (in minute)")
+    ax4.set_ylabel(f"Wave length of wavelet (in minute) (n_scales={len(scales)})")
     # ax4.set_yscale('log')
 
     ax3.set_yticks(np.arange(1, len(scales) + 1))
@@ -218,6 +218,7 @@ def plot_cwt_power_sidebyside(
         f"{step_slug.replace('->', '_')}_{title.replace(' ', '_')}_{filename_sub}.png"
     )
     filepath = graph_outputdir / filename
+    graph_outputdir.mkdir(parents=True, exist_ok=True)
     # print('saving fig...')
     print(filepath)
     fig.savefig(filepath)
@@ -518,7 +519,7 @@ def plot_cwt_power(
     axs[1].set_xlabel("Time in minute")
     if format_xaxis:
         axs[1].set_xlabel("Time")
-    axs[1].set_ylabel("Wave length of wavelet (in minute)")
+    axs[1].set_ylabel(f"Wave length of wavelet (in minute) (n_scales={len(scales)})")
     # if log_yaxis:
     #     axs[1].set_yscale('log')
 
@@ -552,7 +553,7 @@ def plot_cwt_power(
     # # new_lab[-1] = matplotlib.text.Text(8, float(l), l)
 
     # axs[1].tick_params(axis='y', which='both', colors='black')
-    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_cwt_{filename_sub}.png"
+    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_cwt_{filename_sub}_scales_{len(scales)}.png"
     out_dir.mkdir(parents=True, exist_ok=True)
     filepath = out_dir / filename
     print(filepath)

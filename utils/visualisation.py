@@ -1524,7 +1524,7 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
     """
     Plot high-dimensional decision boundary
     """
-    print("plot_high_dimension_db")
+    print(f"plot_high_dimension_db {ifold}")
     db = DBPlot(clf)
     db.fit(X, y, training_indices=train_index)
     fig, ax = plt.subplots(figsize=(19.20, 19.20))

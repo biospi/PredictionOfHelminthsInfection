@@ -19,11 +19,11 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps_list = [["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
+        steps_list = [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"], ["QN", "ANSCOMBE", "LOG"]]
         for steps in steps_list:
-            slug = "_".join(steps[0])
+            slug = "_".join(steps)
 
-            for i_day in [7, 5]:
+            for i_day in [7]:
                 for a_day in [7]:
                     for cv in ['RepeatedKFold']:
 
@@ -75,23 +75,23 @@ def main(
                         #     farm_id="cedara"
                         # )
 
-                        main_experiment.main(
-                            output_dir=output_dir
-                            / "main_experiment"
-                            / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
-                            / "1To2",
-                            dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-                            preprocessing_steps=steps,
-                            n_imputed_days=i_day,
-                            n_activity_days=a_day,
-                            class_unhealthy_label=["1To2"],
-                            cv=cv,
-                            farm_id="delmas"
-                        )
+                        # main_experiment.main(
+                        #     output_dir=output_dir
+                        #     / "main_experiment"
+                        #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
+                        #     / "1To2",
+                        #     dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                        #     preprocessing_steps=steps,
+                        #     n_imputed_days=i_day,
+                        #     n_activity_days=a_day,
+                        #     class_unhealthy_label=["1To2"],
+                        #     cv=cv,
+                        #     farm_id="delmas"
+                        # )
 
     if exp_temporal:
         print("experiment 2: temporal validation")
-        for i in [6, 5]:
+        for i in [7, 6]:
             temporal_validation.main(
                 output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
                 dataset_folder=Path("E:/Data2/debug/delmas/dataset_mrnn_7day"),
@@ -123,7 +123,7 @@ def main(
 
     if exp_cross_farm:
         print("experiment 3: cross farm validation")
-        for imp_d in [6, 5]:
+        for imp_d in [7, 6]:
             for a_act_day in [7]:
                 cross_farm_validation.main(
                     farm1_path=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
