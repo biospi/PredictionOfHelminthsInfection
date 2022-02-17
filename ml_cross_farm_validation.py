@@ -60,6 +60,7 @@ def main(
     (
         dataset1,
         meta_data,
+        meta_data_short,
         _,
         _,
         label_series_f1,

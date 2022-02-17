@@ -43,7 +43,9 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
 
     data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(subset=data_frame.columns[:-len(meta_columns)], how='all')
-    #data_frame = data_frame.dropna()
+
+    if imputed_days > 0:
+        data_frame = data_frame.dropna()
 
     #clip negative values
     data_frame[data_frame.columns.values[:-len(meta_columns)]] = data_frame[data_frame.columns.values[:-len(meta_columns)]].clip(lower=0)
@@ -54,6 +56,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
         data_frame.iloc[:, :-len(meta_columns)] = data_frame.iloc[:, :-len(meta_columns)].interpolate(axis=1, limit_direction='both')
 
     data_frame['target'] = data_frame['target'].astype(int)
+    data_frame['imputed_days'] = data_frame['imputed_days'].astype(int)
     data_frame['label'] = data_frame['label'].astype(str)
     new_label = []
     #data_frame_health = data_frame.copy()
@@ -100,6 +103,19 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     print(class_count)
     # drop label column stored previously, just keep target for ml
     meta_data = data_frame[meta_columns].values
+    meta_data_short = []
+    for m in meta_data:
+        str_f = ''
+        for i, elem in enumerate(m):
+            elem = str(elem)
+            m_col = meta_columns[i]
+            if m_col in ["health", "label", "date"]:
+                continue
+            if m_col == "id":
+                elem = elem[-3:] #only keeps the last 4 char of long id numbers
+            str_f += elem + " "
+        meta_data_short.append(str_f)
+    meta_data_short = np.array(meta_data_short)
     #data_frame = data_frame.drop('label', 1)
 
     print(data_frame)
@@ -116,7 +132,7 @@ def load_activity_data(out_dir, meta_columns, filepath, a_day, class_healthy, cl
     # data_frame = data_frame[data_frame["e"] > 150]
     # data_frame = data_frame.drop('e', 1)
 
-    return data_frame, meta_data, class_healthy, class_unhealthy, label_series, samples
+    return data_frame, meta_data, meta_data_short, class_healthy, class_unhealthy, label_series, samples
 
 
 def parse_param_from_filename(file):

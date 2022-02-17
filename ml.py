@@ -36,7 +36,7 @@ from utils.visualisation import (
     plot_time_lda,
     plot_groups,
     plot_umap,
-)
+    plot_time_pls)
 
 
 def main(
@@ -140,7 +140,7 @@ def main(
     for file in files:
         # _, _, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
-        (data_frame, meta_data, _, _, label_series, samples,) = load_activity_data(
+        (data_frame, meta_data, meta_data_short, _, _, label_series, samples,) = load_activity_data(
             output_dir,
             meta_columns,
             file,
@@ -157,7 +157,7 @@ def main(
             #                                           VISUALISATION                                                   #
             #############################################################################################################
             animal_ids = (
-                data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+                data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
             )
             N_META = len(meta_columns)
 
@@ -260,6 +260,21 @@ def main(
                 title="PCA time domain after normalisation",
             )
 
+            plot_time_pls(
+                N_META,
+                data_frame.copy(),
+                output_dir / "pls",
+                label_series,
+                title="PLS time domain before normalisation",
+            )
+            plot_time_pls(
+                N_META,
+                df_norm,
+                output_dir / "pls",
+                label_series,
+                title="PLS time domain after normalisation",
+            )
+
             plot_time_lda(
                 N_META,
                 data_frame.copy(),
@@ -331,6 +346,7 @@ def main(
 
         process_data_frame_svm(
             meta_data,
+            meta_data_short,
             output_dir,
             animal_ids,
             sample_dates,

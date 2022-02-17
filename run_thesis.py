@@ -23,9 +23,23 @@ def main(
         for steps in steps_list:
             slug = "_".join(steps[0])
 
-            for i_day in [6]:
+            for i_day in [7, 5]:
                 for a_day in [7]:
                     for cv in ['RepeatedKFold']:
+
+                        main_experiment.main(
+                            output_dir=output_dir
+                            / "main_experiment"
+                            / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
+                            / "2To2",
+                            dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                            preprocessing_steps=steps,
+                            n_imputed_days=i_day,
+                            n_activity_days=a_day,
+                            cv=cv,
+                            farm_id="delmas"
+                        )
+
                         main_experiment.main(
                             output_dir=output_dir
                             / "main_experiment"
@@ -60,19 +74,6 @@ def main(
                         #     cv=cv,
                         #     farm_id="cedara"
                         # )
-
-                        main_experiment.main(
-                            output_dir=output_dir
-                            / "main_experiment"
-                            / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
-                            / "2To2",
-                            dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-                            preprocessing_steps=steps,
-                            n_imputed_days=i_day,
-                            n_activity_days=a_day,
-                            cv=cv,
-                            farm_id="delmas"
-                        )
 
                         main_experiment.main(
                             output_dir=output_dir

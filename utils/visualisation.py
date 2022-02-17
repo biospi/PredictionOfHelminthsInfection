@@ -16,6 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from plotly.subplots import make_subplots
 from plotnine import ggplot, aes, geom_jitter, stat_summary, theme, element_text
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import auc, precision_recall_curve
@@ -312,12 +313,13 @@ def plot_2d_space(
             )
     else:
         for l in zip(np.unique(y)):
-            ax.scatter(
-                X[y == l[0]][:, 0],
-                X[y == l[0]][:, 1],
-                label=label_series[l[0]],
-                s=marker_size,
-            )
+            if l[0] in label_series.keys():
+                ax.scatter(
+                    X[y == l[0]][:, 0],
+                    X[y == l[0]][:, 1],
+                    label=label_series[l[0]],
+                    s=marker_size,
+                )
 
     colormap = cm.get_cmap("Spectral")
     colorst = [colormap(i) for i in np.linspace(0, 0.9, len(ax.collections))]
@@ -340,25 +342,21 @@ def plot_2d_space(
 def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="label"):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     df_before_reduction = df.iloc[:, : -len(meta_columns)].values
-    ids = df["id"].values
-    X = umap.UMAP().fit_transform(df_before_reduction)
-    y = df["target"].astype(int)
-    filename = f"{title.replace(' ', '_')}.png"
-    filepath = output_dir / filename
-    plot_2d_space(
-        X,
-        y,
-        filepath,
-        label_series,
-        title=title,
-        colors=ids.astype(float),
-        marker_size=4,
-    )
-
-    filepath = output_dir / f"umap_plot_{filename}"
     mapper = umap.UMAP().fit(df_before_reduction)
+
+    ids = df["id"].values
+    labels = df["label"].values
+    filename = f"{title.replace(' ', '_')}.png"
+
+    fig, ax = plt.subplots(figsize=(9.00, 9.00))
+    umap.plot.points(mapper, labels=labels, ax=ax, background="black")
+    filepath = output_dir / f"umap_plot_labels_{filename}"
+    fig.savefig(filepath)
+    print(filepath)
+
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
     umap.plot.points(mapper, labels=ids, ax=ax, background="black")
+    filepath = output_dir / f"umap_plot_ids_{filename}"
     fig.savefig(filepath)
     print(filepath)
 
@@ -377,6 +375,21 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
         meta_list.append(meta_str)
     hover_data["item"] = meta_list
     print(hover_data)
+
+    print("saving interactive umap...")
+    p = umap.plot.interactive(
+        mapper,
+        labels=labels,
+        hover_data=hover_data,
+        point_size=5,
+        background="black",
+        interactive_text_search=True,
+    )
+    filepath = output_dir / f"umap_iplot_labels_{title.replace(' ', '_')}.html"
+    output_file(str(filepath), mode="inline")
+    save(p)
+    print(filepath)
+
     print("saving interactive umap...")
     p = umap.plot.interactive(
         mapper,
@@ -386,7 +399,7 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
         background="black",
         interactive_text_search=True,
     )
-    filepath = output_dir / f"umap_iplot_{title.replace(' ', '_')}.html"
+    filepath = output_dir / f"umap_iplot_ids_{title.replace(' ', '_')}.html"
     output_file(str(filepath), mode="inline")
     save(p)
     print(filepath)
@@ -398,6 +411,19 @@ def plot_time_pca(
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     X = pd.DataFrame(PCA(n_components=2).fit_transform(df.iloc[:, :-meta_size])).values
     y = df["target"].astype(int)
+    ##y_label = df_time_domain["label"]
+    filename = title.replace(" ", "_")
+    filepath = output_dir / filename
+    plot_2d_space(X, y, filepath, label_series, title=title)
+
+
+def plot_time_pls(
+    meta_size, df, output_dir, label_series, title="title", y_col="label"
+):
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    y = df["target"].astype(int)
+    X = pd.DataFrame(PLSRegression(n_components=2).fit_transform(X=df.iloc[:, :-meta_size], y=y)[0]).values
+
     ##y_label = df_time_domain["label"]
     filename = title.replace(" ", "_")
     filepath = output_dir / filename
@@ -1494,18 +1520,33 @@ def plot_3D_decision_boundaries(
 #
 #
 
-def plot_high_dimension_db(out_dir, X, y, train_index, clf, days, steps, ifold):
+def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, ifold):
     """
     Plot high-dimensional decision boundary
     """
+    print("plot_high_dimension_db")
     db = DBPlot(clf)
     db.fit(X, y, training_indices=train_index)
     fig, ax = plt.subplots(figsize=(19.20, 19.20))
     db.plot(
-        ax, generate_testpoints=True
+        ax, generate_testpoints=True, meta=meta
     )  # set generate_testpoints=False to speed up plotting
     models_visu_dir = (
-            out_dir / "models_visu" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+            out_dir / "models_visu_pca" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+    )
+    models_visu_dir.mkdir(parents=True, exist_ok=True)
+    filepath = models_visu_dir / f"{ifold}.png"
+    print(filepath)
+    plt.savefig(filepath)
+
+    db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
+    db.fit(X, y, training_indices=train_index)
+    fig, ax = plt.subplots(figsize=(19.20, 19.20))
+    db.plot(
+        ax, generate_testpoints=True, meta=meta
+    )  # set generate_testpoints=False to speed up plotting
+    models_visu_dir = (
+            out_dir / "models_visu_pls" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
     )
     models_visu_dir.mkdir(parents=True, exist_ok=True)
     filepath = models_visu_dir / f"{ifold}.png"
@@ -1799,8 +1840,9 @@ def build_individual_animal_pred(
         df = pd.DataFrame(
             {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids}
         )
-        dfs = [group for _, group in df.groupby(df["data_dates"].dt.strftime("%B"))]
-
+        df = df.sort_values(by='data_dates')
+        dfs = [group for _, group in df.groupby(df["data_dates"].dt.strftime("%B/%Y"))]
+        dfs = sorted(dfs, key=lambda x: x["data_dates"].max(axis=0))
         fig, axs = plt.subplots(
             3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(24.0, 10.80)
         )

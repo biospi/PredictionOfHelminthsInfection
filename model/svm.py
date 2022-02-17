@@ -1,6 +1,7 @@
 import os
 import pathlib
 import pickle
+import random
 import time
 from multiprocessing import Manager, Pool
 from pathlib import Path
@@ -41,9 +42,8 @@ from utils.visualisation import (
     plot_ml_report,
     build_report,
     plot_ml_report_final,
-    plot_high_dimension_db)
-
-
+    plot_high_dimension_db,
+)
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -317,6 +317,7 @@ def make_roc_curve(
 
 def process_data_frame_svm(
     meta_data,
+    meta_data_short,
     output_dir,
     animal_ids,
     sample_dates,
@@ -392,7 +393,7 @@ def process_data_frame_svm(
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
 
-    X = data_frame.iloc[:, :-len(meta_columns)].values  # remove meta columns
+    X = data_frame.iloc[:, : -len(meta_columns)].values  # remove meta columns
 
     print("release data_frame memory...")
     del data_frame
@@ -441,6 +442,7 @@ def process_data_frame_svm(
         y_h,
         ids,
         meta_data,
+        meta_data_short,
         sample_dates,
         n_job,
     )
@@ -459,8 +461,12 @@ def process_data_frame_svm(
     #     sample_dates,
     # )
 
-    build_individual_animal_pred(output_dir, steps, class_unhealthy_label, scores, ids, meta_columns)
-    build_individual_animal_pred(output_dir, steps, class_unhealthy_label, scores, ids, meta_columns, tt="train")
+    build_individual_animal_pred(
+        output_dir, steps, class_unhealthy_label, scores, ids, meta_columns
+    )
+    build_individual_animal_pred(
+        output_dir, steps, class_unhealthy_label, scores, ids, meta_columns, tt="train"
+    )
     build_proba_hist(output_dir, steps, class_unhealthy_label, scores_proba)
     build_report(
         output_dir,
@@ -486,6 +492,7 @@ def fold_worker(
     y_h,
     ids,
     meta,
+    meta_data_short,
     sample_dates,
     days,
     steps,
@@ -502,7 +509,7 @@ def fold_worker(
     test_index,
     axis,
     ifold,
-    nfold
+    nfold,
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -511,6 +518,7 @@ def fold_worker(
     ids_train, ids_test = ids[train_index], ids[test_index]
 
     meta_train, meta_test = meta[train_index], meta[test_index]
+    meta_train_s, meta_test_s = meta_data_short[train_index], meta_data_short[test_index]
 
     sample_dates_train, sample_dates_test = (
         sample_dates[train_index],
@@ -524,16 +532,19 @@ def fold_worker(
     y_fold = y[fold_index]
     ids_fold = ids[fold_index]
     sample_dates_fold = sample_dates[fold_index]
+    meta_fold = meta[fold_index]
 
     # keep healthy and unhealthy only
     X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
     y_train = y_h_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
     meta_train = meta_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    meta_train_s = meta_train_s[np.isin(y_h_train, [class_healthy, class_unhealthy])]
 
     X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
 
     meta_test = meta_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+    meta_test_s = meta_test_s[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
     sample_dates_test = sample_dates_test[
         np.isin(y_h_test, [class_healthy, class_unhealthy])
@@ -549,7 +560,7 @@ def fold_worker(
     fit_time = time.time() - start_time
 
     models_dir = (
-            out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
     )
     models_dir.mkdir(parents=True, exist_ok=True)
     filename = models_dir / f"model_{ifold}.pkl"
@@ -580,24 +591,36 @@ def fold_worker(
     auc_value = viz_roc.roc_auc
     print("auc=", auc_value)
 
-    plot_high_dimension_db(out_dir, X, y, train_index, clf, days, steps, ifold)
+    if ifold in np.random.randint(low=0, high=nfold-1, size=(2,)) or ifold == 0:
+        plot_high_dimension_db(
+            out_dir,
+            np.concatenate((X_train, X_test), axis=0),
+            np.concatenate((y_train, y_test), axis=0),
+            list(np.arange(len(X_train))),
+            np.concatenate((meta_train_s, meta_test_s), axis=0),
+            clf,
+            days,
+            steps,
+            ifold,
+        )
 
     tprs.append(interp_tpr)
     aucs_roc.append(auc_value)
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
-    precision, recall, fscore, support = precision_recall_fscore_support(
-        y_test, y_pred
-    )
+    precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
     correct_predictions_test = (y_test == y_pred).astype(int)
     incorrect_predictions_test = (y_test != y_pred).astype(int)
 
-    #data for training
+    # data for training
     y_pred_train = clf.predict(X_train)
     accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
-    precision_train, recall_train, fscore_train, support_train = precision_recall_fscore_support(
-        y_train, y_pred_train
-    )
+    (
+        precision_train,
+        recall_train,
+        fscore_train,
+        support_train,
+    ) = precision_recall_fscore_support(y_train, y_pred_train)
     correct_predictions_train = (y_train == y_pred_train).astype(int)
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
@@ -614,6 +637,7 @@ def fold_worker(
         "sample_dates_test": sample_dates_test.tolist(),
         "sample_dates_train": sample_dates_train.tolist(),
         "meta_test": meta_test.tolist(),
+        "meta_fold": meta_fold.tolist(),
         "meta_train": meta_train.tolist(),
         "correct_predictions_test": correct_predictions_test.tolist(),
         "incorrect_predictions_test": incorrect_predictions_test.tolist(),
@@ -650,6 +674,7 @@ def fold_worker(
             "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
         }
         fold_probas[label].append(fold_proba)
+    print(f"process id={ifold}/{nfold} done!")
 
 
 def cross_validate_custom_fast(
@@ -664,6 +689,7 @@ def cross_validate_custom_fast(
     y_h,
     ids,
     meta,
+    meta_data_short,
     sample_dates,
     n_job=None,
 ):
@@ -690,7 +716,7 @@ def cross_validate_custom_fast(
         mean_fpr = np.linspace(0, 1, 100)
 
         with Manager() as manager:
-            #create result holders
+            # create result holders
             tprs = manager.list()
             axis = manager.list()
             aucs_roc = manager.list()
@@ -709,6 +735,7 @@ def cross_validate_custom_fast(
                     y_h,
                     ids,
                     meta,
+                    meta_data_short,
                     sample_dates,
                     days,
                     steps,
@@ -736,14 +763,14 @@ def cross_validate_custom_fast(
             aucs_roc = list(aucs_roc)
             fold_probas = dict(fold_probas)
             fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
-            print('total time (s)= ' + str(end - start))
+            print("total time (s)= " + str(end - start))
 
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
         for a in axis:
             f, ax = a.figure_, a.ax_
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
-            ax_roc.plot(xdata, ydata, color='tab:blue', alpha=.3, linewidth=1)
+            ax_roc.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
 
         mean_auc = plot_roc_range(
             ax_roc,
@@ -804,7 +831,7 @@ def cross_validate_custom(
     scores, scores_proba = {}, {}
     for clf in [
         SVC(kernel="linear", probability=True, class_weight="balanced"),
-        SVC(kernel="rbf", probability=True, class_weight="balanced")
+        SVC(kernel="rbf", probability=True, class_weight="balanced"),
     ]:
         plt.clf()
         fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))

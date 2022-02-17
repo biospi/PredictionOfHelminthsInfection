@@ -179,7 +179,7 @@ def binarize(tagets, healty_target=1):
     return (tagets != healty_target).astype(int)
 
 
-def concatenate_images(images_list, out_dir, filename = "mean_cwt_per_label.png"):
+def concatenate_images(images_list, out_dir, filename="cwt_mean_per_label.png"):
     imgs = [Image.open(str(i)) for i in images_list]
 
     # If you're using an older version of Pillow, you might have to use .size[0] instead of .width
@@ -202,6 +202,6 @@ def concatenate_images(images_list, out_dir, filename = "mean_cwt_per_label.png"
 
         y += img.height
 
-    file_path = out_dir.parent.parent.parent.parent / filename
+    file_path = out_dir.parent / filename
     print(file_path)
     img_merge.save(str(file_path))

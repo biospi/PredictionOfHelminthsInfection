@@ -638,7 +638,7 @@ def CWTVisualisation(
             )
         # stack cwt figures
         files = list(out_dir.glob("*.png"))
-        concatenate_images(files, out_dir, filename="elemwise_mean_cwt_per_label.png")
+        concatenate_images(files, out_dir.parent.parent.parent, filename="cwt_elemwise_mean_per_label.png")
 
 
 def check_scale_spacing(scales):
