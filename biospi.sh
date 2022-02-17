@@ -11,4 +11,8 @@ done
 
 nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w --dataset-folder /mnt/storage/scratch/axel/cats/build_sec/dataset/training_sets/day_w --preprocessing-steps 'LINEAR' 'QN' 'ANSCOMBE' 'LOG' --meta-columns 'label' 'id' 'imputed_days' 'date' 'health' 'target' 'age' 'name' 'mobility_score' --n-imputed-days -1 --n-activity-days -1 --class-healthy-label '0.0' --class-unhealthy-label '1.0' --n-splits 5 --n-repeats 10 --n-job 30 > log.txt &
 
+
 nohup python3 ml.py /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w /mnt/storage/scratch/axel/cats/build_sec/dataset/training_sets/day_w --preprocessing-steps [['LINEAR', 'QN', 'ANSCOMBE', 'LOG']] > log.txt &
+
+
+nohup python3 ml.py --output-dir /mnt/storage/scratch/main/delmas/2To2 --dataset-folder /mnt/storage/scratch/axel/dataset4_mrnn_7day --preprocessing-steps 'QN' 'ANSCOMBE' 'LOG' 'CENTER' 'CWT' --meta-columns 'label' 'id' 'imputed_days' 'date' 'health' 'target' --n-imputed-days 7 --n-activity-days 7 --class-healthy-label '1To1' --class-unhealthy-label '2To2' --n-splits 5 --n-repeats 10 --n-job 30 > log_delmas.txt &
