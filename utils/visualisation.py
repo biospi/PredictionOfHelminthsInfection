@@ -31,7 +31,7 @@ import seaborn as sns
 from collections import Counter
 import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
-from highdimensional_decision_boundary_plot.decisionboundaryplot import DBPlot
+from highdimensional.decisionboundaryplot import DBPlot
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
