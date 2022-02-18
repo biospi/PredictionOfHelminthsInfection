@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    exp_main: bool = True,
+    exp_main: bool = False,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
     output_dir: Path = Path("E:/thesis"),
@@ -19,11 +19,11 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps_list = [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"], ["QN", "ANSCOMBE", "LOG"]]
+        steps_list = [["QN", "ANSCOMBE", "LOG"]]
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [7]:
+            for i_day in [7, 6]:
                 for a_day in [7]:
                     for cv in ['RepeatedKFold']:
 
@@ -37,7 +37,7 @@ def main(
                             n_imputed_days=i_day,
                             n_activity_days=a_day,
                             cv=cv,
-                            farm_id="delmas"
+                            stydy_id="delmas"
                         )
 
                         main_experiment.main(
@@ -51,7 +51,7 @@ def main(
                             n_activity_days=a_day,
                             class_unhealthy_label=["2To2"],
                             cv=cv,
-                            farm_id="cedara"
+                            stydy_id="cedara"
                         )
 
                         # main_experiment.main(
@@ -75,19 +75,33 @@ def main(
                         #     farm_id="cedara"
                         # )
 
-                        # main_experiment.main(
-                        #     output_dir=output_dir
-                        #     / "main_experiment"
-                        #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
-                        #     / "1To2",
-                        #     dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-                        #     preprocessing_steps=steps,
-                        #     n_imputed_days=i_day,
-                        #     n_activity_days=a_day,
-                        #     class_unhealthy_label=["1To2"],
-                        #     cv=cv,
-                        #     farm_id="delmas"
-                        # )
+                        main_experiment.main(
+                            output_dir=output_dir
+                            / "main_experiment"
+                            / f"delmas_{cv}_{i_day}_{a_day}_{slug}"
+                            / "1To2",
+                            dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                            preprocessing_steps=steps,
+                            n_imputed_days=i_day,
+                            n_activity_days=a_day,
+                            class_unhealthy_label=["1To2"],
+                            cv=cv,
+                            stydy_id="delmas"
+                        )
+
+                        main_experiment.main(
+                            output_dir=output_dir
+                            / "main_experiment"
+                            / f"cedara_{cv}_{i_day}_{a_day}_{slug}"
+                            / "1To2",
+                            dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+                            preprocessing_steps=steps,
+                            n_imputed_days=i_day,
+                            n_activity_days=a_day,
+                            class_unhealthy_label=["1To2"],
+                            cv=cv,
+                            stydy_id="cedara"
+                        )
 
     if exp_temporal:
         print("experiment 2: temporal validation")

@@ -22,7 +22,14 @@ def main(
     n_activity_days: int = 7,
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
-    meta_columns: List[str] = ["label", "id", "imputed_days", "date", "health"],
+    meta_columns: List[str] = [
+        "label",
+        "id",
+        "imputed_days",
+        "date",
+        "health",
+        "target",
+    ],
     preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     train_size: float = 0.9,
     n_fold: int = 50
