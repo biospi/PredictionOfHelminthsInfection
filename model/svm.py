@@ -43,7 +43,7 @@ from utils.visualisation import (
     build_report,
     plot_ml_report_final,
     plot_high_dimension_db,
-)
+    plot_learning_curves)
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -591,7 +591,7 @@ def fold_worker(
     auc_value = viz_roc.roc_auc
     print("auc=", auc_value)
 
-    if ifold in np.random.randint(low=0, high=nfold-1, size=(2,)) or ifold == 0:
+    if ifold == 0:
         plot_high_dimension_db(
             out_dir,
             np.concatenate((X_train, X_test), axis=0),
@@ -603,6 +603,7 @@ def fold_worker(
             steps,
             ifold,
         )
+        plot_learning_curves(clf, X, y, ifold, out_dir)
 
     tprs.append(interp_tpr)
     aucs_roc.append(auc_value)

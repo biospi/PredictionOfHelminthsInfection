@@ -40,12 +40,13 @@ def apply_preprocessing_steps(
     class_unhealthy_label,
     clf_name="",
     output_dim=2,
-    n_scales=None,
+    n_scales=9,
     farm_name="",
     keep_meta=False,
     plot_all_target=None,
     enable_graph_out=None,
-    output_qn_graph=False
+    output_qn_graph=False,
+    sub_sample_scales=9
 ):
     N_META = len(meta_columns)
     step_slug = "_".join(steps)
@@ -268,6 +269,7 @@ def apply_preprocessing_steps(
                 targets=df["health"].tolist(),
                 dates=df["date"].tolist(),
                 enable_graph_out=enable_graph_out,
+                sub_sample_scales=sub_sample_scales
             )
             data_frame_cwt, _ = CWT_Transform.transform(
                 df.copy().iloc[:, :-N_META].values

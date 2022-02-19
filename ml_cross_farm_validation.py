@@ -85,7 +85,7 @@ def main(
         preprocessing_steps=steps
     )
 
-    dataset2, _, _, _, label_series_f2, samples_f2 = load_activity_data(
+    dataset2, _, _, _, _, label_series_f2, samples_f2 = load_activity_data(
         output_dir,
         meta_columns,
         find_dataset(str(farm2_path)),
@@ -121,6 +121,7 @@ def main(
         output_dim=dataset1.shape[0],
         n_scales=None,
         farm_name="FARM1+FARM2",
+
     )
 
     # dataframe = dataframe["target"].isin([class_healthy_target, class_unhealthy_target])

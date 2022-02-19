@@ -19,7 +19,9 @@ from plotnine import ggplot, aes, geom_jitter, stat_summary, theme, element_text
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.manifold import Isomap
 from sklearn.metrics import auc, precision_recall_curve
+from sklearn.model_selection import learning_curve
 from tqdm import tqdm
 
 from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power
@@ -346,6 +348,7 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
 
     ids = df["id"].values
     labels = df["label"].values
+    seasons = (pd.to_datetime(df['date'], format="%d/%m/%Y").dt.month%12 // 3 + 1).map({1:'winter', 2:'spring', 3:'summer', 4:'fall'})
     filename = f"{title.replace(' ', '_')}.png"
 
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
@@ -357,6 +360,12 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
     umap.plot.points(mapper, labels=ids, ax=ax, background="black")
     filepath = output_dir / f"umap_plot_ids_{filename}"
+    fig.savefig(filepath)
+    print(filepath)
+
+    fig, ax = plt.subplots(figsize=(9.00, 9.00))
+    umap.plot.points(mapper, labels=seasons, ax=ax, background="black")
+    filepath = output_dir / f"umap_plot_seasons_{filename}"
     fig.savefig(filepath)
     print(filepath)
 
@@ -400,6 +409,20 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
         interactive_text_search=True,
     )
     filepath = output_dir / f"umap_iplot_ids_{title.replace(' ', '_')}.html"
+    output_file(str(filepath), mode="inline")
+    save(p)
+    print(filepath)
+
+    print("saving interactive umap...")
+    p = umap.plot.interactive(
+        mapper,
+        labels=seasons,
+        hover_data=hover_data,
+        point_size=5,
+        background="black",
+        interactive_text_search=True,
+    )
+    filepath = output_dir / f"umap_iplot_seasons_{title.replace(' ', '_')}.html"
     output_file(str(filepath), mode="inline")
     save(p)
     print(filepath)
@@ -1012,6 +1035,7 @@ def rolling_window(array, window_size, freq):
 
 
 def plot_mean_groups(
+    sub_sample_scales,
     n_scales,
     sfft_window,
     wavelet_f0,
@@ -1067,6 +1091,7 @@ def plot_mean_groups(
                 vmin=0,
                 vmax=3,
                 enable_graph_out=True,
+                sub_sample_scales=sub_sample_scales
             ).transform([s])
 
         if sfft_window is not None:
@@ -1538,6 +1563,7 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
     filepath = models_visu_dir / f"{ifold}.png"
     print(filepath)
     plt.savefig(filepath)
+    #plot_learning_curves(clf, X, y, ifold, models_visu_dir)
 
     db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
     db.fit(X, y, training_indices=train_index)
@@ -1550,6 +1576,32 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
     )
     models_visu_dir.mkdir(parents=True, exist_ok=True)
     filepath = models_visu_dir / f"{ifold}.png"
+    print(filepath)
+    plt.savefig(filepath)
+    #plot_learning_curves(clf, X, y, ifold, models_visu_dir)
+
+
+def plot_learning_curves(clf, X, y, ifold, models_visu_dir):
+    # plot learning curves for comparison
+    fig, ax = plt.subplots()
+    N = 10
+    train_sizes, train_scores, test_scores = learning_curve(clf, X, y, cv=5)
+    ax.errorbar(
+        train_sizes,
+        np.mean(train_scores, axis=1),
+        np.std(train_scores, axis=1) / np.sqrt(N),
+    )
+    ax.errorbar(
+        train_sizes,
+        np.mean(test_scores, axis=1),
+        np.std(test_scores, axis=1) / np.sqrt(N),
+        c="r",
+    )
+
+    ax.legend(["Accuracies on training set", "Accuracies on test set"])
+    ax.set_xlabel("Number of data points")
+    ax.set_title(str(clf))
+    filepath = models_visu_dir / f"learning_curve_{ifold}_{type(clf).__name__}_{clf.kernel}.png"
     print(filepath)
     plt.savefig(filepath)
 

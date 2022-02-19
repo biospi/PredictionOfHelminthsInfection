@@ -864,6 +864,7 @@ def cwt_power(
     nscales=10,
     enable_graph_out=True,
     enable_coi=True,
+    sub_sample_scales= 1
 ):
     # y = center_signal(activity, avg)
     # scales = np.concatenate([np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6),
@@ -880,7 +881,7 @@ def cwt_power(
     #     # scales = np.concatenate(
     #     #     [np.arange(2, 10, 1), np.arange(10, 30, 2), np.arange(30, 60, 3), np.arange(60, 60 * 2, 6)])
     # else:
-    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])
+    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])[::sub_sample_scales]
     #print(scales)
 
     # scales = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 10081])
@@ -984,7 +985,8 @@ def compute_cwt(
     format_xaxis,
     vmin,
     vmax,
-    enable_graph_out = None
+    enable_graph_out = None,
+    sub_sample_scales = 1
 ):
     #print("compute_cwt...")
     out_dir = out_dir / "_cwt"
@@ -1014,7 +1016,8 @@ def compute_cwt(
             avg=np.average(X),
             nscales=n_scales,
             enable_coi=True,
-            enable_graph_out=enable_graph_out
+            enable_graph_out=enable_graph_out,
+            sub_sample_scales=sub_sample_scales
         )
         power_flatten = np.array(power.flatten())
         # cwt_full.append(power_flatten_masked)
@@ -1079,7 +1082,8 @@ class CWT(TransformerMixin, BaseEstimator):
         dates=None,
         vmin=None,
         vmax=None,
-        enable_graph_out=None
+        enable_graph_out=None,
+        sub_sample_scales=None
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1099,6 +1103,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.hd = hd
         self.scales = None
         self.enable_graph_out = enable_graph_out
+        self.sub_sample_scales = sub_sample_scales
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -1129,7 +1134,8 @@ class CWT(TransformerMixin, BaseEstimator):
             self.format_xaxis,
             self.vmin,
             self.vmax,
-            self.enable_graph_out
+            self.enable_graph_out,
+            self.sub_sample_scales
         )
         self.freqs = freqs
         self.coi = coi

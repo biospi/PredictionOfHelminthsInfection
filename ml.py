@@ -57,11 +57,14 @@ def main(
         "health",
         "target",
     ],
+    meta_col_str: List[str] = ["health", "label", "date"],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 9,
+    sub_sample_scales: int = 12,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
+    add_seasons_to_features: bool = False,
     n_splits: int = 5,
     n_repeats: int = 10,
     cv: str = "RepeatedStratifiedKFold",
@@ -75,26 +78,27 @@ def main(
 ):
     """ML Main machine learning script\n
     Args:\n
-        output_dir: Output directory
-        dataset_folder: Dataset input directory
-        preprocessing_steps: preprocessing steps
-        class_healthy_label: Label for healthy class
-        class_unhealthy_label: Label for unhealthy class
+        output_dir: Output directory.
+        dataset_folder: Dataset input directory.
+        preprocessing_steps: preprocessing steps.
+        class_healthy_label: Label for healthy class.
+        class_unhealthy_label: Label for unhealthy class.
         meta_columns: List of names of the metadata columns in the dataset file.
-        n_imputed_days: number of imputed days allowed in a sample
-        n_activity_days: number of activity days in a sample
+        meta_col_str: List of meta data to display on decision boundary plot.
+        n_imputed_days: number of imputed days allowed in a sample.
+        n_activity_days: number of activity days in a sample.
         n_scales: n scales in dyadic array [2^2....2^n].
         temp_file: csv file containing temperature features.
         hum_file: csv file containing humidity features.
         n_splits: Number of splits for repeatedkfold cv.
         n_repeats: Number of repeats for repeatedkfold cv.
-        cv: RepeatedKFold
-        wavelet_f0: Mother Wavelet frequency for CWT
-        sfft_window: STFT window size
-        farm_id: farm id
-        sampling: Activity bin resolution
-        pre_visu: Enable initial visualisation of dataset before classification
-        output_qn_graph: Output Quotient Normalisation steps figures
+        cv: RepeatedKFold.
+        wavelet_f0: Mother Wavelet frequency for CWT.
+        sfft_window: STFT window size.
+        farm_id: farm id.
+        sampling: Activity bin resolution.
+        pre_visu: Enable initial visualisation of dataset before classification.
+        output_qn_graph: Output Quotient Normalisation steps figures.
         n_job: Number of threads to use for cross validation.
     """
     meta_columns = [x.replace("'", '') for x in meta_columns]
@@ -149,6 +153,8 @@ def main(
             class_unhealthy_label,
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
+            add_seasons_to_features=add_seasons_to_features,
+            meta_col_str=meta_col_str
         )
 
         N_META = len(meta_columns)
@@ -178,6 +184,7 @@ def main(
                 n_scales=n_scales,
                 keep_meta=True,
                 output_qn_graph=output_qn_graph,
+                sub_sample_scales=sub_sample_scales
             )
 
             plot_zeros_distrib(
@@ -197,6 +204,7 @@ def main(
                 title="Percentage of zeros in activity per sample before normalisation",
             )
             plot_mean_groups(
+                sub_sample_scales,
                 n_scales,
                 sfft_window,
                 wavelet_f0,
@@ -226,6 +234,7 @@ def main(
                 keep_meta=True,
                 plot_all_target=True,
                 enable_graph_out=False,
+                sub_sample_scales=sub_sample_scales
             )
 
             plot_umap(
@@ -341,6 +350,7 @@ def main(
             clf_name="SVM",
             output_dim=data_frame.shape[0],
             n_scales=n_scales,
+            sub_sample_scales=sub_sample_scales
         )
 
         plot_umap(

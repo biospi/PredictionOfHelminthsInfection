@@ -81,7 +81,7 @@ class DBPlot(BaseEstimator):
         estimator=KNeighborsClassifier(n_neighbors=10),
         dimensionality_reduction=PCA(n_components=2),
         acceptance_threshold=0.03,
-        n_decision_boundary_keypoints=60,
+        n_decision_boundary_keypoints=100,
         n_connecting_keypoints=None,
         n_interpolated_keypoints=None,
         n_generated_testpoints_per_keypoint=15,
@@ -415,6 +415,7 @@ class DBPlot(BaseEstimator):
         plotting the data and decision boundary on it. (plt.show() is NOT called
         and will be required)
         """
+        print("plotting high dimension db...")
         if plt == None:
             plt = mplt
 
