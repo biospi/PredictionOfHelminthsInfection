@@ -13,13 +13,10 @@ def load_activity_data(
     a_day,
     class_healthy,
     class_unhealthy,
-    keep_2_only=True,
     imputed_days=7,
-    preprocessing_steps=[["QN", "ANSCOMBE", "LOG"]],
-    hold_out_pct=0,
-    farm="delmas",
-    add_seasons_to_features=None,
-    meta_col_str=[]
+    preprocessing_steps=None,
+    farm=None,
+    meta_cols_str=None
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -55,13 +52,12 @@ def load_activity_data(
         (pd.to_datetime(data_frame["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1).values,
         columns=[data_point_count - len(meta_columns)],
     )
+
     if a_day > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
         df_meta = data_frame[meta_columns]
-        if add_seasons_to_features:
-            data_frame = pd.concat([df_activity_window, seasons, df_meta], axis=1)
-        else:
-            data_frame = pd.concat([df_activity_window, df_meta], axis=1)
+        data_frame = pd.concat([df_activity_window, df_meta], axis=1)
+        #seasons = seasons[np.repeat(seasons.columns.values, df_activity_window.shape[1])]
 
     if imputed_days > 0:
         data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
@@ -102,6 +98,7 @@ def load_activity_data(
         new_label.append(-1)
 
     data_frame["health"] = new_label
+    seasons = seasons.loc[data_frame.index]
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
@@ -115,11 +112,8 @@ def load_activity_data(
     labels = data_frame["label"].drop_duplicates().values
     samples = {}
 
-    # samples['healthy'] = data_frame[data_frame_health['health'] == 'healthy']
-    # samples['unhealthy'] = data_frame[data_frame_health['health'] == 'unhealthy']
     for label in labels:
         df = data_frame[data_frame["label"] == label]
-        # df = df.drop('label', 1)
         samples[label] = df
 
     if a_day is not None:
@@ -143,15 +137,13 @@ def load_activity_data(
         for i, elem in enumerate(m):
             elem = str(elem)
             m_col = meta_columns[i]
-            if m_col in meta_cols_str:
+            if m_col not in meta_cols_str:
                 continue
             if m_col == "id":
                 elem = elem[-3:]  # only keeps the last 4 char of long id numbers
             str_f += elem + " "
         meta_data_short.append(str_f)
     meta_data_short = np.array(meta_data_short)
-    # data_frame = data_frame.drop('label', 1)
-
     print(data_frame)
 
     return (
@@ -162,6 +154,7 @@ def load_activity_data(
         class_unhealthy,
         label_series,
         samples,
+        seasons
     )
 
 

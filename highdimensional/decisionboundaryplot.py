@@ -81,7 +81,7 @@ class DBPlot(BaseEstimator):
         estimator=KNeighborsClassifier(n_neighbors=10),
         dimensionality_reduction=PCA(n_components=2),
         acceptance_threshold=0.03,
-        n_decision_boundary_keypoints=100,
+        n_decision_boundary_keypoints=60,
         n_connecting_keypoints=None,
         n_interpolated_keypoints=None,
         n_generated_testpoints_per_keypoint=15,
@@ -643,7 +643,7 @@ class DBPlot(BaseEstimator):
 
         """
         if len(self.decision_boundary_points) == 0:
-            raise Exception("Please call the fit method first!")
+            raise print("Please call the fit method first!")
 
         if not generate_testpoints and generate_background:
             print("Warning: cannot generate a background without testpoints")

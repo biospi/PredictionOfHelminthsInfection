@@ -207,7 +207,7 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = BaseLineScaler().fit_transform(
                 df.iloc[:, :-N_META].values
             )
-        if step == "STANDARDSCALER":
+        if step in ["STANDARDSCALER", "STDS"]:
             df.iloc[:, :-N_META] = StandardScaler(
                 with_mean=False, with_std=True
             ).fit_transform(df.iloc[:, :-N_META].values)

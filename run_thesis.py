@@ -27,17 +27,19 @@ def main(
                 for a_day in [7]:
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [True, False]:
+
                             main_experiment.main(
                                 output_dir=output_dir
                                 / "main_experiment"
-                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "2To2",
-                                dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                / "1To2",
+                                dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
                                 preprocessing_steps=steps,
                                 n_imputed_days=i_day,
                                 n_activity_days=a_day,
+                                class_unhealthy_label=["1To2"],
                                 cv=cv,
-                                stydy_id="delmas",
+                                study_id="cedara",
                                 add_seasons_to_features=add_seasons_to_features
                             )
 
@@ -52,7 +54,22 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To2"],
                                 cv=cv,
-                                stydy_id="cedara",
+                                study_id="cedara",
+                                add_seasons_to_features=add_seasons_to_features
+                            )
+
+
+                            main_experiment.main(
+                                output_dir=output_dir
+                                / "main_experiment"
+                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                / "2To2",
+                                dataset_folder=Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                                preprocessing_steps=steps,
+                                n_imputed_days=i_day,
+                                n_activity_days=a_day,
+                                cv=cv,
+                                study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
 
@@ -88,22 +105,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["1To2"],
                                 cv=cv,
-                                stydy_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To2",
-                                dataset_folder=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["1To2"],
-                                cv=cv,
-                                stydy_id="cedara",
+                                study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
 
@@ -118,7 +120,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To1"],
                                 cv=cv,
-                                stydy_id="delmas",
+                                study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
 
@@ -133,7 +135,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To1", "3To1"],
                                 cv=cv,
-                                stydy_id="cedara",
+                                study_id="cedara",
                                 add_seasons_to_features=add_seasons_to_features
                             )
 

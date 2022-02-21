@@ -35,6 +35,7 @@ import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
 from highdimensional.decisionboundaryplot import DBPlot
 
+
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
     Today = datetime.fromisoformat(date_string)
@@ -55,37 +56,37 @@ def add_separator(df_):
     df_ = df_.sort_index()
     ni = (
         pd.Series(df_["animal_ids"].astype(np.float).values)
-        .interpolate(method="nearest")
-        .values
+            .interpolate(method="nearest")
+            .values
     )
     df_["animal_ids"] = ni.tolist()
     nt = (
         pd.Series(df_["target"].astype(np.float).values)
-        .interpolate(method="nearest")
-        .values
+            .interpolate(method="nearest")
+            .values
     )
     df_["target"] = nt.astype(int).tolist()
     return df_
 
 
 def plot_groups(
-    N_META,
-    animal_ids,
-    class_healthy_label,
-    class_unhealthy_label,
-    graph_outputdir,
-    df,
-    title="title",
-    xlabel="xlabel",
-    ylabel="target",
-    ntraces=1,
-    idx_healthy=None,
-    idx_unhealthy=None,
-    show_max=True,
-    show_min=False,
-    show_mean=True,
-    show_median=True,
-    stepid=0,
+        N_META,
+        animal_ids,
+        class_healthy_label,
+        class_unhealthy_label,
+        graph_outputdir,
+        df,
+        title="title",
+        xlabel="xlabel",
+        ylabel="target",
+        ntraces=1,
+        idx_healthy=None,
+        idx_unhealthy=None,
+        show_max=True,
+        show_min=False,
+        show_mean=True,
+        show_median=True,
+        stepid=0,
 ):
     """Plot all rows in dataframe for each class Health or Unhealthy.
 
@@ -304,7 +305,7 @@ def plot_groups(
 
 
 def plot_2d_space(
-    X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=4
+        X, y, filename_2d_scatter, label_series, title="title", colors=None, marker_size=4
 ):
     fig, ax = plt.subplots(figsize=(8.0, 8.0))
     print("plot_2d_space")
@@ -348,7 +349,8 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
 
     ids = df["id"].values
     labels = df["label"].values
-    seasons = (pd.to_datetime(df['date'], format="%d/%m/%Y").dt.month%12 // 3 + 1).map({1:'winter', 2:'spring', 3:'summer', 4:'fall'})
+    seasons = (pd.to_datetime(df['date'], format="%d/%m/%Y").dt.month % 12 // 3 + 1).map(
+        {1: 'winter', 2: 'spring', 3: 'summer', 4: 'fall'})
     filename = f"{title.replace(' ', '_')}.png"
 
     fig, ax = plt.subplots(figsize=(9.00, 9.00))
@@ -429,7 +431,7 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
 
 
 def plot_time_pca(
-    meta_size, df, output_dir, label_series, title="title", y_col="label"
+        meta_size, df, output_dir, label_series, title="title", y_col="label"
 ):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     X = pd.DataFrame(PCA(n_components=2).fit_transform(df.iloc[:, :-meta_size])).values
@@ -441,7 +443,7 @@ def plot_time_pca(
 
 
 def plot_time_pls(
-    meta_size, df, output_dir, label_series, title="title", y_col="label"
+        meta_size, df, output_dir, label_series, title="title", y_col="label"
 ):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     y = df["target"].astype(int)
@@ -468,20 +470,20 @@ def plot_time_lda(N_META, df, output_dir, label_series, title="title", y_col="la
 def format(text):
     return (
         text.replace("activity_no_norm", "TimeDom->")
-        .replace("activity_quotient_norm", "TimeDom->QN->")
-        .replace("cwt_quotient_norm", "TimeDom->QN->CWT->")
-        .replace("cwt_no_norm", "TimeDom->CWT->")
-        .replace("_", "->")
-        .replace("cwt_quotient_no_norm", "TimeDom->CWT->")
-        .replace("humidity", "Humidity->")
-        .replace("_humidity", "Humidity->")
-        .replace(",", "")
-        .replace("(", "")
-        .replace(")", "")
-        .replace("'", "")
-        .replace(" ", "")
-        .replace("->->", "->")
-        .replace("_", "->")
+            .replace("activity_quotient_norm", "TimeDom->QN->")
+            .replace("cwt_quotient_norm", "TimeDom->QN->CWT->")
+            .replace("cwt_no_norm", "TimeDom->CWT->")
+            .replace("_", "->")
+            .replace("cwt_quotient_no_norm", "TimeDom->CWT->")
+            .replace("humidity", "Humidity->")
+            .replace("_humidity", "Humidity->")
+            .replace(",", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("'", "")
+            .replace(" ", "")
+            .replace("->->", "->")
+            .replace("_", "->")
     )
 
 
@@ -489,10 +491,10 @@ def stringArrayToArray(string):
     return [
         float(x)
         for x in string.replace("\n", "")
-        .replace("[", "")
-        .replace("]", "")
-        .replace(",", "")
-        .split(" ")
+            .replace("[", "")
+            .replace("]", "")
+            .replace(",", "")
+            .split(" ")
         if len(x) > 0
     ]
 
@@ -651,14 +653,14 @@ def plot_ml_report(clf_name, path, output_dir):
     )
 
     t3 = (
-        "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s"
-        % (
-            df["days"].values[0],
-            df["class0"].values[0],
-            df["class_0_label"].values[0],
-            df["class1"].values[0],
-            df["class_1_label"].values[0],
-        )
+            "Accuracy performance of different inputs<br>Days=%d class0=%d %s class1=%d %s"
+            % (
+                df["days"].values[0],
+                df["class0"].values[0],
+                df["class_0_label"].values[0],
+                df["class1"].values[0],
+                df["class_1_label"].values[0],
+            )
     )
 
     t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
@@ -729,12 +731,12 @@ def plot_ml_report(clf_name, path, output_dir):
 
 
 def plot_zeros_distrib(
-    meta_columns,
-    a_days,
-    label_series,
-    data_frame_no_norm,
-    graph_outputdir,
-    title="Percentage of zeros in activity per sample",
+        meta_columns,
+        a_days,
+        label_series,
+        data_frame_no_norm,
+        graph_outputdir,
+        title="Percentage of zeros in activity per sample",
 ):
     if a_days is None:
         print("skip plot_zeros_distrib.")
@@ -775,13 +777,13 @@ def plot_zeros_distrib(
     graph_outputdir.mkdir(parents=True, exist_ok=True)
     df.to_csv(graph_outputdir / "z_prct_data.data")
     g = (
-        ggplot(df)  # defining what data to use
-        + aes(
-            x="Target", y="Percent of zeros", color="Target", shape="Target"
-        )  # defining what variable to use
-        + geom_jitter()  # defining the type of plot to use
-        + stat_summary(geom="crossbar", color="black", width=0.2)
-        + theme(subplots_adjust={"right": 0.82}, axis_text_x=element_text(angle=90, hjust=1))
+            ggplot(df)  # defining what data to use
+            + aes(
+        x="Target", y="Percent of zeros", color="Target", shape="Target"
+    )  # defining what variable to use
+            + geom_jitter()  # defining the type of plot to use
+            + stat_summary(geom="crossbar", color="black", width=0.2)
+            + theme(subplots_adjust={"right": 0.82}, axis_text_x=element_text(angle=90, hjust=1))
     )
 
     fig = g.draw()
@@ -798,13 +800,13 @@ def plot_zeros_distrib(
 
 
 def plot_all_features(
-    X,
-    y,
-    out_dir,
-    title="Features visualisation",
-    filename="heatmap.html",
-    yaxis="value",
-    xaxis="features",
+        X,
+        y,
+        out_dir,
+        title="Features visualisation",
+        filename="heatmap.html",
+        yaxis="value",
+        xaxis="features",
 ):
     dfs = []
     for i in range(X.shape[0]):
@@ -830,13 +832,13 @@ def plot_all_features(
 
 
 def plotHeatmap(
-    X,
-    out_dir,
-    title="Heatmap",
-    filename="heatmap.html",
-    y_log=False,
-    yaxis="",
-    xaxis="Time in minutes",
+        X,
+        out_dir,
+        title="Heatmap",
+        filename="heatmap.html",
+        y_log=False,
+        yaxis="",
+        xaxis="Time in minutes",
 ):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = list(range(X.shape[1]))
@@ -872,7 +874,7 @@ def mean_confidence_interval(x):
 
 
 def plot_pr_range(
-    ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name, days
+        ax_pr, y_ground_truth, y_proba, aucs, out_dir, classifier_name, fig, cv_name, days
 ):
     y_ground_truth = np.concatenate(y_ground_truth)
     y_proba = np.concatenate(y_proba)
@@ -911,17 +913,17 @@ def plot_pr_range(
 
 
 def plot_roc_range(
-    ax,
-    tprs,
-    mean_fpr,
-    aucs,
-    out_dir,
-    classifier_name,
-    fig,
-    cv_name,
-    days,
-    info="None",
-    tag="",
+        ax,
+        tprs,
+        mean_fpr,
+        aucs,
+        out_dir,
+        classifier_name,
+        fig,
+        cv_name,
+        days,
+        info="None",
+        tag="",
 ):
     ax.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -1035,15 +1037,15 @@ def rolling_window(array, window_size, freq):
 
 
 def plot_mean_groups(
-    sub_sample_scales,
-    n_scales,
-    sfft_window,
-    wavelet_f0,
-    df,
-    label_series,
-    N_META,
-    out_dir,
-    filename="mean_of_groups.html",
+        sub_sample_scales,
+        n_scales,
+        sfft_window,
+        wavelet_f0,
+        df,
+        label_series,
+        N_META,
+        out_dir,
+        filename="mean_of_groups.html",
 ):
     print("plot mean group...")
     traces = []
@@ -1150,7 +1152,6 @@ def plot_mean_groups(
 
 
 def plot_mosaic(output_dir, cv_name, directory_t, filename, subdir):
-
     cv_dir = []
     for item in directory_t:
         roc_dir_path = "%s/roc_curve" % item
@@ -1219,9 +1220,9 @@ def plot_mosaic(output_dir, cv_name, directory_t, filename, subdir):
                 fig.tight_layout()
                 output_dir.mkdir(parents=True, exist_ok=True)
                 filepath = (
-                    output_dir
-                    / f"roc_pr_curves_{subdir}"
-                    / f"{step_name}_{wavelet_meta}_{stft_meta}+{filename}"
+                        output_dir
+                        / f"roc_pr_curves_{subdir}"
+                        / f"{step_name}_{wavelet_meta}_{stft_meta}+{filename}"
                 )
 
                 print(filepath)
@@ -1251,7 +1252,7 @@ def build_roc_mosaic(input_dir, output_dir):
 
 
 def SampleVisualisation(
-    df, shape, N_META, out_dir, step_slug, sfft_window, stft_time, scales
+        df, shape, N_META, out_dir, step_slug, sfft_window, stft_time, scales
 ):
     print("sample visualisation...")
     for i, row in df.iterrows():
@@ -1308,19 +1309,19 @@ def SampleVisualisation(
 
 
 def plot_3D_decision_boundaries(
-    X,
-    Y,
-    train_x,
-    train_y,
-    test_x,
-    test_y,
-    title,
-    clf,
-    i,
-    folder,
-    sub_dir_name,
-    auc,
-    DR="PCA",
+        X,
+        Y,
+        train_x,
+        train_y,
+        test_x,
+        test_y,
+        title,
+        clf,
+        i,
+        folder,
+        sub_dir_name,
+        auc,
+        DR="PCA",
 ):
     Y = (Y != 1).astype(int)
     test_y = (test_y != 1).astype(int)
@@ -1331,7 +1332,7 @@ def plot_3D_decision_boundaries(
     # Solve for w3 (z)
     z = (
         lambda x, y: (-clf.intercept_[0] - clf.coef_[0][0] * x - clf.coef_[0][1] * y)
-        / clf.coef_[0][2]
+                     / clf.coef_[0][2]
     )
 
     s = max([np.abs(X.max()), np.abs(X.min())])
@@ -1550,35 +1551,38 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
     Plot high-dimensional decision boundary
     """
     print(f"plot_high_dimension_db {ifold}")
-    db = DBPlot(clf)
-    db.fit(X, y, training_indices=train_index)
-    fig, ax = plt.subplots(figsize=(19.20, 19.20))
-    db.plot(
-        ax, generate_testpoints=True, meta=meta
-    )  # set generate_testpoints=False to speed up plotting
-    models_visu_dir = (
-            out_dir / "models_visu_pca" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-    )
-    models_visu_dir.mkdir(parents=True, exist_ok=True)
-    filepath = models_visu_dir / f"{ifold}.png"
-    print(filepath)
-    plt.savefig(filepath)
-    #plot_learning_curves(clf, X, y, ifold, models_visu_dir)
+    try:
+        db = DBPlot(clf)
+        db.fit(X, y, training_indices=train_index)
+        fig, ax = plt.subplots(figsize=(19.20, 19.20))
+        db.plot(
+            ax, generate_testpoints=True, meta=meta
+        )  # set generate_testpoints=False to speed up plotting
+        models_visu_dir = (
+                out_dir / "models_visu_pca" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        )
+        models_visu_dir.mkdir(parents=True, exist_ok=True)
+        filepath = models_visu_dir / f"{ifold}.png"
+        print(filepath)
+        plt.savefig(filepath)
+        # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
 
-    db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
-    db.fit(X, y, training_indices=train_index)
-    fig, ax = plt.subplots(figsize=(19.20, 19.20))
-    db.plot(
-        ax, generate_testpoints=True, meta=meta
-    )  # set generate_testpoints=False to speed up plotting
-    models_visu_dir = (
-            out_dir / "models_visu_pls" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-    )
-    models_visu_dir.mkdir(parents=True, exist_ok=True)
-    filepath = models_visu_dir / f"{ifold}.png"
-    print(filepath)
-    plt.savefig(filepath)
-    #plot_learning_curves(clf, X, y, ifold, models_visu_dir)
+        db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
+        db.fit(X, y, training_indices=train_index)
+        fig, ax = plt.subplots(figsize=(19.20, 19.20))
+        db.plot(
+            ax, generate_testpoints=True, meta=meta
+        )  # set generate_testpoints=False to speed up plotting
+        models_visu_dir = (
+                out_dir / "models_visu_pls" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        )
+        models_visu_dir.mkdir(parents=True, exist_ok=True)
+        filepath = models_visu_dir / f"{ifold}.png"
+        print(filepath)
+        plt.savefig(filepath)
+        # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
+    except Exception as  e:
+        print(e)
 
 
 def plot_learning_curves(clf, X, y, ifold, models_visu_dir):
@@ -1601,27 +1605,28 @@ def plot_learning_curves(clf, X, y, ifold, models_visu_dir):
     ax.legend(["Accuracies on training set", "Accuracies on test set"])
     ax.set_xlabel("Number of data points")
     ax.set_title(str(clf))
+    models_visu_dir.mkdir(parents=True, exist_ok=True)
     filepath = models_visu_dir / f"learning_curve_{ifold}_{type(clf).__name__}_{clf.kernel}.png"
     print(filepath)
     plt.savefig(filepath)
 
 
 def plot_2d_decision_boundaries(
-    auc,
-    i,
-    X,
-    y,
-    X_test,
-    y_test,
-    X_train,
-    y_train,
-    title,
-    clf,
-    folder,
-    sub_dir_name,
-    n_bin=8,
-    save=True,
-    dimensionality_reduction="PCA",
+        auc,
+        i,
+        X,
+        y,
+        X_test,
+        y_test,
+        X_train,
+        y_train,
+        title,
+        clf,
+        folder,
+        sub_dir_name,
+        n_bin=8,
+        save=True,
+        dimensionality_reduction="PCA",
 ):
     y = (y != 1).astype(int)
     y_test = (y_test != 1).astype(int)
@@ -1772,7 +1777,7 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
 
 
 def build_individual_animal_pred(
-    output_dir, steps, label_unhealthy, scores, ids, meta_columns, tt="test"
+        output_dir, steps, label_unhealthy, scores, ids, meta_columns, tt="test"
 ):
     print("build_individual_animal_pred...")
     for k, v in scores.items():
@@ -1823,9 +1828,10 @@ def build_individual_animal_pred(
         df_table["correct prediction"] = correct_pred
         df_table["incorrect prediction"] = incorrect_pred
         df_table["ratio of correct prediction (percent)"] = (
-            df_table["correct prediction"]
-            / (df_table["correct prediction"] + df_table["incorrect prediction"])
-        ) * 100
+                                                                    df_table["correct prediction"]
+                                                                    / (df_table["correct prediction"] + df_table[
+                                                                "incorrect prediction"])
+                                                            ) * 100
         filename = f"table_data_{tt}_{k}.csv"
         filepath = output_dir / filename
         print(filepath)
@@ -1866,13 +1872,13 @@ def build_individual_animal_pred(
         )
         df = df.astype(np.double)
         df["correct prediction"] = (
-            df_table["correct prediction"]
-            / (df_table["correct prediction"] + df_table["incorrect prediction"])
-        ) * 100
+                                           df_table["correct prediction"]
+                                           / (df_table["correct prediction"] + df_table["incorrect prediction"])
+                                   ) * 100
         df["incorrect prediction"] = (
-            df_table["incorrect prediction"]
-            / (df_table["correct prediction"] + df_table["incorrect prediction"])
-        ) * 100
+                                             df_table["incorrect prediction"]
+                                             / (df_table["correct prediction"] + df_table["incorrect prediction"])
+                                     ) * 100
         ax = df.plot.bar(
             rot=90,
             log=False,
@@ -1903,6 +1909,8 @@ def build_individual_animal_pred(
             fontsize=14,
         )
         axs = axs.ravel()
+        for ax in axs:
+            ax.set_axis_off()
 
         for i, d in enumerate(dfs):
             data_c, data_u = {}, {}
@@ -1931,9 +1939,11 @@ def build_individual_animal_pred(
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
             axs[i].set_ylabel("Number of predictions")
+            axs[i].set_axis_on()
+
         filepath = (
-            output_dir
-            / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
+                output_dir
+                / f"predictions_per_individual_across_study_time_{k}_{steps}_{tt}.png"
         )
         print(filepath)
         fig.tight_layout()
@@ -1974,27 +1984,60 @@ def build_proba_hist(output_dir, steps, label_unhealthy, scores):
         print(out)
         plt.savefig(str(out))
 
-        fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
-        if "delmas" in str(output_dir):
-            fig, axs = plt.subplots(2, 2, facecolor="white", figsize=(24.0, 10.80))
-        if "cedara" in str(output_dir):
-            fig, axs = plt.subplots(3, 7, facecolor="white", figsize=(26.0, 8.80))
+        df = pd.DataFrame(hist_data.keys())
+        df["equal"] = df[0].apply(lambda x: (x[-1]) == (x[0]))
+        df["sup"] = df[0].apply(lambda x: (x[-1]) > (x[0]))
+        df["inf"] = df[0].apply(lambda x: (x[-1]) < (x[0]))
 
-        fig.suptitle(
-            f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14
-        )
-        axs = axs.ravel()
-        for i, (key, value) in enumerate(sorted(hist_data.items())):
-            # axs[i].set_xlabel(f"Probability to be unhealthy({label_unhealthy})", size=14)
-            axs[i].set_ylabel("Density", size=14)
-            axs[i].hist(value, density=True, bins=50, alpha=1, label=f"{key}")
-            axs[i].set_xlim(xmin=0, xmax=1)
-            # axs[i].set_title(
-            #     f"Histograms of prediction probabilities {key}"
-            # )
-            axs[i].axvline(x=0.5, color="gray", ls="--")
-            axs[i].legend(loc="upper right")
-            # plt.show()
+        e = np.sum(df["equal"])
+        s = np.sum(df["sup"])
+        i = np.sum(df["inf"])
+
+        max_col = np.max([e, s, i])
+        max_row = 2
+
+        plt.clf()
+        fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
+
+        if "delmas" in str(output_dir) or "cedara" in str(output_dir):
+            fig, axs = plt.subplots(3, max_col, facecolor="white", figsize=(4.0*max_col, 10.80))
+            max_row = 3
+
+            fig.suptitle(
+                f"Probability to be unhealthy({label_unhealthy})\n{info}", fontsize=14
+            )
+            df = df.sort_values(0, ascending=True)
+            axs_ = axs.ravel()
+            for ax in axs_:
+                ax.set_axis_off()
+            for i in range(max_row):
+                for j in range(max_col):
+                    a = axs[i]
+                    if max_col > 1:
+                        a = axs[i, j]
+                    try:
+                        v = df[df[["equal", "sup", "inf"][i]] == True][0].values[j]
+                    except IndexError as e:
+                        continue
+                    a.set_ylabel("Density", size=14)
+                    a.hist(hist_data[v], density=True, bins=50, alpha=1, label=f"{v}")
+                    a.set_xlim(xmin=0, xmax=1)
+                    a.axvline(x=0.5, color="gray", ls="--")
+                    a.legend(loc="upper right")
+                    a.set_axis_on()
+        else:
+            axs_ = axs.ravel()
+            for ax in axs_:
+                ax.set_axis_off()
+            for i, (k, v) in enumerate(hist_data.items()):
+                a = axs[i]
+                a.set_ylabel("Density", size=14)
+                a.hist(v, density=True, bins=50, alpha=1, label=f"{k}")
+                a.set_xlim(xmin=0, xmax=1)
+                a.axvline(x=0.5, color="gray", ls="--")
+                a.legend(loc="upper right")
+                a.set_axis_on()
+
         filename = f"histogram_of_prob_{k}_{steps}_grid.png"
         fig.tight_layout()
         out = output_dir / filename
@@ -2057,22 +2100,22 @@ def plot_histogram(x, farm_id, threshold_gap, title):
 
 
 def build_report(
-    output_dir,
-    n_imputed_days,
-    activity_days,
-    data,
-    y,
-    steps,
-    farm_id,
-    sampling,
-    downsample,
-    days,
-    cv,
-    cross_validation_method,
-    class_healthy_label,
-    class_unhealthy_label,
+        output_dir,
+        n_imputed_days,
+        activity_days,
+        data,
+        y,
+        steps,
+        study_id,
+        sampling,
+        season,
+        downsample,
+        days,
+        cv,
+        cross_validation_method,
+        class_healthy_label,
+        class_unhealthy_label,
 ):
-
     for k, v in data.items():
         scores = {}
         report_rows_list = []
@@ -2101,9 +2144,9 @@ def build_report(
         scores["class1"] = y[y == 1].size
         scores[
             "steps"
-        ] = f"{farm_id}->ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->{steps}->{cv}"
+        ] = f"{study_id}->ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->SEA={season}->{steps}->{cv}"
         scores["days"] = days
-        scores["farm_id"] = farm_id
+        scores["farm_id"] = study_id
         scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)
         scores["test_balanced_accuracy_score"] = test_balanced_accuracy_score
         scores["precision_score0_mean"] = np.mean(test_precision_score0)
@@ -2140,8 +2183,8 @@ def build_report(
         out = output_dir / cv
         out.mkdir(parents=True, exist_ok=True)
         filename = (
-            out
-            / f"{k}_{activity_days}_{n_imputed_days}_{str(class_unhealthy_label)}_{farm_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}.csv"
+                out
+                / f"{k}_{activity_days}_{n_imputed_days}_{str(class_unhealthy_label)}_{study_id}_classification_report_days_{days}_{steps}_downsampled_{downsample}_sampling_{sampling}_season{season}.csv"
         )
         df_report.to_csv(filename, sep=",", index=False)
         print("filename=", filename)

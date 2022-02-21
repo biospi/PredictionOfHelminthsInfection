@@ -6,7 +6,7 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import make_roc_curve, process_clf
+from model.svm import process_clf
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY, plot_heatmap
 
@@ -60,6 +60,7 @@ def main(
             _,
             label_series,
             samples,
+            _
         ) = load_activity_data(
             output_dir,
             meta_columns,

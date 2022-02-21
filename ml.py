@@ -24,6 +24,7 @@ from typing import List, Optional
 
 import pandas as pd
 import typer
+from sklearn.preprocessing import StandardScaler
 
 from model.data_loader import load_activity_data
 from model.svm import process_data_frame_svm
@@ -58,10 +59,11 @@ def main(
         "target",
     ],
     meta_col_str: List[str] = ["health", "label", "date"],
+    add_feature: List[str] = [],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 9,
-    sub_sample_scales: int = 12,
+    sub_sample_scales: int = 4,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
     add_seasons_to_features: bool = False,
@@ -70,7 +72,7 @@ def main(
     cv: str = "RepeatedStratifiedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
-    stydy_id: str = "farm",
+    study_id: str = "study",
     sampling: str = "T",
     pre_visu: bool = True,
     output_qn_graph: bool = False,
@@ -144,7 +146,7 @@ def main(
     for file in files:
         # _, _, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
-        (data_frame, meta_data, meta_data_short, _, _, label_series, samples,) = load_activity_data(
+        (data_frame, meta_data, meta_data_short, _, _, label_series, samples, seasons_features) = load_activity_data(
             output_dir,
             meta_columns,
             file,
@@ -153,8 +155,7 @@ def main(
             class_unhealthy_label,
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
-            add_seasons_to_features=add_seasons_to_features,
-            meta_col_str=meta_col_str
+            meta_cols_str=meta_col_str
         )
 
         N_META = len(meta_columns)
@@ -377,6 +378,18 @@ def main(
             title=f"PLS after {step_slug}",
         )
 
+        if len(add_feature) > 0:
+            idxs = [meta_columns.index(x) for x in add_feature]
+            df_meta = pd.DataFrame(meta_data[:, idxs], columns=add_feature)
+            df_ = pd.concat([df_processed.iloc[:, :-2], df_meta], axis=1)
+            df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
+            df_processed = pd.concat([df_, df_processed.iloc[:, -2:]], axis=1)
+            step_slug = f"{step_slug}_{'_'.join(add_feature).upper()}_STDS"
+
+        if add_seasons_to_features:
+            df_processed = pd.concat([df_processed.iloc[:, :-2], seasons_features, df_processed.iloc[:, -2:]], axis=1)
+            step_slug = f"{step_slug}_SEASONS"
+
         process_data_frame_svm(
             meta_data,
             meta_data_short,
@@ -386,7 +399,7 @@ def main(
             df_processed,
             n_activity_days,
             n_imputed_days,
-            stydy_id,
+            study_id,
             step_slug,
             n_splits,
             n_repeats,
@@ -396,6 +409,7 @@ def main(
             class_healthy_label,
             class_unhealthy_label,
             meta_columns,
+            add_seasons_to_features,
             cv=cv,
             n_job=n_job,
         )
@@ -426,32 +440,36 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
-    # steps = [["LINEAR", "QN", "ANSCOMBE", "LOG"]]
-    # # slug = "_".join(steps[0])
-    # # day = 7
-    # # main(
-    # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-    # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-    # #     preprocessing_steps=steps,
-    # #     n_imputed_days=0,
-    # # )
-    # #
-    # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-    # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-    # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-    # main(
-    #     output_dir=Path(f"E:/Cats/ml/ml_sec/day_w"),
-    #     dataset_folder=Path("E:/Cats/build_sec/dataset/training_sets/day_w"),
-    #     preprocessing_steps=steps,
-    #     meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-    #     n_imputed_days=-1,
-    #     n_activity_days=None,
-    #     class_healthy_label=["0.0"],
-    #     class_unhealthy_label=["1.0"],
-    #     n_splits=5,
-    #     n_repeats=10,
-    #     n_job=5,
-    # )
+    #typer.run(main)
+    for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"], ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
+        slug = "_".join(steps)
+        # # day = 7
+        # # main(
+        # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+        # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+        # #     preprocessing_steps=steps,
+        # #     n_imputed_days=0,
+        # # )
+        # #
+        # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+        # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+        # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+        for f in [["age"], ["mobility_score"]]:
+            main(
+                output_dir=Path(f"E:/Cats/ml/ml_min2/day_w/{f}/{slug}"),
+                dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"),
+                preprocessing_steps=steps,
+                meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+                meta_col_str=["name", "age", "mobility_score"],
+                add_feature=f,
+                n_imputed_days=-1,
+                n_activity_days=-1,
+                class_healthy_label=["0.0"],
+                class_unhealthy_label=["1.0"],
+                n_splits=5,
+                n_repeats=5,
+                n_job=6,
+                study_id="cat"
+            )
 
 

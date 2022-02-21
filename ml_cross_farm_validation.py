@@ -6,7 +6,7 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import make_roc_curve, process_clf
+from model.svm import process_clf
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY
 
@@ -72,6 +72,7 @@ def main(
         _,
         label_series_f1,
         samples_f1,
+        _
     ) = load_activity_data(
         output_dir,
         meta_columns,
@@ -85,7 +86,7 @@ def main(
         preprocessing_steps=steps
     )
 
-    dataset2, _, _, _, _, label_series_f2, samples_f2 = load_activity_data(
+    dataset2, _, _, _, _, label_series_f2, samples_f2, _ = load_activity_data(
         output_dir,
         meta_columns,
         find_dataset(str(farm2_path)),
