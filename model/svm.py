@@ -721,15 +721,15 @@ def cross_validate_custom_fast(
     scores, scores_proba = {}, {}
 
     tuned_parameters_rbf = [
-        {"kernel": ["rbf"], "gamma": [1e-3, 1e-4], "C": [1, 10, 100, 1000]}
+        {"kernel": ["rbf"], "gamma": [1e-3, 1e-4], "C": [0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
     ]
 
     tuned_parameters_linear = [
         {"kernel": ["linear"], "C": [0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     ]
     for clf in [
-        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_linear, scoring="precision_macro"),
-        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_rbf, scoring="precision_macro")
+        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_linear, scoring="roc_auc"),
+        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_rbf, scoring="roc_auc")
     ]:
         plt.clf()
         fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))

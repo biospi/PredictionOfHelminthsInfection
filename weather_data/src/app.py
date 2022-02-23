@@ -11,6 +11,8 @@ from datetime import timedelta
 import numpy as np
 import time
 import datetime
+from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 def purge_file(filename):
@@ -191,9 +193,66 @@ def create_weather_data_for_mrnn():
     df.to_csv("F:/MRNN/data/cedara_activity_data_weather.csv", index=False)
 
 
+def make_weather_calender(filepath, filename, title, start, end):
+    print(filepath)
+    with open(filepath) as f:
+        lines = f.readlines()
+
+        data = []
+        for line in lines:
+            js = json.loads(line)
+            for w in js['data']['weather']:
+                date = w['date']
+                for h in w['hourly']:
+                    time = format_time(h['time'])
+                    humidity = int(h['humidity'])
+                    temp_c = int(h['tempC'])
+                    data.append({'datetime': f"{date}T{time}", 'humidity': humidity, 'temp_c': temp_c})
+
+        df = pd.DataFrame(data)
+        df["datetime"] = pd.to_datetime(df["datetime"], format='%Y-%m-%dT%H:%M')
+
+        df = df[df["datetime"] > pd.to_datetime(start, format='%B %Y')]
+
+        df = df[df["datetime"] < pd.to_datetime(end, format='%B %Y')]
+
+        df.index = df["datetime"]
+        df = df.drop('datetime', 1)
+        print(df)
+        print(filename)
+        df.to_csv(filename, index=False)
+
+        df = df.sort_values(by='datetime')
+        dfs = [group for _, group in df.groupby(df.index.strftime("%B/%Y"))]
+        dfs = sorted(dfs, key=lambda x: x.index.max(axis=0))
+
+        fig, axs = plt.subplots(
+            3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(28.0, 10.80)
+        )
+        fig.suptitle(title, fontsize=14)
+        axs = axs.ravel()
+        for ax in axs:
+            ax.set_axis_off()
+        for i, d in enumerate(dfs):
+            d.plot.area(
+                ax=axs[i],
+                rot=90,
+                title=pd.to_datetime(d.index.values[0]).strftime("%B %Y"),
+                ylim=(0, 100),
+                stacked=False
+            )
+            axs[i].set_axis_on()
+        filepath = f"calender_{title}.png"
+        print(filepath)
+        fig.tight_layout()
+        fig.savefig(filepath)
+
+
 if __name__ == '__main__':
     print(sys.argv)
-    create_weather_data_for_mrnn()
+    make_weather_calender(Path("Delmas_weather.json"), "delmas_weather_data.csv", "Delmas Weather", "march 2015", "april 2016")
+    make_weather_calender(Path("Cedara_weather.json"), "cedara_weather_data.csv", "Cedara Weather", "june 2012", "july 2013")
+    #create_weather_data_for_mrnn()
     #connect_to_sql_database()
     #get_historical_weather_data("F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
     # get_humidity_date('delmas_weather_raw.json', 'delmas')

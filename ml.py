@@ -466,8 +466,8 @@ if __name__ == "__main__":
                 n_activity_days=-1,
                 class_healthy_label=["0.0"],
                 class_unhealthy_label=["1.0"],
-                n_splits=2,
-                n_repeats=2,
+                n_splits=5,
+                n_repeats=10,
                 n_job=6,
                 study_id="cat"
             )

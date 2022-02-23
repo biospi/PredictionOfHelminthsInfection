@@ -2031,7 +2031,7 @@ def build_individual_animal_pred(
             df_ = df_.reindex(natsorted(df_.columns), axis=1)
             df_ = df_.astype(float)
 
-            boxplot = df_.boxplot(column=list(df_.columns),
+            df_.boxplot(column=list(df_.columns),
                                   ax=axs_[i],
                                   rot=90,
                                   figsize=(12.80, 7.20))
