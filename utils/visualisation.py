@@ -34,6 +34,7 @@ from collections import Counter
 import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
 from highdimensional.decisionboundaryplot import DBPlot
+from natsort import natsorted
 
 
 def get_time_ticks(nticks):
@@ -947,6 +948,8 @@ def plot_roc_range(
         ylim=[-0.05, 1.05],
         title=f"Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
     )
+    ax.set_xlabel('False positive rate')
+    ax.set_ylabel('True positive rate')
     ax.legend(loc="lower right")
     # fig.show()
     path = out_dir / "roc_curve" / cv_name
@@ -1782,28 +1785,34 @@ def build_individual_animal_pred(
     print("build_individual_animal_pred...")
     for k, v in scores.items():
         # prepare data holder
-        data_c, data_i, data_m = {}, {}, {}
+        data_c, data_i, data_c_prob, data_i_prob, data_m = {}, {}, {}, {}, {}
 
         for id in ids:
             data_c[id] = 0
             data_i[id] = 0
+            data_c_prob[id] = []
+            data_i_prob[id] = []
             d = {}
             for m in meta_columns:
                 d[m] = []
             data_m[id] = d
 
         score = scores[k]
-        data_dates, data_corr, data_incorr, data_ids, data_meta = [], [], [], [], []
+        data_dates, data_corr, data_incorr, prob_corr, prob_incorr, data_ids, data_meta = [], [], [], [], [], [], []
         for s in score:
             dates = pd.to_datetime(s[f"sample_dates_{tt}"]).tolist()
             correct_predictions = s[f"correct_predictions_{tt}"]
             incorrect_predictions = s[f"incorrect_predictions_{tt}"]
+            y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])[:, 0]
+            y_pred_proba_1 = np.array(s[f"y_pred_proba_{tt}"])[:, 1]
             ids_test = s[f"ids_{tt}"]
             meta_test = s[f"meta_{tt}"]
 
             data_dates.extend(dates)
             data_corr.extend(correct_predictions)
             data_incorr.extend(incorrect_predictions)
+            prob_corr.extend(y_pred_proba_0)
+            prob_incorr.extend(y_pred_proba_1)
             data_ids.extend(ids_test)
             data_meta.extend(meta_test)
 
@@ -1815,9 +1824,14 @@ def build_individual_animal_pred(
                 data_c[ids_test[i]] += correct_predictions[i]
                 data_i[ids_test[i]] += incorrect_predictions[i]
 
+                data_c_prob[ids_test[i]].append(y_pred_proba_0[i])
+                data_i_prob[ids_test[i]].append(y_pred_proba_1[i])
+
         labels = list(data_c.keys())
         correct_pred = list(data_c.values())
         incorrect_pred = list(data_i.values())
+        correct_pred_prob = list(data_c_prob.values())
+        incorrect_pred_prob = list(data_i_prob.values())
         meta_pred = list(data_m.values())
         # make table
         df_table = pd.DataFrame(meta_pred, index=labels)
@@ -1827,6 +1841,8 @@ def build_individual_animal_pred(
         df_table["individual id"] = labels
         df_table["correct prediction"] = correct_pred
         df_table["incorrect prediction"] = incorrect_pred
+        df_table["correct prediction_prob"] = correct_pred_prob
+        df_table["incorrect prediction_prob"] = incorrect_pred_prob
         df_table["ratio of correct prediction (percent)"] = (
                                                                     df_table["correct prediction"]
                                                                     / (df_table["correct prediction"] + df_table[
@@ -1862,13 +1878,50 @@ def build_individual_animal_pred(
         print(filepath)
         fig.write_html(str(filepath))
 
+        # print box plot
+        df = pd.DataFrame(
+            {
+                "correct_prediction_prob": correct_pred_prob
+            },
+            index=labels
+        ).T
+        df_c_p = df.explode(list(df.columns))
+        df_c_p = df_c_p.reset_index(drop=True)
+
+        df = pd.DataFrame(
+            {
+                "incorrect_prediction_prob": incorrect_pred_prob
+            },
+            index=labels
+        ).T
+        df_i_p = df.explode(list(df.columns))
+        df_i_p = df_i_p.reset_index(drop=True)
+
+        #df_ = pd.concat([df_c_p, df_i_p], axis=1)
+        df_ = df_c_p
+        df_ = df_.reindex(natsorted(df_.columns), axis=1)
+        df_ = df_.astype(float)
+
+        boxplot = df_.boxplot(column=list(df_.columns),
+                              rot=90,
+            figsize=(12.80, 7.20))
+        boxplot.set_title(f"Classifier predictions probability ({tt}) per individual label_unhealthy={label_unhealthy}")
+        boxplot.set_xlabel("Individual")
+        boxplot.set_ylabel("Probability")
+
+        filepath = output_dir / f"predictions_per_individual_box_{k}_{steps}_{tt}.png"
+        print(filepath)
+        fig = boxplot.get_figure()
+        fig.tight_layout()
+        fig.savefig(filepath)
+
         # print figure
         df = pd.DataFrame(
             {
                 "correct prediction": correct_pred,
-                "incorrect prediction": incorrect_pred,
+                "incorrect prediction": incorrect_pred
             },
-            index=labels,
+            index=labels
         )
         df = df.astype(np.double)
         df["correct prediction"] = (
@@ -1896,28 +1949,43 @@ def build_individual_animal_pred(
         # figure with time
         plt.clf()
         df = pd.DataFrame(
-            {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids}
+            {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids, "prob_corr": prob_corr}
         )
         df = df.sort_values(by='data_dates')
         dfs = [group for _, group in df.groupby(df["data_dates"].dt.strftime("%B/%Y"))]
         dfs = sorted(dfs, key=lambda x: x["data_dates"].max(axis=0))
         fig, axs = plt.subplots(
-            3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(24.0, 10.80)
+            3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(28.0, 10.80)
         )
         fig.suptitle(
             f"Classifier predictions ({tt}) per individual across study time label_unhealthy={label_unhealthy}",
             fontsize=14,
         )
         axs = axs.ravel()
+
+        fig_, axs_ = plt.subplots(
+            3, int(np.ceil(len(dfs) / 3)), facecolor="white", figsize=(28.0, 10.80)
+        )
+        fig_.suptitle(
+            f"Classifier predictions probability({tt}) per individual across study time label_unhealthy={label_unhealthy}",
+            fontsize=14,
+        )
+        axs_ = axs_.ravel()
+
         for ax in axs:
+            ax.set_axis_off()
+        for ax in axs_:
             ax.set_axis_off()
 
         for i, d in enumerate(dfs):
-            data_c, data_u = {}, {}
+            data_c, data_u, data_c_proba, data_u_proba = {}, {}, {}, {}
             for id in ids:
                 data_c[id] = 0
                 data_u[id] = 0
+                data_c_proba[id] = []
+                data_u_proba[id] = []
             for index, row in d.iterrows():
+                data_c_proba[row["data_ids"]].append(row["prob_corr"])
                 if row["data_corr"] == 1:
                     data_c[row["data_ids"]] += 1
                 else:
@@ -1925,6 +1993,7 @@ def build_individual_animal_pred(
             labels = list(data_c.keys())
             correct_pred = list(data_c.values())
             incorrect_pred = list(data_u.values())
+            correct_pred_prob = list(data_c_proba.values())
             df = pd.DataFrame(
                 {
                     "correct prediction": correct_pred,
@@ -1939,7 +2008,36 @@ def build_individual_animal_pred(
                 title=pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y"),
             )
             axs[i].set_ylabel("Number of predictions")
+            axs[i].set_xlabel("Individual")
             axs[i].set_axis_on()
+            ######################
+            max_v = max([len(x) for x in correct_pred_prob])
+            correct_pred_prob_fix = []
+            for item in correct_pred_prob:
+                if len(item) > 0:
+                    correct_pred_prob_fix.append(item)
+                else:
+                    correct_pred_prob_fix.append([np.nan]*max_v)
+
+            df_c = pd.DataFrame(
+                {
+                    "correct_prediction_prob": correct_pred_prob_fix
+                },
+                index=labels
+            ).T
+            df_c_p = df_c.explode(list(df_c.columns))
+            df_c_p = df_c_p.reset_index(drop=True)
+            df_ = df_c_p
+            df_ = df_.reindex(natsorted(df_.columns), axis=1)
+            df_ = df_.astype(float)
+
+            boxplot = df_.boxplot(column=list(df_.columns),
+                                  ax=axs_[i],
+                                  rot=90,
+                                  figsize=(12.80, 7.20))
+            axs_[i].set_xlabel("Individual")
+            axs_[i].set_ylabel("Probability of predictions")
+            axs_[i].set_axis_on()
 
         filepath = (
                 output_dir
@@ -1948,6 +2046,14 @@ def build_individual_animal_pred(
         print(filepath)
         fig.tight_layout()
         fig.savefig(filepath)
+
+        filepath = (
+                output_dir
+                / f"predictions_per_individual_across_study_time_box_{k}_{steps}_{tt}.png"
+        )
+        print(filepath)
+        fig_.tight_layout()
+        fig_.savefig(filepath)
 
 
 def build_proba_hist(output_dir, steps, label_unhealthy, scores):

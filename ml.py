@@ -379,10 +379,10 @@ def main(
         )
 
         if len(add_feature) > 0:
-            idxs = [meta_columns.index(x) for x in add_feature]
-            df_meta = pd.DataFrame(meta_data[:, idxs], columns=add_feature)
+            df_meta = pd.DataFrame(meta_data, columns=meta_columns)[add_feature]
             df_ = pd.concat([df_processed.iloc[:, :-2], df_meta], axis=1)
-            df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
+            #df_ = pd.concat([df_meta], axis=1)
+            #df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
             df_processed = pd.concat([df_, df_processed.iloc[:, -2:]], axis=1)
             step_slug = f"{step_slug}_{'_'.join(add_feature).upper()}_STDS"
 
@@ -440,36 +440,36 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
-    # for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"], ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
-    #     slug = "_".join(steps)
-    #     # # day = 7
-    #     # # main(
-    #     # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-    #     # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-    #     # #     preprocessing_steps=steps,
-    #     # #     n_imputed_days=0,
-    #     # # )
-    #     # #
-    #     # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-    #     # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-    #     # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-    #     for f in [["age"], ["mobility_score"]]:
-    #         main(
-    #             output_dir=Path(f"E:/Cats/ml/ml_min2/day_w/{f}/{slug}"),
-    #             dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"),
-    #             preprocessing_steps=steps,
-    #             meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-    #             meta_col_str=["name", "age", "mobility_score"],
-    #             add_feature=f,
-    #             n_imputed_days=-1,
-    #             n_activity_days=-1,
-    #             class_healthy_label=["0.0"],
-    #             class_unhealthy_label=["1.0"],
-    #             n_splits=5,
-    #             n_repeats=5,
-    #             n_job=6,
-    #             study_id="cat"
-    #         )
+    #typer.run(main)
+    for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"], ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
+        slug = "_".join(steps)
+        # # day = 7
+        # # main(
+        # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
+        # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
+        # #     preprocessing_steps=steps,
+        # #     n_imputed_days=0,
+        # # )
+        # #
+        # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
+        # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
+        # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
+        for f in [["mobility_score"], ["age"], []]:
+            main(
+                output_dir=Path(f"E:/Cats/ml/ml_min4/day_w/{f}/{slug}"),
+                dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"),
+                preprocessing_steps=steps,
+                meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+                meta_col_str=["name", "age", "mobility_score"],
+                add_feature=f,
+                n_imputed_days=-1,
+                n_activity_days=-1,
+                class_healthy_label=["0.0"],
+                class_unhealthy_label=["1.0"],
+                n_splits=2,
+                n_repeats=2,
+                n_job=6,
+                study_id="cat"
+            )
 
 

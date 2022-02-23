@@ -23,7 +23,7 @@ from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     RepeatedKFold,
     LeaveOneOut,
-)
+    GridSearchCV)
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
@@ -535,7 +535,14 @@ def fold_worker(
     ]
 
     start_time = time.time()
+
     clf.fit(X_train, y_train)
+
+    print("Best parameters set found on development set:")
+    print(clf.best_params_)
+    clf = clf.best_estimator_
+
+    #clf.fit(X_train, y_train)
     fit_time = time.time() - start_time
 
     models_dir = (
@@ -550,7 +557,7 @@ def fold_worker(
 
     # test healthy/unhealthy
     y_pred = clf.predict(X_test)
-    y_pred_proba = clf.predict_proba(X_test)
+    y_pred_proba_test = clf.predict_proba(X_test)
 
     # prep for roc curve
     viz_roc = plot_roc_curve(
@@ -594,6 +601,7 @@ def fold_worker(
 
     # data for training
     y_pred_train = clf.predict(X_train)
+    y_pred_proba_train = clf.predict_proba(X_train)
     accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
     (
         precision_train,
@@ -612,6 +620,8 @@ def fold_worker(
         "class_healthy": int(class_healthy),
         "class_unhealthy": int(class_unhealthy),
         "y_test": y_test.tolist(),
+        "y_pred_proba_test": y_pred_proba_test.tolist(),
+        "y_pred_proba_train": y_pred_proba_train.tolist(),
         "ids_test": ids_test.tolist(),
         "ids_train": ids_train.tolist(),
         "sample_dates_test": sample_dates_test.tolist(),
@@ -648,10 +658,10 @@ def fold_worker(
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
-        y_pred_proba = clf.predict_proba(X_test)
+        y_pred_proba_test = clf.predict_proba(X_test)
         fold_proba = {
-            "test_y_pred_proba_0": y_pred_proba[:, 0].tolist(),
-            "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
+            "test_y_pred_proba_0": y_pred_proba_test[:, 0].tolist(),
+            "test_y_pred_proba_1": y_pred_proba_test[:, 1].tolist(),
         }
         fold_probas[label].append(fold_proba)
     print(f"process id={ifold}/{nfold} done!")
@@ -709,9 +719,17 @@ def cross_validate_custom_fast(
         plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
 
     scores, scores_proba = {}, {}
+
+    tuned_parameters_rbf = [
+        {"kernel": ["rbf"], "gamma": [1e-3, 1e-4], "C": [1, 10, 100, 1000]}
+    ]
+
+    tuned_parameters_linear = [
+        {"kernel": ["linear"], "C": [0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
+    ]
     for clf in [
-        SVC(kernel="linear", probability=True, class_weight="balanced"),
-        SVC(kernel="rbf", probability=True, class_weight="balanced"),
+        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_linear, scoring="precision_macro"),
+        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_rbf, scoring="precision_macro")
     ]:
         plt.clf()
         fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
@@ -788,11 +806,11 @@ def cross_validate_custom_fast(
             cv_name,
             days,
             info=info,
-            tag=f"{type(clf).__name__}_{clf.kernel}",
+            tag=f"{type(clf).__name__}_{clf.estimator.kernel}",
         )
 
-        scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
-        scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
+        scores[f"{type(clf).__name__}_{clf.estimator.kernel}_results"] = fold_results
+        scores_proba[f"{type(clf).__name__}_{clf.estimator.kernel}_probas"] = fold_probas
 
     print("export results to json...")
     filepath = out_dir / "results.json"

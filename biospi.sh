@@ -9,7 +9,7 @@ for dat in gain_1 gain_100 gain_raw li raw;do
   done
 done
 
-nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w --dataset-folder /mnt/storage/scratch/axel/cats/build_sec/dataset/training_sets/day_w --preprocessing-steps 'LINEAR' 'QN' 'ANSCOMBE' 'LOG' --meta-columns 'label' 'id' 'imputed_days' 'date' 'health' 'target' 'age' 'name' 'mobility_score' --n-imputed-days -1 --n-activity-days -1 --class-healthy-label '0.0' --class-unhealthy-label '1.0' --n-splits 5 --n-repeats 10 --n-job 30 > log.txt &
+nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/cats/ml/ml_min/day_w --dataset-folder /mnt/storage/scratch/axel/cats/build_min/dataset/training_sets/day_w --preprocessing-steps 'LINEAR' --preprocessing-steps 'QN' --preprocessing-steps 'ANSCOMBE' --preprocessing-steps 'LOG' --preprocessing-steps 'CENTER' --preprocessing-steps 'CWT' --meta-columns 'label' --meta-columns 'id' --meta-columns 'imputed_days' --meta-columns 'date' --meta-columns 'health' --meta-columns 'target' --meta-columns 'age' --meta-columns 'name' --meta-columns 'mobility_score' --n-imputed-days -1 --n-activity-days -1 --class-healthy-label '0.0' --class-unhealthy-label '1.0' --n-splits 5 --n-repeats 5 --n-job 30 > log.txt &
 
 
 nohup python3 ml.py /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w /mnt/storage/scratch/axel/cats/build_sec/dataset/training_sets/day_w --preprocessing-steps [['LINEAR', 'QN', 'ANSCOMBE', 'LOG']] > log.txt &
