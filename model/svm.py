@@ -721,11 +721,11 @@ def cross_validate_custom_fast(
     scores, scores_proba = {}, {}
 
     tuned_parameters_rbf = [
-        {"kernel": ["rbf"], "gamma": [1e-3, 1e-4], "C": [0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
+        {"kernel": ["rbf"], "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
     ]
 
     tuned_parameters_linear = [
-        {"kernel": ["linear"], "C": [0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
+        {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     ]
     for clf in [
         GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_linear, scoring="roc_auc"),

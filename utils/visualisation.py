@@ -1879,43 +1879,38 @@ def build_individual_animal_pred(
         fig.write_html(str(filepath))
 
         # print box plot
+        plt.clf()
+        max_v = max([len(x) for x in correct_pred_prob])
+        correct_pred_prob_fix = []
+        for item in correct_pred_prob:
+            item += [np.nan] * (max_v - len(item))
+            correct_pred_prob_fix.append(item)
+
         df = pd.DataFrame(
             {
-                "correct_prediction_prob": correct_pred_prob
+                "correct_prediction_prob": correct_pred_prob_fix
             },
             index=labels
         ).T
         df_c_p = df.explode(list(df.columns))
         df_c_p = df_c_p.reset_index(drop=True)
-
-        df = pd.DataFrame(
-            {
-                "incorrect_prediction_prob": incorrect_pred_prob
-            },
-            index=labels
-        ).T
-        df_i_p = df.explode(list(df.columns))
-        df_i_p = df_i_p.reset_index(drop=True)
-
         #df_ = pd.concat([df_c_p, df_i_p], axis=1)
         df_ = df_c_p
         df_ = df_.reindex(natsorted(df_.columns), axis=1)
         df_ = df_.astype(float)
-
-        boxplot = df_.boxplot(column=list(df_.columns),
-                              rot=90,
-            figsize=(12.80, 7.20))
-        boxplot.set_title(f"Classifier predictions probability ({tt}) per individual label_unhealthy={label_unhealthy}")
+        fig_ = plt.figure()
+        boxplot = df_.boxplot(column=list(df_.columns), rot=90, figsize=(12.80, 7.20))
+        boxplot.set_title(f"Classifier predictions probability ({tt}) \n per individual label_unhealthy={label_unhealthy}")
         boxplot.set_xlabel("Individual")
         boxplot.set_ylabel("Probability")
 
         filepath = output_dir / f"predictions_per_individual_box_{k}_{steps}_{tt}.png"
         print(filepath)
-        fig = boxplot.get_figure()
-        fig.tight_layout()
-        fig.savefig(filepath)
+        fig_.tight_layout()
+        fig_.savefig(filepath)
 
         # print figure
+        plt.clf()
         df = pd.DataFrame(
             {
                 "correct prediction": correct_pred,
@@ -1935,7 +1930,6 @@ def build_individual_animal_pred(
         ax = df.plot.bar(
             rot=90,
             log=False,
-            figsize=(19.20, 10.80),
             title=f"Classifier predictions ({tt}) per individual label_unhealthy={label_unhealthy}",
         )
         ax.set_xlabel("Animals")
@@ -2014,10 +2008,8 @@ def build_individual_animal_pred(
             max_v = max([len(x) for x in correct_pred_prob])
             correct_pred_prob_fix = []
             for item in correct_pred_prob:
-                if len(item) > 0:
-                    correct_pred_prob_fix.append(item)
-                else:
-                    correct_pred_prob_fix.append([np.nan]*max_v)
+                item += [np.nan] * (max_v - len(item))
+                correct_pred_prob_fix.append(item)
 
             df_c = pd.DataFrame(
                 {
