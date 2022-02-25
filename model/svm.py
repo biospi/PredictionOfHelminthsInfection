@@ -472,18 +472,22 @@ def fold_worker(
     sample_dates,
     days,
     steps,
-    tprs,
-    aucs_roc,
+    tprs_test,
+    tprs_train,
+    aucs_roc_test,
+    aucs_roc_train,
     fold_results,
     fold_probas,
     label_series,
-    mean_fpr,
+    mean_fpr_test,
+    mean_fpr_train,
     clf,
     X,
     y,
     train_index,
     test_index,
-    axis,
+    axis_test,
+    axis_train,
     ifold,
     nfold,
 ):
@@ -535,14 +539,7 @@ def fold_worker(
     ]
 
     start_time = time.time()
-
     clf.fit(X_train, y_train)
-
-    print("Best parameters set found on development set:")
-    print(clf.best_params_)
-    clf = clf.best_estimator_
-
-    #clf.fit(X_train, y_train)
     fit_time = time.time() - start_time
 
     models_dir = (
@@ -560,7 +557,7 @@ def fold_worker(
     y_pred_proba_test = clf.predict_proba(X_test)
 
     # prep for roc curve
-    viz_roc = plot_roc_curve(
+    viz_roc_test = plot_roc_curve(
         clf,
         X_test,
         y_test,
@@ -570,12 +567,33 @@ def fold_worker(
         ax=None,
         c="tab:blue",
     )
-    axis.append(viz_roc)
+    axis_test.append(viz_roc_test)
 
-    interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
-    interp_tpr[0] = 0.0
-    auc_value = viz_roc.roc_auc
-    print("auc=", auc_value)
+    interp_tpr_test = np.interp(mean_fpr_test, viz_roc_test.fpr, viz_roc_test.tpr)
+    interp_tpr_test[0] = 0.0
+    tprs_test.append(interp_tpr_test)
+    auc_value_test = viz_roc_test.roc_auc
+    print("auc test=", auc_value_test)
+    aucs_roc_test.append(auc_value_test)
+
+    viz_roc_train = plot_roc_curve(
+        clf,
+        X_train,
+        y_train,
+        label=None,
+        alpha=0.3,
+        lw=1,
+        ax=None,
+        c="tab:blue",
+    )
+    axis_train.append(viz_roc_train)
+
+    interp_tpr_train = np.interp(mean_fpr_train, viz_roc_train.fpr, viz_roc_train.tpr)
+    interp_tpr_train[0] = 0.0
+    tprs_train.append(interp_tpr_train)
+    auc_value_train = viz_roc_train.roc_auc
+    print("auc train=", auc_value_train)
+    aucs_roc_train.append(auc_value_train)
 
     if ifold == 0:
         plot_high_dimension_db(
@@ -590,9 +608,6 @@ def fold_worker(
             ifold,
         )
         plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
-
-    tprs.append(interp_tpr)
-    aucs_roc.append(auc_value)
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -614,7 +629,7 @@ def fold_worker(
 
     fold_result = {
         "target": int(class_unhealthy),
-        "auc": auc_value,
+        "auc": auc_value_test,
         "accuracy": float(accuracy),
         "accuracy_train": float(accuracy_train),
         "class_healthy": int(class_healthy),
@@ -697,49 +712,53 @@ def cross_validate_custom_fast(
         y: targets
     """
 
+    # for clf in [
+    #     SVC(kernel="linear", probability=True, class_weight="balanced"),
+    #     SVC(kernel="rbf", probability=True, class_weight="balanced"),
+    # ]:
+    #     X_ = X[np.isin(y_h, [0, 1])]
+    #     y_ = y_h[np.isin(y_h, [0, 1])]
+    #     meta_ = meta_data_short[np.isin(y_h, [0, 1])]
+    #     clf.fit(X_, y_)
+    #     plot_high_dimension_db(
+    #         out_dir / "training",
+    #         X_,
+    #         y_,
+    #         None,
+    #         meta_,
+    #         clf,
+    #         days,
+    #         steps,
+    #         0,
+    #     )
+    #     plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+
+    scores, scores_proba = {}, {}
+
+    # tuned_parameters_rbf = [
+    #     {"kernel": ["rbf"], "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
+    # ]
+    #
+    # tuned_parameters_linear = [
+    #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
+    # ]
     for clf in [
         SVC(kernel="linear", probability=True, class_weight="balanced"),
         SVC(kernel="rbf", probability=True, class_weight="balanced"),
     ]:
-        X_ = X[np.isin(y_h, [0, 1])]
-        y_ = y_h[np.isin(y_h, [0, 1])]
-        meta_ = meta_data_short[np.isin(y_h, [0, 1])]
-        clf.fit(X_, y_)
-        plot_high_dimension_db(
-            out_dir / "training",
-            X_,
-            y_,
-            None,
-            meta_,
-            clf,
-            days,
-            steps,
-            0,
-        )
-        plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
-
-    scores, scores_proba = {}, {}
-
-    tuned_parameters_rbf = [
-        {"kernel": ["rbf"], "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
-    ]
-
-    tuned_parameters_linear = [
-        {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
-    ]
-    for clf in [
-        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_linear, scoring="roc_auc"),
-        GridSearchCV(SVC(probability=True, class_weight="balanced"), tuned_parameters_rbf, scoring="roc_auc")
-    ]:
         plt.clf()
-        fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
-        mean_fpr = np.linspace(0, 1, 100)
+        fig_roc, ax_roc = plt.subplots(1, 2, figsize=(12.80, 6.20))
+        mean_fpr_test = np.linspace(0, 1, 100)
+        mean_fpr_train = np.linspace(0, 1, 100)
 
         with Manager() as manager:
             # create result holders
-            tprs = manager.list()
-            axis = manager.list()
-            aucs_roc = manager.list()
+            tprs_test = manager.list()
+            tprs_train = manager.list()
+            axis_test = manager.list()
+            axis_train = manager.list()
+            aucs_roc_test = manager.list()
+            aucs_roc_train = manager.list()
             fold_results = manager.list()
             fold_probas = manager.dict()
             for k in label_series.values():
@@ -761,18 +780,22 @@ def cross_validate_custom_fast(
                         sample_dates,
                         days,
                         steps,
-                        tprs,
-                        aucs_roc,
+                        tprs_test,
+                        tprs_train,
+                        aucs_roc_test,
+                        aucs_roc_train,
                         fold_results,
                         fold_probas,
                         label_series,
-                        mean_fpr,
+                        mean_fpr_test,
+                        mean_fpr_train,
                         clf,
                         X,
                         y,
                         train_index,
                         test_index,
-                        axis,
+                        axis_test,
+                        axis_train,
                         ifold,
                         cross_validation_method.get_n_splits(),
                     ),
@@ -781,36 +804,48 @@ def cross_validate_custom_fast(
             pool.join()
             end = time.time()
             fold_results = list(fold_results)
-            axis = list(axis)
-            tprs = list(tprs)
-            aucs_roc = list(aucs_roc)
+            axis_test = list(axis_test)
+            tprs_test = list(tprs_test)
+            aucs_roc_test = list(aucs_roc_test)
+            axis_train = list(axis_train)
+            tprs_train = list(tprs_train)
+            aucs_roc_train = list(aucs_roc_train)
             fold_probas = dict(fold_probas)
             fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
             print("total time (s)= " + str(end - start))
 
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
-        for a in axis:
+        for a in axis_test:
             f, ax = a.figure_, a.ax_
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
-            ax_roc.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+            ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+
+        for a in axis_train:
+            f, ax = a.figure_, a.ax_
+            xdata = ax.lines[0].get_xdata()
+            ydata = ax.lines[0].get_ydata()
+            ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
 
         mean_auc = plot_roc_range(
             ax_roc,
-            tprs,
-            mean_fpr,
-            aucs_roc,
+            tprs_test,
+            mean_fpr_test,
+            aucs_roc_test,
+            tprs_train,
+            mean_fpr_train,
+            aucs_roc_train,
             out_dir,
             steps,
             fig_roc,
             cv_name,
             days,
             info=info,
-            tag=f"{type(clf).__name__}_{clf.estimator.kernel}",
+            tag=f"{type(clf).__name__}_{clf.kernel}",
         )
 
-        scores[f"{type(clf).__name__}_{clf.estimator.kernel}_results"] = fold_results
-        scores_proba[f"{type(clf).__name__}_{clf.estimator.kernel}_probas"] = fold_probas
+        scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
+        scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
 
     print("export results to json...")
     filepath = out_dir / "results.json"
@@ -858,7 +893,8 @@ def cross_validate_custom(
     ]:
         plt.clf()
         fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
-        mean_fpr = np.linspace(0, 1, 100)
+        mean_fpr_test = np.linspace(0, 1, 100)
+        mean_fpr_train = np.linspace(0, 1, 100)
 
         fold_results = []
         fold_probas = {}
@@ -928,7 +964,7 @@ def cross_validate_custom(
                 c="tab:blue",
             )
 
-            interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+            interp_tpr = np.interp(mean_fpr_test, viz_roc.fpr, viz_roc.tpr)
             interp_tpr[0] = 0.0
             auc_value = viz_roc.roc_auc
             print("auc=", auc_value)
@@ -981,7 +1017,7 @@ def cross_validate_custom(
         mean_auc = plot_roc_range(
             ax_roc,
             tprs,
-            mean_fpr,
+            mean_fpr_test,
             aucs_roc,
             out_dir,
             steps,
@@ -1108,6 +1144,73 @@ def make_y_hist(data0, data1, out_dir, cv_name, steps, auc, info="", tag=""):
     print(filename)
     plt.savefig(filename)
     plt.clf()
+
+
+def process_clf_(
+    steps,
+    X_test,
+    y_test,
+    model_path,
+    output_dir
+):
+    """Test data with previously saved model
+    Args:
+    """
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    plt.clf()
+    fig_roc, ax_roc = plt.subplots(figsize=(19.20, 10.80))
+    mean_fpr = np.linspace(0, 1, 100)
+    tprs = []
+    aucs_roc = []
+
+    models = list(model_path.glob('*.pkl'))
+    for i, model_file in enumerate(models):
+        with open(str(model_file), 'rb') as f:
+            clf = pickle.load(f)
+            y_pred = clf.predict(X_test.copy())
+            print(classification_report(y_test, y_pred))
+            print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
+
+            pathlib.Path(output_dir / "reports").mkdir(parents=True, exist_ok=True)
+            df = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True))
+
+            filename = f"{output_dir / 'reports'}/report_{i}.csv"
+            print(filename)
+            df.to_csv(filename)
+
+            viz_roc = plot_roc_curve(
+                clf,
+                X_test,
+                y_test,
+                label=None,
+                alpha=0.3,
+                lw=1,
+                ax=ax_roc,
+                c="tab:blue",
+            )
+            interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
+            interp_tpr[0] = 0.0
+            print("auc=", viz_roc.roc_auc)
+            tprs.append(interp_tpr)
+            aucs_roc.append(viz_roc.roc_auc)
+
+    info = (
+        f"X_test shape:{str(X_test.shape)} healthy:{np.sum(y_test == 0)} unhealthy:{np.sum(y_test == 1)}"
+    )
+    mean_auc = plot_roc_range(
+        ax_roc,
+        tprs,
+        mean_fpr,
+        aucs_roc,
+        output_dir,
+        steps,
+        fig_roc,
+        f"nfold={len(models)}",
+        7,
+        info=info,
+        tag=f"{type(clf).__name__}",
+    )
 
 
 def process_clf(

@@ -986,7 +986,8 @@ def compute_cwt(
     vmin,
     vmax,
     enable_graph_out = None,
-    sub_sample_scales = 1
+    sub_sample_scales = 1,
+    enable_coi = True
 ):
     #print("compute_cwt...")
     out_dir = out_dir / "_cwt"
@@ -1015,7 +1016,7 @@ def compute_cwt(
             format_xaxis,
             avg=np.average(X),
             nscales=n_scales,
-            enable_coi=True,
+            enable_coi=enable_coi,
             enable_graph_out=enable_graph_out,
             sub_sample_scales=sub_sample_scales
         )
@@ -1083,7 +1084,8 @@ class CWT(TransformerMixin, BaseEstimator):
         vmin=None,
         vmax=None,
         enable_graph_out=None,
-        sub_sample_scales=None
+        sub_sample_scales=None,
+        enable_coi=True
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1104,6 +1106,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.scales = None
         self.enable_graph_out = enable_graph_out
         self.sub_sample_scales = sub_sample_scales
+        self.enable_coi = enable_coi
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -1135,7 +1138,8 @@ class CWT(TransformerMixin, BaseEstimator):
             self.vmin,
             self.vmax,
             self.enable_graph_out,
-            self.sub_sample_scales
+            self.sub_sample_scales,
+            self.enable_coi
         )
         self.freqs = freqs
         self.coi = coi
@@ -1143,6 +1147,9 @@ class CWT(TransformerMixin, BaseEstimator):
         self.coi_mask = coi_mask
         self.scales = scales
         return cwt, cwt_raw
+
+    def get_scales(self):
+        return self.scales
 
 
 class STFT(TransformerMixin, BaseEstimator):

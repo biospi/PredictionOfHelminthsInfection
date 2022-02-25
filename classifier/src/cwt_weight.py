@@ -92,15 +92,22 @@ def low_pass_filter(signal, thresh=0.35, wavelet="db4"):
     return reconstructed_signal[:-1]
 
 
-def compute_cwt(activity, wavelet_f0=1.0, nscales=10):
-    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])
+def compute_cwt(activity, wavelet_f0=1.0, nscales=10, sub_sample_scales=4, enable_coi=False):
+    scales = np.array([float(np.power(2, n)) for n in np.arange(1, nscales + 1, 0.1)])[::sub_sample_scales]
     coefs, coi, scales, freqs = compute_cwt_paper_hd(
         activity, scales, wavelet_f0, "MORL"
     )
     cwt = coefs.flatten().real
     # cwt.real, coefs.real, freqs, indexes, scales, delta_t, wavelet_type, coi
+    coefs_cc = np.conj(coefs)
+    power_cwt = np.real(np.multiply(coefs, coefs_cc))
+    # power_cwt = coefs.real
+    if enable_coi:
+        power_masked = mask_cwt(power_cwt.copy(), coi)
+        power_cwt = power_masked
+
     indexes = []
-    return cwt, coefs.real, freqs, indexes, scales, 1, "morlet", coi
+    return power_cwt.flatten(), coefs.real, freqs, indexes, scales, 1, "morlet", coi
 
 
 def mask_cwt(cwt, coi):
@@ -154,12 +161,12 @@ def process_df(df, data):
         herd_mean,
     ) = data
 
-    X = df[df.columns[0 : df.shape[1] - 1]]
-    y = df["target"]
+    X = df.iloc[:, np.array([str(x).isnumeric() for x in df.columns])]
+    y = df["health"]
     dfs = []
     cwt_coefs_data = []
     df_x = pd.DataFrame(X.values[:, :])
-    df_x["target"] = np.array(y)
+    df_x["health"] = np.array(y)
     print("window:")
     print(df_x)
     dfs.append(df_x)
@@ -193,8 +200,8 @@ def chunck_df(days, df, data):
         herd_mean,
     ) = data
 
-    X = df[df.columns[0 : df.shape[1] - 1]]
-    y = df["target"]
+    X = df.iloc[:, np.array([str(x).isnumeric() for x in df.columns])]
+    y = df["health"]
 
     n_week = int(days / 7)
     chunch_size = int(X.shape[1] / 7)
@@ -217,7 +224,7 @@ def chunck_df(days, df, data):
         end = int(end)
         print("start=%d end=%d" % (start, end))
         df_x = pd.DataFrame(X.values[:, start:end])
-        df_x["target"] = np.array(y)
+        df_x["health"] = np.array(y)
         print("window:")
         print(df_x)
         dfs.append(df_x)
@@ -1176,7 +1183,7 @@ def get_cwt_data_frame(data_frame):
     # data_frame["target"] = (data_frame["target"].values == 1).astype(int)
     # data_frame = data_frame.tail(4)
     DATA_ = []
-    X = data_frame[data_frame.columns[0 : data_frame.shape[1] - 1]].values
+    X = data_frame.iloc[:, np.array([str(x).isnumeric() for x in data_frame.columns])].values
     H = []
     for _, activity in enumerate(X):
         activity = np.asarray(activity)
@@ -1188,6 +1195,7 @@ def get_cwt_data_frame(data_frame):
     print("finished computing herd mean.")
     print("computing herd cwt")
     cwt_herd, coefs_herd_mean, freqs_h, _, _, _, _, coi = compute_cwt(herd_mean)
+
     DATA_.append({"coef_shape": coefs_herd_mean.shape, "freqs": freqs_h})
     print("finished calculating herd cwt.")
 
@@ -1210,11 +1218,11 @@ def get_cwt_data_frame(data_frame):
         print(len(activity), len(cwt))
         X_cwt = X_cwt.append(dict(enumerate(np.array(cwt))), ignore_index=True)
         cpt += 1
-        target = data_frame.at[i, "target"]
-        if target == 1:
+        health = row["health"]
+        if health == 0:
             class0.append(cwt)
             class0_t.append(activity_o)
-        if target == 2:
+        if health == 1:
             class1.append(cwt)
             class1_t.append(activity_o)
 
@@ -1223,10 +1231,10 @@ def get_cwt_data_frame(data_frame):
     class1_mean = np.average(class1_t, axis=0)
     _, coefs_class1_mean, _, _, _, _, _, coi = compute_cwt(class1_mean)
 
-    y = data_frame["target"].values.flatten()
+    y = data_frame["health"].values.flatten()
 
     y = y.astype(int)
-    X_cwt["target"] = y
+    X_cwt["health"] = y
 
     print(data_frame)
     print(X_cwt)
@@ -1524,6 +1532,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count, label_seri
     print("process...", days)
 
     for i, df in enumerate(dfs):
+        df = df.loc[df['health'].isin([0, 1])]
         (
             scales,
             delta_t,
@@ -1536,9 +1545,9 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count, label_seri
             coefs_herd_mean,
         ) = data[i]
         # df = shuffle(df)
-        X = df[df.columns[0 : df.shape[1] - 1]]
+        X = df.iloc[:, np.array([str(x).isnumeric() for x in df.columns])]
         X = X.fillna(-1)
-        y = df["target"].values
+        y = df["health"].values
 
         if len(dfs) > 1:
             process_data_frame_svm(
@@ -1561,11 +1570,11 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count, label_seri
         else:
             X_train, X_test, y_train, y_test = X, X, y, y
 
-            X_lda, _, y_lda, _, clf_lda = reduce_lda(1, X, X, y, y)
-            clf_lda.fit(X_lda, y_lda)
-            plot_2D_decision_boundaries_(
-                label_series, X_lda, y_lda, X_lda, "LDA", clf_lda, folder=out_dir
-            )
+            # X_lda, _, y_lda, _, clf_lda = reduce_lda(1, X, X, y, y)
+            # clf_lda.fit(X_lda, y_lda)
+            # plot_2D_decision_boundaries_(
+            #     label_series, X_lda, y_lda, X_lda, "LDA", clf_lda, folder=out_dir
+            # )
 
             clf = SVC(kernel="linear", probability=True)
             print("fit...")

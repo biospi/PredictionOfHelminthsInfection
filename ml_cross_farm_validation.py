@@ -6,7 +6,7 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import process_clf
+from model.svm import process_clf, process_clf_
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY
 

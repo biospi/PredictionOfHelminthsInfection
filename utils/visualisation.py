@@ -915,9 +915,12 @@ def plot_pr_range(
 
 def plot_roc_range(
         ax,
-        tprs,
-        mean_fpr,
-        aucs,
+        tprs_test,
+        mean_fpr_test,
+        aucs_test,
+        tprs_train,
+        mean_fpr_train,
+        aucs_train,
         out_dir,
         classifier_name,
         fig,
@@ -926,32 +929,59 @@ def plot_roc_range(
         info="None",
         tag="",
 ):
-    ax.plot(
+    ax[0].plot(
+        [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
+    )
+    ax[1].plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
     )
 
-    mean_tpr = np.mean(tprs, axis=0)
-    mean_tpr[-1] = 1.0
-    mean_auc = auc(mean_fpr, mean_tpr)
+    mean_tpr_test = np.mean(tprs_test, axis=0)
+    mean_tpr_test[-1] = 1.0
+    mean_auc_test = auc(mean_fpr_test, mean_tpr_test)
     # std_auc = np.std(aucs)
-    lo, hi = mean_confidence_interval(aucs)
+    lo, hi = mean_confidence_interval(aucs_test)
 
     label = (
-        f"Mean ROC (Median AUC = {np.median(aucs):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+        f"Mean ROC (Median AUC = {np.median(aucs_test):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
     )
-    if len(aucs) <= 2:
-        label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs)
-    ax.plot(mean_fpr, mean_tpr, color="black", label=label, lw=2, alpha=1)
+    if len(aucs_test) <= 2:
+        label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_test)
+    ax[1].plot(mean_fpr_test, mean_tpr_test, color="black", label=label, lw=2, alpha=1)
 
-    ax.set(
+    ax[1].set(
         xlim=[-0.05, 1.05],
         ylim=[-0.05, 1.05],
-        title=f"Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
+        title=f"(Testing data) Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
     )
-    ax.set_xlabel('False positive rate')
-    ax.set_ylabel('True positive rate')
-    ax.legend(loc="lower right")
+    ax[1].set_xlabel('False positive rate')
+    ax[1].set_ylabel('True positive rate')
+    ax[1].legend(loc="lower right")
     # fig.show()
+
+    mean_tpr_train = np.mean(tprs_train, axis=0)
+    mean_tpr_train[-1] = 1.0
+    mean_auc_train = auc(mean_fpr_train, mean_tpr_train)
+    # std_auc = np.std(aucs)
+    lo, hi = mean_confidence_interval(aucs_train)
+
+    label = (
+        f"Mean ROC (Median AUC = {np.median(aucs_train):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+    )
+    if len(aucs_train) <= 2:
+        label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_train)
+    ax[0].plot(mean_fpr_train, mean_tpr_train, color="black", label=label, lw=2, alpha=1)
+
+    ax[0].set(
+        xlim=[-0.05, 1.05],
+        ylim=[-0.05, 1.05],
+        title=f"(Training data) Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
+    )
+    ax[0].set_xlabel('False positive rate')
+    ax[0].set_ylabel('True positive rate')
+    ax[0].legend(loc="lower right")
+
+    fig.tight_layout()
     path = out_dir / "roc_curve" / cv_name
     path.mkdir(parents=True, exist_ok=True)
     final_path = path / f"{tag}_roc_{classifier_name}.png"
@@ -963,7 +993,7 @@ def plot_roc_range(
     # final_path = '%s/%s' % (path, 'roc_%s.svg' % classifier_name)
     # print(final_path)
     # fig.savefig(final_path)
-    return mean_auc
+    return mean_auc_test
 
 
 def plot_distribution(X, output_dir, filename):
@@ -1785,11 +1815,12 @@ def build_individual_animal_pred(
     print("build_individual_animal_pred...")
     for k, v in scores.items():
         # prepare data holder
-        data_c, data_i, data_c_prob, data_i_prob, data_m = {}, {}, {}, {}, {}
+        data_c_, data_c, data_i, data_c_prob, data_i_prob, data_m = {}, {}, {}, {}, {}, {}
 
         for id in ids:
             data_c[id] = 0
             data_i[id] = 0
+            data_c_[id] = []
             data_c_prob[id] = []
             data_i_prob[id] = []
             d = {}
@@ -1803,8 +1834,8 @@ def build_individual_animal_pred(
             dates = pd.to_datetime(s[f"sample_dates_{tt}"]).tolist()
             correct_predictions = s[f"correct_predictions_{tt}"]
             incorrect_predictions = s[f"incorrect_predictions_{tt}"]
-            y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])[:, 0]
             y_pred_proba_1 = np.array(s[f"y_pred_proba_{tt}"])[:, 1]
+            y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])[:, 0]
             ids_test = s[f"ids_{tt}"]
             meta_test = s[f"meta_{tt}"]
 
@@ -1823,7 +1854,7 @@ def build_individual_animal_pred(
 
                 data_c[ids_test[i]] += correct_predictions[i]
                 data_i[ids_test[i]] += incorrect_predictions[i]
-
+                data_c_[ids_test[i]].append(correct_predictions[i])
                 data_c_prob[ids_test[i]].append(y_pred_proba_0[i])
                 data_i_prob[ids_test[i]].append(y_pred_proba_1[i])
 
@@ -1896,13 +1927,28 @@ def build_individual_animal_pred(
         df_c_p = df_c_p.reset_index(drop=True)
         #df_ = pd.concat([df_c_p, df_i_p], axis=1)
         df_ = df_c_p
-        df_ = df_.reindex(natsorted(df_.columns), axis=1)
+        #df_ = df_.reindex(natsorted(df_.columns), axis=1)
         df_ = df_.astype(float)
         fig_ = plt.figure()
         boxplot = df_.boxplot(column=list(df_.columns), rot=90, figsize=(12.80, 7.20))
+        boxplot.set_ylim(ymin=0, ymax=1)
+        boxplot.axhline(y=0.5, color='gray', linestyle='--')
         boxplot.set_title(f"Classifier predictions probability ({tt}) \n per individual label_unhealthy={label_unhealthy}")
         boxplot.set_xlabel("Individual")
         boxplot.set_ylabel("Probability")
+        vals, names, xs = [], [], []
+        for i, col in enumerate(df_.columns):
+            vals.append(df_[col].values)
+            names.append(col)
+            xs.append(np.random.normal(i + 1, 0.04, df_[col].values.shape[0]))
+        for n, (x, val) in enumerate(zip(xs, vals)):
+            scatter = boxplot.scatter(x, val, alpha=1, marker='o', s=15, facecolors='none', edgecolors=['tab:blue' if x == 1 else 'tab:red' for x in list(data_c_.values())[n]])
+
+        legend_elements = [Line2D([0], [0], marker='o', color='w', label='Correct prediction',
+                                  markeredgecolor='tab:blue', markerfacecolor='none', markersize=5),
+                           Line2D([0], [0], marker='o', color='w', label='Incorrect prediction',
+                                  markeredgecolor='tab:red', markerfacecolor='none', markersize=5)]
+        boxplot.legend(handles=legend_elements, loc='lower right')
 
         filepath = output_dir / f"predictions_per_individual_box_{k}_{steps}_{tt}.png"
         print(filepath)
@@ -2020,16 +2066,33 @@ def build_individual_animal_pred(
             df_c_p = df_c.explode(list(df_c.columns))
             df_c_p = df_c_p.reset_index(drop=True)
             df_ = df_c_p
-            df_ = df_.reindex(natsorted(df_.columns), axis=1)
+            #df_ = df_.reindex(natsorted(df_.columns), axis=1)
             df_ = df_.astype(float)
-
-            df_.boxplot(column=list(df_.columns),
+            boxplot = df_.boxplot(column=list(df_.columns),
                                   ax=axs_[i],
                                   rot=90,
                                   figsize=(12.80, 7.20))
+            axs_[i].set_title(pd.to_datetime(d["data_dates"].values[0]).strftime("%B %Y")),
+            axs_[i].axhline(y=0.5, color='gray', linestyle='--')
+            axs_[i].set_ylim(ymin=0, ymax=1)
             axs_[i].set_xlabel("Individual")
             axs_[i].set_ylabel("Probability of predictions")
             axs_[i].set_axis_on()
+            vals, names, xs = [], [], []
+            for i, col in enumerate(df_.columns):
+                vals.append(df_[col].values)
+                names.append(col)
+                xs.append(np.random.normal(i + 1, 0.04, df_[col].values.shape[0]))
+            for n, (x, val) in enumerate(zip(xs, vals)):
+                scatter = boxplot.scatter(x, val, alpha=0.9, marker='o', s=20, facecolors='none',
+                                          edgecolors=['tab:blue' if x == 1 else 'tab:red' for x in
+                                                      list(data_c_.values())[n]])
+
+            legend_elements = [Line2D([0], [0], marker='o', color='w', label='Correct prediction',
+                                      markeredgecolor='tab:blue', markerfacecolor='none', markersize=5),
+                               Line2D([0], [0], marker='o', color='w', label='Incorrect prediction',
+                                      markeredgecolor='tab:red', markerfacecolor='none', markersize=5)]
+            boxplot.legend(handles=legend_elements, loc='lower right')
 
         filepath = (
                 output_dir
@@ -2098,7 +2161,7 @@ def build_proba_hist(output_dir, steps, label_unhealthy, scores):
         fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
 
         if "delmas" in str(output_dir) or "cedara" in str(output_dir):
-            fig, axs = plt.subplots(3, max_col, facecolor="white", figsize=(4.0*max_col, 10.80))
+            fig, axs = plt.subplots(3, max_col, facecolor="white", figsize=(4.0*max_col, 8.0))
             max_row = 3
 
             fig.suptitle(

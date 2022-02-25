@@ -6,7 +6,7 @@ import pandas as pd
 import typer
 
 from model.data_loader import load_activity_data, parse_param_from_filename
-from model.svm import process_clf
+from model.svm import process_clf, process_clf_
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY, plot_heatmap
 
@@ -17,6 +17,9 @@ def main(
     ),
     dataset_folder: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    model_path: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
     ),
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
@@ -30,6 +33,8 @@ def main(
         "health",
         "target",
     ],
+    meta_col_str: List[str] = ["health", "label", "date"],
+    add_feature: List[str] = [],
     preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     train_size: float = 0.9,
     n_fold: int = 50
@@ -70,6 +75,7 @@ def main(
             class_unhealthy_label,
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
+            meta_cols_str=meta_col_str
         )
 
         # data_frame = data_frame[
@@ -126,16 +132,19 @@ def main(
 
         plot_heatmap(X1, y1, X2, y2, output_dir, p1_start, p1_end, p2_start, p2_end)
 
-        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir)
-        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
+        process_clf_(preprocessing_steps, X1, y1, model_path, output_dir / "pre_trained" / f"{p1_start}{p1_end}_{p2_start}{p2_end}".replace("/", ""))
+        process_clf_(preprocessing_steps, X2, y2, model_path, output_dir / "pre_trained" / f"{p2_start}{p2_end}_{p1_start}{p1_end}".replace("/", ""))
+
+        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir / f"{p1_start}_{p2_start}".replace("/", ""))
+        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / f"{p2_start}_{p1_start}".replace("/", ""))
 
 
 if __name__ == "__main__":
     #typer.run(main)
 
-    for i in [0, 1, 2, 3, 4, 5, 6, 7]:
-        main(Path(f'E:/Data2/debug/temporal/{i}'), Path('E:/Data2/debug/delmas/dataset_mrnn_7day'), imputed_days=i)
+    for i in [7]:
+        main(Path(f'E:/Data2/debug4/temporal/delmas/{i}'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+             Path('E:thesis/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG'), n_imputed_days=i)
 
-    for i in [0, 1, 2, 3, 4, 5, 6, 7]:
-        main(Path(f'E:/Data2/debug/temporal/{i}'), Path('E:/Data2/debug3/cedara/dataset6_mrnn_7day'), imputed_days=i,
-             class_unhealthy_label=["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],)
+        main(Path(f'E:/Data2/debug4/temporal/cedara/{i}'), Path('E:/Data2/debug3/cedara/dataset6_mrnn_7day'),
+             Path('E:/thesis/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG'), n_imputed_days=i)
