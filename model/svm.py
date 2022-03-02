@@ -385,6 +385,7 @@ def process_data_frame_svm(
 
     ids = data_frame["id"].values
     y_h = data_frame["health"].values.flatten()
+    y_h = y_h.astype(int)
     y = data_frame[y_col].values.flatten()
     y = y.astype(int)
 
@@ -821,14 +822,14 @@ def cross_validate_custom_fast(
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
             ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
-            ax_roc_merge[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+            ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
 
         for a in axis_train:
             f, ax = a.figure_, a.ax_
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
             ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
-            ax_roc_merge[0].plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
+            ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
         mean_auc = plot_roc_range(
             ax_roc_merge,

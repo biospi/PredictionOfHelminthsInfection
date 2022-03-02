@@ -10,15 +10,25 @@ from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import plot_umap, plot_time_pca, plot_time_pls
 
 
-def build_samples(df_, seq, meta_data):
-    print(df_)
-    df = df_.iloc[:, np.array([str(x).isnumeric() for x in df_.columns])]
+def build_samples(df_, seq, label, health, target):
+    #print(df_)
+    #df = df_.iloc[:, np.array([str(x).isnumeric() for x in df_.columns])]
     n = len(seq)
-    dfs_ = [df[i:i + n] for i in range(0, df.shape[0], n)]
+    dfs_ = [df_[i:i + n] for i in range(0, df_.shape[0], n)]
     samples = []
     for item in dfs_:
-        sample = np.concatenate(item.values)
-        sample = sample.tolist() + meta_data
+        item['health'] = health
+        item['target'] = target
+        item['label'] = label
+        item = item.drop('diff', 1)
+        item = item.drop('datetime', 1)
+        meta_col = item.columns[[not str(x).isnumeric() for x in item.columns]]
+        n_meta = len(meta_col)
+        meta = item[meta_col]
+        meta_ = meta.iloc[0, :]
+        meta_["imputed_days"] = sum(meta["imputed_days"])
+        sample_a = np.concatenate(item.iloc[:, :-n_meta].values)
+        sample = sample_a.tolist() + meta_.tolist()
         sample = np.array(sample)
         samples.append(sample)
 
@@ -54,12 +64,13 @@ def main(
     sfft_window: int = 60,
     add_feature: List[str] = [],
     meta_col_str: List[str] = ["health", "label", "date"],
-    svc_kernel: List[str] = ["rbf", "linear"],
+    svc_kernel: List[str] = ["linear"],
     study_id: str = "study",
     sampling: str = "T",
     output_qn_graph: bool = True,
     add_seasons_to_features: bool = False,
     enable_downsample_df: bool = False,
+    stride: int = 360,
     n_job: int = 7,
 ):
     """This script builds...\n
@@ -91,17 +102,20 @@ def main(
     data_frame["datetime"] = pd.to_datetime(data_frame['date'], format="%d/%m/%Y")
     data_frame = data_frame.sort_values(by='datetime')
     dfs = [g for _, g in data_frame.groupby(['id'])]
+
+    label_series_inverse = dict((v, k) for k, v in label_series.items())
+
     unhealthy_samples = []
     for df in dfs:
         df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
         df = df[df["diff"] == 7]
         df = df.reset_index(drop=True)
         a = df["label"].tolist()
-        b = ["1To2", "2To2"]
+        b = ["2To2"]
         idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
         idxs = np.array(idxs).flatten()
         df_f = df.loc[idxs]
-        for item in build_samples(df_f, b, ['2To2', df['id'].values[0], -1, df['date'].values[0], 1, 1]):
+        for item in build_samples(df_f, b, '2To2', 1, label_series_inverse['2To2']):
             unhealthy_samples.append(item)
 
     healthy_samples = []
@@ -110,11 +124,11 @@ def main(
         df = df[df["diff"] == 7]
         df = df.reset_index(drop=True)
         a = df["label"].tolist()
-        b = ["1To1", "1To1"]
+        b = ["1To1"]
         idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
         idxs = np.array(idxs).flatten()
         df_f = df.loc[idxs]
-        for item in build_samples(df_f, b, ['1To1', df['id'].values[0], -1, df['date'].values[0], 0, 0]):
+        for item in build_samples(df_f, b, '1To1', 0, label_series_inverse['1To1']):
             healthy_samples.append(item)
 
     data_frame = pd.DataFrame(np.concatenate([unhealthy_samples, healthy_samples]))
@@ -173,31 +187,42 @@ def main(
         title=f"PLS after {step_slug}",
     )
 
-    process_data_frame_svm(
-        svc_kernel,
-        add_feature,
-        meta_data,
-        meta_data_short,
-        output_dir,
-        animal_ids,
-        sample_dates,
-        df_processed,
-        n_activity_days,
-        n_imputed_days,
-        study_id,
-        step_slug,
-        n_splits,
-        n_repeats,
-        sampling,
-        enable_downsample_df,
-        label_series,
-        class_healthy_label,
-        class_unhealthy_label,
-        meta_columns,
-        add_seasons_to_features,
-        cv=cv,
-        n_job=n_job,
-    )
+    df_target = df_processed[["target", "health"]]
+    df_activity_window = df_processed.iloc[:, np.array([str(x).isnumeric() for x in df_processed.columns])]
+    cpt = 0
+    for i in range(0, df_activity_window.shape[1]-stride, stride):
+        start = i
+        end = start + stride
+        print(start, end)
+        df_a_w = df_activity_window.iloc[:, start:end]
+        df_week = pd.concat([df_a_w, df_target], axis=1)
+        print(df_week)
+        process_data_frame_svm(
+            svc_kernel,
+            add_feature,
+            meta_data,
+            meta_data_short,
+            output_dir / f"week_{cpt}",
+            animal_ids,
+            sample_dates,
+            df_week,
+            n_activity_days,
+            n_imputed_days,
+            study_id,
+            step_slug,
+            n_splits,
+            n_repeats,
+            sampling,
+            enable_downsample_df,
+            label_series,
+            class_healthy_label,
+            class_unhealthy_label,
+            meta_columns,
+            add_seasons_to_features,
+            cv=cv,
+            n_job=n_job,
+        )
+        cpt += 1
 
 
 if __name__ == "__main__":
