@@ -914,6 +914,7 @@ def plot_pr_range(
 
 
 def plot_roc_range(
+        ax_roc_merge,
         ax,
         tprs_test,
         mean_fpr_test,
@@ -924,11 +925,15 @@ def plot_roc_range(
         out_dir,
         classifier_name,
         fig,
+        fig_roc_merge,
         cv_name,
         days,
         info="None",
         tag="",
 ):
+    ax_roc_merge[0].plot(
+        [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
+    )
     ax[0].plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
     )
@@ -943,7 +948,7 @@ def plot_roc_range(
     lo, hi = mean_confidence_interval(aucs_test)
 
     label = (
-        f"Mean ROC (Median AUC = {np.median(aucs_test):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+        f"Mean ROC Test (Median AUC = {np.median(aucs_test):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
     )
     if len(aucs_test) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_test)
@@ -957,6 +962,16 @@ def plot_roc_range(
     ax[1].set_xlabel('False positive rate')
     ax[1].set_ylabel('True positive rate')
     ax[1].legend(loc="lower right")
+
+    ax_roc_merge[0].plot(mean_fpr_test, mean_tpr_test, color="black", label=label, lw=2, alpha=1)
+    ax_roc_merge[0].set(
+        xlim=[-0.05, 1.05],
+        ylim=[-0.05, 1.05],
+        title=f"(Training/Testing data) Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
+    )
+    ax_roc_merge[0].set_xlabel('False positive rate')
+    ax_roc_merge[0].set_ylabel('True positive rate')
+    ax_roc_merge[0].legend(loc="lower right")
     # fig.show()
 
     mean_tpr_train = np.mean(tprs_train, axis=0)
@@ -966,7 +981,7 @@ def plot_roc_range(
     lo, hi = mean_confidence_interval(aucs_train)
 
     label = (
-        f"Mean ROC (Median AUC = {np.median(aucs_train):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+        f"Mean ROC Training (Median AUC = {np.median(aucs_train):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
     )
     if len(aucs_train) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_train)
@@ -981,12 +996,23 @@ def plot_roc_range(
     ax[0].set_ylabel('True positive rate')
     ax[0].legend(loc="lower right")
 
+    ax_roc_merge[0].plot(mean_fpr_train, mean_tpr_train, color="black", label=label, lw=2, alpha=1)
+    ax_roc_merge[0].set(
+        xlim=[-0.05, 1.05],
+        ylim=[-0.05, 1.05],
+        title=f"(Training data) Receiver operating characteristic days:{days} cv:{cv_name} \n info:{info}",
+    )
+
     fig.tight_layout()
     path = out_dir / "roc_curve" / cv_name
     path.mkdir(parents=True, exist_ok=True)
     final_path = path / f"{tag}_roc_{classifier_name}.png"
     print(final_path)
     fig.savefig(final_path)
+
+    final_path = path / f"{tag}_roc_{classifier_name}_merge.png"
+    print(final_path)
+    fig_roc_merge.savefig(final_path)
 
     # path = "%s/roc_curve/svg/" % out_dir
     # create_rec_dir(path)

@@ -24,7 +24,7 @@ def main(
             slug = "_".join(steps)
 
             for i_day in [7, 6]:
-                for a_day in [7]:
+                for a_day in [1]:
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [False, True]:
 

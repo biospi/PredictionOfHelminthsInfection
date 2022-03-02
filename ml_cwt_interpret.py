@@ -57,6 +57,7 @@ def main(
         "target",
     ],
     meta_col_str: List[str] = ["health", "label", "date"],
+    roll_avg: int = 30,
     p: bool = typer.Option(False, "--p")
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -132,6 +133,11 @@ def main(
             ax.plot(mean_time, label="mean activity of all samples")
             #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
             ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
+
+            df_imp = pd.DataFrame(imp, columns=["imp"])
+            rollavg = df_imp.imp.rolling(roll_avg).mean()
+            ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({roll_avg} points)", alpha=0.9)
+
             ax.legend(loc="upper left")
             ax2.legend(loc="upper right")
             ax.set_title(f"Feature importance {type(clf).__name__}")
@@ -163,9 +169,13 @@ def main(
 
             fig, ax = plt.subplots()
             ax2 = ax.twinx()
-            ax.plot(mean_cwt, label="mean cwt of all samples")
+            ax.plot(mean_cwt, label="mean cwt(flatten) of all samples")
             #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
             ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
+            df_imp = pd.DataFrame(imp, columns=["imp"])
+            rollavg = df_imp.imp.rolling(1000).mean()
+            ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({1000} points)", alpha=0.9)
+
             ax.legend(loc="upper left")
             ax2.legend(loc="upper right")
             ax.set_title(f"Feature importance {type(clf).__name__}")

@@ -46,7 +46,7 @@ def apply_preprocessing_steps(
     plot_all_target=None,
     enable_graph_out=None,
     output_qn_graph=False,
-    sub_sample_scales=9
+    sub_sample_scales=1
 ):
     N_META = len(meta_columns)
     step_slug = "_".join(steps)

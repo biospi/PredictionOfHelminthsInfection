@@ -308,6 +308,8 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
 
 
 def process_data_frame_svm(
+    svc_kernel,
+    add_feature,
     meta_data,
     meta_data_short,
     output_dir,
@@ -338,9 +340,9 @@ def process_data_frame_svm(
     if downsample_false_class:
         data_frame = downsample_df(data_frame, 0, 1)
 
+    #data_frame = data_frame.drop_duplicates()
     # animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
-
     # if cv == "StratifiedLeaveTwoOut":
     #     cross_validation_method = StratifiedLeaveTwoOut(
     #         animal_ids, sample_idxs, stratified=True, verbose=True
@@ -387,7 +389,7 @@ def process_data_frame_svm(
     y = y.astype(int)
 
     # remove meta columns
-    X = data_frame.iloc[:, np.array([str(x).isnumeric() for x in data_frame.columns])]
+    X = data_frame.iloc[:, np.array([str(x).isnumeric() or x in add_feature for x in data_frame.columns])]
     X.columns = list(range(X.shape[1]))
     X = X.values
 
@@ -406,6 +408,7 @@ def process_data_frame_svm(
     print("X-> class0=" + class0_count + " class1=" + class1_count)
 
     scores, scores_proba = cross_validate_custom_fast(
+        svc_kernel,
         output_dir,
         steps,
         cv,
@@ -595,19 +598,19 @@ def fold_worker(
     print("auc train=", auc_value_train)
     aucs_roc_train.append(auc_value_train)
 
-    if ifold == 0:
-        plot_high_dimension_db(
-            out_dir / "testing",
-            np.concatenate((X_train, X_test), axis=0),
-            np.concatenate((y_train, y_test), axis=0),
-            list(np.arange(len(X_train))),
-            np.concatenate((meta_train_s, meta_test_s), axis=0),
-            clf,
-            days,
-            steps,
-            ifold,
-        )
-        plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+    # if ifold == 0:
+    #     plot_high_dimension_db(
+    #         out_dir / "testing",
+    #         np.concatenate((X_train, X_test), axis=0),
+    #         np.concatenate((y_train, y_test), axis=0),
+    #         list(np.arange(len(X_train))),
+    #         np.concatenate((meta_train_s, meta_test_s), axis=0),
+    #         clf,
+    #         days,
+    #         steps,
+    #         ifold,
+    #     )
+    #     plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -683,6 +686,7 @@ def fold_worker(
 
 
 def cross_validate_custom_fast(
+    svc_kernel,
     out_dir,
     steps,
     cv_name,
@@ -712,10 +716,8 @@ def cross_validate_custom_fast(
         y: targets
     """
 
-    # for clf in [
-    #     SVC(kernel="linear", probability=True, class_weight="balanced"),
-    #     SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    # ]:
+    # for kernel in svc_kernel:
+    #     clf = SVC(kernel=kernel, probability=True)
     #     X_ = X[np.isin(y_h, [0, 1])]
     #     y_ = y_h[np.isin(y_h, [0, 1])]
     #     meta_ = meta_data_short[np.isin(y_h, [0, 1])]
@@ -742,12 +744,11 @@ def cross_validate_custom_fast(
     # tuned_parameters_linear = [
     #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     # ]
-    for clf in [
-        SVC(kernel="linear", probability=True, class_weight="balanced"),
-        SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    ]:
+    for kernel in svc_kernel:
+        clf = SVC(kernel=kernel, probability=True)
         plt.clf()
-        fig_roc, ax_roc = plt.subplots(1, 2, figsize=(12.80, 6.20))
+        fig_roc, ax_roc = plt.subplots(1, 2, figsize=(19.20, 6.20))
+        fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
         mean_fpr_test = np.linspace(0, 1, 100)
         mean_fpr_train = np.linspace(0, 1, 100)
 
@@ -820,14 +821,17 @@ def cross_validate_custom_fast(
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
             ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+            ax_roc_merge[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
 
         for a in axis_train:
             f, ax = a.figure_, a.ax_
             xdata = ax.lines[0].get_xdata()
             ydata = ax.lines[0].get_ydata()
             ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+            ax_roc_merge[0].plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
         mean_auc = plot_roc_range(
+            ax_roc_merge,
             ax_roc,
             tprs_test,
             mean_fpr_test,
@@ -838,6 +842,7 @@ def cross_validate_custom_fast(
             out_dir,
             steps,
             fig_roc,
+            fig_roc_merge,
             cv_name,
             days,
             info=info,
@@ -860,189 +865,189 @@ def cross_validate_custom_fast(
     return scores, scores_proba
 
 
-def cross_validate_custom(
-    out_dir,
-    steps,
-    cv_name,
-    days,
-    label_series,
-    cross_validation_method,
-    X,
-    y,
-    y_h,
-    ids,
-    sample_dates,
-):
-    """Cross validate X,y data and plot roc curve with range
-    Args:
-        out_dir: output directory to save figures to
-        steps: postprocessing steps
-        cv_name: name of cross validation method
-        days: count of activity days in sample
-        label_series: dict that holds famacha label/target
-        class_healthy: target integer of healthy class
-        class_unhealthy: target integer of unhealthy class
-        cross_validation_method: Cv object
-        X: samples
-        y: targets
-    """
-    scores, scores_proba = {}, {}
-    for clf in [
-        SVC(kernel="linear", probability=True, class_weight="balanced"),
-        SVC(kernel="rbf", probability=True, class_weight="balanced"),
-    ]:
-        plt.clf()
-        fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
-        mean_fpr_test = np.linspace(0, 1, 100)
-        mean_fpr_train = np.linspace(0, 1, 100)
-
-        fold_results = []
-        fold_probas = {}
-        for k in label_series.values():
-            fold_probas[k] = []
-
-        tprs = []
-        aucs_roc = []
-        for ifold, (train_index, test_index) in enumerate(
-            cross_validation_method.split(X, y)
-        ):
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
-            y_h_train, y_h_test = y_h[train_index], y_h[test_index]
-            ids_train, ids_test = ids[train_index], ids[test_index]
-            sample_dates_train, sample_dates_test = (
-                sample_dates[train_index],
-                sample_dates[test_index],
-            )
-            class_healthy, class_unhealthy = 0, 1
-
-            # hold all extra label
-            fold_index = np.array(train_index.tolist() + test_index.tolist())
-            X_fold = X[fold_index]
-            y_fold = y[fold_index]
-            ids_fold = ids[fold_index]
-            sample_dates_fold = sample_dates[fold_index]
-
-            # keep healthy and unhealthy only
-            X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
-            y_train = y_h_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
-
-            X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
-            y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
-            ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
-            sample_dates_test = sample_dates_test[
-                np.isin(y_h_test, [class_healthy, class_unhealthy])
-            ]
-
-            start_time = time.time()
-            clf.fit(X_train, y_train)
-            fit_time = time.time() - start_time
-
-            models_dir = (
-                out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-            )
-            models_dir.mkdir(parents=True, exist_ok=True)
-            filename = models_dir / f"model_{ifold}.pkl"
-            print("saving classifier...")
-            print(filename)
-            with open(str(filename), "wb") as f:
-                pickle.dump(clf, f)
-
-            # test healthy/unhealthy
-            y_pred = clf.predict(X_test)
-            y_pred_proba = clf.predict_proba(X_test)
-
-            # prep for roc curve
-            viz_roc = plot_roc_curve(
-                clf,
-                X_test,
-                y_test,
-                label=None,
-                alpha=0.3,
-                lw=1,
-                ax=ax_roc,
-                c="tab:blue",
-            )
-
-            interp_tpr = np.interp(mean_fpr_test, viz_roc.fpr, viz_roc.tpr)
-            interp_tpr[0] = 0.0
-            auc_value = viz_roc.roc_auc
-            print("auc=", auc_value)
-            tprs.append(interp_tpr)
-            aucs_roc.append(auc_value)
-
-            accuracy = balanced_accuracy_score(y_test, y_pred)
-            precision, recall, fscore, support = precision_recall_fscore_support(
-                y_test, y_pred
-            )
-            correct_predictions = (y_test == y_pred).astype(int)
-
-            fold_result = {
-                "target": int(class_unhealthy),
-                "auc": auc_value,
-                "accuracy": float(accuracy),
-                "class_healthy": int(class_healthy),
-                "class_unhealthy": int(class_unhealthy),
-                "y_test": y_test.tolist(),
-                "ids_test": ids_test.tolist(),
-                "sample_dates_test": sample_dates_test.tolist(),
-                "correct_predictions": correct_predictions.tolist(),
-                "test_precision_score_0": float(precision[0]),
-                "test_precision_score_1": float(precision[1]),
-                "test_recall_0": float(recall[0]),
-                "test_recall_1": float(recall[1]),
-                "test_fscore_0": float(fscore[0]),
-                "test_fscore_1": float(fscore[1]),
-                "test_support_0": float(support[0]),
-                "test_support_1": float(support[1]),
-                "fit_time": fit_time,
-            }
-            fold_results.append(fold_result)
-
-            # test individual labels and store probabilities to be healthy/unhealthy
-            for y_f in y_fold:
-                label = label_series[y_f]
-                X_test = X_fold[y_fold == y_f]
-                y_test = y_fold[y_fold == y_f]
-                ids_test = ids_fold[y_fold == y_f]
-                y_pred_proba = clf.predict_proba(X_test)
-                fold_proba = {
-                    "test_y_pred_proba_0": y_pred_proba[:, 0].tolist(),
-                    "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
-                    "ids_test": ids_test.tolist(),
-                }
-                fold_probas[label].append(fold_proba)
-
-        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
-        mean_auc = plot_roc_range(
-            ax_roc,
-            tprs,
-            mean_fpr_test,
-            aucs_roc,
-            out_dir,
-            steps,
-            fig_roc,
-            cv_name,
-            days,
-            info=info,
-            tag=f"{type(clf).__name__}_{clf.kernel}",
-        )
-
-        scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
-        scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
-
-    print("export results to json...")
-    filepath = out_dir / "results.json"
-    print(filepath)
-    with open(str(filepath), "w") as fp:
-        json.dump(scores, fp)
-    filepath = out_dir / "results_proba.json"
-    print(filepath)
-    with open(str(filepath), "w") as fp:
-        json.dump(scores_proba, fp)
-
-    return scores, scores_proba
-
+# def cross_validate_custom(
+#     out_dir,
+#     steps,
+#     cv_name,
+#     days,
+#     label_series,
+#     cross_validation_method,
+#     X,
+#     y,
+#     y_h,
+#     ids,
+#     sample_dates,
+# ):
+#     """Cross validate X,y data and plot roc curve with range
+#     Args:
+#         out_dir: output directory to save figures to
+#         steps: postprocessing steps
+#         cv_name: name of cross validation method
+#         days: count of activity days in sample
+#         label_series: dict that holds famacha label/target
+#         class_healthy: target integer of healthy class
+#         class_unhealthy: target integer of unhealthy class
+#         cross_validation_method: Cv object
+#         X: samples
+#         y: targets
+#     """
+#     scores, scores_proba = {}, {}
+#     for clf in [
+#         SVC(kernel="linear", probability=True, class_weight="balanced"),
+#         SVC(kernel="rbf", probability=True, class_weight="balanced"),
+#     ]:
+#         plt.clf()
+#         fig_roc, ax_roc = plt.subplots(figsize=(8.00, 6.00))
+#         mean_fpr_test = np.linspace(0, 1, 100)
+#         mean_fpr_train = np.linspace(0, 1, 100)
+#
+#         fold_results = []
+#         fold_probas = {}
+#         for k in label_series.values():
+#             fold_probas[k] = []
+#
+#         tprs = []
+#         aucs_roc = []
+#         for ifold, (train_index, test_index) in enumerate(
+#             cross_validation_method.split(X, y)
+#         ):
+#             X_train, X_test = X[train_index], X[test_index]
+#             y_train, y_test = y[train_index], y[test_index]
+#             y_h_train, y_h_test = y_h[train_index], y_h[test_index]
+#             ids_train, ids_test = ids[train_index], ids[test_index]
+#             sample_dates_train, sample_dates_test = (
+#                 sample_dates[train_index],
+#                 sample_dates[test_index],
+#             )
+#             class_healthy, class_unhealthy = 0, 1
+#
+#             # hold all extra label
+#             fold_index = np.array(train_index.tolist() + test_index.tolist())
+#             X_fold = X[fold_index]
+#             y_fold = y[fold_index]
+#             ids_fold = ids[fold_index]
+#             sample_dates_fold = sample_dates[fold_index]
+#
+#             # keep healthy and unhealthy only
+#             X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+#             y_train = y_h_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+#
+#             X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+#             y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+#             ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+#             sample_dates_test = sample_dates_test[
+#                 np.isin(y_h_test, [class_healthy, class_unhealthy])
+#             ]
+#
+#             start_time = time.time()
+#             clf.fit(X_train, y_train)
+#             fit_time = time.time() - start_time
+#
+#             models_dir = (
+#                 out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+#             )
+#             models_dir.mkdir(parents=True, exist_ok=True)
+#             filename = models_dir / f"model_{ifold}.pkl"
+#             print("saving classifier...")
+#             print(filename)
+#             with open(str(filename), "wb") as f:
+#                 pickle.dump(clf, f)
+#
+#             # test healthy/unhealthy
+#             y_pred = clf.predict(X_test)
+#             y_pred_proba = clf.predict_proba(X_test)
+#
+#             # prep for roc curve
+#             viz_roc = plot_roc_curve(
+#                 clf,
+#                 X_test,
+#                 y_test,
+#                 label=None,
+#                 alpha=0.3,
+#                 lw=1,
+#                 ax=ax_roc,
+#                 c="tab:blue",
+#             )
+#
+#             interp_tpr = np.interp(mean_fpr_test, viz_roc.fpr, viz_roc.tpr)
+#             interp_tpr[0] = 0.0
+#             auc_value = viz_roc.roc_auc
+#             print("auc=", auc_value)
+#             tprs.append(interp_tpr)
+#             aucs_roc.append(auc_value)
+#
+#             accuracy = balanced_accuracy_score(y_test, y_pred)
+#             precision, recall, fscore, support = precision_recall_fscore_support(
+#                 y_test, y_pred
+#             )
+#             correct_predictions = (y_test == y_pred).astype(int)
+#
+#             fold_result = {
+#                 "target": int(class_unhealthy),
+#                 "auc": auc_value,
+#                 "accuracy": float(accuracy),
+#                 "class_healthy": int(class_healthy),
+#                 "class_unhealthy": int(class_unhealthy),
+#                 "y_test": y_test.tolist(),
+#                 "ids_test": ids_test.tolist(),
+#                 "sample_dates_test": sample_dates_test.tolist(),
+#                 "correct_predictions": correct_predictions.tolist(),
+#                 "test_precision_score_0": float(precision[0]),
+#                 "test_precision_score_1": float(precision[1]),
+#                 "test_recall_0": float(recall[0]),
+#                 "test_recall_1": float(recall[1]),
+#                 "test_fscore_0": float(fscore[0]),
+#                 "test_fscore_1": float(fscore[1]),
+#                 "test_support_0": float(support[0]),
+#                 "test_support_1": float(support[1]),
+#                 "fit_time": fit_time,
+#             }
+#             fold_results.append(fold_result)
+#
+#             # test individual labels and store probabilities to be healthy/unhealthy
+#             for y_f in y_fold:
+#                 label = label_series[y_f]
+#                 X_test = X_fold[y_fold == y_f]
+#                 y_test = y_fold[y_fold == y_f]
+#                 ids_test = ids_fold[y_fold == y_f]
+#                 y_pred_proba = clf.predict_proba(X_test)
+#                 fold_proba = {
+#                     "test_y_pred_proba_0": y_pred_proba[:, 0].tolist(),
+#                     "test_y_pred_proba_1": y_pred_proba[:, 1].tolist(),
+#                     "ids_test": ids_test.tolist(),
+#                 }
+#                 fold_probas[label].append(fold_proba)
+#
+#         info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
+#         mean_auc = plot_roc_range(
+#             ax_roc,
+#             tprs,
+#             mean_fpr_test,
+#             aucs_roc,
+#             out_dir,
+#             steps,
+#             fig_roc,
+#             cv_name,
+#             days,
+#             info=info,
+#             tag=f"{type(clf).__name__}_{clf.kernel}",
+#         )
+#
+#         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
+#         scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
+#
+#     print("export results to json...")
+#     filepath = out_dir / "results.json"
+#     print(filepath)
+#     with open(str(filepath), "w") as fp:
+#         json.dump(scores, fp)
+#     filepath = out_dir / "results_proba.json"
+#     print(filepath)
+#     with open(str(filepath), "w") as fp:
+#         json.dump(scores_proba, fp)
+#
+#     return scores, scores_proba
+#
 
 def loo_roc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
     all_y = []
@@ -1160,6 +1165,7 @@ def process_clf_(
 
     plt.clf()
     fig_roc, ax_roc = plt.subplots(figsize=(19.20, 10.80))
+    fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
     mean_fpr = np.linspace(0, 1, 100)
     tprs = []
     aucs_roc = []
@@ -1274,11 +1280,16 @@ def process_clf(
 
     # results = []
     plt.clf()
-    fig_roc, ax_roc = plt.subplots(figsize=(19.20, 10.80))
-    mean_fpr = np.linspace(0, 1, 100)
-    tprs = []
-    aucs_roc = []
-    for i, (X_t, y_t) in enumerate(folds):
+    fig_roc, ax_roc = plt.subplots(1, 2, figsize=(19.80, 6.20))
+    fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
+    mean_fpr_test = np.linspace(0, 1, 100)
+    tprs_test = []
+    aucs_roc_test = []
+
+    mean_fpr_train = np.linspace(0, 1, 100)
+    tprs_train = []
+    aucs_roc_train = []
+    for i, (X_train, y_train) in enumerate(folds):
         print(f"progress {i}/{n_fold} ...")
         # y_t = binarize(y_t.copy())
         # y_test = binarize(y_test)
@@ -1300,16 +1311,17 @@ def process_clf(
         #     refit="accuracy",
         #     n_jobs=-1,
         # )
-        clf.fit(X_t.copy(), y_t.copy())
+        clf.fit(X_train.copy(), y_train.copy())
         clf_best = clf
         print("Best estimator from gridsearch=")
         print(clf_best)
-        y_pred = clf.predict(X_test.copy())
-        print(classification_report(y_test, y_pred))
-        print(f"precision_score: {precision_score(y_test, y_pred, average='weighted')}")
+        y_pred_test = clf.predict(X_test.copy())
+        y_pred_train = clf.predict(X_train.copy())
+        print(classification_report(y_test, y_pred_test))
+        print(f"precision_score: {precision_score(y_test, y_pred_test, average='weighted')}")
 
         pathlib.Path(output_dir / "reports").mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True))
+        df = pd.DataFrame(classification_report(y_test, y_pred_test, output_dict=True))
 
         filename = f"{output_dir / 'reports'}/report_{i}.csv"
         print(filename)
@@ -1318,34 +1330,75 @@ def process_clf(
         # y = np.array(y_train.tolist() + y_test.tolist())
         # results.append([clf_best, X, y])
 
-        viz_roc = plot_roc_curve(
+        viz_roc_test = plot_roc_curve(
             clf,
             X_test,
             y_test,
             label=None,
             alpha=0.3,
             lw=1,
-            ax=ax_roc,
+            ax=ax_roc[1],
             c="tab:blue",
         )
-        interp_tpr = np.interp(mean_fpr, viz_roc.fpr, viz_roc.tpr)
-        interp_tpr[0] = 0.0
-        print("auc=", viz_roc.roc_auc)
-        tprs.append(interp_tpr)
-        aucs_roc.append(viz_roc.roc_auc)
+        _ = plot_roc_curve(
+            clf,
+            X_test,
+            y_test,
+            label=None,
+            alpha=0.3,
+            lw=1,
+            ax=ax_roc_merge[0],
+            c="tab:blue",
+        )
+        interp_tpr_test = np.interp(mean_fpr_test, viz_roc_test.fpr, viz_roc_test.tpr)
+        interp_tpr_test[0] = 0.0
+        print("auc=", viz_roc_test.roc_auc)
+        tprs_test.append(interp_tpr_test)
+        aucs_roc_test.append(viz_roc_test.roc_auc)
+
+        viz_roc_train = plot_roc_curve(
+            clf,
+            X_train,
+            y_train,
+            label=None,
+            alpha=0.3,
+            lw=1,
+            ax=ax_roc[0],
+            c="tab:blue",
+        )
+        _ = plot_roc_curve(
+            clf,
+            X_train,
+            y_train,
+            label=None,
+            alpha=0.3,
+            lw=1,
+            ax=ax_roc_merge[0],
+            c="tab:purple",
+        )
+        interp_tpr_train = np.interp(mean_fpr_train, viz_roc_train.fpr, viz_roc_train.tpr)
+        interp_tpr_train[0] = 0.0
+        print("auc train=", viz_roc_train.roc_auc)
+        tprs_train.append(interp_tpr_train)
+        aucs_roc_train.append(viz_roc_train.roc_auc)
 
     info = (
         f"X_train shape:{str(X_train.shape)} healthy:{np.sum(y_train == 0)} unhealthy:{np.sum(y_train == 1)} \n "
         f"X_test shape:{str(X_test.shape)} healthy:{np.sum(y_test == 0)} unhealthy:{np.sum(y_test == 1)} \n {info_}"
     )
     mean_auc = plot_roc_range(
+        ax_roc_merge,
         ax_roc,
-        tprs,
-        mean_fpr,
-        aucs_roc,
+        tprs_test,
+        mean_fpr_test,
+        aucs_roc_test,
+        tprs_train,
+        mean_fpr_train,
+        aucs_roc_train,
         output_dir,
         steps,
         fig_roc,
+        fig_roc_merge,
         f"90% fold {n_fold}",
         7,
         info=info,

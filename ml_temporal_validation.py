@@ -132,8 +132,8 @@ def main(
 
         plot_heatmap(X1, y1, X2, y2, output_dir, p1_start, p1_end, p2_start, p2_end)
 
-        process_clf_(preprocessing_steps, X1, y1, model_path, output_dir / "pre_trained" / f"{p1_start}{p1_end}_{p2_start}{p2_end}".replace("/", ""))
-        process_clf_(preprocessing_steps, X2, y2, model_path, output_dir / "pre_trained" / f"{p2_start}{p2_end}_{p1_start}{p1_end}".replace("/", ""))
+        # process_clf_(preprocessing_steps, X1, y1, model_path, output_dir / "pre_trained" / f"{p1_start}{p1_end}_{p2_start}{p2_end}".replace("/", ""))
+        # process_clf_(preprocessing_steps, X2, y2, model_path, output_dir / "pre_trained" / f"{p2_start}{p2_end}_{p1_start}{p1_end}".replace("/", ""))
 
         process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir / f"{p1_start}_{p2_start}".replace("/", ""))
         process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / f"{p2_start}_{p1_start}".replace("/", ""))

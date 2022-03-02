@@ -10,13 +10,14 @@ def load_activity_data(
     out_dir,
     meta_columns,
     filepath,
-    a_day,
+    n_activity_days,
     class_healthy,
     class_unhealthy,
     imputed_days=7,
     preprocessing_steps=None,
     farm=None,
-    meta_cols_str=None
+    meta_cols_str=None,
+    sampling='T'
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -28,6 +29,7 @@ def load_activity_data(
         or "cross_farm" in str(out_dir).lower()
         or "temporal" in str(out_dir).lower()
         or "cwt_explain" in str(out_dir).lower()
+        or "test_distance_validation" in str(out_dir).lower()
     ):
         if "health" not in data_frame.columns:
             print("missing health column in dataset!")
@@ -55,8 +57,10 @@ def load_activity_data(
         columns=[data_point_count - len(meta_columns)],
     )
 
-    if a_day > 0:
+    if n_activity_days > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
+        assert sampling == "T", "activity sampling must be 1 min per bin!"
+        df_activity_window = df_activity_window.iloc[:, -n_activity_days * 1440:]
         df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
         #seasons = seasons[np.repeat(seasons.columns.values, df_activity_window.shape[1])]
@@ -70,13 +74,13 @@ def load_activity_data(
         subset=data_frame.columns[: -len(meta_columns)], how="all"
     )
 
-    if imputed_days > 0:
-        data_frame = data_frame.dropna()
+    #if imputed_days > 0:
+    data_frame = data_frame.dropna()
 
     # clip negative values
     data_frame[data_frame.columns.values[: -len(meta_columns)]] = data_frame[
         data_frame.columns.values[: -len(meta_columns)]
-    ].clip(lower=0)
+    ].astype(float).clip(lower=0)
 
     if "ZEROPAD" in preprocessing_steps[0]:
         data_frame = data_frame.fillna(0)
@@ -118,7 +122,7 @@ def load_activity_data(
         df = data_frame[data_frame["label"] == label]
         samples[label] = df
 
-    if a_day is not None:
+    if n_activity_days is not None:
         plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
 
     class_count = {}

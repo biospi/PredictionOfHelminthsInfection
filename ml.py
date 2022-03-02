@@ -58,24 +58,26 @@ def main(
         "health",
         "target",
     ],
-    meta_col_str: List[str] = ["health", "label", "date"],
+    meta_col_str: List[str] = ["health", "label", "id"],
     add_feature: List[str] = [],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 9,
-    sub_sample_scales: int = 4,
+    sub_sample_scales: int = 1,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
     add_seasons_to_features: bool = False,
     n_splits: int = 5,
     n_repeats: int = 10,
     cv: str = "RepeatedStratifiedKFold",
+    svc_kernel: List[str] = ["rbf", "linear"],
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     study_id: str = "study",
     sampling: str = "T",
     pre_visu: bool = True,
     output_qn_graph: bool = False,
+    enable_downsample_df: bool = False,
     n_job: int = 7,
 ):
     """ML Main machine learning script\n
@@ -107,7 +109,6 @@ def main(
     preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
     print(f"preprocessing_steps={preprocessing_steps}")
-    enable_downsample_df = False
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
 
@@ -155,7 +156,8 @@ def main(
             class_unhealthy_label,
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
-            meta_cols_str=meta_col_str
+            meta_cols_str=meta_col_str,
+            sampling=sampling
         )
 
         N_META = len(meta_columns)
@@ -164,9 +166,7 @@ def main(
             #############################################################################################################
             #                                           VISUALISATION                                                   #
             #############################################################################################################
-            animal_ids = (
-                data_frame.iloc[0: len(data_frame), :]["id"].astype(str).tolist()
-            )
+            animal_ids = data_frame["id"].astype(str).tolist()
             df_norm, _ = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
@@ -188,22 +188,22 @@ def main(
                 sub_sample_scales=sub_sample_scales
             )
 
-            plot_zeros_distrib(
-                meta_columns,
-                n_activity_days,
-                label_series,
-                df_norm,
-                output_dir,
-                title="Percentage of zeros in activity per sample after normalisation",
-            )
-            plot_zeros_distrib(
-                meta_columns,
-                n_activity_days,
-                label_series,
-                data_frame.copy(),
-                output_dir,
-                title="Percentage of zeros in activity per sample before normalisation",
-            )
+            # plot_zeros_distrib(
+            #     meta_columns,
+            #     n_activity_days,
+            #     label_series,
+            #     df_norm,
+            #     output_dir,
+            #     title="Percentage of zeros in activity per sample after normalisation",
+            # )
+            # plot_zeros_distrib(
+            #     meta_columns,
+            #     n_activity_days,
+            #     label_series,
+            #     data_frame.copy(),
+            #     output_dir,
+            #     title="Percentage of zeros in activity per sample before normalisation",
+            # )
             plot_mean_groups(
                 sub_sample_scales,
                 n_scales,
@@ -216,27 +216,27 @@ def main(
             )
 
             # plot median wise cwt for each target(label)
-            apply_preprocessing_steps(
-                meta_columns,
-                n_activity_days,
-                df_hum,
-                df_temp,
-                sfft_window,
-                wavelet_f0,
-                animal_ids,
-                df_norm.copy(),
-                output_dir / "groups_after_qn",
-                ["ANSCOMBE", "LOG", "CENTER", "CWT"],
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="QN_CWT_VISU",
-                output_dim=data_frame.shape[0],
-                n_scales=n_scales,
-                keep_meta=True,
-                plot_all_target=True,
-                enable_graph_out=False,
-                sub_sample_scales=sub_sample_scales
-            )
+            # apply_preprocessing_steps(
+            #     meta_columns,
+            #     n_activity_days,
+            #     df_hum,
+            #     df_temp,
+            #     sfft_window,
+            #     wavelet_f0,
+            #     animal_ids,
+            #     df_norm.copy(),
+            #     output_dir / "groups_after_qn",
+            #     ["ANSCOMBE", "LOG", "CENTER", "CWT"],
+            #     class_healthy_label,
+            #     class_unhealthy_label,
+            #     clf_name="QN_CWT_VISU",
+            #     output_dim=data_frame.shape[0],
+            #     n_scales=n_scales,
+            #     keep_meta=True,
+            #     plot_all_target=True,
+            #     enable_graph_out=False,
+            #     sub_sample_scales=sub_sample_scales
+            # )
 
             plot_umap(
                 meta_columns,
@@ -332,7 +332,7 @@ def main(
         sample_dates = pd.to_datetime(
             data_frame["date"], format="%d/%m/%Y"
         ).values.astype(float)
-        animal_ids = data_frame.iloc[0 : len(data_frame), :]["id"].astype(str).tolist()
+        animal_ids = data_frame["id"].astype(str).tolist()
 
         step_slug = "_".join(preprocessing_steps)
         df_processed, df_processed_meta = apply_preprocessing_steps(
@@ -379,18 +379,23 @@ def main(
         )
 
         if len(add_feature) > 0:
-            df_meta = pd.DataFrame(meta_data, columns=meta_columns)[add_feature]
-            df_ = pd.concat([df_processed.iloc[:, :-2], df_meta], axis=1)
-            #df_ = pd.concat([df_meta], axis=1)
+            df_meta = pd.DataFrame(meta_data, columns=meta_columns, index=df_processed.index)[add_feature]
+            df_data = df_processed[df_processed.columns[~df_processed.columns.isin(["target", "health"])]]
+            #df_ = pd.concat([df_data, df_meta], axis=1)
+            df_ = pd.concat([df_meta], axis=1)
             #df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
-            df_processed = pd.concat([df_, df_processed.iloc[:, -2:]], axis=1)
+            df_processed = pd.concat([df_, df_processed[["target", "health"]]], axis=1)
             step_slug = f"{step_slug}_{'_'.join(add_feature).upper()}_STDS"
 
         if add_seasons_to_features:
-            df_processed = pd.concat([df_processed.iloc[:, :-2], seasons_features, df_processed.iloc[:, -2:]], axis=1)
+            df_data = df_processed[df_processed.columns[~df_processed.columns.isin(["target", "health"])]]
+            df_target = df_processed[["target", "health"]]
+            df_processed = pd.concat([df_data, seasons_features, df_target], axis=1)
             step_slug = f"{step_slug}_SEASONS"
 
         process_data_frame_svm(
+            svc_kernel,
+            add_feature,
             meta_data,
             meta_data_short,
             output_dir,
@@ -441,7 +446,7 @@ def main(
 
 if __name__ == "__main__":
     #typer.run(main)
-    for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"], ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]:
+    for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"]]:
         slug = "_".join(steps)
         # # day = 7
         # # main(
@@ -454,13 +459,16 @@ if __name__ == "__main__":
         # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
         # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
         # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
-        for f in [["mobility_score"], ["age"], []]:
+
+        #for sp in [18]:
+        for f in [[], ["age"], ["mobility_score"]]:
             main(
-                output_dir=Path(f"E:/Cats/ml/ml_min4/day_w/{f}/{slug}"),
-                dataset_folder=Path("E:/Cats/build_min/dataset/training_sets/day_w"),
+                output_dir=Path(f"E:/Cats/ml/build_min_overlap/day_w/{f}/{slug}"),
+                dataset_folder=Path(f"E:/Cats/build_min_overlap/dataset/training_sets/day_w"),
                 preprocessing_steps=steps,
                 meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
                 meta_col_str=["name", "age", "mobility_score"],
+                svc_kernel=["rbf"],
                 add_feature=f,
                 n_imputed_days=-1,
                 n_activity_days=-1,
@@ -468,8 +476,9 @@ if __name__ == "__main__":
                 class_unhealthy_label=["1.0"],
                 n_splits=5,
                 n_repeats=10,
-                n_job=6,
-                study_id="cat"
+                n_job=5,
+                study_id="cat",
+                cv="RepeatedStratifiedKFold"
             )
 
 
