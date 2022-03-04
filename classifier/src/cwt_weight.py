@@ -1050,53 +1050,6 @@ def plot_roc_range(ax, tprs, mean_fpr, aucs, out_dir, i, fig, prec_data_str):
 #     )
 
 
-def plot_ribbon(path, data, title, y_label, days):
-    df = pd.DataFrame.from_dict(data, orient="index")
-    print(df)
-    time = []
-    acc = []
-    for index, row in df.iterrows():
-        print(row[0], row[1])
-        for n in range(df.shape[1]):
-            time.append(index)
-            acc.append(row[n])
-    data_dict = {"time": time, "acc": acc}
-    df = pd.DataFrame.from_dict(data_dict)
-    print(df)
-    time_axis = interpolate_time(np.arange(days + 1), len(df["time"]))
-    time_axis = time_axis.tolist()
-    time_axis_s = []
-    for t in time_axis:
-        time_axis_s.append("%d" % t)
-
-    fig, ax = plt.subplots(figsize=(15, 5))
-    sns.lineplot(x=df["time"], y="acc", data=df, marker="o", ax=ax)
-    ax.set_title(title)
-    # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
-    ax.set_xlabel("days")
-    ax.set_ylabel(y_label)
-
-    labels = [item.get_text() for item in ax.get_xticklabels()]
-    m_d = max(df["time"].to_list()) + 1
-    labels_ = interpolate_time(np.arange(days + 1), m_d)
-    l = []
-    for i, item in enumerate(labels_):
-        l.append("%.1f" % float(item))
-
-    # labels = ['0'] + labels + ['0']
-    # ax.set_xticklabels(labels)
-    ticks = list(range(m_d))
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(l)
-
-    print("labels", labels)
-
-    # ax.set_xticklabels(time_axis_s)
-    file_path = path / "model_auc_progression.png"
-    plt.savefig(str(file_path))
-    plt.show()
-
-
 def plot(ax, data, title, y_label):
     df = pd.DataFrame.from_dict(data, orient="index")
     print(df)

@@ -70,7 +70,7 @@ def main(
     n_splits: int = 5,
     n_repeats: int = 10,
     cv: str = "RepeatedStratifiedKFold",
-    svc_kernel: List[str] = ["rbf", "linear"],
+    svc_kernel: List[str] = ["linear"],
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     study_id: str = "study",

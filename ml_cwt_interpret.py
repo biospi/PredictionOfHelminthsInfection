@@ -6,34 +6,12 @@ import typer
 from matplotlib.colors import LogNorm
 from sklearn.svm import SVC
 
-from classifier.src.cwt_weight import (
-    chunck_df,
-    explain_cwt,
-    get_cwt_data_frame,
-    process_df, plot_ribbon)
 from cwt._cwt import CWT
 from model.data_loader import load_activity_data, parse_param_from_filename
 from preprocessing.preprocessing import apply_preprocessing_steps
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-def plot_progression(output_dir, days):
-    print("plot progression...")
-    files = [x for x in glob.glob(str(output_dir / "RepeatedKFold" / "*.csv")) if "rbf" in x]
-    aucs = {}
-    for i, file in enumerate(files):
-        df = pd.read_csv(str(file), converters={'roc_auc_scores': eval})
-        a = df["roc_auc_scores"][0]
-        aucs[i] = a
-
-    plot_ribbon(
-        output_dir,
-        aucs,
-        "Classifier Auc over time during increase of the FAMACHA score",
-        "Auc",
-        days,
-    )
 
 
 def main(

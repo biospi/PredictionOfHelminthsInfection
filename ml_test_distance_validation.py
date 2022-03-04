@@ -3,11 +3,26 @@ from pathlib import Path
 from typing import List
 import pandas as pd
 import numpy as np
-
+import glob
+import seaborn as sns
+from sys import exit
+from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 from model.data_loader import load_activity_data
 from model.svm import process_data_frame_svm
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import plot_umap, plot_time_pca, plot_time_pls
+from natsort import natsorted
+from tsaug import TimeWarp, Crop, Quantize, Drift, Reverse
+
+
+def interpolate_time(a, new_length):
+    old_indices = np.arange(0, len(a))
+    new_indices = np.linspace(0, len(a) - 1, new_length)
+    spl = UnivariateSpline(old_indices, a, k=3, s=0)
+    new_array = spl(new_indices)
+    new_array[0] = 0
+    return new_array
 
 
 def build_samples(df_, seq, label, health, target):
@@ -35,6 +50,97 @@ def build_samples(df_, seq, label, health, target):
     return samples
 
 
+def plot_ribbon(path, data, title, y_label, days):
+    df = pd.DataFrame.from_dict(data, orient="index")
+    print(df)
+    time = []
+    acc = []
+    for index, row in df.iterrows():
+        print(row[0], row[1])
+        for n in range(df.shape[1]):
+            time.append(index)
+            acc.append(row[n])
+    data_dict = {"time": time, "acc": acc}
+    df = pd.DataFrame.from_dict(data_dict)
+    print(df)
+    time_axis = interpolate_time(np.arange(days + 1), len(df["time"]))
+    time_axis = time_axis.tolist()
+    time_axis_s = []
+    for t in time_axis:
+        time_axis_s.append("%d" % t)
+
+    fig, ax = plt.subplots(figsize=(15, 5))
+    sns.lineplot(x=df["time"], y="acc", data=df, marker="o", ax=ax)
+    fig.suptitle(title)
+    # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
+    ax.set_xlabel("days")
+    ax.set_ylabel(y_label)
+
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    m_d = max(df["time"].to_list()) + 1
+    labels_ = interpolate_time(np.arange(days + 1), m_d)
+    l = []
+    for i, item in enumerate(labels_):
+        l.append("%.1f" % float(item))
+
+    # labels = ['0'] + labels + ['0']
+    # ax.set_xticklabels(labels)
+    ticks = list(range(m_d))
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(l)
+
+    print("labels", labels)
+
+    # ax.set_xticklabels(time_axis_s)
+    fig.tight_layout()
+    file_path = path / "model_auc_progression.png"
+    print(file_path)
+    fig.savefig(str(file_path))
+
+
+def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealthy, shape_healthy, shape_unhealthy):
+    print("plot progression...")
+    files = [x for x in list(output_dir.glob("**/*.csv")) if 'classification_report_days' in str(x)]
+    files = natsorted(files)
+    aucs = {}
+    for i, file in enumerate(files):
+        print(file)
+        df = pd.read_csv(str(file), converters={'roc_auc_scores': eval})
+        a = df["roc_auc_scores"][0]
+        aucs[i] = a
+
+    plot_ribbon(
+        output_dir,
+        aucs,
+        f"Classifier Auc over time during increase of the FAMACHA score (window={window})\nhealthy:{famacha_healthy} {shape_healthy} unhealthy:{famacha_unhealthy} {shape_unhealthy}",
+        "Auc",
+        days,
+    )
+
+
+def augment(df, n=10):
+    df_data = df.iloc[:, :-2]
+    df_meta = df.iloc[:, -2:]
+    crop = int(n/2)
+    df_data_crop = df_data.iloc[:, crop:-crop]
+    print(df_data_crop)
+    jittered_columns = []
+    for i in np.arange(1, crop):
+        cols = df_data_crop.columns.values.astype(int)
+        left = cols - i
+        right = cols + i
+        jittered_columns.append(left)
+        jittered_columns.append(right)
+    dfs = []
+    for j_c in jittered_columns:
+        d = df[j_c]
+        d.columns = list(range(d.shape[1]))
+        d = pd.concat([d, df_meta], axis=1)
+        dfs.append(d)
+    df_augmented = pd.concat(dfs, ignore_index=True)
+    return df_augmented
+
+
 def main(
     output_dir: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -44,6 +150,8 @@ def main(
     ),
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
+    famacha_healthy: List[str] = ["1To1", "1To1"],
+    famacha_unhealthy: List[str] = ["2To2", "2To2"],
     preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
     n_activity_days: int = 7,
     n_imputed_days: int = 7,
@@ -70,7 +178,11 @@ def main(
     output_qn_graph: bool = True,
     add_seasons_to_features: bool = False,
     enable_downsample_df: bool = False,
-    stride: int = 360,
+    window: int = 1440*7,
+    stride: int = 1440,
+    days_between: int = 7,
+    back_to_back: bool = True,
+    n_aug: int = 30,
     n_job: int = 7,
 ):
     """This script builds...\n
@@ -108,10 +220,11 @@ def main(
     unhealthy_samples = []
     for df in dfs:
         df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
-        df = df[df["diff"] == 7]
+        if back_to_back:
+            df = df[df["diff"] == days_between]
         df = df.reset_index(drop=True)
         a = df["label"].tolist()
-        b = ["2To2"]
+        b = famacha_unhealthy
         idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
         idxs = np.array(idxs).flatten()
         df_f = df.loc[idxs]
@@ -121,10 +234,11 @@ def main(
     healthy_samples = []
     for df in dfs:
         df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
-        df = df[df["diff"] == 7]
+        if back_to_back:
+            df = df[df["diff"] == days_between]
         df = df.reset_index(drop=True)
         a = df["label"].tolist()
-        b = ["1To1"]
+        b = famacha_healthy
         idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
         idxs = np.array(idxs).flatten()
         df_f = df.loc[idxs]
@@ -187,12 +301,20 @@ def main(
         title=f"PLS after {step_slug}",
     )
 
+    df_processed["target"] = pd.to_numeric(df_processed["target"])
+    df_processed["health"] = pd.to_numeric(df_processed["health"])
+
+    #augment data here
+    df_processed = augment(df_processed, n_aug)
+    shape_healthy = df_processed[df_processed["health"] == 0].shape
+    shape_unhealthy = df_processed[df_processed["health"] == 1].shape
+
     df_target = df_processed[["target", "health"]]
     df_activity_window = df_processed.iloc[:, np.array([str(x).isnumeric() for x in df_processed.columns])]
     cpt = 0
-    for i in range(0, df_activity_window.shape[1]-stride, stride):
+    for i in range(0, df_activity_window.shape[1] - window, stride):
         start = i
-        end = start + stride
+        end = start + window
         print(start, end)
         df_a_w = df_activity_window.iloc[:, start:end]
         df_week = pd.concat([df_a_w, df_target], axis=1)
@@ -202,7 +324,7 @@ def main(
             add_feature,
             meta_data,
             meta_data_short,
-            output_dir / f"week_{cpt}",
+            output_dir / f"week_{str(cpt).zfill(3)}",
             animal_ids,
             sample_dates,
             df_week,
@@ -224,7 +346,39 @@ def main(
         )
         cpt += 1
 
+    plot_progression(output_dir, len(famacha_healthy) * days_between, window, famacha_healthy, famacha_unhealthy, shape_healthy, shape_unhealthy)
+
 
 if __name__ == "__main__":
     #typer.run(main)
-    main(Path(f'E:/Data2/debug/test_distance_validation'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"))
+    # main(Path(f'E:/Data2/debug/test_distance_validation_0'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["2To2", "2To2"], window=1440)
+
+    main(Path(f'E:/Data2/debug2/test_distance_validation_debug1'),
+         Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+         famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True)
+
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_1'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], window=1440, back_to_back=False)
+    #
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_2'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["2To2", "2To2"], window=1440, back_to_back=False)
+    #
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_3'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], window=1440, back_to_back=False)
+    #
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_4'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], window=1440, back_to_back=True)
+    #
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_5'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["2To2", "2To2"], window=1440, back_to_back=True)
+    #
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_6'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], window=1440, back_to_back=True)

@@ -1348,7 +1348,7 @@ def process_clf(
             label=None,
             alpha=0.3,
             lw=1,
-            ax=ax_roc_merge[0],
+            ax=ax_roc_merge,
             c="tab:blue",
         )
         interp_tpr_test = np.interp(mean_fpr_test, viz_roc_test.fpr, viz_roc_test.tpr)
@@ -1374,7 +1374,7 @@ def process_clf(
             label=None,
             alpha=0.3,
             lw=1,
-            ax=ax_roc_merge[0],
+            ax=ax_roc_merge,
             c="tab:purple",
         )
         interp_tpr_train = np.interp(mean_fpr_train, viz_roc_train.fpr, viz_roc_train.tpr)

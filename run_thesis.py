@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 def main(
-    exp_main: bool = True,
+    exp_main: bool = False,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis"),
+    output_dir: Path = Path("E:/thesis2"),
 ):
     """Thesis script run all key experiments for data exploration chapter
     Args:\n
@@ -19,12 +19,12 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps_list = [["QN", "ANSCOMBE", "LOG"], ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
+        steps_list = [["QN", "ANSCOMBE", "LOG"]]
         for steps in steps_list:
             slug = "_".join(steps)
 
             for i_day in [7, 6]:
-                for a_day in [1]:
+                for a_day in [7, 1]:
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [False, True]:
 
