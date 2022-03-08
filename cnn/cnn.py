@@ -10,7 +10,7 @@ from keras.layers import Flatten
 from keras.layers import Dropout
 from keras.layers.convolutional import Conv1D
 from keras.layers.convolutional import MaxPooling1D
-from keras.utils import to_categorical
+#from keras.utils import to_categorical
 from keras import metrics
 import numpy as np
 import pandas as pd
@@ -163,7 +163,7 @@ def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epoch
     # list all data in history
     print(history.history.keys())
 
-    plotModelMetrics(history, out_dir, i, dir_name="model_1dcnn")
+    plot_model_metrics(history, out_dir, i, dir_name="model_1dcnn")
 
     # evaluate model
     model.evaluate(tf.convert_to_tensor(X_test, np.float32), tf.convert_to_tensor(y_test, np.float32),
@@ -172,7 +172,7 @@ def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epoch
     return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
 
 
-def plotModelMetrics(history, out_dir, i, dir_name="model_cnn"):
+def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
     # summarize history for accuracy
     fig_fold, ax_fold = plt.subplots()
     ax_fold.plot(history.history['auc'])
@@ -403,7 +403,7 @@ def evaluate2DCnn(i, out_dir, ax, train_data_cwt, y_train, test_data_cwt, y_test
     print(history.history.keys())
     # summarize history for accuracy
 
-    plotModelMetrics(history, out_dir, i, dir_name="model_2dcnn")
+    plot_model_metrics(history, out_dir, i, dir_name="model_2dcnn")
 
     # evaluate model
     model.evaluate(tf.convert_to_tensor(x_test, np.float32), tf.convert_to_tensor(y_test, np.float32),

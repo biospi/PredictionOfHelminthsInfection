@@ -118,12 +118,12 @@ def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealth
     )
 
 
-def augment(df, n=10):
+def augment(df, n, ids, meta, meta_short, sample_dates):
     df_data = df.iloc[:, :-2]
     df_meta = df.iloc[:, -2:]
     crop = int(n/2)
     df_data_crop = df_data.iloc[:, crop:-crop]
-    print(df_data_crop)
+    # print(df_data_crop)
     jittered_columns = []
     for i in np.arange(1, crop):
         cols = df_data_crop.columns.values.astype(int)
@@ -138,7 +138,11 @@ def augment(df, n=10):
         d = pd.concat([d, df_meta], axis=1)
         dfs.append(d)
     df_augmented = pd.concat(dfs, ignore_index=True)
-    return df_augmented
+    meta_aug = np.array(meta.tolist() * len(jittered_columns))
+    ids_aug = np.array(ids * len(jittered_columns))
+    meta_short_aug = np.array(meta_short.tolist() * len(jittered_columns))
+    sample_dates = np.array(sample_dates.tolist() * len(jittered_columns))
+    return df_augmented, ids_aug, sample_dates, meta_short_aug, meta_aug
 
 
 def main(
@@ -167,7 +171,7 @@ def main(
     sub_sample_scales: int = 1,
     n_splits: int = 5,
     n_repeats: int = 10,
-    cv: str = "RepeatedStratifiedKFold",
+    cv: str = "RepeatedKFold",
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     add_feature: List[str] = [],
@@ -182,7 +186,7 @@ def main(
     stride: int = 1440,
     days_between: int = 7,
     back_to_back: bool = True,
-    n_aug: int = 30,
+    n_aug: int = 5,
     n_job: int = 7,
 ):
     """This script builds...\n
@@ -254,7 +258,7 @@ def main(
     sample_dates = pd.to_datetime(
         data_frame["date"], format="%d/%m/%Y"
     ).values.astype(float)
-    animal_ids = data_frame["id"].astype(str).tolist()
+    animal_ids = data_frame["id"].astype(str).values
 
     step_slug = "_".join(preprocessing_steps)
     df_processed, df_processed_meta = apply_preprocessing_steps(
@@ -305,7 +309,9 @@ def main(
     df_processed["health"] = pd.to_numeric(df_processed["health"])
 
     #augment data here
-    df_processed = augment(df_processed, n_aug)
+    # if n_aug > 0:
+    #     df_processed, animal_ids, sample_dates,  _, _ = augment(df_processed, n_aug, animal_ids, meta_data, meta_data_short, sample_dates)
+
     shape_healthy = df_processed[df_processed["health"] == 0].shape
     shape_unhealthy = df_processed[df_processed["health"] == 1].shape
 
@@ -322,8 +328,8 @@ def main(
         process_data_frame_svm(
             svc_kernel,
             add_feature,
-            meta_data,
-            meta_data_short,
+            animal_ids,#meta
+            animal_ids,#meta
             output_dir / f"week_{str(cpt).zfill(3)}",
             animal_ids,
             sample_dates,
@@ -354,10 +360,13 @@ if __name__ == "__main__":
     # main(Path(f'E:/Data2/debug/test_distance_validation_0'),
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["2To2", "2To2"], window=1440)
+    # main(Path(f'E:/Data2/debug2/test_distance_validation_debug10'),
+    #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+    #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
-    main(Path(f'E:/Data2/debug2/test_distance_validation_debug1'),
+    main(Path(f'E:/Data2/debug2/test_distance_validation_debug11'),
          Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
-         famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True)
+         famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=0)
 
     # main(Path(f'E:/Data2/debug2/test_distance_validation_1'),
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),

@@ -70,7 +70,7 @@ def main(
     n_splits: int = 5,
     n_repeats: int = 10,
     cv: str = "RepeatedStratifiedKFold",
-    svc_kernel: List[str] = ["linear"],
+    classifiers: List[str] = [],
     wavelet_f0: int = 6,
     sfft_window: int = 60,
     study_id: str = "study",
@@ -381,8 +381,8 @@ def main(
         if len(add_feature) > 0:
             df_meta = pd.DataFrame(meta_data, columns=meta_columns, index=df_processed.index)[add_feature]
             df_data = df_processed[df_processed.columns[~df_processed.columns.isin(["target", "health"])]]
-            #df_ = pd.concat([df_data, df_meta], axis=1)
-            df_ = pd.concat([df_meta], axis=1)
+            df_ = pd.concat([df_data, df_meta], axis=1)
+            #df_ = pd.concat([df_meta], axis=1)
             #df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
             df_processed = pd.concat([df_, df_processed[["target", "health"]]], axis=1)
             step_slug = f"{step_slug}_{'_'.join(add_feature).upper()}_STDS"
@@ -394,7 +394,7 @@ def main(
             step_slug = f"{step_slug}_SEASONS"
 
         process_data_frame_svm(
-            svc_kernel,
+            classifiers,
             add_feature,
             meta_data,
             meta_data_short,
@@ -461,14 +461,74 @@ if __name__ == "__main__":
         # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
 
         #for sp in [18]:
-        for f in [[], ["age"], ["mobility_score"]]:
+        # for f in [[], ["age"], ["mobility_score"]]:
+        #     main(
+        #         output_dir=Path(f"E:/Cats/ml/build_min_720_60/day_w/{f}/{slug}"),
+        #         dataset_folder=Path(f"E:/Cats/build_min_720_60/dataset/training_sets/day_w"),
+        #         preprocessing_steps=steps,
+        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+        #         meta_col_str=["name", "age", "mobility_score"],
+        #         svc_kernel=["rbf"],
+        #         add_feature=f,
+        #         n_imputed_days=-1,
+        #         n_activity_days=-1,
+        #         class_healthy_label=["0.0"],
+        #         class_unhealthy_label=["1.0"],
+        #         n_splits=5,
+        #         n_repeats=10,
+        #         n_job=5,
+        #         study_id="cat",
+        #         cv="RepeatedStratifiedKFold"
+        #     )
+
+        # for f in [[], ["age"], ["mobility_score"]]:
+        #     main(
+        #         output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),
+        #         dataset_folder=Path(f"E:/Cats/build_min_1440_1440/dataset/training_sets/day_w"),
+        #         preprocessing_steps=steps,
+        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+        #         meta_col_str=["name", "age", "mobility_score"],
+        #         svc_kernel=["rbf"],
+        #         add_feature=f,
+        #         n_imputed_days=-1,
+        #         n_activity_days=-1,
+        #         class_healthy_label=["0.0"],
+        #         class_unhealthy_label=["1.0"],
+        #         n_splits=5,
+        #         n_repeats=10,
+        #         n_job=5,
+        #         study_id="cat",
+        #         cv="RepeatedStratifiedKFold"
+        #     )
+
+        # for f in [[], ["age"], ["mobility_score"]]:
+        #     main(
+        #         output_dir=Path(f"E:/Cats/ml/build_min_720_60/day_w/{f}/{slug}"),
+        #         dataset_folder=Path(f"E:/Cats/build_min_720_60/dataset/training_sets/day_w"),
+        #         preprocessing_steps=steps,
+        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+        #         meta_col_str=["name", "age", "mobility_score"],
+        #         svc_kernel=["rbf"],
+        #         add_feature=f,
+        #         n_imputed_days=-1,
+        #         n_activity_days=-1,
+        #         class_healthy_label=["0.0"],
+        #         class_unhealthy_label=["1.0"],
+        #         n_splits=5,
+        #         n_repeats=10,
+        #         n_job=5,
+        #         study_id="cat",
+        #         cv="RepeatedStratifiedKFold"
+        #     )
+
+        for f in [[]]:
             main(
-                output_dir=Path(f"E:/Cats/ml/build_min_overlap/day_w/{f}/{slug}"),
-                dataset_folder=Path(f"E:/Cats/build_min_overlap/dataset/training_sets/day_w"),
+                output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),
+                dataset_folder=Path(f"E:/Cats/build_min_1440_1440/dataset/training_sets/day_w"),
                 preprocessing_steps=steps,
                 meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
                 meta_col_str=["name", "age", "mobility_score"],
-                svc_kernel=["rbf"],
+                classifiers=["cnn"],
                 add_feature=f,
                 n_imputed_days=-1,
                 n_activity_days=-1,
@@ -480,5 +540,26 @@ if __name__ == "__main__":
                 study_id="cat",
                 cv="RepeatedStratifiedKFold"
             )
+
+        # for f in [[], ["age"], ["mobility_score"]]:
+        #     main(
+        #         output_dir=Path(f"E:/Cats/ml/build_min_1440_720/day_w/{f}/{slug}"),
+        #         dataset_folder=Path(f"E:/Cats/build_min_1440_720/dataset/training_sets/day_w"),
+        #         preprocessing_steps=steps,
+        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
+        #         meta_col_str=["name", "age", "mobility_score"],
+        #         svc_kernel=["rbf"],
+        #         add_feature=f,
+        #         n_imputed_days=-1,
+        #         n_activity_days=-1,
+        #         class_healthy_label=["0.0"],
+        #         class_unhealthy_label=["1.0"],
+        #         n_splits=5,
+        #         n_repeats=10,
+        #         n_job=5,
+        #         study_id="cat",
+        #         cv="RepeatedStratifiedKFold"
+        #     )
+
 
 
