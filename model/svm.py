@@ -444,6 +444,7 @@ def process_data_frame_svm(
             meta_data,
             meta_data_short,
             sample_dates,
+            "CNN",
             n_job,
         )
 

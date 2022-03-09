@@ -156,8 +156,8 @@ def fold_worker(
     axis_train,
     ifold,
     nfold,
-    epochs= 500,
-    batch_size= 32,
+    epochs,
+    batch_size,
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -331,7 +331,8 @@ def fold_worker(
 
     # test healthy/unhealthy
     y_pred = model.predict(X_test)
-    y_pred_proba_test = y_pred[:, 1]
+    y_pred_proba_test = y_pred
+    y_pred = (y_pred[:, 1] >= 0.5).astype(int)
 
     # prep for roc curve
     # viz_roc_test = plot_roc_curve(
@@ -346,7 +347,7 @@ def fold_worker(
     # )
     #axis_test.append(viz_roc_test)
 
-    fpr, tpr, _ = roc_curve(y_test, y_pred_proba_test)
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba_test[:, 1])
     axis_test.append({"fpr": fpr, "tpr": tpr})
 
     interp_tpr_test = np.interp(mean_fpr_test, fpr, tpr)
@@ -369,9 +370,10 @@ def fold_worker(
     # axis_train.append(viz_roc_train)
 
     y_pred_train = model.predict(X_train)
-    y_pred_proba_train = y_pred_train[:, 1]
+    y_pred_proba_train = y_pred_train
+    y_pred_train = (y_pred_train[:, 1] >= 0.5).astype(int)
 
-    fpr, tpr, _ = roc_curve(y_train, y_pred_proba_train)
+    fpr, tpr, _ = roc_curve(y_train, y_pred_proba_train[:, 1])
     axis_train.append({"fpr": fpr, "tpr": tpr})
 
     interp_tpr_train = np.interp(mean_fpr_train, fpr, tpr)
@@ -457,7 +459,7 @@ def fold_worker(
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
-        y_pred_proba_test = model.predict(X_test)[:, 1]
+        y_pred_proba_test = model.predict(X_test)
         fold_proba = {
             "test_y_pred_proba_0": y_pred_proba_test[:, 0].tolist(),
             "test_y_pred_proba_1": y_pred_proba_test[:, 1].tolist(),
@@ -481,8 +483,10 @@ def cross_validate_cnn(
     meta,
     meta_data_short,
     sample_dates,
-    clf_name="CNN",
-    n_job=None,
+    clf_name,
+    n_job,
+    epochs=500,
+    batch_size=32
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -522,67 +526,41 @@ def cross_validate_cnn(
         for ifold, (train_index, test_index) in enumerate(
             cross_validation_method.split(X, y)
         ):
-            fold_worker(
-                out_dir,
-                y_h,
-                ids,
-                meta,
-                meta_data_short,
-                sample_dates,
-                days,
-                steps,
-                tprs_test,
-                tprs_train,
-                aucs_roc_test,
-                aucs_roc_train,
-                fold_results,
-                fold_probas,
-                label_series,
-                mean_fpr_test,
-                mean_fpr_train,
-                clf_name,
-                X,
-                y,
-                train_index,
-                test_index,
-                axis_test,
-                axis_train,
-                ifold,
-                cross_validation_method.get_n_splits(),
+            pool.apply_async(
+                fold_worker,
+                (
+                    out_dir,
+                    y_h,
+                    ids,
+                    meta,
+                    meta_data_short,
+                    sample_dates,
+                    days,
+                    steps,
+                    tprs_test,
+                    tprs_train,
+                    aucs_roc_test,
+                    aucs_roc_train,
+                    fold_results,
+                    fold_probas,
+                    label_series,
+                    mean_fpr_test,
+                    mean_fpr_train,
+                    clf_name,
+                    X,
+                    y,
+                    train_index,
+                    test_index,
+                    axis_test,
+                    axis_train,
+                    ifold,
+                    cross_validation_method.get_n_splits(),
+                    epochs,
+                    batch_size
+                ),
             )
-        #     pool.apply_async(
-        #         fold_worker,
-        #         (
-        #             out_dir,
-        #             y_h,
-        #             ids,
-        #             meta,
-        #             meta_data_short,
-        #             sample_dates,
-        #             days,
-        #             steps,
-        #             tprs_test,
-        #             tprs_train,
-        #             aucs_roc_test,
-        #             aucs_roc_train,
-        #             fold_results,
-        #             fold_probas,
-        #             label_series,
-        #             mean_fpr_test,
-        #             mean_fpr_train,
-        #             clf_name,
-        #             X,
-        #             y,
-        #             train_index,
-        #             test_index,
-        #             axis_test,
-        #             axis_train,
-        #             ifold,
-        #             cross_validation_method.get_n_splits(),
-        #         ),
-        #     )
-        # pool.close()
-        # pool.join()
+        pool.close()
+        pool.join()
         end = time.time()
         fold_results = list(fold_results)
         axis_test = list(axis_test)
@@ -597,16 +575,14 @@ def cross_validate_cnn(
 
     info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
     for a in axis_test:
-        f, ax = a.figure_, a.ax_
-        xdata = ax.lines[0].get_xdata()
-        ydata = ax.lines[0].get_ydata()
+        xdata = a["fpr"]
+        ydata = a["tpr"]
         ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
         ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
 
     for a in axis_train:
-        f, ax = a.figure_, a.ax_
-        xdata = ax.lines[0].get_xdata()
-        ydata = ax.lines[0].get_ydata()
+        xdata = a["fpr"]
+        ydata = a["tpr"]
         ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
         ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
