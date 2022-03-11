@@ -9,7 +9,7 @@ for dat in gain_1 gain_100 gain_raw li raw;do
   done
 done
 
-nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/cats/ml/ml_1440_1_/day_w --dataset-folder /mnt/storage/scratch/axel/cats/build_min_1440_1_/dataset/training_sets/day_w --preprocessing-steps 'LINEAR' --preprocessing-steps 'QN' --preprocessing-steps 'ANSCOMBE' --preprocessing-steps 'LOG' --meta-columns 'label' --meta-columns 'id' --meta-columns 'imputed_days' --meta-columns 'date' --meta-columns 'health' --meta-columns 'target' --meta-columns 'age' --meta-columns 'name' --meta-columns 'mobility_score' --n-imputed-days -1 --n-activity-days -1 --class-healthy-label '0.0' --class-unhealthy-label '1.0' --n-splits 5 --n-repeats 10 --n-job 30 > log.txt &
+nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/cats/ml/ml_1440_1440/day_w --dataset-folder /mnt/storage/scratch/axel/cats/build_min_1440_1440/dataset/training_sets/day_w --preprocessing-steps 'LINEAR' --preprocessing-steps 'QN' --preprocessing-steps 'ANSCOMBE' --preprocessing-steps 'LOG' --meta-columns 'label' --meta-columns 'id' --meta-columns 'imputed_days' --meta-columns 'date' --meta-columns 'health' --meta-columns 'target' --meta-columns 'age' --meta-columns 'name' --meta-columns 'mobility_score' --n-imputed-days -1 --n-activity-days -1 --class-healthy-label '0.0' --class-unhealthy-label '1.0' --classifiers 'cnn' --n-splits 5 --n-repeats 10 --n-job 1 > log.txt &
 
 
 nohup python3 ml.py /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w /mnt/storage/scratch/axel/cats/build_sec/dataset/training_sets/day_w --preprocessing-steps [['LINEAR', 'QN', 'ANSCOMBE', 'LOG']] > log.txt &

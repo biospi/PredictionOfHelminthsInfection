@@ -118,33 +118,6 @@ def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealth
     )
 
 
-def augment(df, n, ids, meta, meta_short, sample_dates):
-    df_data = df.iloc[:, :-2]
-    df_meta = df.iloc[:, -2:]
-    crop = int(n/2)
-    df_data_crop = df_data.iloc[:, crop:-crop]
-    # print(df_data_crop)
-    jittered_columns = []
-    for i in np.arange(1, crop):
-        cols = df_data_crop.columns.values.astype(int)
-        left = cols - i
-        right = cols + i
-        jittered_columns.append(left)
-        jittered_columns.append(right)
-    dfs = []
-    for j_c in jittered_columns:
-        d = df[j_c]
-        d.columns = list(range(d.shape[1]))
-        d = pd.concat([d, df_meta], axis=1)
-        dfs.append(d)
-    df_augmented = pd.concat(dfs, ignore_index=True)
-    meta_aug = np.array(meta.tolist() * len(jittered_columns))
-    ids_aug = np.array(ids * len(jittered_columns))
-    meta_short_aug = np.array(meta_short.tolist() * len(jittered_columns))
-    sample_dates = np.array(sample_dates.tolist() * len(jittered_columns))
-    return df_augmented, ids_aug, sample_dates, meta_short_aug, meta_aug
-
-
 def main(
     output_dir: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -182,7 +155,7 @@ def main(
     output_qn_graph: bool = True,
     add_seasons_to_features: bool = False,
     enable_downsample_df: bool = False,
-    window: int = 1440*7,
+    window: int = 1440*2,
     stride: int = 1440,
     days_between: int = 7,
     back_to_back: bool = True,
@@ -348,6 +321,7 @@ def main(
             meta_columns,
             add_seasons_to_features,
             cv=cv,
+            augment_training=n_aug,
             n_job=n_job,
         )
         cpt += 1
@@ -364,9 +338,20 @@ if __name__ == "__main__":
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
-    main(Path(f'E:/Data2/debug2/test_distance_validation_debug11'),
-         Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
-         famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=0)
+    for w in [1440*5, 1440*3, 1440]:
+        for a in [0, 5, 10]:
+            main(Path(f'E:/Data2/debug2/test_distance_validation_debug_w_{w}_a_{a}'),
+                 Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=a,
+                 study_id="delmas", window=w)
+
+    for w in [1440*5, 1440*3, 1440]:
+        for a in [15, 20]:
+            main(Path(f'E:/Data2/debug2/test_distance_validation_debug_w_{w}_a_{a}'),
+                 Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
+                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=a,
+                 study_id="delmas", window=w)
+
 
     # main(Path(f'E:/Data2/debug2/test_distance_validation_1'),
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),

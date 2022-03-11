@@ -332,7 +332,9 @@ def process_data_frame_svm(
     season,
     y_col="target",
     cv=None,
+    augment_training=0,
     n_job=6,
+    batch_size=8
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -425,6 +427,7 @@ def process_data_frame_svm(
             meta_data,
             meta_data_short,
             sample_dates,
+            augment_training,
             n_job,
         )
 
@@ -446,6 +449,7 @@ def process_data_frame_svm(
             sample_dates,
             "CNN",
             n_job,
+            batch_size=batch_size
         )
 
     # scores, scores_proba = cross_validate_custom(
@@ -489,6 +493,69 @@ def process_data_frame_svm(
     plot_ml_report_final(output_dir.parent.parent)
 
 
+def augment(df, n, ids, meta, meta_short, sample_dates):
+    df_data = df.iloc[:, :-2]
+    df_meta = df.iloc[:, -2:]
+    crop = int(n/2)
+    df_data_crop = df_data.iloc[:, crop:-crop]
+    # print(df_data_crop)
+    jittered_columns = []
+    for i in np.arange(1, crop):
+        cols = df_data_crop.columns.values.astype(int)
+        left = cols - i
+        right = cols + i
+        jittered_columns.append(left)
+        jittered_columns.append(right)
+    dfs = []
+    for j_c in jittered_columns:
+        d = df[j_c]
+        d.columns = list(range(d.shape[1]))
+        d = pd.concat([d, df_meta], axis=1)
+        dfs.append(d)
+    df_augmented = pd.concat(dfs, ignore_index=True)
+    meta_aug = np.array(meta.tolist() * len(jittered_columns))
+    ids_aug = np.array(ids * len(jittered_columns))
+    meta_short_aug = np.array(meta_short.tolist() * len(jittered_columns))
+    sample_dates = np.array(sample_dates.tolist() * len(jittered_columns))
+    return df_augmented, ids_aug, sample_dates, meta_short_aug, meta_aug
+
+
+def augment_(X_train, y_train, n, sample_dates_train, ids_train, meta_train):
+    df = pd.concat([pd.DataFrame(X_train),
+                    pd.DataFrame(y_train, columns=["target"]),
+                    pd.DataFrame(sample_dates_train, columns=["dates"]),
+                    pd.DataFrame(ids_train, columns=["ids"]),
+                    pd.DataFrame(meta_train, columns=["meta"])], axis=1)
+    df_data = df.iloc[:, :-4]
+    df_target = df.iloc[:, -4]
+    df_date = df.iloc[:, -3]
+    df_ids = df.iloc[:, -2]
+    df_meta = df.iloc[:, -1]
+    crop = int(n/2)
+    df_data_crop = df_data.iloc[:, crop:-crop]
+    # print(df_data_crop)
+    jittered_columns = []
+    for i in np.arange(1, crop):
+        cols = df_data_crop.columns.values.astype(int)
+        left = cols - i
+        right = cols + i
+        jittered_columns.append(left)
+        jittered_columns.append(right)
+    dfs = []
+    for j_c in jittered_columns:
+        d = df[j_c]
+        d.columns = list(range(d.shape[1]))
+        d = pd.concat([d, df_target, df_date, df_ids, df_meta], axis=1)
+        dfs.append(d)
+    df_augmented = pd.concat(dfs, ignore_index=True)
+    X_train_aug = df_augmented.iloc[:, :-4].values
+    y_train_aug = df_augmented.iloc[:, -4].values.flatten()
+    y_date_aug = df_augmented.iloc[:, -3].values.flatten()
+    y_ids_aug = df_augmented.iloc[:, -2].values.flatten()
+    meta_aug = df_augmented.iloc[:, -1].values.flatten()
+    return X_train_aug, y_train_aug, y_date_aug, y_ids_aug, meta_aug
+
+
 def fold_worker(
     out_dir,
     y_h,
@@ -515,6 +582,7 @@ def fold_worker(
     axis_test,
     axis_train,
     ifold,
+    augment_training,
     nfold,
 ):
     print(f"process id={ifold}/{nfold}...")
@@ -565,7 +633,16 @@ def fold_worker(
     ]
 
     start_time = time.time()
+
+    if augment_training > 0:
+        print(f"augment_training X_train shape={X_train.shape}..")
+        X_train, y_train, sample_dates_train, ids_train, meta_train = augment_(X_train, y_train, augment_training, sample_dates_train, ids_train, meta_train)
+        print(f"augment_training X_train shape={X_train.shape}..")
+        X_test = X_test[:, 0:X_train.shape[1]] #todo fix
+        X_fold = X_fold[:, 0:X_train.shape[1]]
+
     clf.fit(X_train, y_train)
+
     fit_time = time.time() - start_time
 
     models_dir = (
@@ -723,6 +800,7 @@ def cross_validate_custom_fast(
     meta,
     meta_data_short,
     sample_dates,
+    augment_training,
     n_job=None,
 ):
     """Cross validate X,y data and plot roc curve with range
@@ -821,6 +899,7 @@ def cross_validate_custom_fast(
                         axis_test,
                         axis_train,
                         ifold,
+                        augment_training,
                         cross_validation_method.get_n_splits(),
                     ),
                 )
@@ -838,7 +917,7 @@ def cross_validate_custom_fast(
             fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
             print("total time (s)= " + str(end - start))
 
-        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
+        info = f"({len(fold_results[0]['ids_train'])}) X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
         if kernel == "cnn":
             for a in axis_test:
                 xdata = a["fpr"]

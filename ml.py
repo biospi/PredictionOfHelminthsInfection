@@ -79,6 +79,7 @@ def main(
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
+    batch_size: int = 8
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -417,6 +418,7 @@ def main(
             add_seasons_to_features,
             cv=cv,
             n_job=n_job,
+            batch_size=batch_size
         )
 
         # 2DCNN
@@ -520,7 +522,7 @@ if __name__ == "__main__":
         #         study_id="cat",
         #         cv="RepeatedStratifiedKFold"
         #     )
-
+        #
         # for f in [[]]:
         #     main(
         #         output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),

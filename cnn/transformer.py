@@ -330,7 +330,7 @@ def fold_worker(
     #     pickle.dump(clf, f)
 
     # test healthy/unhealthy
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(x_test)
     y_pred_proba_test = y_pred
     y_pred = (y_pred[:, 1] >= 0.5).astype(int)
 
@@ -369,7 +369,7 @@ def fold_worker(
     # )
     # axis_train.append(viz_roc_train)
 
-    y_pred_train = model.predict(X_train)
+    y_pred_train = model.predict(x_train)
     y_pred_proba_train = y_pred_train
     y_pred_train = (y_pred_train[:, 1] >= 0.5).astype(int)
 
@@ -410,6 +410,7 @@ def fold_worker(
         fscore_train,
         support_train,
     ) = precision_recall_fscore_support(y_train, y_pred_train)
+
     correct_predictions_train = (y_train == y_pred_train).astype(int)
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
@@ -455,11 +456,14 @@ def fold_worker(
     fold_results.append(fold_result)
 
     # test individual labels and store probabilities to be healthy/unhealthy
+    print(f"process id={ifold}/{nfold} test individual labels...")
     for y_f in y_fold:
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
+        x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
         y_test = y_fold[y_fold == y_f]
-        y_pred_proba_test = model.predict(X_test)
+        print(f"testing {label} X_test shape is {x_test.shape}...")
+        y_pred_proba_test = model.predict(x_test)
         fold_proba = {
             "test_y_pred_proba_0": y_pred_proba_test[:, 0].tolist(),
             "test_y_pred_proba_1": y_pred_proba_test[:, 1].tolist(),

@@ -2018,7 +2018,7 @@ def build_individual_animal_pred(
         # figure with time
         plt.clf()
         df = pd.DataFrame(
-            {"data_dates": data_dates, "data_corr": data_corr, "data_ids": data_ids, "prob_corr": prob_corr}
+            {"data_dates": data_dates,  "data_corr": data_corr, "data_ids": data_ids, "prob_corr": prob_corr}
         )
         df = df.sort_values(by='data_dates')
         dfs = [group for _, group in df.groupby(df["data_dates"].dt.strftime("%B/%Y"))]

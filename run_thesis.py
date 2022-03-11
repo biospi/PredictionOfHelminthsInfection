@@ -38,6 +38,7 @@ def main(
                                 n_imputed_days=i_day,
                                 n_activity_days=a_day,
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
@@ -53,6 +54,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To2"],
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="cedara",
                                 add_seasons_to_features=add_seasons_to_features
                             )
@@ -88,6 +90,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["1To2"],
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
@@ -103,6 +106,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["1To2"],
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="cedara",
                                 add_seasons_to_features=add_seasons_to_features
                             )
@@ -118,6 +122,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To1"],
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features
                             )
@@ -133,6 +138,7 @@ def main(
                                 n_activity_days=a_day,
                                 class_unhealthy_label=["2To1", "3To1"],
                                 cv=cv,
+                                classifiers=["cnn"],
                                 study_id="cedara",
                                 add_seasons_to_features=add_seasons_to_features
                             )
