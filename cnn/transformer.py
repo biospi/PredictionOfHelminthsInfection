@@ -457,7 +457,7 @@ def fold_worker(
 
     # test individual labels and store probabilities to be healthy/unhealthy
     print(f"process id={ifold}/{nfold} test individual labels...")
-    for y_f in y_fold:
+    for y_f in np.unique(y_fold):
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
@@ -525,7 +525,7 @@ def cross_validate_cnn(
         for k in label_series.values():
             fold_probas[k] = manager.list()
 
-        pool = Pool(processes=n_job)
+        #pool = Pool(processes=n_job)
         start = time.time()
         for ifold, (train_index, test_index) in enumerate(
             cross_validation_method.split(X, y)

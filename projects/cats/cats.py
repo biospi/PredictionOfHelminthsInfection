@@ -29,7 +29,7 @@ def main():
                 n_job=1,
                 study_id="cat",
                 cv="RepeatedKFold",
-                epoch=3
+                epoch=2
             )
 
     # for f in [[], ["age"], ["mobility_score"]]:
