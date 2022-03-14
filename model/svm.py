@@ -308,7 +308,7 @@ def downsample_df(data_frame, class_healthy, class_unhealthy):
 #         return mean_auc, aucs_roc
 
 
-def process_data_frame_svm(
+def process_ml(
     classifiers,
     add_feature,
     meta_data,
@@ -334,6 +334,7 @@ def process_data_frame_svm(
     cv=None,
     augment_training=0,
     n_job=6,
+    epoch=500,
     batch_size=8
 ):
     print("*******************************************************************")
@@ -449,6 +450,7 @@ def process_data_frame_svm(
             sample_dates,
             "CNN",
             n_job,
+            epochs=epoch,
             batch_size=batch_size
         )
 
@@ -731,6 +733,8 @@ def fold_worker(
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
+        "training_shape": X_train.shape,
+        "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
         "auc": auc_value_test,
         "accuracy": float(accuracy),
@@ -917,7 +921,7 @@ def cross_validate_custom_fast(
             fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
             print("total time (s)= " + str(end - start))
 
-        info = f"({len(fold_results[0]['ids_train'])}) X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
+        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{len(fold_results[0]['training_shape'])} testing_shape:{len(fold_results[0]['testing_shape'])}"
         if kernel == "cnn":
             for a in axis_test:
                 xdata = a["fpr"]

@@ -27,7 +27,7 @@ import typer
 from sklearn.preprocessing import StandardScaler
 
 from model.data_loader import load_activity_data
-from model.svm import process_data_frame_svm
+from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import (
     plotHeatmap,
@@ -79,7 +79,8 @@ def main(
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
-    batch_size: int = 8
+    batch_size: int = 4,
+    epoch: int = 500
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -394,7 +395,7 @@ def main(
             df_processed = pd.concat([df_data, seasons_features, df_target], axis=1)
             step_slug = f"{step_slug}_SEASONS"
 
-        process_data_frame_svm(
+        process_ml(
             classifiers,
             add_feature,
             meta_data,
@@ -418,7 +419,8 @@ def main(
             add_seasons_to_features,
             cv=cv,
             n_job=n_job,
-            batch_size=batch_size
+            batch_size=batch_size,
+            epoch=epoch
         )
 
         # 2DCNN
@@ -448,120 +450,7 @@ def main(
 
 if __name__ == "__main__":
     typer.run(main)
-    # for steps in [["LINEAR", "QN", "ANSCOMBE", "LOG"]]:
-    #     slug = "_".join(steps)
-        # # day = 7
-        # # main(
-        # #     output_dir=Path(f"E:\Data2\debugfinal3\delmas_{slug}"),
-        # #     dataset_folder=Path("E:\Data2\debug3\delmas\dataset4_mrnn_7day"),
-        # #     preprocessing_steps=steps,
-        # #     n_imputed_days=0,
-        # # )
-        # #
-        # # main(output_dir=Path(f"E:\Data2\debugfinal3\cedara_{day}_{slug}"),
-        # #      dataset_folder=Path("E:\Data2\debug3\cedara\dataset6_mrnn_7day"), preprocessing_steps=steps,
-        # #      imputed_days=day, class_unhealthy_label=["2To4", "3To4", "1To4", "1To3", "4To5", "2To3"])
 
-        #for sp in [18]:
-        # for f in [[], ["age"], ["mobility_score"]]:
-        #     main(
-        #         output_dir=Path(f"E:/Cats/ml/build_min_720_60/day_w/{f}/{slug}"),
-        #         dataset_folder=Path(f"E:/Cats/build_min_720_60/dataset/training_sets/day_w"),
-        #         preprocessing_steps=steps,
-        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-        #         meta_col_str=["name", "age", "mobility_score"],
-        #         svc_kernel=["rbf"],
-        #         add_feature=f,
-        #         n_imputed_days=-1,
-        #         n_activity_days=-1,
-        #         class_healthy_label=["0.0"],
-        #         class_unhealthy_label=["1.0"],
-        #         n_splits=5,
-        #         n_repeats=10,
-        #         n_job=5,
-        #         study_id="cat",
-        #         cv="RepeatedStratifiedKFold"
-        #     )
-
-        # for f in [[], ["age"], ["mobility_score"]]:
-        #     main(
-        #         output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),
-        #         dataset_folder=Path(f"E:/Cats/build_min_1440_1440/dataset/training_sets/day_w"),
-        #         preprocessing_steps=steps,
-        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-        #         meta_col_str=["name", "age", "mobility_score"],
-        #         svc_kernel=["rbf"],
-        #         add_feature=f,
-        #         n_imputed_days=-1,
-        #         n_activity_days=-1,
-        #         class_healthy_label=["0.0"],
-        #         class_unhealthy_label=["1.0"],
-        #         n_splits=5,
-        #         n_repeats=10,
-        #         n_job=5,
-        #         study_id="cat",
-        #         cv="RepeatedStratifiedKFold"
-        #     )
-
-        # for f in [[], ["age"], ["mobility_score"]]:
-        #     main(
-        #         output_dir=Path(f"E:/Cats/ml/build_min_720_60/day_w/{f}/{slug}"),
-        #         dataset_folder=Path(f"E:/Cats/build_min_720_60/dataset/training_sets/day_w"),
-        #         preprocessing_steps=steps,
-        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-        #         meta_col_str=["name", "age", "mobility_score"],
-        #         svc_kernel=["rbf"],
-        #         add_feature=f,
-        #         n_imputed_days=-1,
-        #         n_activity_days=-1,
-        #         class_healthy_label=["0.0"],
-        #         class_unhealthy_label=["1.0"],
-        #         n_splits=5,
-        #         n_repeats=10,
-        #         n_job=5,
-        #         study_id="cat",
-        #         cv="RepeatedStratifiedKFold"
-        #     )
-        #
-        # for f in [[]]:
-        #     main(
-        #         output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),
-        #         dataset_folder=Path(f"E:/Cats/build_min_1440_1440/dataset/training_sets/day_w"),
-        #         preprocessing_steps=steps,
-        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-        #         meta_col_str=["name", "age", "mobility_score"],
-        #         classifiers=["cnn"],
-        #         add_feature=f,
-        #         n_imputed_days=-1,
-        #         n_activity_days=-1,
-        #         class_healthy_label=["0.0"],
-        #         class_unhealthy_label=["1.0"],
-        #         n_splits=5,
-        #         n_repeats=10,
-        #         n_job=1,
-        #         study_id="cat",
-        #         cv="RepeatedStratifiedKFold"
-        #     )
-
-        # for f in [[], ["age"], ["mobility_score"]]:
-        #     main(
-        #         output_dir=Path(f"E:/Cats/ml/build_min_1440_720/day_w/{f}/{slug}"),
-        #         dataset_folder=Path(f"E:/Cats/build_min_1440_720/dataset/training_sets/day_w"),
-        #         preprocessing_steps=steps,
-        #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-        #         meta_col_str=["name", "age", "mobility_score"],
-        #         svc_kernel=["rbf"],
-        #         add_feature=f,
-        #         n_imputed_days=-1,
-        #         n_activity_days=-1,
-        #         class_healthy_label=["0.0"],
-        #         class_unhealthy_label=["1.0"],
-        #         n_splits=5,
-        #         n_repeats=10,
-        #         n_job=5,
-        #         study_id="cat",
-        #         cv="RepeatedStratifiedKFold"
-        #     )
 
 
 

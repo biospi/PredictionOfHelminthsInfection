@@ -530,41 +530,71 @@ def cross_validate_cnn(
         for ifold, (train_index, test_index) in enumerate(
             cross_validation_method.split(X, y)
         ):
-            pool.apply_async(
-                fold_worker,
-                (
-                    out_dir,
-                    y_h,
-                    ids,
-                    meta,
-                    meta_data_short,
-                    sample_dates,
-                    days,
-                    steps,
-                    tprs_test,
-                    tprs_train,
-                    aucs_roc_test,
-                    aucs_roc_train,
-                    fold_results,
-                    fold_probas,
-                    label_series,
-                    mean_fpr_test,
-                    mean_fpr_train,
-                    clf_name,
-                    X,
-                    y,
-                    train_index,
-                    test_index,
-                    axis_test,
-                    axis_train,
-                    ifold,
-                    cross_validation_method.get_n_splits(),
-                    epochs,
-                    batch_size
-                ),
+            fold_worker(
+                out_dir,
+                y_h,
+                ids,
+                meta,
+                meta_data_short,
+                sample_dates,
+                days,
+                steps,
+                tprs_test,
+                tprs_train,
+                aucs_roc_test,
+                aucs_roc_train,
+                fold_results,
+                fold_probas,
+                label_series,
+                mean_fpr_test,
+                mean_fpr_train,
+                clf_name,
+                X,
+                y,
+                train_index,
+                test_index,
+                axis_test,
+                axis_train,
+                ifold,
+                cross_validation_method.get_n_splits(),
+                epochs,
+                batch_size
             )
-        pool.close()
-        pool.join()
+        #     pool.apply_async(
+        #         fold_worker,
+        #         (
+        #             out_dir,
+        #             y_h,
+        #             ids,
+        #             meta,
+        #             meta_data_short,
+        #             sample_dates,
+        #             days,
+        #             steps,
+        #             tprs_test,
+        #             tprs_train,
+        #             aucs_roc_test,
+        #             aucs_roc_train,
+        #             fold_results,
+        #             fold_probas,
+        #             label_series,
+        #             mean_fpr_test,
+        #             mean_fpr_train,
+        #             clf_name,
+        #             X,
+        #             y,
+        #             train_index,
+        #             test_index,
+        #             axis_test,
+        #             axis_train,
+        #             ifold,
+        #             cross_validation_method.get_n_splits(),
+        #             epochs,
+        #             batch_size
+        #         ),
+        #     )
+        # pool.close()
+        # pool.join()
         end = time.time()
         fold_results = list(fold_results)
         axis_test = list(axis_test)

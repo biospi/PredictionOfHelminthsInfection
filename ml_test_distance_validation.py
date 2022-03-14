@@ -9,7 +9,7 @@ from sys import exit
 from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 from model.data_loader import load_activity_data
-from model.svm import process_data_frame_svm
+from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import plot_umap, plot_time_pca, plot_time_pls
 from natsort import natsorted
@@ -298,7 +298,7 @@ def main(
         df_a_w = df_activity_window.iloc[:, start:end]
         df_week = pd.concat([df_a_w, df_target], axis=1)
         print(df_week)
-        process_data_frame_svm(
+        process_ml(
             svc_kernel,
             add_feature,
             animal_ids,#meta
@@ -339,19 +339,18 @@ if __name__ == "__main__":
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
     for w in [1440*5, 1440*3, 1440]:
-        for a in [0, 5, 10]:
+        for a in [5, 10]:
             main(Path(f'E:/Data2/debug2/test_distance_validation_debug_w_{w}_a_{a}'),
                  Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
-                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=a,
+                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=False, n_aug=a,
                  study_id="delmas", window=w)
 
     for w in [1440*5, 1440*3, 1440]:
         for a in [15, 20]:
             main(Path(f'E:/Data2/debug2/test_distance_validation_debug_w_{w}_a_{a}'),
                  Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
-                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=a,
+                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=False, n_aug=a,
                  study_id="delmas", window=w)
-
 
     # main(Path(f'E:/Data2/debug2/test_distance_validation_1'),
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),

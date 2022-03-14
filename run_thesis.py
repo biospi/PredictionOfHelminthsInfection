@@ -6,12 +6,12 @@ from pathlib import Path
 
 
 def main(
-    exp_main: bool = False,
+    exp_main: bool = True,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
     output_dir: Path = Path("E:/thesis2"),
 ):
-    """Thesis script run all key experiments for data exploration chapter
+    """Thesis script runs all key experiments for data exploration chapter
     Args:\n
         output_dir: Output directory
     """

@@ -34,7 +34,7 @@ import matplotlib.pylab as pylab
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 
 from cwt._cwt import compute_cwt_paper_hd
-from model.svm import process_data_frame_svm
+from model.svm import process_ml
 
 params = {
     "legend.fontsize": "x-large",
@@ -1503,7 +1503,7 @@ def explain_cwt(days, dfs, data, out_dir, class0_count, class1_count, label_seri
         y = df["health"].values
 
         if len(dfs) > 1:
-            process_data_frame_svm(
+            process_ml(
                 out_dir,
                 None,
                 df,
