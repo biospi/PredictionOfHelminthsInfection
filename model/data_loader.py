@@ -20,7 +20,7 @@ def load_activity_data(
     sampling='T'
 ):
     print(f"load activity from datasets...{filepath}")
-    data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False, on_bad_lines='skip')
+    data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
     # #todo remove
     #data_frame = data_frame.iloc[0:3577, :]
     if (
