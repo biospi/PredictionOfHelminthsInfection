@@ -20,9 +20,9 @@ def load_activity_data(
     sampling='T'
 ):
     print(f"load activity from datasets...{filepath}")
-    data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
-
+    data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False, on_bad_lines='skip')
     # #todo remove
+    #data_frame = data_frame.iloc[0:3577, :]
     if (
         "delmas" in str(out_dir).lower()
         or "cedara" in str(out_dir).lower()
@@ -75,19 +75,23 @@ def load_activity_data(
     )
 
     #if imputed_days > 0:
+    if "ZEROPAD" in preprocessing_steps[0]:
+        data_frame = data_frame.fillna(0)
+
+    if "LINEAR" in preprocessing_steps[0]:
+        data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
+            :, : -len(meta_columns)
+        ].astype(float).interpolate(axis=1, limit_direction="both")
+
     data_frame = data_frame.dropna()
+
+    data_frame['id'] = data_frame['id'].astype(float)
+    #data_frame = data_frame[data_frame['id'] != 40]
 
     # clip negative values
     data_frame[data_frame.columns.values[: -len(meta_columns)]] = data_frame[
         data_frame.columns.values[: -len(meta_columns)]
     ].astype(float).clip(lower=0)
-
-    if "ZEROPAD" in preprocessing_steps[0]:
-        data_frame = data_frame.fillna(0)
-    if "LINEAR" in preprocessing_steps[0]:
-        data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
-            :, : -len(meta_columns)
-        ].interpolate(axis=1, limit_direction="both")
 
     data_frame["target"] = data_frame["target"].astype(int)
     data_frame["imputed_days"] = data_frame["imputed_days"].astype(int)
@@ -199,16 +203,16 @@ def plot_samples_distribution(out_dir, samples_, filename):
     for k, v in c.items():
         split = k.split("_")
         df_list.append([split[0], split[1], v])
-    df = pd.DataFrame(df_list, columns=["Famacha label", "id", "count"])
+    df = pd.DataFrame(df_list, columns=["Labels", "id", "count"])
     df["id"] = df["id"].str.split(".").str[0]
 
     info = {}
     for l in sample_data.keys():
-        total = df[df["Famacha label"] == l]["count"].sum()
+        total = df[df["Labels"] == l]["count"].sum()
         info[l] = total
 
     plt.clf()
-    df.groupby(["id", "Famacha label"]).sum().unstack().plot(
+    df.groupby(["id", "Labels"]).sum().unstack().plot(
         kind="bar",
         y="count",
         figsize=(9.20, 9.20),

@@ -344,7 +344,8 @@ def process_ml(
     if downsample_false_class:
         data_frame = downsample_df(data_frame, 0, 1)
 
-    data_frame = data_frame.drop_duplicates()
+    #print("drop duplicates...")
+    #data_frame = data_frame.drop_duplicates()
     # animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
     # if cv == "StratifiedLeaveTwoOut":
@@ -394,6 +395,7 @@ def process_ml(
     y = y.astype(int)
 
     # remove meta columns
+    print("creating X...")
     X = data_frame.iloc[:, np.array([str(x).isnumeric() or x in add_feature for x in data_frame.columns])]
     X.columns = list(range(X.shape[1]))
     X = X.values
@@ -776,7 +778,8 @@ def fold_worker(
     fold_results.append(fold_result)
 
     # test individual labels and store probabilities to be healthy/unhealthy
-    for y_f in y_fold:
+    print(f"process id={ifold}/{nfold} test individual labels...")
+    for y_f in np.unique(y_fold):
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
