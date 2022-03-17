@@ -239,11 +239,11 @@ def fold_worker(
         mlp_dropout=0.4,
         dropout=0.25,
     )
-
-    keras.utils.plot_model(
-        model, to_file=out_dir / 'cnn_model.png', show_shapes=False, show_dtype=False,
-        show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
-    )
+    #
+    # keras.utils.plot_model(
+    #     model, to_file=out_dir / 'cnn_model.png', show_shapes=False, show_dtype=False,
+    #     show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
+    # )
 
 ##############################################################
     METRICS = [

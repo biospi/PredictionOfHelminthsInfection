@@ -676,18 +676,18 @@ def imputation_performance(
     return performance, performance_li, output_dir
 
 
-def plot_model_struct(model, filename="model.png"):
-    tf.keras.utils.plot_model(
-        model,
-        to_file=filename,
-        show_shapes=False,
-        show_dtype=False,
-        show_layer_names=True,
-        rankdir="TB",
-        expand_nested=False,
-        dpi=96,
-        layer_range=None,
-    )
+# def plot_model_struct(model, filename="model.png"):
+#     tf.keras.utils.plot_model(
+#         model,
+#         to_file=filename,
+#         show_shapes=False,
+#         show_dtype=False,
+#         show_layer_names=True,
+#         rankdir="TB",
+#         expand_nested=False,
+#         dpi=96,
+#         layer_range=None,
+#     )
 
 
 def plot_rmse_performance(start_i, end_i, n, run_id):
