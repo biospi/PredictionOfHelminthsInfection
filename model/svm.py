@@ -22,20 +22,18 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     RepeatedKFold,
-    LeaveOneOut,
-    GridSearchCV)
+    LeaveOneOut)
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
 from cnn.transformer import cross_validate_cnn
+from utils._custom_split import StratifiedLeaveTwoOut
 from utils.visualisation import (
     plot_roc_range,
     build_proba_hist,
     build_individual_animal_pred,
     build_report,
     plot_ml_report_final,
-    plot_high_dimension_db,
-    plot_learning_curves,
 )
 
 
@@ -348,15 +346,15 @@ def process_ml(
     #data_frame = data_frame.drop_duplicates()
     # animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
-    # if cv == "StratifiedLeaveTwoOut":
-    #     cross_validation_method = StratifiedLeaveTwoOut(
-    #         animal_ids, sample_idxs, stratified=True, verbose=True
-    #     )
-    #
-    # if cv == "LeaveTwoOut":
-    #     cross_validation_method = StratifiedLeaveTwoOut(
-    #         animal_ids, sample_idxs, stratified=False, verbose=True
-    #     )
+    if cv == "StratifiedLeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(
+            animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1
+        )
+
+    if cv == "LeaveTwoOut":
+        cross_validation_method = StratifiedLeaveTwoOut(
+            animal_ids, sample_idxs, stratified=False, verbose=True
+        )
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(

@@ -998,5 +998,12 @@ def main(
     print("done.")
 
 
+def local_run():
+    main(Path("E:/thesis2/heatmap"),
+         Path("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027"),
+         Path("E:/Data2/debug3/delmas/datasetraw_none_7day"))
+
+
 if __name__ == "__main__":
     typer.run(main)
+

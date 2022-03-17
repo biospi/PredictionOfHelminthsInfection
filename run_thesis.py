@@ -19,14 +19,14 @@ def main(
     if exp_main:
         print("experiment 1: main pipeline")
 
-        steps_list = [["QN", "ANSCOMBE", "LOG"]]
+        steps_list = [["QN", "ANSCOMBE", "LOG", "CENTER", "CWT"]]
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [7, 6]:
-                for a_day in [7, 1]:
+            for i_day in [7]:
+                for a_day in [7]:
                     for cv in ['RepeatedKFold']:
-                        for add_seasons_to_features in [False, True]:
+                        for add_seasons_to_features in [False]:
 
                             main_experiment.main(
                                 output_dir=output_dir
@@ -38,9 +38,13 @@ def main(
                                 n_imputed_days=i_day,
                                 n_activity_days=a_day,
                                 cv=cv,
-                                classifiers=["cnn"],
+                                classifiers=["linear"],
                                 study_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features
+                                add_seasons_to_features=add_seasons_to_features,
+                                n_splits=2,
+                                n_repeats=2,
+                                n_scales=9,
+                                sub_sample_scales=10
                             )
 
                             main_experiment.main(

@@ -8,112 +8,99 @@ def main():
     Args:\n
         output_dir: Output directory
     """
-    for steps in [["LINEAR", "QN", "STD"]]:
-        slug = "_".join(steps)
+    for clf in ["rbf", "cnn"]:
+        for steps in [
+            ["LINEAR", "QN", "CWT(MEXH)", "STD"],
+            ["LINEAR", "QN", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "CWT(MEXH)"],
+            ["LINEAR", "QN", "CWT(MORL)"],
+            ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
+            ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
+            ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "STD"],
+            ["LINEAR", "QN", "STD", "CWT(MORL)"],
+            ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "LOG", "STD"],
+            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
+        ]:
+            slug = "_".join(steps)
 
-        for f in [[]]:
-            # main_pipeline.main(
-            #     output_dir=Path(f"E:/Cats/ml/build_min_1440_1440/day_w/{f}/{slug}"),
-            #     dataset_folder=Path(f"E:/Cats/build_min_1440_1440/dataset/training_sets/day_w"),
-            #     preprocessing_steps=steps,
-            #     meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-            #     meta_col_str=["name", "age", "mobility_score"],
-            #     classifiers=["cnn"],
-            #     add_feature=f,
-            #     n_imputed_days=-1,
-            #     n_activity_days=-1,
-            #     class_healthy_label=["0.0"],
-            #     class_unhealthy_label=["1.0"],
-            #     n_splits=2,
-            #     n_repeats=2,
-            #     n_job=1,
-            #     study_id="cat",
-            #     cv="RepeatedKFold",
-            #     epoch=2
-            # )
-            # main_pipeline.main(
-            #     output_dir=Path(f"E:/Cats/ml/build_min_1440_1440_roi/day_w/{f}/{slug}"),
-            #     dataset_folder=Path(f"E:/Cats/build_min_1440_1440_roi/dataset/training_sets/day_w"),
-            #     preprocessing_steps=steps,
-            #     meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-            #     meta_col_str=["name", "age", "mobility_score"],
-            #     classifiers=["linear"],
-            #     add_feature=f,
-            #     n_imputed_days=-1,
-            #     n_activity_days=-1,
-            #     class_healthy_label=["0.0"],
-            #     class_unhealthy_label=["1.0"],
-            #     n_splits=5,
-            #     n_repeats=10,
-            #     n_job=7,
-            #     study_id="cat",
-            #     cv="RepeatedKFold",
-            #     epoch=2
-            # )
+            for cv in ["StratifiedLeaveTwoOut", "RepeatedKFold"]:
+                main_pipeline.main(
+                    output_dir=Path(f"E:/Cats/ml_peak/build_sec_10_rois_2/rois/{clf}/{slug}_{cv}"),
+                    dataset_folder=Path(
+                        f"E:/Cats/build_sec_10_rois_2/dataset/training_sets/day_w"
+                    ),
+                    preprocessing_steps=steps,
+                    meta_columns=[
+                        "label",
+                        "id",
+                        "imputed_days",
+                        "date",
+                        "health",
+                        "target",
+                        "age",
+                        "name",
+                        "mobility_score",
+                    ],
+                    meta_col_str=["name", "age", "mobility_score"],
+                    classifiers=[clf],
+                    n_imputed_days=-1,
+                    n_activity_days=-1,
+                    class_healthy_label=["0.0"],
+                    class_unhealthy_label=["1.0"],
+                    n_scales=6,
+                    n_splits=3,
+                    n_repeats=4,
+                    n_job=7,
+                    study_id="cat",
+                    cv=cv,
+                    output_qn_graph=True,
+                    epoch=500,
+                )
 
-            main_pipeline.main(
-                output_dir=Path(f"E:/Cats/ml/build_sec_10_rois/day_w/{f}/{slug}"),
-                dataset_folder=Path(f"E:/Cats/build_sec_10_rois/dataset/training_sets/day_w"),
-                preprocessing_steps=steps,
-                meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-                meta_col_str=["name", "age", "mobility_score"],
-                classifiers=["linear"],
-                add_feature=f,
-                n_imputed_days=-1,
-                n_activity_days=-1,
-                class_healthy_label=["0.0"],
-                class_unhealthy_label=["1.0"],
-                n_splits=2,
-                n_repeats=2,
-                n_job=7,
-                study_id="cat",
-                cv="RepeatedKFold",
-                output_qn_graph=True,
-                epoch=2
-            )
-
-            # main_pipeline.main(
-            #     output_dir=Path(f"E:/Cats/ml/build_min_60_60_roi/day_w/{f}/{slug}"),
-            #     dataset_folder=Path(f"E:/Cats/build_min_60_60_roi/dataset/training_sets/day_w"),
-            #     preprocessing_steps=steps,
-            #     meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-            #     meta_col_str=["name", "age", "mobility_score"],
-            #     classifiers=["rbf"],
-            #     add_feature=f,
-            #     n_imputed_days=-1,
-            #     n_activity_days=-1,
-            #     class_healthy_label=["0.0"],
-            #     class_unhealthy_label=["1.0"],
-            #     n_splits=2,
-            #     n_repeats=2,
-            #     n_job=7,
-            #     study_id="cat",
-            #     cv="RepeatedKFold",
-            #     output_qn_graph= True,
-            #     epoch=2
-            # )
-
-
-
-    # for f in [[], ["age"], ["mobility_score"]]:
-    #     main(
-    #         output_dir=Path(f"E:/Cats/ml/build_min_1440_720/day_w/{f}/{slug}"),
-    #         dataset_folder=Path(f"E:/Cats/build_min_1440_720/dataset/training_sets/day_w"),
-    #         preprocessing_steps=steps,
-    #         meta_columns=["label", "id", "imputed_days", "date", "health", "target", "age", "name", "mobility_score"],
-    #         meta_col_str=["name", "age", "mobility_score"],
-    #         svc_kernel=["rbf"],
-    #         add_feature=f,
-    #         n_imputed_days=-1,
-    #         n_activity_days=-1,
-    #         class_healthy_label=["0.0"],
-    #         class_unhealthy_label=["1.0"],
-    #         n_splits=5,
-    #         n_repeats=10,
-    #         n_job=5,
-    #         study_id="cat",
-    #         cv="RepeatedStratifiedKFold"
-    #     )
+                main_pipeline.main(
+                    output_dir=Path(f"E:/Cats/ml_peak/build_sec_10_rois_3/rois/{clf}/{slug}_{cv}"),
+                    dataset_folder=Path(
+                        f"E:/Cats/build_sec_10_rois_3/dataset/training_sets/day_w"
+                    ),
+                    preprocessing_steps=steps,
+                    meta_columns=[
+                        "label",
+                        "id",
+                        "imputed_days",
+                        "date",
+                        "health",
+                        "target",
+                        "age",
+                        "name",
+                        "mobility_score",
+                    ],
+                    meta_col_str=["name", "age", "mobility_score"],
+                    classifiers=[clf],
+                    n_imputed_days=-1,
+                    n_activity_days=-1,
+                    class_healthy_label=["0.0"],
+                    class_unhealthy_label=["1.0"],
+                    n_scales=6,
+                    n_splits=3,
+                    n_repeats=4,
+                    n_job=7,
+                    study_id="cat",
+                    cv=cv,
+                    output_qn_graph=True,
+                    epoch=500,
+                )
 
 
 if __name__ == "__main__":

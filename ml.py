@@ -79,7 +79,7 @@ def main(
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
-    batch_size: int = 4,
+    batch_size: int = 8,
     epoch: int = 500
 ):
     """ML Main machine learning script\n

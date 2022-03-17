@@ -13,12 +13,13 @@ from sklearn.model_selection import LeavePOut
 import itertools
 from pathlib import Path
 from model.data_loader import load_activity_data
-from mrnn.main_mrnn import start_mrnn
+#from mrnn.main_mrnn import start_mrnn
 from utils._anscombe import Anscombe, anscombe
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 np.random.seed(0)
 
 
@@ -132,8 +133,9 @@ class RepeatedKFoldCustom:
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, sample_idx, stratified=False, verbose=False):
+    def __init__(self, animal_ids, sample_idx, max_comb=500, stratified=False, verbose=False):
         self.nfold = 0
+        self.max_comb = max_comb
         self.verbose = verbose
         self.stratified = stratified
         self.sample_idx = np.array(sample_idx).flatten()
@@ -163,13 +165,20 @@ class StratifiedLeaveTwoOut:
 
         a = df_["animal_id"].tolist()
         comb = []
-        for i in range(0, len(a) + 1):
-            for subset in itertools.combinations(a, i):
-                if len(subset) != leaven:
-                    continue
-                if subset not in comb:
-                    comb.append(subset)
+        cpt = 0
+        for j, subset in enumerate(itertools.combinations(a, leaven)):
+            if len(subset) != leaven:
+                continue
+            if subset not in comb or subset[::-1] not in comb:
+                comb.append(subset)
+                cpt += 1
+            # if cpt > self.max_comb:
+            #     break
         comb = np.array(comb)
+
+        if self.max_comb > 0:
+            df_com = pd.DataFrame(comb)
+            comb = df_com.sample(self.max_comb).values
 
         training_idx = []
         testing_idx = []
