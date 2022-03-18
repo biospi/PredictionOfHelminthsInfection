@@ -80,7 +80,8 @@ def main(
     enable_downsample_df: bool = False,
     n_job: int = 7,
     batch_size: int = 8,
-    epoch: int = 500
+    epoch: int = 500,
+    individual_to_ignore: List[str] = []
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -159,7 +160,8 @@ def main(
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
             meta_cols_str=meta_col_str,
-            sampling=sampling
+            sampling=sampling,
+            individual_to_ignore=individual_to_ignore
         )
 
         N_META = len(meta_columns)

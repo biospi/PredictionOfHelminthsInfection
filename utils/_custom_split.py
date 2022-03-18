@@ -133,17 +133,21 @@ class RepeatedKFoldCustom:
 
 
 class StratifiedLeaveTwoOut:
-    def __init__(self, animal_ids, sample_idx, max_comb=500, stratified=False, verbose=False):
+    def __init__(self, animal_ids, sample_idx, max_comb=-1, leaven=2, n_test_samples_th=-1, stratified=False, verbose=False):
         self.nfold = 0
+        self.leaven = leaven
         self.max_comb = max_comb
         self.verbose = verbose
         self.stratified = stratified
+        self.n_test_samples_th = n_test_samples_th
         self.sample_idx = np.array(sample_idx).flatten()
         self.animal_ids = np.array(animal_ids).flatten()
 
-    def split(self, X, y, group=None, leaven=2):
-        df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1), self.sample_idx.reshape(self.sample_idx.size, 1))))
+    def get_n_splits(self):
+        return self.nfold
 
+    def split(self, X, y, group=None):
+        df = pd.DataFrame(np.hstack((y.reshape(y.size, 1), self.animal_ids.reshape(self.animal_ids.size, 1), self.sample_idx.reshape(self.sample_idx.size, 1))))
         #df.to_csv("F:/Data2/test.csv")
         # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
         df = df.apply(pd.to_numeric, downcast='integer')
@@ -166,8 +170,8 @@ class StratifiedLeaveTwoOut:
         a = df_["animal_id"].tolist()
         comb = []
         cpt = 0
-        for j, subset in enumerate(itertools.combinations(a, leaven)):
-            if len(subset) != leaven:
+        for j, subset in enumerate(itertools.combinations(a, self.leaven)):
+            if len(subset) != self.leaven:
                 continue
             if subset not in comb or subset[::-1] not in comb:
                 comb.append(subset)
@@ -200,13 +204,13 @@ class StratifiedLeaveTwoOut:
 
                 s1 = np.unique(np.array(temp[0]))
 
-                if len(temp) == leaven:
+                if len(temp) == self.leaven:
                     s2 = np.unique(np.array(temp[1]))
                     if s1.size != 1 and s2.size != 1:
                         #samples for the 2 left out animals are not the same target
                         continue
                     s = np.array([s1[0], s2[0]])
-                    if np.unique(s).size != leaven: #need 1 healthy and 1 unhealthy
+                    if np.unique(s).size != self.leaven: #need 1 healthy and 1 unhealthy
                         continue
                 else:
                     if s1.size != 1:
@@ -217,6 +221,8 @@ class StratifiedLeaveTwoOut:
             if np.unique(y[all_train_idx]).size == 1:
                 warnings.warn("Cannot use fold for training! Only 1 target in FOLD %d" % i)
                 continue
+            # if len(all_test_idx) < self.n_test_samples_th:
+            #     continue
 
             training_idx.append(all_train_idx)
             testing_idx.append(all_test_idx)
@@ -228,7 +234,7 @@ class StratifiedLeaveTwoOut:
                       np.unique(self.animal_ids[all_train_idx]))
 
         len_check = np.array(len_check)
-        if len_check[len_check > leaven].size > 0:
+        if len_check[len_check > self.leaven].size > 0:
             raise ValueError("fold contains more than 2 testing sample!")
 
         self.nfold = len(training_idx)

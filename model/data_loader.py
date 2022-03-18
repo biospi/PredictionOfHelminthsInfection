@@ -17,7 +17,8 @@ def load_activity_data(
     preprocessing_steps=None,
     farm=None,
     meta_cols_str=None,
-    sampling='T'
+    sampling='T',
+    individual_to_ignore=[]
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -49,13 +50,13 @@ def load_activity_data(
         hearder[-i - 1] = m
     data_frame.columns = hearder
     # data_frame['label'] = data_frame['label'].astype(int).astype(str)
+    data_frame["name"] = data_frame["name"].astype(str).str.replace("'", "")
     data_frame["date"] = data_frame["date"].astype(str).str.replace("'", "")
     # cast transponder ids to string instead of float
     data_frame["id"] = data_frame["id"].astype(str).str.split(".", expand=True, n=0)[0]
-    seasons = pd.DataFrame(
-        (pd.to_datetime(data_frame["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1).values,
-        columns=[data_point_count - len(meta_columns)],
-    )
+
+    if len(individual_to_ignore) > 0:
+        data_frame = data_frame.loc[~data_frame['name'].isin(individual_to_ignore)]
 
     if n_activity_days > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
@@ -108,6 +109,12 @@ def load_activity_data(
         new_label.append(-1)
 
     data_frame["health"] = new_label
+
+    seasons = pd.DataFrame(
+        (pd.to_datetime(data_frame["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1).values,
+        columns=[data_point_count - len(meta_columns)],
+        index=data_frame.index
+    )
     seasons = seasons.loc[data_frame.index]
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label

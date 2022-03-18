@@ -356,6 +356,16 @@ def process_ml(
             animal_ids, sample_idxs, stratified=False, verbose=True
         )
 
+    if cv == "StratifiedLeaveOneOut":
+        cross_validation_method = StratifiedLeaveTwoOut(
+            animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1, leaven=1
+        )
+
+    if cv == "LeaveOneOut":
+        cross_validation_method = StratifiedLeaveTwoOut(
+            animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1
+        )
+
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(
             n_splits=n_splits, n_repeats=n_repeats, random_state=0
@@ -383,8 +393,8 @@ def process_ml(
             ),
         )
 
-    if cv == "LeaveOneOut":
-        cross_validation_method = LeaveOneOut()
+    # if cv == "LeaveOneOut":
+    #     cross_validation_method = LeaveOneOut()
 
     ids = data_frame["id"].values
     y_h = data_frame["health"].values.flatten()
@@ -662,13 +672,18 @@ def fold_worker(
     y_pred_proba_test = clf.predict_proba(X_test)
 
     # prep for roc curve
+    alpha = 0.3
+    lw= 1
+    if len(y_test) < 150:
+        alpha = len(y_test) / 100 / 4
+        lw = len(y_test) / 100 / 4
     viz_roc_test = plot_roc_curve(
         clf,
         X_test,
         y_test,
         label=None,
-        alpha=0.3,
-        lw=1,
+        alpha=alpha,
+        lw=lw,
         ax=None,
         c="tab:blue",
     )
@@ -936,12 +951,18 @@ def cross_validate_custom_fast(
                 ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
                 ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
         else:
-            for a in axis_test:
+            for n, a in enumerate(axis_test):
                 f, ax = a.figure_, a.ax_
                 xdata = ax.lines[0].get_xdata()
                 ydata = ax.lines[0].get_ydata()
-                ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
-                ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+                alpha = 0.3
+                lw = 1
+                testing_shape = fold_results[n]["testing_shape"][0]
+                if testing_shape < 150:
+                    alpha = testing_shape / 100 / 5
+                    lw = testing_shape / 100 / 5
+                ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=alpha, linewidth=lw)
+                ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=lw, linewidth=lw)
 
             for a in axis_train:
                 f, ax = a.figure_, a.ax_
