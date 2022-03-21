@@ -1,33 +1,51 @@
-import argparse
 import glob
 import json
 import math
-import sys
+import os
+from multiprocessing import Pool
 from pathlib import Path
 
-import matplotlib
-
-from sys import platform as _platform
-
+import matplotlib.dates as mdates
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import mpl_toolkits.axisartist as AA
+import numpy as np
+import pandas as pd
+import scipy.stats
 import typer
 from matplotlib import cm
-import matplotlib.patches as mpatches
-import pandas as pd
-import matplotlib.pyplot as plt
-from multiprocessing import Pool
-import numpy as np
-import os
-import scipy.stats
+from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
-import matplotlib.dates as mdates
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from mpl_toolkits.axes_grid1 import host_subplot
-import mpl_toolkits.axisartist as AA
-from utils.Utils import anscombe
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from tqdm import tqdm
-from utils.visualisation import figures_to_html
+
+from utils.Utils import anscombe
+
+colormap = plt.cm.gist_ncar  # nipy_spectral, Set1,Paired
+colorst = [colormap(i) for i in np.linspace(0, 0.9, 21)]
+COLOR_MAP = {
+    "4To2": colorst[0],
+    "1To2": colorst[1],
+    "2To3": colorst[2],
+    "1To1": colorst[3],
+    "2To5": colorst[4],
+    "3To3": colorst[5],
+    "2To1": colorst[6],
+    "4To1": colorst[7],
+    "5To2": colorst[8],
+    "4To3": colorst[9],
+    "4To4": colorst[10],
+    "3To4": colorst[11],
+    "2To4": colorst[12],
+    "5To3": colorst[13],
+    "1To4": colorst[14],
+    "3To5": colorst[15],
+    "3To1": colorst[16],
+    "3To2": colorst[17],
+    "2To2": colorst[18],
+    "4To5": colorst[19],
+    "1To3": colorst[20],
+}
 
 
 def breaklineinsert_(str):
@@ -88,26 +106,27 @@ def median_(to_resample):
     return m
 
 
-def resample(df, animal_id, res=None):
+def resample(col, df, animal_id, res=None):
     df.index = pd.to_datetime(df.date_str)
     df_resampled = df.resample(res).agg(
-        dict(
-            first_sensor_value=sum_,
-            first_sensor_value_gain=sum_,
-            signal_strength=median_,
-            battery_voltage=median_,
-            xmin=sum_,
-            xmax=sum_,
-            ymin=sum_,
-            ymax=sum_,
-            zmin=sum_,
-            zmax=sum_,
-        )
+        {col: sum_, "date_str": "first"}
+        # dict(
+        #     first_sensor_value=sum_,
+        #     first_sensor_value_gain=sum_,
+        #     signal_strength=median_,
+        #     battery_voltage=median_,
+        #     xmin=sum_,
+        #     xmax=sum_,
+        #     ymin=sum_,
+        #     ymax=sum_,
+        #     zmin=sum_,
+        #     zmax=sum_,
+        # )
     )
     # df_resampled = df.resample(res).agg(sum_)
     # df_resampled_entropy = df.resample(res).agg(dict(first_sensor_value=entropy_, signal_strength=entropy_, battery_voltage=entropy_, xmin=entropy_, xmax=entropy_, ymin=entropy_, ymax=entropy_, zmin=entropy_, zmax=entropy_))
     # df_resampled_median = df.resample(res).agg(dict(first_sensor_value=median_, signal_strength=median_, battery_voltage=median_, xmin=median_, xmax=median_, ymin=median_, ymax=median_, zmin=median_, zmax=median_))
-    return df_resampled, df_resampled, df_resampled, res
+    return df_resampled
 
 
 def entropy2(labels, base=None):
@@ -128,9 +147,9 @@ def entropy2(labels, base=None):
     return ent
 
 
-def process_activity_data(file, i, nfiles, w, res, start, end):
+def process_activity_data(activity_colummn, file, i, nfiles, w, res, start, end):
     print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
-    animal_id = parse_animal_id(file)
+    animal_id = parse_animal_id(str(file))
     df_activity = pd.read_csv(file, sep=",")
 
     df_activity["xmin"] = 0
@@ -166,7 +185,7 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
     # 159840
     # if df_activity_w.shape[0] - w > 1:
     #     continue
-    entropy = scipy.stats.entropy(df_activity["first_sensor_value"].dropna())
+    entropy = scipy.stats.entropy(df_activity[activity_colummn].dropna())
 
     # e_xmin = scipy.stats.entropy(df_activity["xmin"].dropna().abs())
     # e_xmax = scipy.stats.entropy(df_activity["xmax"].dropna().abs())
@@ -191,10 +210,10 @@ def process_activity_data(file, i, nfiles, w, res, start, end):
     # data.insert(0, {'timestamp': np.nan, 'date_str': pd.to_datetime(str(end_time)).strftime('%Y-%m-%dT%H:%M'), 'first_sensor_value': np.nan})
     # df_activity = pd.concat([df_activity, pd.DataFrame(data)], ignore_index=True)
 
-    # df_resampled_activity, df_resampled_entropy, df_resampled_median, resolution = resample(df_activity_w, animal_id, res=res)
+    df_activity_w = resample(activity_colummn, df_activity_w, animal_id, res=res)
     df_activity_w.index = pd.to_datetime(df_activity_w.date_str)
     time = df_activity_w.index.values
-    activity = df_activity_w.first_sensor_value.values
+    activity = df_activity_w[activity_colummn].values
     # activity_i = df_activity_w.first_sensor_value_gain.values
     # activity_e = df_activity_w.first_sensor_value.values
     # activity_m = df_activity_w.first_sensor_value.values
@@ -531,10 +550,6 @@ def create_heatmap(
 
     print(f"ready for figure {idx}/{itot} ...")
 
-    fig, ax = plt.subplots(figsize=(28.20, 10.80))
-    ax.yaxis.set_label_position("right")
-    ax.yaxis.tick_right()
-
     annotation, missing_ids = create_annotation_matrix(
         df_raw, time_axis, day_before_famacha_test
     )
@@ -549,19 +564,31 @@ def create_heatmap(
 
     a = df_raw.iloc[:, :-5].values
 
-    viridis = cm.get_cmap('viridis', 256)
+    a = anscombe(a)
+
+    viridis = cm.get_cmap("viridis", 256)
     newcolors = viridis(np.linspace(0, 1, 256))
     pink = np.array([0 / 256, 0 / 256, 0 / 256, 1])
     newcolors[:1, :] = pink
     newcmp = ListedColormap(newcolors)
 
-    date_format = mdates.DateFormatter('%d/%b/%Y %H:%M')
+    date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    im_a_log_anscomb = ax.imshow(a, cmap=newcmp, aspect='auto',
-                                     interpolation="nearest",
-                                     extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]])
-    plt.colorbar(im_a_log_anscomb, ax=ax)
+    fig, ax = plt.subplots(figsize=(20.20, 7.20))
+    ax.yaxis.set_label_position("right")
+    ax.yaxis.tick_right()
+    im_a_log_anscomb = ax.imshow(
+        a,
+        cmap=newcmp,
+        aspect="auto",
+        interpolation="nearest",
+        extent=[x_lims[0], x_lims[-1], 0, df_raw.iloc[:, :-4].values.shape[0]],
+    )
+    # plt.colorbar(im_a_log_anscomb, ax=[ax], location='left')
+    # fig.colorbar(im_a_log_anscomb, cax=ax)
+    cb = plt.colorbar(im_a_log_anscomb, ax=[ax], location="left", pad=0.01)
+
     ax.xaxis_date()
 
     if resolution == "1T":
@@ -578,13 +605,19 @@ def create_heatmap(
         ax.xaxis.set_major_formatter(date_format)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
-    fig.autofmt_xdate()
+    fig.autofmt_xdate(rotation=45)
+
+    every_nth = 2
+    for n, label in enumerate(ax.xaxis.get_ticklabels()):
+        if n % every_nth != 0:
+            label.set_visible(False)
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
-    animal_ids_formatted_ent = np.array(
-        [x[1] + " " + x[0] for x in zip(f_id, animal_ids_formatted_ent)]
-    )
-    #animal_ids_formatted_ent_s2 = df_raw_xmin["id"].values[::-1]
+    animal_ids_formatted_ent = [x.split(' ')[0] for x in animal_ids_formatted_ent]
+    # animal_ids_formatted_ent = np.array(
+    #     [x[1] + " " + x[0] for x in zip(f_id, animal_ids_formatted_ent)]
+    # )
+    # animal_ids_formatted_ent_s2 = df_raw_xmin["id"].values[::-1]
 
     ax.set_yticklabels(animal_ids_formatted_ent)
     ax.set_yticks(np.arange(len(animal_ids_formatted_ent)))
@@ -606,27 +639,35 @@ def create_heatmap(
                 cpt = 0
                 continue
             cpt += 1
-            color = "lightgrey"
-
-            if an == "1To1":
-                color = "white"
-            if an == "1To2":
-                color = "red"
-            if an == "2To2":
-                color = "blue"
-            if an == "2To1":
-                color = "orange"
-            if an == "3To2":
-                color = "lawngreen"
-            #use ASCII 219 for text highlight instead of rectangle
+            color = COLOR_MAP[an]
+            #
+            # if an == "1To1":
+            #     color = "white"
+            # if an == "1To2":
+            #     color = "red"
+            # if an == "2To2":
+            #     color = "blue"
+            # if an == "2To1":
+            #     color = "orange"
+            # if an == "3To2":
+            #     color = "lawngreen"
+            # use ASCII 219 for text highlight instead of rectangle
             offset_y = 0.6
             offset_x = 0.9
             # ax.text(j-offset_x, activity_list_matrix.shape[0] - i - offset_y, "x", ha="left", va="baseline", color=color, alpha=0.4, fontsize=8, fontweight='bold')
             w = day_before_famacha_test
             lw = 1.4
             if cpt == 1:
-                rec = Rectangle((x_lims[j], activity_list_matrix.shape[0] - i - 1), w, 0.85, fill=False,
-                                edgecolor=color, facecolor=None, lw=lw, alpha=1)
+                rec = Rectangle(
+                    (x_lims[j] - 7, activity_list_matrix.shape[0] - i - 1),
+                    w,
+                    0.85,
+                    fill=False,
+                    edgecolor=color,
+                    facecolor=None,
+                    lw=lw,
+                    alpha=1,
+                )
                 ax.add_patch(rec)
 
     param_str = (
@@ -634,20 +675,47 @@ def create_heatmap(
     )
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
 
-    title1 = f"Activity data per {resolution} {farm_id} herd"
-    ax.set_title(title1)
+    title1 = f"{farm_id} herd activity data (t=anscombe bin={resolution}) and samples"
+    # ax.set_title(title1)
 
     title2 = f"Imputed Activity data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
 
     title3 = f"(imputed only) Imputed Activity raw data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
 
-    patch1 = mpatches.Patch(color='white', label="1To1 "+str(DATASET_INFO["1To1"]))
-    patch2 = mpatches.Patch(color='red', label="1To2 "+str(DATASET_INFO["1To2"]))
-    patch3 = mpatches.Patch(color='blue', label="2To2 "+str(DATASET_INFO["2To2"]))
-    patch4 = mpatches.Patch(color='orange', label="2To1 "+str(DATASET_INFO["2To1"]))
-    patch5 = mpatches.Patch(color='lawngreen', label="3To2 "+str(DATASET_INFO["3To2"]))
+    patches = []
+    for k in DATASET_INFO.keys():
+        if k == 'total':
+            continue
+        patches.append(mpatches.Patch(color=COLOR_MAP[k], label=f"{k} " + str(DATASET_INFO[k])))
 
-    ax.legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
+    # patch1 = mpatches.Patch(
+    #     color="lightgray", edgecolor="black", label="1To1 " + str(DATASET_INFO["1To1"])
+    # )
+    # patch2 = mpatches.Patch(color="red", label="1To2 " + str(DATASET_INFO["1To2"]))
+    # patch3 = mpatches.Patch(color="blue", label="2To2 " + str(DATASET_INFO["2To2"]))
+    # patch4 = mpatches.Patch(color="orange", label="2To1 " + str(DATASET_INFO["2To1"]))
+    # patch5 = mpatches.Patch(
+    #     color="lawngreen", label="3To2 " + str(DATASET_INFO["3To2"])
+    # )
+
+    y = 1.18
+    if "cedara" in farm_id:
+        y = 1.28
+
+    legend = ax.legend(
+        title=title1.title(),
+        frameon=False,
+        handles=patches,
+        loc="upper center",
+        bbox_to_anchor=(0.5, y),
+        fancybox=True,
+        framealpha=0.5,
+        ncol=4,
+    )
+
+    # frame = legend.get_frame()  # sets up for color, edge, and transparency
+    # frame.set_facecolor('#b4aeae')  # color of legend
+
     # axs[1].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
     # axs[2].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
 
@@ -655,19 +723,18 @@ def create_heatmap(
     # axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     # axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
 
-    ax.set_facecolor('pink')
+    ax.set_facecolor("pink")
+    ax.tick_params(axis="x", rotation=45)
     # axs[1].set_facecolor('pink')
     # axs[2].set_facecolor('pink')
-
-    fig.tight_layout()
+    # fig.tight_layout()
 
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
-    fig.savefig(file_path, bbox_inches='tight')
+    fig.savefig(file_path, bbox_inches="tight")
     # print("saved ", filename)
     # fig.savefig(file_path.replace(".png", ".svg"))
     # plt.show()
-
 
     # time_axis = np.array([pd.Timestamp(x).to_pydatetime() for x in time_axis])
     # print(time_axis)
@@ -761,6 +828,8 @@ def create_heatmap(
     # print(file_path)
     # fig_im_a_log_anscomb.write_html(str(file_path))
     # return fig_im_a_log_anscomb
+
+
 # def create_heatmap(
 #     DATA,
 #     k,
@@ -1165,9 +1234,10 @@ def main(
     ),
     farm_id: str = "farm",
     sampling: str = "T",
+    activity_col: str = "first_sensor_value",
     day_before_famacha_test: int = 7,
     w: int = -1,
-    res: str = "1D",
+    res: str = "60T",
     start: int = 0,
     end: str = -1,
     n_job: int = 6,
@@ -1208,7 +1278,7 @@ def main(
     print(f"sampling{sampling}")
     print(f"day_before_famacha_test{day_before_famacha_test}")
 
-    files = glob.glob(str(activity_dir / "*.csv"))
+    files = [str(x) for x in list(activity_dir.glob("*.csv"))]
     if len(files) == 0:
         raise IOError(f"missing activity files .csv! in {activity_dir}")
 
@@ -1235,7 +1305,7 @@ def main(
             continue
         results.append(
             pool.apply_async(
-                process_activity_data, (file, i, len(files), w, res, start, end)
+                process_activity_data, (activity_col, file, i, len(files), w, res, start, end)
             )
         )
     pool.close()
@@ -1303,16 +1373,36 @@ def local_run():
          activity_dir=Path("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027"),
          dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
          farm_id="delmas",
+         activity_col="first_sensor_value",
          day_before_famacha_test=7)
 
-    main(output=Path("E:/thesis2/heatmap"),
-         activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
-         dataset_dir=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
-         farm_id="cedara",
-         day_before_famacha_test=7)
+    main(
+        output=Path("E:/thesis2/heatmap"),
+        activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
+        dataset_dir=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+        activity_col="first_sensor_value",
+        farm_id="cedara",
+        day_before_famacha_test=7,
+    )
+
+    main(
+        output=Path("E:/thesis2/heatmap"),
+        activity_dir=Path(
+            "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
+        ),
+        dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
+        activity_col="first_sensor_value_mrnn",
+        farm_id="delmas_imputed",
+        day_before_famacha_test=7,
+    )
+
+    # main(output=Path("E:/thesis2/heatmap"),
+    #      activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
+    #      dataset_dir=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
+    #      farm_id="cedara_imputed",
+    #      day_before_famacha_test=7)
 
 
 if __name__ == "__main__":
     local_run()
-    #typer.run(main)
-
+    # typer.run(main)

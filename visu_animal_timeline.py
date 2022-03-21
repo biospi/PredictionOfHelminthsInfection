@@ -8,36 +8,43 @@ import plotly
 import h5py as h5
 import pickle
 from typing import List
-
+from sklearn.metrics import confusion_matrix
 from preprocessing.preprocessing import apply_preprocessing_steps
 
-DEFAULT_PLOTLY_COLORS=['rgb(31, 119, 180)', 'rgb(255, 127, 14)',
-                       'rgb(44, 160, 44)', 'rgb(214, 39, 40)',
-                       'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
-                       'rgb(227, 119, 194)', 'rgb(127, 127, 127)',
-                       'rgb(188, 189, 34)', 'rgb(23, 190, 207)']
+DEFAULT_PLOTLY_COLORS = [
+    "rgb(31, 119, 180)",
+    "rgb(255, 127, 14)",
+    "rgb(44, 160, 44)",
+    "rgb(214, 39, 40)",
+    "rgb(148, 103, 189)",
+    "rgb(140, 86, 75)",
+    "rgb(227, 119, 194)",
+    "rgb(127, 127, 127)",
+    "rgb(188, 189, 34)",
+    "rgb(23, 190, 207)",
+]
 
 
 def load_herd(herdFile):
     herdData = {}
 
-    ahf = h5.File(herdFile, 'r')
+    ahf = h5.File(herdFile, "r")
     animal = list(ahf.keys())
 
     for i in animal:
         Tag = int(i)
         gdata = ahf[i]
 
-        t = np.array(gdata['csTime'])
-        x = np.array(gdata['cs'])
+        t = np.array(gdata["csTime"])
+        x = np.array(gdata["cs"])
         cs = np.array([t, x])
 
-        t = np.array(gdata['famachaTime'])
-        x = np.array(gdata['famacha'])
+        t = np.array(gdata["famachaTime"])
+        x = np.array(gdata["famacha"])
         famacha = np.array([t, x])
 
-        t = np.array(gdata['weightTime'])
-        x = np.array(gdata['weight'])
+        t = np.array(gdata["weightTime"])
+        x = np.array(gdata["weight"])
         weight = np.array([t, x])
         herdData[Tag] = [Tag, famacha, cs, weight]
     ahf.close()
@@ -66,7 +73,7 @@ def concat_html(figs, filename):
         fig.append_trace(f[3], row=i + 1, col=1)
         fig.append_trace(f[4], row=i + 1, col=1)
         fig.update_yaxes(type="log", row=i + 1, col=1)
-    #fig.update_layout(height=200 * len(figs))
+    # fig.update_layout(height=200 * len(figs))
     fig.update(layout_showlegend=False)
 
     fig.write_html(filename)
@@ -84,53 +91,72 @@ def split_given_size(a, size):
     return np.split(a, np.arange(size, len(a), size))
 
 
-def predict_famacha(id, df, model_path, preprocessing_steps, output_dir, class_healthy_label, class_unhealthy_label, sample_size=10080):
-    models = list(model_path.glob('*.pkl'))
+def predict_famacha(
+    id,
+    df,
+    model_path,
+    preprocessing_steps,
+    output_dir,
+    class_healthy_label,
+    class_unhealthy_label,
+    sample_size=10080,
+):
+    chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
+    samples = []
+    rmv = []
+    for s in chuncks:
+        samples.append(s)
+        if np.isnan(s).all():
+            rmv.append(1)
+        else:
+            rmv.append(0)
+    data_frame = pd.DataFrame(samples)
+    data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_frame = data_frame.fillna(1)
+    data_frame = data_frame.astype(np.float)
+    data_frame["to_remove"] = rmv
+    data_frame["health"] = 0
+    data_frame[
+        "target"
+    ] = 0  # add mock meta todo edit apply_processing_steps to handle no meta input
+
+    data_frame = data_frame[data_frame["to_remove"] == 0]
+    data_frame, _ = apply_preprocessing_steps(
+        ["health", "target", "to_remove"],
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        data_frame.copy(),
+        output_dir,
+        preprocessing_steps,
+        class_healthy_label,
+        class_unhealthy_label,
+        clf_name="SVM",
+        n_scales=None,
+        farm_name=f"{id}",
+        keep_meta=True,
+    )
+    # if len(chuncks[0]) != sample_size:
+    #     continue
+    X_test = data_frame.iloc[:, :-3].values
+
+    models = list(model_path.glob("*.pkl"))
     for i, model_file in enumerate(models):
-        with open(str(model_file), 'rb') as f:
+        print(f"model {i}/{len(models)} predicting X_test...")
+        with open(str(model_file), "rb") as f:
             clf = pickle.load(f)
-            chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
-            samples = []
-            for s in chuncks:
-                samples.append(s)
-            data_frame = pd.DataFrame(samples)
-            data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
-            data_frame = data_frame.fillna(1)
-            data_frame = data_frame.astype(np.float)
-            data_frame["health"] = 0
-            data_frame["target"] = 0 #add mock meta todo edit apply_processing_steps to handle no meta input
-            data_frame, _ = apply_preprocessing_steps(
-                ["meta"],
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                data_frame.copy(),
-                output_dir,
-                preprocessing_steps,
-                class_healthy_label,
-                class_unhealthy_label,
-                clf_name="SVM",
-                n_scales=None,
-                farm_name=f"{id}",
-                keep_meta=False,
-            )
-                # if len(chuncks[0]) != sample_size:
-                #     continue
-            X_test = data_frame.iloc[:, :-2].values
-            #X_test = X_test.reshape(-1, 1)
             y_pred = clf.predict(X_test.copy())
 
             df["famacha_pred"] = np.nan
             cpt = 0
             for n, v in enumerate(df["famacha"].values):
                 if not np.isnan(v):
-                    #print(v)
+                    # print(v)
                     df["famacha_pred"].iloc[n] = y_pred[cpt]
                     cpt += 1
-
     return df
 
 
@@ -157,7 +183,7 @@ def main(
     i_list = []
     f_data = None
     for key, value in famacha_data.items():
-        id_ = id[:-3]+f"{key}".zfill(3)
+        id_ = id[:-3] + f"{key}".zfill(3)
         i_list.append(id_)
         if id == id_:
             print(f"found famacha data for {id}")
@@ -176,34 +202,42 @@ def main(
 
     for i in range(len(f_data[1][0])):
         timestamp = f_data[1][0][i]
-        d = df[df['timestamp'].isin([timestamp])]
+        d = df[df["timestamp"].isin([timestamp])]
         if d.shape[0] == 0:
             continue
         df.loc[d.index, "famacha"] = f_data[1][1][i]
 
     for i in range(len(f_data[2][0])):
         timestamp = f_data[2][0][i]
-        d = df[df['timestamp'].isin([timestamp])]
+        d = df[df["timestamp"].isin([timestamp])]
         if d.shape[0] == 0:
             continue
         df.loc[d.index, "cs"] = f_data[2][1][i]
 
     for i in range(len(f_data[3][0])):
         timestamp = f_data[3][0][i]
-        d = df[df['timestamp'].isin([timestamp])]
+        d = df[df["timestamp"].isin([timestamp])]
         if d.shape[0] == 0:
             continue
         df.loc[d.index, "weight"] = f_data[3][1][i]
 
-    df = predict_famacha(id, df, model_path, preprocessing_steps, out_dir, class_healthy_label, class_unhealthy_label)
-    #n = 1440 * 7 * 4 * 12 *2 # chunk row size
-    #list_df = [df[i : i + n] for i in range(0, df.shape[0], n)]
-    #print(f"found {len(list_df)} weeks.")
-    #figs = []
+    df = predict_famacha(
+        id,
+        df,
+        model_path,
+        preprocessing_steps,
+        out_dir,
+        class_healthy_label,
+        class_unhealthy_label,
+    )
+    # n = 1440 * 7 * 4 * 12 *2 # chunk row size
+    # list_df = [df[i : i + n] for i in range(0, df.shape[0], n)]
+    # print(f"found {len(list_df)} weeks.")
+    # figs = []
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    #for i, df in enumerate(list_df):
+    # for i, df in enumerate(list_df):
     df.index = pd.to_datetime(df.date_str)
-    #df_resampled = df.resample(res).sum()
+    # df_resampled = df.resample(res).sum()
     df_resampled = df.resample(res).agg(
         # dict(
         #     timestamp="first",
@@ -247,23 +281,9 @@ def main(
     time_axis = df_resampled.index
 
     trace_a = go.Line(
-        x=time_axis,
-        y=activity,
-        name=f"Activity ({res} bin)",
-        marker_color='steelblue'
+        x=time_axis, y=activity, name=f"Activity ({res} bin)", marker_color="steelblue"
     )
     fig.add_trace(trace_a, secondary_y=False)
-
-    trace_w = go.Scatter(
-        x=time_axis,
-        y=weight,
-        opacity=.9,
-        name="weight",
-        marker_color="black",
-        mode='lines+markers',
-        connectgaps=True
-    )
-    fig.add_trace(trace_w, secondary_y=True)
 
     # c = "green"
     # if famacha[0] == 2:
@@ -274,64 +294,107 @@ def main(
     trace_f = go.Scatter(
         x=time_axis,
         y=famacha,
-        opacity=.8,
+        opacity=0.8,
+        line_color="black",
         name="famacha score (real)",
-        mode='lines+markers',
-        marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
-        marker={
-            'symbol': 'x',
-            'size': 7
-        },
-        connectgaps=True
+        mode="lines+markers",
+        # marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
+        marker={"symbol": "x", "size": 7},
+        connectgaps=True,
     )
     fig.add_trace(trace_f, secondary_y=True)
+
+    pred_correct = []
+    cpt_c = 0
+    cpt_ic = 0
+    for y, pred in zip(famacha, famacha_predicted):
+        if y == 1 and pred == 0:  # famacha is 1 and pred is healthy
+            pred_correct.append("green")
+            cpt_c += 1
+            continue
+        if y > 1 and pred == 1:  # famacha is >1 and pred is unhealthy
+            pred_correct.append("green")
+            cpt_c += 1
+            continue
+        if np.isnan(y):
+            pred_correct.append(np.nan)
+            continue
+
+        pred_correct.append("red")
+        cpt_ic += 1
+
+    y_true = (famacha[~np.isnan(famacha)] != 1).astype(int)
+    y_pred = famacha_predicted[~np.isnan(famacha_predicted)]
+    tnr, fpr, fnr, tpr = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+    tnr = tnr / sum(y_true == 0)
+    fpr = fpr / sum(y_true == 1)
+    fnr = fnr / sum(y_true == 0)
+    tpr = tpr / sum(y_true == 1)
 
     trace_f_pred = go.Scatter(
         x=time_axis,
         y=famacha_predicted,
-        opacity=.8,
+        opacity=0.8,
+        line_color="gray",
         name="famacha score (predicted)",
-        mode='lines+markers',
-        marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
-        marker={
-            'symbol': 'circle',
-            'size': 15
-        },
-        connectgaps=True
+        mode="lines+markers",
+        marker_color=pred_correct,
+        marker={"symbol": "circle-open", "size": 15},
+        connectgaps=True,
     )
     fig.add_trace(trace_f_pred, secondary_y=True)
 
     trace_c = go.Scatter(
         x=time_axis,
         y=cs,
-        opacity=.9,
-        mode='lines+markers',
+        opacity=0.9,
+        mode="lines+markers",
         name="condition score",
-        connectgaps=True
+        connectgaps=True,
     )
     fig.add_trace(trace_c, secondary_y=True)
 
-    fig.update_layout(title_text=f'Timeline of transponder {id}')
+    trace_w = go.Scatter(
+        x=time_axis,
+        y=weight,
+        opacity=0.9,
+        name="weight",
+        marker_color="black",
+        mode="lines+markers",
+        connectgaps=True,
+    )
+    fig.add_trace(trace_w, secondary_y=True)
+
+    fig.update_layout(
+        title_text=f"Timeline of transponder {id} | TPR={tpr:.2f} FPR={fpr:.2f} TNR={tnr:.2f} FNR={fnr:.2f} | CORRECT={cpt_c} INCORRECT={cpt_ic}"
+    )
     fig.update_yaxes(title_text="<b>Activity</b>", secondary_y=False)
     fig.update_yaxes(title_text="<b>Meta Data</b>", secondary_y=True)
 
-    #figs.append([trace_a, trace_w, trace_f, trace_f_pred, trace_c])
+    # figs.append([trace_a, trace_w, trace_f, trace_f_pred, trace_c])
 
-    filename = f"{int(np.nansum(activity))}_{int(np.nansum(famacha))}_{id}.html"
+    filename = f"{int(tpr*100):03}_{id}.html"
     out_dir.mkdir(parents=True, exist_ok=True)
     filepath = str(out_dir / filename)
     fig.write_html(filepath)
     print(filepath)
-    #concat_html(figs, filepath)
+    # concat_html(figs, filepath)
 
 
 def local_run():
-    for activity_file in Path("F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421").glob("*.csv"):
-        main(activity_file, Path("F:/Data2/delmas_animal_data.h5"),
-             Path("E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"),
-             Path("E:/thesis2/timelines"))
+    for activity_file in Path(
+        "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
+    ).glob("*.csv"):
+        main(
+            activity_file,
+            Path("F:/Data2/delmas_animal_data.h5"),
+            Path(
+                "E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
+            ),
+            Path("E:/thesis2/timelines"),
+        )
 
 
 if __name__ == "__main__":
     local_run()
-    #typer.run(main)
+    # typer.run(main)
