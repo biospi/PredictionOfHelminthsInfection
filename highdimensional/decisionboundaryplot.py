@@ -469,10 +469,10 @@ class DBPlot(BaseEstimator):
                     "b"
                     if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
                     else (
-                        "r"
+                        "orange"
                         if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
                         else (
-                            "orange"
+                            "r"
                             if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
                             else
                             "gray"
@@ -496,10 +496,10 @@ class DBPlot(BaseEstimator):
                     "b"
                     if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
                     else (
-                        "r"
+                        "orange"
                         if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
                         else (
-                            "orange"
+                            "r"
                             if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
                             else
                             "gray"

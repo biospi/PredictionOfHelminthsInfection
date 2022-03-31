@@ -16,3 +16,6 @@ nohup python3 ml.py /mnt/storage/scratch/axel/cats/ml/ml_sec/day_w /mnt/storage/
 
 
 nohup python3 ml.py --output-dir /mnt/storage/scratch/axel/thesis2/main/delmas/2To2 --dataset-folder /mnt/storage/scratch/axel/dataset4_mrnn_7day --preprocessing-steps 'QN' --preprocessing-steps 'ANSCOMBE' --preprocessing-steps 'LOG' --preprocessing-steps 'CENTER' --preprocessing-steps 'CWT' --meta-columns 'label' --meta-columns 'id' --meta-columns 'imputed_days' --meta-columns 'date' --meta-columns 'health' --meta-columns 'target' --n-imputed-days 7 --n-activity-days 7 --class-healthy-label '1To1' --class-unhealthy-label '2To2' --classifiers 'cnn' --n-splits 5 --n-repeats 10 --n-job 6 --batch-size 8 > log_delmas.txt &
+
+
+nohup python3 run_thesis.py --output-dir /mnt/storage/scratch/axel/thesis3 --delmas-dir /mnt/storage/scratch/axel/dataset4_mrnn_7day --cedara-dir /mnt/storage/scratch/axel/dataset6_mrnn_7day
