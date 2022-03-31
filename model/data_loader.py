@@ -50,7 +50,8 @@ def load_activity_data(
         hearder[-i - 1] = m
     data_frame.columns = hearder
     # data_frame['label'] = data_frame['label'].astype(int).astype(str)
-    data_frame["name"] = data_frame["name"].astype(str).str.replace("'", "")
+    if "name" in data_frame.columns:
+        data_frame["name"] = data_frame["name"].astype(str).str.replace("'", "")
     data_frame["date"] = data_frame["date"].astype(str).str.replace("'", "")
     # cast transponder ids to string instead of float
     data_frame["id"] = data_frame["id"].astype(str).str.split(".", expand=True, n=0)[0]

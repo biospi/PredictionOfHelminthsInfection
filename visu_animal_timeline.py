@@ -101,6 +101,7 @@ def predict_famacha(
     class_unhealthy_label,
     sample_size=10080,
 ):
+    # first reshape the data as the same shape of the training samples
     chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
     samples = []
     rmv = []
@@ -120,6 +121,7 @@ def predict_famacha(
         "target"
     ] = 0  # add mock meta todo edit apply_processing_steps to handle no meta input
 
+    # apply preprocessing
     data_frame = data_frame[data_frame["to_remove"] == 0]
     data_frame, _ = apply_preprocessing_steps(
         ["health", "target", "to_remove"],
@@ -144,20 +146,22 @@ def predict_famacha(
     X_test = data_frame.iloc[:, :-3].values
 
     models = list(model_path.glob("*.pkl"))
+    y_pred_list = []
     for i, model_file in enumerate(models):
         print(f"model {i}/{len(models)} predicting X_test...")
         with open(str(model_file), "rb") as f:
             clf = pickle.load(f)
             y_pred = clf.predict(X_test.copy())
+            y_pred_list.append(y_pred)
 
-            df["famacha_pred"] = np.nan
+            df[f"famacha_pred_{i}"] = np.nan
             cpt = 0
             for n, v in enumerate(df["famacha"].values):
                 if not np.isnan(v):
                     # print(v)
-                    df["famacha_pred"].iloc[n] = y_pred[cpt]
+                    df[f"famacha_pred_{i}"].iloc[n] = y_pred[cpt]
                     cpt += 1
-    return df
+    return df, len(models)
 
 
 def main(
@@ -221,7 +225,7 @@ def main(
             continue
         df.loc[d.index, "weight"] = f_data[3][1][i]
 
-    df = predict_famacha(
+    df, n_models = predict_famacha(
         id,
         df,
         model_path,
@@ -238,34 +242,20 @@ def main(
     # for i, df in enumerate(list_df):
     df.index = pd.to_datetime(df.date_str)
     # df_resampled = df.resample(res).sum()
-    df_resampled = df.resample(res).agg(
-        # dict(
-        #     timestamp="first",
-        #     date_str="first",
-        #     first_sensor_value="sum",
-        #     signal_strength="mean",
-        #     battery_voltage="mean",
-        #     xmin="sum",
-        #     xmax="sum",
-        #     ymin="sum",
-        #     ymax="sum",
-        #     zmin="sum",
-        #     zmax="sum",
-        #     famacha="first",
-        #     weight="first",
-        #     cs="first",
-        # ),
-        dict(
-            timestamp="first",
-            date_str="first",
-            first_sensor_value="sum",
-            famacha="first",
-            famacha_pred="first",
-            weight="first",
-            cs="first",
-        ),
-        skipna=False,
-    )
+    agg_dict = {
+        "timestamp": "first",
+        "date_str": "first",
+        "first_sensor_value": "sum",
+        "famacha": "first",
+        "weight": "first",
+        "cs": "first",
+    }
+
+    for n in range(n_models):
+        agg_dict[f"famacha_pred_{n}"] = "first"
+
+    df_resampled = df.resample(res).agg(agg_dict, skipna=False)
+
     activity = df_resampled["first_sensor_value"].values
     weight = df_resampled["weight"].values
     # if len(weight[weight > 0]) > 0:
@@ -273,7 +263,11 @@ def main(
 
     cs = df_resampled["cs"].values
     famacha = df_resampled["famacha"].values
-    famacha_predicted = df_resampled["famacha_pred"].values
+
+    famacha_predicted_dec = np.nanmean(df_resampled.loc[:, df_resampled.columns.str.startswith('famacha_pred')].values, axis=1)
+
+    famacha_predicted = (famacha_predicted_dec > 0.5).astype(float)
+    famacha_predicted[np.isnan(famacha_predicted_dec)] = np.nan
 
     # if len(famacha[famacha > 0]) > 0:
     #     famacha[:] = famacha[famacha > 0][0]
@@ -285,11 +279,15 @@ def main(
     )
     fig.add_trace(trace_a, secondary_y=False)
 
-    # c = "green"
-    # if famacha[0] == 2:
-    #     c = "orange"
-    # if famacha[0] > 2:
-    #     c = "red"
+    data_f_inc = famacha.copy()
+    famacha_inc = famacha[~np.isnan(famacha)] - np.roll(famacha[~np.isnan(famacha)], 1)
+    famacha_inc = (famacha_inc == 1).astype(int)
+    cpt = 0
+    for i in range(len(data_f_inc)):
+        if np.isnan(data_f_inc[i]):
+            continue
+        data_f_inc[i] = famacha_inc[cpt]
+        cpt += 1
 
     trace_f = go.Scatter(
         x=time_axis,
@@ -303,6 +301,19 @@ def main(
         connectgaps=True,
     )
     fig.add_trace(trace_f, secondary_y=True)
+
+    trace_f_inc = go.Scatter(
+        x=time_axis,
+        y=data_f_inc,
+        opacity=1,
+        line_color="black",
+        name="famacha score increase(real)",
+        mode="lines+markers",
+        # marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
+        marker={"symbol": "x", "size": 7},
+        connectgaps=True,
+    )
+    fig.add_trace(trace_f_inc, secondary_y=True)
 
     pred_correct = []
     cpt_c = 0
@@ -336,13 +347,25 @@ def main(
         y=famacha_predicted,
         opacity=0.8,
         line_color="gray",
-        name="famacha score (predicted)",
+        name="famacha score increase (predicted)",
         mode="lines+markers",
         marker_color=pred_correct,
         marker={"symbol": "circle-open", "size": 15},
         connectgaps=True,
     )
     fig.add_trace(trace_f_pred, secondary_y=True)
+
+    trace_f_pred_dec = go.Scatter(
+        x=time_axis,
+        y=famacha_predicted_dec,
+        opacity=0.8,
+        line_color="blue",
+        name=f"mean (n_models={n_models}) famacha score increase (predicted)",
+        mode="lines+markers",
+        marker={"symbol": "circle-open", "size": 15},
+        connectgaps=True,
+    )
+    fig.add_trace(trace_f_pred_dec, secondary_y=True)
 
     trace_c = go.Scatter(
         x=time_axis,

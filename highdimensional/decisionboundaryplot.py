@@ -468,7 +468,16 @@ class DBPlot(BaseEstimator):
                 else (
                     "b"
                     if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
-                    else "r"
+                    else (
+                        "r"
+                        if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
+                        else (
+                            "orange"
+                            if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
+                            else
+                            "gray"
+                        )
+                    )
                 )
                 for i in range(len(self.train_idx))
             ],
@@ -482,13 +491,22 @@ class DBPlot(BaseEstimator):
             facecolor=["g" if i else "b" for i in self.y[self.test_idx]],
             edgecolor=[
                 "g"
-                if self.y_pred[self.test_idx[i]] == self.y[self.test_idx[i]] == 1
+                if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 1
                 else (
                     "b"
-                    if self.y_pred[self.test_idx[i]] == self.y[self.test_idx[i]] == 0
-                    else "r"
+                    if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
+                    else (
+                        "r"
+                        if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
+                        else (
+                            "orange"
+                            if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
+                            else
+                            "gray"
+                        )
+                    )
                 )
-                for i in range(len(self.test_idx))
+                for i in range(len(self.train_idx))
             ],
             linewidths=5 * scatter_size_scale,
             marker="s",

@@ -34,7 +34,7 @@ from utils.visualisation import (
     build_individual_animal_pred,
     build_report,
     plot_ml_report_final,
-)
+    plot_high_dimension_db, plot_learning_curves)
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -674,9 +674,9 @@ def fold_worker(
     # prep for roc curve
     alpha = 0.3
     lw= 1
-    if len(y_test) < 150:
-        alpha = len(y_test) / 100 / 4
-        lw = len(y_test) / 100 / 4
+    # if len(y_test) < 150:
+    #     alpha = len(y_test) / 100 / 4
+    #     lw = len(y_test) / 100 / 4
     viz_roc_test = plot_roc_curve(
         clf,
         X_test,
@@ -715,19 +715,19 @@ def fold_worker(
     print("auc train=", auc_value_train)
     aucs_roc_train.append(auc_value_train)
 
-    # if ifold == 0:
-    #     plot_high_dimension_db(
-    #         out_dir / "testing",
-    #         np.concatenate((X_train, X_test), axis=0),
-    #         np.concatenate((y_train, y_test), axis=0),
-    #         list(np.arange(len(X_train))),
-    #         np.concatenate((meta_train_s, meta_test_s), axis=0),
-    #         clf,
-    #         days,
-    #         steps,
-    #         ifold,
-    #     )
-    #     plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+    if ifold == 0:
+        plot_high_dimension_db(
+            out_dir / "testing",
+            np.concatenate((X_train, X_test), axis=0),
+            np.concatenate((y_train, y_test), axis=0),
+            list(np.arange(len(X_train))),
+            np.concatenate((meta_train_s, meta_test_s), axis=0),
+            clf,
+            days,
+            steps,
+            ifold,
+        )
+        plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -837,24 +837,24 @@ def cross_validate_custom_fast(
         y: targets
     """
 
-    # for kernel in svc_kernel:
-    #     clf = SVC(kernel=kernel, probability=True)
-    #     X_ = X[np.isin(y_h, [0, 1])]
-    #     y_ = y_h[np.isin(y_h, [0, 1])]
-    #     meta_ = meta_data_short[np.isin(y_h, [0, 1])]
-    #     clf.fit(X_, y_)
-    #     plot_high_dimension_db(
-    #         out_dir / "training",
-    #         X_,
-    #         y_,
-    #         None,
-    #         meta_,
-    #         clf,
-    #         days,
-    #         steps,
-    #         0,
-    #     )
-    #     plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+    for kernel in svc_kernel:
+        clf = SVC(kernel=kernel, probability=True)
+        X_ = X[np.isin(y_h, [0, 1])]
+        y_ = y_h[np.isin(y_h, [0, 1])]
+        meta_ = meta_data_short[np.isin(y_h, [0, 1])]
+        clf.fit(X_, y_)
+        plot_high_dimension_db(
+            out_dir / "training",
+            X_,
+            y_,
+            None,
+            meta_,
+            clf,
+            days,
+            steps,
+            0,
+        )
+        plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
 
     scores, scores_proba = {}, {}
 
@@ -957,10 +957,10 @@ def cross_validate_custom_fast(
                 ydata = ax.lines[0].get_ydata()
                 alpha = 0.3
                 lw = 1
-                testing_shape = fold_results[n]["testing_shape"][0]
-                if testing_shape < 150:
-                    alpha = testing_shape / 100 / 5
-                    lw = testing_shape / 100 / 5
+                # testing_shape = fold_results[n]["testing_shape"][0]
+                # if testing_shape < 150:
+                #     alpha = testing_shape / 100 / 5
+                #     lw = testing_shape / 100 / 5
                 ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=alpha, linewidth=lw)
                 ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=lw, linewidth=lw)
 
