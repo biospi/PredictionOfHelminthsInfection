@@ -1,4 +1,6 @@
 pandas==1.4.1
+numba==0.53.1
+numpy==1.19.4
 keras==2.6.0
 tensorflow==2.6.0
 matplotlib==3.3.3
@@ -16,5 +18,5 @@ plotly==4.2.1
 pywavelets==1.1.1
 seaborn==0.11.1
 datashader==0.13.0
-bokeh==2.3.3
+bokeh==2.4.0
 holoviews==1.14.5

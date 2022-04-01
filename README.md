@@ -63,15 +63,9 @@ Options:
 ```bash
 module load tools/git/2.18.0
 
-module load languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch
-conda env remove -n goat
-conda create -n goat python=3.8.8
+module load languages/anaconda3/2020-3.8.5
 
-conda create --prefix /user/work/fo18103/.conda/envs/goat python=3.8.8
-
-
-conda activate goat
-conda install anaconda
-
-make environment
+python -m venv goat
+source goat/bin/activate
+pip install -r requirements.txt
 ```
