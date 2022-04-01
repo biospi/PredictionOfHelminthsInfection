@@ -59,3 +59,7 @@ Options:
   --help                          Show this message and exit.
 ```
 
+##Blue Crystal 4
+```
+module load tools/git/2.18.0
+```
