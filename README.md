@@ -65,7 +65,7 @@ module load tools/git/2.18.0
 
 module load languages/anaconda3/2020-3.8.5
 
-python -m venv goat
-source goat/bin/activate
+python -m venv vgoat
+source vgoat/bin/activate
 pip install -r requirements.txt
 ```
