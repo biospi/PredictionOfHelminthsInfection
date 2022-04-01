@@ -10,7 +10,7 @@ setup(
     description="Accelerometry data famacha prediction pipeline",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Nellaker-group/HAPPY",
+    url="https://github.com/biospi/PredictionOfHelminthsInfection",
     #packages=find_packages(include=["mrnn", "preprocessing", "utils"]),
     classifiers=[
         "Programming Language :: Python :: 3",
