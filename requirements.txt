@@ -1,7 +1,7 @@
-nlopt==2.7.0
-natsort==7.1.1
-plotnine==0.7.1
-pycwt==0.3.0a22
-BaselineRemoval==0.0.6
-matplotlib==3.3.3
-umap-learn==0.5.1
+nlopt
+natsort
+plotnine
+pycwt
+BaselineRemoval
+matplotlib
+umap-learn
