@@ -1,6 +1,6 @@
 environment:
+    conda install -y pandas typer scikit-learn scikit-image colorcet matplotlib keras tensorflow plotly pywavelets seaborn datashader bokeh holoviews -c conda-forge umap-learn
 	pip install -r requirements.txt
-	python setup.py develop
 .PHONY: install
 
 setup:

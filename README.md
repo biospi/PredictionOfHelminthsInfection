@@ -62,10 +62,7 @@ Options:
 ##Blue Crystal 4
 ```bash
 module load tools/git/2.18.0
-
-module load languages/anaconda3/2020-3.8.5
-
-python -m venv vgoat
-source vgoat/bin/activate
-pip install -r requirements.txt
+module load languages/anaconda3/3.7
+conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.7
+conda activate --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
 ```
