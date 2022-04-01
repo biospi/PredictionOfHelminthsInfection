@@ -60,6 +60,11 @@ Options:
 ```
 
 ##Blue Crystal 4
-```
+```bash
 module load tools/git/2.18.0
+
+languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch
+conda create -n {envname} python=3.8.8
+conda activate {envname}
+make environment
 ```
