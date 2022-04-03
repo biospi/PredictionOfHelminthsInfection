@@ -14,9 +14,9 @@ def main(
         ["LINEAR", "QN", "ANSCOMBE"],
         ["LINEAR", "QN", "LOG"],
         ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
-        ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
-        ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
+        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+        ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWTMORL"],
+        ["LINEAR", "QN", "LOG", "CENTER", "CWTMORL"],
     ],
 ):
     cpt = 0
@@ -54,8 +54,10 @@ if __name__ == "__main__":
     n_cmd = 0
     cedara = "/user/work/fo18103/cedara/datasetraw_none_7day"
     delmas = "/user/work/fo18103/delmas/datasetraw_none_7day"
+    output_dir = "/user/work/fo18103/thesis"
     for activity_days in [1, 2, 3, 4, 5, 6, 7]:
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=delmas,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -63,6 +65,7 @@ if __name__ == "__main__":
             study_id="delmas",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=delmas,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -70,6 +73,7 @@ if __name__ == "__main__":
             study_id="delmas",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=delmas,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -77,6 +81,7 @@ if __name__ == "__main__":
             study_id="delmas",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=delmas,
             a_day=activity_days,
             class_healthy_label_list=["1To1", "2To1"],
@@ -85,6 +90,7 @@ if __name__ == "__main__":
         )
 
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -92,6 +98,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -99,6 +106,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
@@ -106,6 +114,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1", "2To1"],
@@ -113,6 +122,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1", "1To2", "2To1"],
@@ -120,6 +130,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1", "1To2", "2To1"],
@@ -134,6 +145,7 @@ if __name__ == "__main__":
             study_id="cedara",
         )
         n_cmd += main(
+            output_dir=output_dir,
             dataset_folder=cedara,
             a_day=activity_days,
             class_healthy_label_list=["1To1"],
