@@ -2336,7 +2336,7 @@ def build_report(
         scores["class1"] = y[y == 1].size
         scores[
             "steps"
-        ] = f"{study_id}->ID={n_imputed_days}->AD={activity_days}->UH={str(class_unhealthy_label)}->SEA={season}->{steps}->{cv}"
+        ] = f"{study_id}->ID={n_imputed_days}->AD={activity_days}->H={str(class_healthy_label)}->UH={str(class_unhealthy_label)}->SEA={season}->{steps}->{cv}"
         scores["days"] = days
         scores["farm_id"] = study_id
         scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)
