@@ -1,5 +1,6 @@
 colorcet==2.0.6
 BaselineRemoval==0.0.6
+bokeh==2.3.3
 h5py==3.1.0
 imageio==2.6.1
 matplotlib==3.3.3
