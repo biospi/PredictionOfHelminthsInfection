@@ -1952,7 +1952,8 @@ def build_individual_animal_pred(
             },
             index=labels
         ).T
-        df_c_p = df.explode(list(df.columns))
+        df_c_p = df.apply(lambda x: x.explode() if x.name in df.columns else x)
+        df_c_p = df_c_p.apply(lambda x: x.explode() if x.name in df.columns else x)
         df_c_p = df_c_p.reset_index(drop=True)
         #df_ = pd.concat([df_c_p, df_i_p], axis=1)
         df_ = df_c_p
@@ -2092,7 +2093,11 @@ def build_individual_animal_pred(
                 },
                 index=labels
             ).T
-            df_c_p = df_c.explode(list(df_c.columns))
+
+            df_c_p = df_c.apply(lambda x: x.explode() if x.name in df_c.columns else x)
+            df_c_p = df_c_p.apply(lambda x: x.explode() if x.name in df_c.columns else x)
+
+            #df_c_p = df_c.explode(list(df_c.columns))
             df_c_p = df_c_p.reset_index(drop=True)
             df_ = df_c_p
             #df_ = df_.reindex(natsorted(df_.columns), axis=1)

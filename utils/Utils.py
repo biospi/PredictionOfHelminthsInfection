@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
+import pandas as pd
 
 """
 Utility class for static methods
@@ -205,3 +206,38 @@ def concatenate_images(images_list, out_dir, filename="cwt_mean_per_label.png"):
     file_path = out_dir.parent / filename
     print(file_path)
     img_merge.save(str(file_path))
+
+
+def explode(df, lst_cols, fill_value=''):
+    # make sure `lst_cols` is a list
+    if lst_cols and not isinstance(lst_cols, list):
+        lst_cols = [lst_cols]
+    # all columns except `lst_cols`
+    idx_cols = df.columns.difference(lst_cols)
+
+    # calculate lengths of lists
+    lens = df[lst_cols[0]].str.len()
+
+    if (lens > 0).all():
+        # ALL lists in cells aren't empty
+        return pd.DataFrame({
+            col:np.repeat(df[col].values, df[lst_cols[0]].str.len())
+            for col in idx_cols
+        }).assign(**{col:np.concatenate(df[col].values) for col in lst_cols}) \
+          .loc[:, df.columns]
+    else:
+        # at least one list in cells is empty
+        return pd.DataFrame({
+            col:np.repeat(df[col].values, df[lst_cols[0]].str.len())
+            for col in idx_cols
+        }).assign(**{col:np.concatenate(df[col].values) for col in lst_cols}) \
+          .append(df.loc[lens==0, idx_cols]).fillna(fill_value) \
+          .loc[:, df.columns]
+
+def explode(df, columns):
+    df['tmp'] = df.apply(lambda row: list(zip(row[columns])), axis=1)
+    df = df.explode('tmp')
+    df[columns] = pd.DataFrame(df['tmp'].tolist(), index=df.index)
+    df.drop(columns='tmp', inplace=True)
+    print(df)
+    return df
