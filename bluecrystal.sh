@@ -2,7 +2,7 @@
 
 
 #SBATCH --job-name=array_job
-#SBATCH --partition=test
+#SBATCH --partition=veryshort
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=28
 #SBATCH --cpus-per-task=28
