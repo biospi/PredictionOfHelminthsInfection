@@ -3,9 +3,9 @@ import numpy as np
 from multiprocessing import Manager, Pool
 import time
 import json
-import pickle
-from keras import metrics
-from sklearn.metrics import plot_roc_curve
+# import pickle
+# from keras import metrics
+# from sklearn.metrics import plot_roc_curve
 
 from utils.visualisation import plot_roc_range
 from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
@@ -246,16 +246,16 @@ def fold_worker(
     # )
 
 ##############################################################
-    METRICS = [
-        metrics.TruePositives(name='tp'),
-        metrics.FalsePositives(name='fp'),
-        metrics.TrueNegatives(name='tn'),
-        metrics.FalseNegatives(name='fn'),
-        metrics.BinaryAccuracy(name='accuracy'),
-        metrics.Precision(name='precision'),
-        metrics.Recall(name='recall'),
-        metrics.AUC(name='auc')
-    ]
+    # METRICS = [
+    #     metrics.TruePositives(name='tp'),
+    #     metrics.FalsePositives(name='fp'),
+    #     metrics.TrueNegatives(name='tn'),
+    #     metrics.FalseNegatives(name='fn'),
+    #     metrics.BinaryAccuracy(name='accuracy'),
+    #     metrics.Precision(name='precision'),
+    #     metrics.Recall(name='recall'),
+    #     metrics.AUC(name='auc')
+    # ]
 
     model.compile(
         loss="sparse_categorical_crossentropy",

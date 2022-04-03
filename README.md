@@ -63,7 +63,8 @@ Options:
 ```bash
 module load tools/git/2.18.0
 module load languages/anaconda3/2020-3.8.5
-conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.8.5
+module load languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch
+conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.8.8
 conda activate /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
 export PATH=/user/work/fo18103/PredictionOfHelminthsInfection/vgoat/bin/:$PATH
 python -m pip install --upgrade pip

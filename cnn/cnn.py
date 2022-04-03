@@ -11,7 +11,7 @@ from keras.layers import Dropout
 from keras.layers.convolutional import Conv1D
 from keras.layers.convolutional import MaxPooling1D
 #from keras.utils import to_categorical
-from keras import metrics
+#from keras import metrics
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_blobs
