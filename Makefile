@@ -3,11 +3,3 @@ environment:
     conda install -c conda-forge umap-learn
     pip install -r requirements.txt
 .PHONY: install
-
-setup:
-	python setup.py develop
-.PHONY: install
-
-test:
-	pytest
-.PHONY: install
