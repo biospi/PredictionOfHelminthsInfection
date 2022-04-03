@@ -13,7 +13,7 @@
 # Load the modules/environment
 module purge
 module load languages/anaconda3/3.7
-source activate vgoat
+source activate /user/work/fo18103/PredictionOfHelminthsInfection/goat
 
 # Define working directory
 export WORK_DIR=${HOME}/PredictionOfHelminthsInfection

@@ -64,5 +64,14 @@ Options:
 module load tools/git/2.18.0
 module load languages/anaconda3/3.7
 conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.7
-conda activate --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
+conda activate /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
+
+
+module load Anaconda3/2019.10
+conda create -n {envname} python=3.7.2
+conda activate {envname}
+module load libvips/8.9.2-foss-2019a
+export PATH=/{PathToYourUserDirWithSpace}/conda_stuff/my_envs/{envname}/bin/:$PATH
+export JAVA_HOME=/usr/java/jdk1.8.0_112/
+make environment
 ```
