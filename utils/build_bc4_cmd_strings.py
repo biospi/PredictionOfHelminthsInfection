@@ -22,7 +22,7 @@ def main(
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"python PredictionOfHelminthsInfection/ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
+        cmd = f"python ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
