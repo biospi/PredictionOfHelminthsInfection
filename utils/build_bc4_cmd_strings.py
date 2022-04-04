@@ -1,4 +1,5 @@
 def main(
+    log_dir="/user/work/fo18103/logs",
     output_dir="",
     dataset_folder="",
     i_day=-1,
@@ -21,7 +22,7 @@ def main(
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"python ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
+        cmd = f"python PredictionOfHelminthsInfection/ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -43,7 +44,7 @@ def main(
         unhealthy_s = "_".join(class_unhealthy_label_list)
         clf_s = "_".join(classifiers_list)
         cmd += f"--output-dir {output_dir}/main_experiment/delmas_{cv}_{i_day}_{a_day}_{slug}_{clf_s}/{healthy_s}__{unhealthy_s}"
-        cmd += " > ${SLURM_ARRAY_TASK_ID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
+        cmd += " > "+log_dir+"/${SLURM_JOBID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
 
         print(cmd)
         cpt += 1
