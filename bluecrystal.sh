@@ -2,7 +2,7 @@
 
 
 #SBATCH --job-name=array_job
-#SBATCH --partition=serial_verylong
+#SBATCH --partition=cpu*
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
