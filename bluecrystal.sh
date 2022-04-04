@@ -13,6 +13,7 @@
 # Load the modules/environment
 module purge
 module load languages/anaconda3/3.7
+conda init bash
 conda activate /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
 
 # Define working directory
