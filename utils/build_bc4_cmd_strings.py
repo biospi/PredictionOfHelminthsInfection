@@ -44,7 +44,7 @@ def main(
         unhealthy_s = "_".join(class_unhealthy_label_list)
         clf_s = "_".join(classifiers_list)
         cmd += f"--output-dir {output_dir}/main_experiment/delmas_{cv}_{i_day}_{a_day}_{slug}_{clf_s}/{healthy_s}__{unhealthy_s}"
-        cmd += " > "+log_dir+"/${SLURM_JOBID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
+        cmd += " > "+log_dir+"/${SLURM_ARRAY_TASK_ID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
 
         print(cmd)
         cpt += 1
