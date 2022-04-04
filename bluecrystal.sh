@@ -4,8 +4,8 @@
 #SBATCH --job-name=array_job
 #SBATCH --partition=veryshort
 #SBATCH --nodes=4
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=28
+#SBATCH --ntasks-per-node=28
+#SBATCH --cpus-per-task=1
 #SBATCH --time=01:00:00
 #SBATCH --mem=100000M
 #SBATCH --array=1-4
