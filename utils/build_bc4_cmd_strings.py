@@ -1,3 +1,5 @@
+FINAL_STR = ""
+
 def main(
     log_dir="/user/work/fo18103/logs",
     output_dir="",
@@ -22,7 +24,7 @@ def main(
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"python ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
+        cmd = f"ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -43,10 +45,12 @@ def main(
         healthy_s = "_".join(class_healthy_label_list)
         unhealthy_s = "_".join(class_unhealthy_label_list)
         clf_s = "_".join(classifiers_list)
-        cmd += f"--output-dir {output_dir}/main_experiment/delmas_{cv}_{i_day}_{a_day}_{slug}_{clf_s}/{healthy_s}__{unhealthy_s}"
-        cmd += " > "+log_dir+"/${SLURM_ARRAY_TASK_ID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
+        cmd += f"--output-dir {output_dir}/main_experiment/{study_id}_{cv}_{i_day}_{a_day}_{slug}_{clf_s}/{healthy_s}__{unhealthy_s}"
+        #cmd += " > "+log_dir+"/${SLURM_ARRAY_TASK_ID}_"+f"{cv}_{i_day}_{a_day}_{slug}_{clf_s}__{healthy_s}__{unhealthy_s}"+".txt"
 
         print(cmd)
+        global FINAL_STR
+        FINAL_STR += f"\'{cmd}\' "
         cpt += 1
     return cpt
 
@@ -161,3 +165,4 @@ if __name__ == "__main__":
             study_id="cedara",
         )
     print(f"total cmd number is {n_cmd}")
+    print(FINAL_STR)
