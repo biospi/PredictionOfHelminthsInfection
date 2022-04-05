@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent="E:/Cats/ml_peak_build_sec_w4min",
-    dataset_parent="E:/Cats/build_sec2/peak",
+    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min",
+    dataset_parent: str = "E:/Cats/build_sec2/peak",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -15,7 +15,8 @@ def main(
     for clf in ["rbf"]:
         for steps in [
             ["LINEAR", "QN", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"]["LINEAR", "QN", "LOG", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+            ["LINEAR", "QN", "LOG", "STD"],
             ["LINEAR", "QN", "ANSCOMBE", "LOG"],
             ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
             ["LINEAR", "QN", "CWT(MEXH)", "STD"],
