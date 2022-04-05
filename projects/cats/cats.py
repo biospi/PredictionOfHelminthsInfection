@@ -3,47 +3,48 @@ import ml as main_pipeline
 from pathlib import Path
 
 
-def main():
+def main(
+    out_parent="E:/Cats/ml_peak_build_sec_w4min",
+    dataset_parent="E:/Cats/build_sec2/peak",
+):
     """Thesis script runs the cats study
     Args:\n
         output_dir: Output directory
     """
-    parent = "E:/Cats/ml_peak_build_sec_w4min"
+
     for clf in ["rbf"]:
         for steps in [
             ["LINEAR", "QN", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"]
-            # ["LINEAR", "QN", "LOG", "STD"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
-            # ["LINEAR", "QN", "CWT(MEXH)", "STD"],
-            # ["LINEAR", "QN", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "CWT(MEXH)"],
-            # ["LINEAR", "QN", "CWT(MORL)"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "STD", "CWT(MORL)"],
-            # ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
-            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"]
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"]["LINEAR", "QN", "LOG", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+            ["LINEAR", "QN", "CWT(MEXH)", "STD"],
+            ["LINEAR", "QN", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "CWT(MEXH)"],
+            ["LINEAR", "QN", "CWT(MORL)"],
+            ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
+            ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
+            ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "STD", "CWT(MORL)"],
+            ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
         ]:
             slug = "_".join(steps)
 
-            for thresh in ["0_00010", "0_00100", "0_00200", "0_00300", "0_00400", "0_00500", "0_00600", "0_00700", "0_00800"]:
+            for thresh in [x.stem for x in Path(dataset_parent).glob("*")]:
+                print(f"threshold={thresh}")
                 for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
                     main_pipeline.main(
-                        output_dir=Path(
-                            f"{parent}/{thresh}/{clf}/{slug}_{cv}"
-                        ),
+                        output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
                         dataset_folder=Path(
-                            f"E:/Cats/build_sec2/peak/{thresh}/dataset/training_sets/day_w"
+                            f"{dataset_parent}/{thresh}/dataset/training_sets/day_w"
                         ),
                         preprocessing_steps=steps,
                         meta_columns=[
@@ -73,7 +74,6 @@ def main():
                         output_qn_graph=True,
                         epoch=500,
                     )
-
 
                 # main_pipeline.main(
                 #     output_dir=Path(
