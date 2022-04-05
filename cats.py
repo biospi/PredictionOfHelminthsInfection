@@ -2,7 +2,7 @@ import typer
 import ml as main_pipeline
 from pathlib import Path
 
-#nohup python cats.py --dataset-parent /mnt/storage/scratch/axel/cats/peak --out-parent /mnt/storage/scratch/axel/cats/ml_peak > peak.log &
+#nohup python3 cats.py --dataset-parent /mnt/storage/scratch/axel/cats/peak --out-parent /mnt/storage/scratch/axel/cats/ml_peak > peak.log &
 
 
 def main(
