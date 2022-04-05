@@ -9,7 +9,8 @@ def main(
 ):
     """Thesis script runs the cats study
     Args:\n
-        output_dir: Output directory
+        out_parent: Output directory
+        dataset_parent: Dataset directory
     """
 
     for clf in ["rbf"]:
