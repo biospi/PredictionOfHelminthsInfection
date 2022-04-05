@@ -2,6 +2,8 @@ import typer
 import ml as main_pipeline
 from pathlib import Path
 
+#nohup python cats.py --dataset-parent /mnt/storage/scratch/axel/cats/peak --out-parent /mnt/storage/scratch/axel/cats/ml_peak > peak.log &
+
 
 def main(
     out_parent: str = "E:/Cats/ml_peak_build_sec_w4min",
@@ -12,6 +14,8 @@ def main(
         out_parent: Output directory
         dataset_parent: Dataset directory
     """
+    print(out_parent)
+    print(dataset_parent)
 
     for clf in ["rbf"]:
         for steps in [
@@ -39,8 +43,10 @@ def main(
             ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
         ]:
             slug = "_".join(steps)
-
-            for thresh in [x.stem for x in Path(dataset_parent).glob("*")]:
+            print(slug)
+            folders = [x.stem for x in Path(dataset_parent).glob("*")]
+            print(folders)
+            for thresh in folders:
                 print(f"threshold={thresh}")
                 for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
                     main_pipeline.main(
