@@ -139,20 +139,20 @@ if __name__ == "__main__":
             ],
             study_id="cedara",
         )
-        n_cmd += main(
-            output_dir=output_dir,
-            dataset_folder=cedara,
-            a_day=activity_days,
-            class_healthy_label_list=["1To1"],
-            class_unhealthy_label_list=[
-                "4To4",
-                "3To5",
-                "4To3",
-                "5To3",
-                "2To5",
-                "2To2",
-            ],
-            study_id="cedara",
-        )
+        # n_cmd += main(
+        #     output_dir=output_dir,
+        #     dataset_folder=cedara,
+        #     a_day=activity_days,
+        #     class_healthy_label_list=["1To1"],
+        #     class_unhealthy_label_list=[
+        #         "4To4",
+        #         "3To5",
+        #         "4To3",
+        #         "5To3",
+        #         "2To5",
+        #         "2To2",
+        #     ],
+        #     study_id="cedara",
+        # )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
