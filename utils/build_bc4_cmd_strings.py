@@ -17,7 +17,9 @@ def main(
         ["LINEAR", "QN", "ANSCOMBE"],
         ["LINEAR", "QN", "LOG"],
         ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]
+        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+        ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWTMORL"],
+        ["LINEAR", "QN", "LOG", "CENTER", "CWTMORL"],
     ],
 ):
     cpt = 0
