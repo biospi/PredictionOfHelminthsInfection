@@ -7,8 +7,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
 #SBATCH --time=1:00:00
-#SBATCH --mem=100000M
-#SBATCH --array=1-500
+#SBATCH --mem=1000M
+#SBATCH --array=1-504
 
 # Load the modules/environment
 module purge
