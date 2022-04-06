@@ -9,7 +9,6 @@
 #SBATCH --time=1:00:00
 #SBATCH --mem=100000M
 #SBATCH --array=1-500
-#SBATCH --exclusive=user
 
 # Load the modules/environment
 module purge
