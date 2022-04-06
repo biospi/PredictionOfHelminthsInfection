@@ -17,9 +17,7 @@ def main(
         ["LINEAR", "QN", "ANSCOMBE"],
         ["LINEAR", "QN", "LOG"],
         ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
-        ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWTMORL"],
-        ["LINEAR", "QN", "LOG", "CENTER", "CWTMORL"],
+        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]
     ],
 ):
     cpt = 0
@@ -124,14 +122,6 @@ if __name__ == "__main__":
             a_day=activity_days,
             class_healthy_label_list=["1To1", "2To1"],
             class_unhealthy_label_list=["2To2", "1To2"],
-            study_id="cedara",
-        )
-        n_cmd += main(
-            output_dir=output_dir,
-            dataset_folder=cedara,
-            a_day=activity_days,
-            class_healthy_label_list=["1To1", "1To2", "2To1"],
-            class_unhealthy_label_list=["2To2"],
             study_id="cedara",
         )
         n_cmd += main(
