@@ -4,7 +4,7 @@
 #SBATCH --job-name=array_job
 #SBATCH --partition=test
 #SBATCH --nodes=100
-#SBATCH --ntasks-per-node=5
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
 #SBATCH --time=1:00:00
 #SBATCH --mem=100000M
