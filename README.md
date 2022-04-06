@@ -62,25 +62,21 @@ Options:
 ##Blue Crystal 4
 ```bash
 module load tools/git/2.18.0
-module load languages/anaconda3/2020-3.8.5
-module load languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch
-module load languages/anaconda3/3.6.5
-module load languages/anaconda3/2019.10-3.7.4-tflow-2.1.0
 module load languages/anaconda3/3.7
-
 conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.7
 conda activate /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
 export PATH=/user/work/fo18103/PredictionOfHelminthsInfection/vgoat/bin/:$PATH
 python -m pip install --upgrade pip
 make environment
+```
 
-
-languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch
-module load Anaconda3/2019.10
-conda create -n {envname} python=3.7.2
-conda activate {envname}
-module load libvips/8.9.2-foss-2019a
+##Blue Pebble 
+```bash
+module load tools/git/2.22.0
+module load lang/python/anaconda/3.7-2019.03-tensorflow
+conda create --prefix /user/work/fo18103/PredictionOfHelminthsInfection/vgoat python=3.7
+conda activate /user/work/fo18103/PredictionOfHelminthsInfection/vgoat
 export PATH=/user/work/fo18103/PredictionOfHelminthsInfection/vgoat/bin/:$PATH
-export JAVA_HOME=/usr/java/jdk1.8.0_112/
+python -m pip install --upgrade pip
 make environment
 ```
