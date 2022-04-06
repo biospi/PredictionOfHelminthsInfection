@@ -3,10 +3,10 @@
 
 #SBATCH --job-name=array_job
 #SBATCH --partition=test
-#SBATCH --nodes=2
+#SBATCH --nodes=3
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=28
-#SBATCH --time=1:00:00
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:10:00
 #SBATCH --mem=1000M
 #SBATCH --array=1-504
 
