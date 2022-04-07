@@ -12,7 +12,7 @@
 
 # Load the modules/environment
 module purge
-module load languages/anaconda3/3.7
+module load lang/python/anaconda/3.7-2019.03-tensorflow
 conda init
 source ~/.bashrc
 
