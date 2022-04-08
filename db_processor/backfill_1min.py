@@ -1075,7 +1075,7 @@ def process_raw_file(farm_id, data):
 
     # data_resampled_1min = pd.DataFrame()
 
-    MULTI_THREADING_ENABLED = True
+    MULTI_THREADING_ENABLED = False
 
     if MULTI_THREADING_ENABLED:
         pool = Pool(processes=7)
