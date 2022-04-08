@@ -21,7 +21,6 @@ import dateutil.relativedelta
 import time
 import os
 import glob
-import xlrd
 import pandas as pd
 import sys
 import pymysql
@@ -903,7 +902,7 @@ def resample_1min(df_raw):
             df_1min.at[df_1min.index[bin], 'first_sensor_value'] = row_raw.first_sensor_value
             df_1min.at[df_1min.index[bin], 'date_str'] = row_raw.date_str
         else:
-            # print("Multiple binned time stamps, preforming a shift:")
+            print("Multiple binned time stamps, preforming a shift:")
             repeat = 1
             space = 0
             begIdx = i
@@ -914,7 +913,7 @@ def resample_1min(df_raw):
             #            fail = 0
             while True:
                 # For debuging
-                # print("idx x0: %d  idx x1: %d \n" % (j+1, j), df_raw.iloc[list(range(j, j + 2)), :])
+                print("idx x0: %d  idx x1: %d \n" % (j+1, j), df_raw.iloc[list(range(j, j + 2)), :])
                 x1 = df_raw.index[j].value
                 x1_bin = int((x1 - t0) / dt)
                 dBin = x0_bin - x1_bin - 1
@@ -935,11 +934,11 @@ def resample_1min(df_raw):
             #                print("Error with time stamps in data: !!!")
             #                print("idx x0: %d  idx x1: %d \n" % (begIdx, j), df_raw.iloc[list(range(j, begIdx + 2)), :])
             #                break
-            # print("Space found: Realign data to correct time stamp...")
-            # print("Raw data Index: [Begin, End] =  [%d, %d]" % (begIdx, endIdx))
+            print("Space found: Realign data to correct time stamp...")
+            print("Raw data Index: [Begin, End] =  [%d, %d]" % (begIdx, endIdx))
             for k in range(begIdx, endIdx - 1, -1):
                 # For debuging
-                # print("idx x0: %d \n" % k, df_raw.iloc[list(range(k, k +1)), :])
+                print("idx x0: %d \n" % k, df_raw.iloc[list(range(k, k +1)), :])
                 row_raw = df_raw.iloc[k, :]
                 bin -= 1
                 if isNaN(df_1min.at[df_1min.index[bin], 'timestamp']):
@@ -1055,7 +1054,7 @@ def export_data_to_csv(data, farm_id):
 
 def export_rawdata_to_csv(df, farm_id, animal_id):
     print("exporting data...")
-    path = "csv_export/backfill_1min/%s/" % farm_id
+    path = "csv_export2/backfill_1min/%s/" % farm_id
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     filename_path = path + "%s.csv" % animal_id
     purge_file(filename_path)
