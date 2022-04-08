@@ -81,7 +81,8 @@ def main(
     n_job: int = 7,
     batch_size: int = 8,
     epoch: int = 500,
-    individual_to_ignore: List[str] = []
+    individual_to_ignore: List[str] = [],
+    save_model: bool = False
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -423,6 +424,7 @@ def main(
             class_unhealthy_label,
             meta_columns,
             add_seasons_to_features,
+            save_model=save_model,
             cv=cv,
             n_job=n_job,
             batch_size=batch_size,

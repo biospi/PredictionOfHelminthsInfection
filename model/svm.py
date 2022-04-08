@@ -330,6 +330,7 @@ def process_ml(
     season,
     y_col="target",
     cv=None,
+    save_model=save_model,
     augment_training=0,
     n_job=6,
     epoch=500,
@@ -424,6 +425,7 @@ def process_ml(
 
     if "linear" in classifiers or "rbf" in classifiers:
         scores, scores_proba = cross_validate_custom_fast(
+            save_model,
             classifiers,
             output_dir,
             steps,
@@ -569,6 +571,7 @@ def augment_(X_train, y_train, n, sample_dates_train, ids_train, meta_train):
 
 
 def fold_worker(
+    save_model,
     out_dir,
     y_h,
     ids,
@@ -657,15 +660,16 @@ def fold_worker(
 
     fit_time = time.time() - start_time
 
-    models_dir = (
-        out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-    )
-    models_dir.mkdir(parents=True, exist_ok=True)
-    filename = models_dir / f"model_{ifold}.pkl"
-    print("saving classifier...")
-    print(filename)
-    with open(str(filename), "wb") as f:
-        pickle.dump(clf, f)
+    if save_model:
+        models_dir = (
+            out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        )
+        models_dir.mkdir(parents=True, exist_ok=True)
+        filename = models_dir / f"model_{ifold}.pkl"
+        print("saving classifier...")
+        print(filename)
+        with open(str(filename), "wb") as f:
+            pickle.dump(clf, f)
 
     # test healthy/unhealthy
     y_pred = clf.predict(X_test)
@@ -806,6 +810,7 @@ def fold_worker(
 
 
 def cross_validate_custom_fast(
+    save_model,
     svc_kernel,
     out_dir,
     steps,
@@ -894,6 +899,7 @@ def cross_validate_custom_fast(
                 pool.apply_async(
                     fold_worker,
                     (
+                        save_model,
                         out_dir,
                         y_h,
                         ids,
