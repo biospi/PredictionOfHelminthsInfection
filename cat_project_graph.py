@@ -57,9 +57,9 @@ def main(
         auc_list = []
         print(df)
         for index, row in df.iterrows():
-            res_file_path = row[7]
-            p_steps = row[5]
-            thresh = row[3]
+            res_file_path = row[df.shape[1]-1]
+            p_steps = row[df.shape[1]-3]
+            thresh = row[df.shape[1]-5]
             t_v = thresh.replace("_", ".")
             thresh_float = float(t_v)*10000
             results = json.load(open(res_file_path))
