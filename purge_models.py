@@ -10,12 +10,13 @@ def main(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     )
 ):
-    print(f"Found {len(list(input_dir.rglob('*.pkl')))} models in {input_dir}")
+    n_model = len(list(input_dir.rglob('*.pkl')))
+    print(f"Found {n_model} models in {input_dir}")
     delete = raw_input('Would you like to delete all models (y/n)? ')
 
     if delete.lower() == 'yes' or delete.lower() == 'y':
         print("deleting...")
-        for p in tqdm(input_dir.rglob("*.pkl")):
+        for p in tqdm(input_dir.rglob("*.pkl"), total=n):
             p.unlink()
         print("done.")
     else:

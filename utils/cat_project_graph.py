@@ -30,8 +30,8 @@ def main(
     df = pd.DataFrame(data)
     dfs = [group for _, group in df.groupby(df[5])]
     print(f"there are {len(dfs)} different processing pipeline.")
-    fig, ax = plt.subplots(figsize=(19.80, 7.20))
-    for i, df in tqdm(enumerate(dfs)):
+    fig, ax = plt.subplots(figsize=(20.48, 11.52))
+    for i, df in tqdm(enumerate(dfs), total=len(dfs)):
         data_xaxis = []
         data_yaxis = []
         for index, row in df.iterrows():

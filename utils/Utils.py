@@ -213,7 +213,7 @@ def mean_confidence_interval(x):
     x.sort()
     lo_x_boot = np.percentile(x, 2.5)
     hi_x_boot = np.percentile(x, 97.5)
-    print(lo_x_boot, hi_x_boot)
+    # print(lo_x_boot, hi_x_boot)
     return lo_x_boot, hi_x_boot
 
 
