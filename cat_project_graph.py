@@ -55,12 +55,12 @@ def main(
         data_xaxis = []
         data_yaxis = []
         auc_list = []
+        print(df)
         for index, row in df.iterrows():
             res_file_path = row[7]
             p_steps = row[5]
             thresh = row[3]
             t_v = thresh.replace("_", ".")
-            print(t_v)
             thresh_float = float(t_v)*10000
             results = json.load(open(res_file_path))
             clf_res = results[list(results.keys())[0]]
