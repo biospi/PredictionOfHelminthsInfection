@@ -59,7 +59,9 @@ def main(
             res_file_path = row[7]
             p_steps = row[5]
             thresh = row[3]
-            thresh_float = float(thresh.replace("_", "."))*10000
+            t_v = thresh.replace("_", ".")
+            print(t_v)
+            thresh_float = float(t_v)*10000
             results = json.load(open(res_file_path))
             clf_res = results[list(results.keys())[0]]
             aucs = []
