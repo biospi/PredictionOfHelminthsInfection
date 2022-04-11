@@ -208,6 +208,15 @@ def concatenate_images(images_list, out_dir, filename="cwt_mean_per_label.png"):
     img_merge.save(str(file_path))
 
 
+def mean_confidence_interval(x):
+    # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
+    x.sort()
+    lo_x_boot = np.percentile(x, 2.5)
+    hi_x_boot = np.percentile(x, 97.5)
+    print(lo_x_boot, hi_x_boot)
+    return lo_x_boot, hi_x_boot
+
+
 def explode(df, lst_cols, fill_value=''):
     # make sure `lst_cols` is a list
     if lst_cols and not isinstance(lst_cols, list):

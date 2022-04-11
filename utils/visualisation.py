@@ -950,7 +950,7 @@ def plot_roc_range(
     lo, hi = mean_confidence_interval(aucs_test)
 
     label = (
-        f"Mean ROC Test (Median AUC = {np.median(aucs_test):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+        f"Mean ROC Test (Median AUC = {np.median(aucs_test):.2f}, 95% CI [{lo:.4f}, {hi:.4f}] )"
     )
     if len(aucs_test) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_test)
@@ -983,7 +983,7 @@ def plot_roc_range(
     lo, hi = mean_confidence_interval(aucs_train)
 
     label = (
-        f"Mean ROC Training (Median AUC = {np.median(aucs_train):.2f}, 95%% CI [{lo:.4f}, {hi:.4f}] )"
+        f"Mean ROC Training (Median AUC = {np.median(aucs_train):.2f}, 95% CI [{lo:.4f}, {hi:.4f}] )"
     )
     if len(aucs_train) <= 2:
         label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_train)

@@ -756,6 +756,7 @@ def fold_worker(
         "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
         "auc": auc_value_test,
+        "auc_train": auc_value_train,
         "accuracy": float(accuracy),
         "accuracy_train": float(accuracy_train),
         "class_healthy": int(class_healthy),
