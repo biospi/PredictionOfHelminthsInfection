@@ -330,7 +330,7 @@ def process_ml(
     season,
     y_col="target",
     cv=None,
-    save_model=save_model,
+    save_model=False,
     augment_training=0,
     n_job=6,
     epoch=500,
