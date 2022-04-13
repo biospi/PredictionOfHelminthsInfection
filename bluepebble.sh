@@ -3,7 +3,7 @@
 
 #SBATCH --job-name=array_job
 #SBATCH --partition=short
-#SBATCH --nodes=6
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
 #SBATCH --time=1-00:00:00
