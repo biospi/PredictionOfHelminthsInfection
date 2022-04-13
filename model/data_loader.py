@@ -150,8 +150,8 @@ def load_activity_data(
     # drop label column stored previously, just keep target for ml
     meta_data = data_frame[meta_columns].values
     meta_data_short = []
-    for m in meta_data:
-        str_f = ""
+    for j, m in enumerate(meta_data):
+        str_f = str(j)
         for i, elem in enumerate(m):
             elem = str(elem)
             m_col = meta_columns[i]
@@ -258,6 +258,9 @@ def plot_samples_distribution(out_dir, samples_, filename):
         .astype(int)
         .max()
     )
+    if max_famacha <= 1:
+        print(f"no famacha data. max_famacha={max_famacha}")
+        return
     mat_label = np.zeros((max_famacha, max_famacha), dtype=object)
     for i in range(mat_label.shape[0]):
         for j in range(mat_label.shape[1]):

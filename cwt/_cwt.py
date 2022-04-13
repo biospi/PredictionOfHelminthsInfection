@@ -360,7 +360,7 @@ def plot_stft_power(
                 % (date.replace("_", "/"), animal_id, str(target))
             )
 
-    axs[0].set(xlabel="Time in minute", ylabel="activity")
+    axs[0].set(xlabel="Time", ylabel="activity")
     if format_xaxis:
         axs[0].set(xlabel="Time", ylabel="activity")
 
@@ -387,7 +387,7 @@ def plot_stft_power(
         "STFT Power | window size=%d %s %s %s"
         % (sfft_window, date.replace("_", "/"), animal_id, str(target))
     )
-    axs[1].set_xlabel("Time in minute")
+    axs[1].set_xlabel("Time")
     if format_xaxis:
         axs[1].set_xlabel("Time")
     axs[1].set_ylabel("Frequency (Hz)")
@@ -461,7 +461,7 @@ def plot_cwt_power(
                 % (date.replace("_", "/"), animal_id, str(target))
             )
 
-    axs[0].set(xlabel="Time in minute", ylabel="activity")
+    axs[0].set(xlabel="Time", ylabel="activity")
 
     if format_xaxis:
         axs[0].set(xlabel="Time", ylabel="activity")
@@ -516,7 +516,7 @@ def plot_cwt_power(
             % (date.replace("_", "/"), animal_id, str(target))
         )
 
-    axs[1].set_xlabel("Time in minute")
+    axs[1].set_xlabel("Time")
     if format_xaxis:
         axs[1].set_xlabel("Time")
     axs[1].set_ylabel(f"Wave length of wavelet (in minute) (n_scales={len(scales)})")
@@ -787,13 +787,13 @@ def compute_multi_res(
         fig.colorbar(pos, ax=axs[i, 1])
         axs[i, 1].set_aspect("auto")
         axs[i, 1].set_title("CWT %i" % i)
-        axs[i, 1].set_xlabel("Time in minute")
+        axs[i, 1].set_xlabel("Time")
         axs[i, 1].set_ylabel("Wavelength")
         axs[i, 1].set_yscale("log")
 
         axs[i, 0].plot(mra[i])
         axs[i, 0].set_title("MRA decomposition %i" % i)
-        axs[i, 0].set(xlabel="Time in minute", ylabel="activity")
+        axs[i, 0].set(xlabel="Time", ylabel="activity")
 
     filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx{i}_{step_slug}_mra.png"
     filepath = out_dir / filename

@@ -47,21 +47,21 @@ def main(
         data.append(split + [p])
 
     df = pd.DataFrame(data)
-    dfs = [group for _, group in df.groupby(df[5])]
+    dfs = [group for _, group in df.groupby(df[df.shape[1]-3])]
     print(f"there are {len(dfs)} different processing pipeline.")
-    fig, ax = plt.subplots(figsize=(20.48, 11.52))
-
+    fig, ax1 = plt.subplots(figsize=(20.48, 11.52))
+    ax2 = ax1.twinx()
     for i, df in tqdm(enumerate(dfs), total=len(dfs)):
         data_xaxis = []
         data_yaxis = []
         auc_list = []
-        print(df)
+        n_samples = []
         for index, row in df.iterrows():
             res_file_path = row[df.shape[1]-1]
             p_steps = row[df.shape[1]-3]
             thresh = row[df.shape[1]-5]
             t_v = thresh.replace("_", ".")
-            thresh_float = float(t_v)*10000
+            thresh_float = float(t_v)
             results = json.load(open(res_file_path))
             clf_res = results[list(results.keys())[0]]
             aucs = []
@@ -70,31 +70,49 @@ def main(
                     continue
                 auc = item["auc"]
                 aucs.append(auc)
+                training_shape = item["training_shape"][0]
+                testing_shape = item["testing_shape"][0]
             auc_list.append(aucs)
-            mean_auc = np.mean(aucs)
+            median_auc = np.median(aucs)
             data_xaxis.append(thresh_float)
-            data_yaxis.append(mean_auc)
+            data_yaxis.append(median_auc)
+            n_samples.append(training_shape+testing_shape)
 
         out_dir.mkdir(parents=True, exist_ok=True)
         df_ = pd.DataFrame(auc_list)
         data_yaxis = np.array(data_yaxis)
         df_ci = pd.DataFrame(df_.apply(mean_confidence_interval, axis=1).tolist(), index=df_.index)
 
-        plt.plot(
+        ax1.plot(
             data_xaxis,
             data_yaxis,
-            label=f"processing steps={p_steps}",
+            label=f"Median AUC | processing steps={p_steps}",
             marker="x"
         )
 
-        plt.fill_between(data_xaxis, df_ci[0].values, df_ci[1].values, alpha=0.25)
+        ax2.plot(
+            data_xaxis,
+            n_samples,
+            marker="x",
+            color="grey"
+        )
 
-    plt.axhline(y=0.5, color='black', linestyle='--')
-    ax.xaxis.set_major_formatter(FormatStrFormatter("%.4f"))
+        ax1.fill_between(data_xaxis, df_ci[0].values, df_ci[1].values, alpha=0.2)
+        ax1.legend()
+        ax1.set_xticks(data_xaxis, rotation=-45)
+        ax2.set_xticks(data_xaxis, rotation=-45)
+        ax2.set_yticks(n_samples)
+
+    ax1.axhline(y=0.5, color='black', linestyle='--')
+    ax1.xaxis.set_major_formatter(FormatStrFormatter("%.4f"))
     fig.suptitle("Intensity threshold and AUC (CI=0.5% 99% percentile)")
-    plt.xlabel("Intensity threshold(x 10000)")
-    plt.ylabel("Mean AUC")
-    plt.legend()
+    ax1.set_xlabel("Intensity threshold")
+    ax1.set_ylabel("Mean AUC")
+    ax2.set_ylabel("Number of samples(high activity peak window)")
+    ax1.set_xticklabels(data_xaxis, rotation=-45)
+    ax2.set_xticklabels(data_xaxis, rotation=-45)
+    #plt.legend()
+    ax2.legend().set_visible(False)
     filename = f"auc_intensity.png"
     filepath = out_dir / filename
     print(filepath)

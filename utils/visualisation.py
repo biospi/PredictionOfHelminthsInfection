@@ -841,7 +841,7 @@ def plotHeatmap(
         filename="heatmap.html",
         y_log=False,
         yaxis="",
-        xaxis="Time in minutes",
+        xaxis="Time",
 ):
     # fig = make_subplots(rows=len(transponders), cols=1)
     ticks = list(range(X.shape[1]))
@@ -1185,17 +1185,17 @@ def plot_mean_groups(
         )
         fig_group.update_layout(
             title="%d samples in category %s" % (n, label),
-            xaxis_title="Time in minute",
+            xaxis_title="Time",
             yaxis_title="Activity (count)",
         )
         fig_group_means.update_layout(
             title="Mean of samples for each category",
-            xaxis_title="Time in minute",
+            xaxis_title="Time",
             yaxis_title="Activity (count)",
         )
         fig_group_median.update_layout(
             title="Median of samples for each category",
-            xaxis_title="Time in minute",
+            xaxis_title="Time",
             yaxis_title="Activity (count)",
         )
         traces.append(fig_group)

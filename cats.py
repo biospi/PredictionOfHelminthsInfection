@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min",
-    dataset_parent: str = "E:/Cats/build_sec2/peak",
+    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min2",
+    dataset_parent: str = "E:/Cats/build_sec4/peak",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -20,27 +20,27 @@ def main(
     for clf in ["rbf"]:
         for steps in [
             ["LINEAR", "QN", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
-            ["LINEAR", "QN", "LOG", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
-            ["LINEAR", "QN", "CWT(MEXH)", "STD"],
-            ["LINEAR", "QN", "CWT(MORL)", "STD"],
-            ["LINEAR", "QN", "CWT(MEXH)"],
-            ["LINEAR", "QN", "CWT(MORL)"],
-            ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
-            ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
-            ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
-            ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "STD", "CWT(MORL)"],
-            ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
-            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"]
+            # ["LINEAR", "QN", "LOG", "STD"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+            # ["LINEAR", "QN", "CWT(MEXH)", "STD"],
+            # ["LINEAR", "QN", "CWT(MORL)", "STD"],
+            # ["LINEAR", "QN", "CWT(MEXH)"],
+            # ["LINEAR", "QN", "CWT(MORL)"],
+            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
+            # ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
+            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
+            # ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "STD", "CWT(MORL)"],
+            # ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
+            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
         ]:
             slug = "_".join(steps)
             print(slug)
@@ -66,7 +66,7 @@ def main(
                             "name",
                             "mobility_score",
                         ],
-                        meta_col_str=["name", "age", "mobility_score"],
+                        meta_col_str=[],
                         individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
                         classifiers=[clf],
                         n_imputed_days=-1,
