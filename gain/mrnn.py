@@ -18,8 +18,8 @@ Contact: jsyoon0823@gmail.com
 # Necessary Packages
 import tensorflow.compat.v1 as tf
 
-from data_imputation.helper import xavier_init
-from data_imputation.model_utils import biGRUCell, initial_point_interpolation
+from gain.helper import xavier_init
+from gain.model_utils import biGRUCell, initial_point_interpolation
 
 tf.disable_v2_behavior()
 import logging
@@ -104,7 +104,7 @@ class mrnn ():
       # Save model
       inputs = {'forward_input': rnn._inputs, 
                 'backward_input': rnn._inputs_rev}
-      outputs = {'data_imputation': outputs}
+      outputs = {'gain': outputs}
         
       save_file_name = 'tmp/mrnn_imputation/rnn_feature_' + str(f+1) + '/'
       tf.compat.v1.saved_model.simple_save(sess, save_file_name, 
@@ -174,7 +174,7 @@ class mrnn ():
     """
     tf.compat.v1.reset_default_graph()    
           
-    # rnn data_imputation results
+    # rnn gain results
     rnn_imputed_x = self.rnn_predict(x, m, t)
     
     # Reshape the data for FC train
@@ -235,7 +235,7 @@ class mrnn ():
     inputs = {'x_input': x_input, 
               'target': target,
               'mask': mask}
-    outputs = {'data_imputation': outputs}
+    outputs = {'gain': outputs}
         
     save_file_name = 'tmp/mrnn_imputation/fc_feature/'
     tf.compat.v1.saved_model.simple_save(sess, save_file_name, 
@@ -253,7 +253,7 @@ class mrnn ():
     Returns:
       - fc_imputed_x: imputed data using RNN and FC
     """     
-    # rnn data_imputation results
+    # rnn gain results
     rnn_imputed_x = self.rnn_predict(x, m, t)
     
     # Reshape the data for FC predict
@@ -302,10 +302,10 @@ class mrnn ():
     # Train RNN part
     for f in range(self.dim):
       self.rnn_train(x, m, t, f)
-      print('Finish ' + str(f+1) + '-th feature training with RNN for data_imputation')
+      print('Finish ' + str(f+1) + '-th feature training with RNN for gain')
     # Train FC part  
     self.fc_train(x, m, t)
-    print('Finish M-RNN training with both RNN and FC for data_imputation')
+    print('Finish M-RNN training with both RNN and FC for gain')
     
     
   def transform(self, x, m, t):

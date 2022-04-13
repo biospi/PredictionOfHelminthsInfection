@@ -17,7 +17,7 @@ source activate goat
 cd /home/fo18103/PredictionOfHelminthsInfection/
 
 # Run it
-python imputation_test.py
+python gain_imputation_test.py
 
 # Wait for background jobs to complete.
 wait

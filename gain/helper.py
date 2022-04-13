@@ -2,7 +2,7 @@
 
 (1) normalization: MinMax Normalizer
 (2) renormalization: Recover the data from normalzied data
-(3) rounding: Handlecategorical variables after data_imputation
+(3) rounding: Handlecategorical variables after gain
 (4) rmse_loss: Evaluate imputed data in terms of RMSE
 (5) xavier_init: Xavier initialization
 (6) binary_sampler: sample binary random variables
@@ -169,7 +169,7 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     # export_point_of_interest_hist(original_masked_, imputed_gain_masked_, imputed_li_masked_, output_dir, i)
 
     # if original_masked[(imputed_gain_masked == 0) & (original_masked > 0)].size > 0:
-    #   warnings.warn("erroneous point! nan or zeros in data_imputation results")
+    #   warnings.warn("erroneous point! nan or zeros in gain results")
     #   original_masked[(imputed_gain_masked == 0) & (original_masked > 0)] = 0
     #
     # if original_masked[(original_masked == 0) & (imputed_gain_masked > 0)].size > 0:

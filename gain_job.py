@@ -24,7 +24,7 @@ import glob
 import os
 from pathlib import Path
 
-import imputation
+import gain_imputation
 from dataset import create_data_sets
 from pipeline import add_exogenous
 import ml
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
     exist, i_path = imputed_data_exists(args.output_dir)
     if not exist:
-        imputed_data_dir = imputation.start(args)
+        imputed_data_dir = gain_imputation.start(args)
     else:
         print("imputation folder exists! Skipping to dataset creation...")
         imputed_data_dir = i_path

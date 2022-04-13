@@ -1,6 +1,6 @@
-'''data_imputation function.
+'''gain function.
 Date: 2020/02/28
-Reference: J. Yoon, J. Jordon, M. van der Schaar, "data_imputation: Missing Data
+Reference: J. Yoon, J. Jordon, M. van der Schaar, "gain: Missing Data
            Imputation using Generative Adversarial Nets," ICML, 2018.
 Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 Contact: jsyoon0823@gmail.com
@@ -18,10 +18,10 @@ tf.disable_v2_behavior()
 import numpy as np
 from tqdm import tqdm
 
-from data_imputation.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
+from gain.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
     linear_interpolation_v, build_formated_axis
-from data_imputation.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
-from data_imputation.helper import binary_sampler, uniform_sampler, sample_batch_index
+from gain.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
+from gain.helper import binary_sampler, uniform_sampler, sample_batch_index
 
 import warnings
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
 
   Args:
     - data_x: original data with missing values
-    - gain_parameters: data_imputation network parameters:
+    - gain_parameters: gain network parameters:
       - batch_size: Batch size
       - hint_rate: Hint rate
       - alpha: Hyperparameter
@@ -66,7 +66,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     # norm_data = data_x
     # norm_data_x = np.nan_to_num(norm_data, 0)
 
-    ## data_imputation architecture
+    ## gain architecture
     # Input placeholders
     # Data vector
     X = tf.placeholder(tf.float32, shape=[None, dim])
@@ -100,7 +100,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
 
     theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
 
-    ## data_imputation functions
+    ## gain functions
     # Generator
     def generator(x, m):
         # Concatenate Mask and Data
@@ -121,7 +121,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         D_prob = tf.nn.sigmoid(D_logit)
         return D_prob
 
-    ## data_imputation structure
+    ## gain structure
     # Generator
     G_sample = generator(X, M)
 
@@ -131,7 +131,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     # Discriminator
     D_prob = discriminator(Hat_X, H)
 
-    ## data_imputation loss
+    ## gain loss
     D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) \
                                   + (1 - M) * tf.log(1. - D_prob + 1e-8))
 
@@ -143,7 +143,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     D_loss = D_loss_temp
     G_loss = G_loss_temp + alpha * MSE_loss
 
-    ## data_imputation solver
+    ## gain solver
     D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
     G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
 

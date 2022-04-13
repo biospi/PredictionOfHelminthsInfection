@@ -15,16 +15,16 @@ import pandas as pd
 
 import numpy as np
 
-from data_imputation.data_loader import data_loader
-from data_imputation.model_utils import imputation_performance
-from data_imputation.mrnn import mrnn
+from gain.data_loader import data_loader
+from gain.model_utils import imputation_performance
+from gain.mrnn import mrnn
 
 np.random.seed(0)  # for reproducability
 
-from data_imputation.gain import gain
-from data_imputation.helper import binary_sampler, linear_interpolation_v, reshape_matrix_andy, reshape_matrix_ranjeet, \
+from gain.gain import gain
+from gain.helper import binary_sampler, linear_interpolation_v, reshape_matrix_andy, reshape_matrix_ranjeet, \
     restore_matrix_andy, build_formated_axis, linear_interpolation_h
-from data_imputation.helper import rmse_loss
+from gain.helper import rmse_loss
 from utils.Utils import create_rec_dir, inverse_anscombe
 import matplotlib.pyplot as plt
 import matplotlib
@@ -99,15 +99,15 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
         # ax[1].xaxis.set_major_locator(mdates.DayLocator(interval=60))
         # ax[1].tick_params(axis='x', rotation=25)
         # w = 500
-        # # ax[1].bar(time_axis[0:w], imputed_li[0:w], label="after li data_imputation", alpha=0.5, width=0.1)
+        # # ax[1].bar(time_axis[0:w], imputed_li[0:w], label="after li gain", alpha=0.5, width=0.1)
         # # ax[1].bar(time_axis[0:w], original[0:w], label="original", alpha=0.5, width=0.1)
-        # # ax[1].bar(time_axis[0:w], imputed_gain[0:w], label="after gain data_imputation", alpha=0.5, width=0.1)
+        # # ax[1].bar(time_axis[0:w], imputed_gain[0:w], label="after gain gain", alpha=0.5, width=0.1)
         #
-        # ax[1].plot(list(range(w)), imputed_li[0:w], label="after li data_imputation", alpha=0.5, marker='o')
+        # ax[1].plot(list(range(w)), imputed_li[0:w], label="after li gain", alpha=0.5, marker='o')
         # ax[1].plot(list(range(w)), original[0:w], label="original", alpha=0.5, marker='o')
-        # ax[1].plot(list(range(w)), imputed_gain[0:w], label="after gain data_imputation", alpha=0.5, marker='o')
+        # ax[1].plot(list(range(w)), imputed_gain[0:w], label="after gain gain", alpha=0.5, marker='o')
         #
-        # ax[1].set_title('Transformed activity before and after data_imputation')
+        # ax[1].set_title('Transformed activity before and after gain')
         # ax[1].legend()
         #
         # ax[2].plot(time_axis[0:w], np.abs(original[0:w] - imputed_gain[0:w]), label="original - gain", alpha=0.5, color='blue', linestyle='-')
@@ -128,7 +128,7 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
         df = pd.DataFrame()
         df["time"] = time_axis.tolist() + time_axis.tolist() + time_axis.tolist()
         df["data"] = original.tolist() + imputed_li.tolist() + imputed_gain.tolist()
-        df["data_imputation"] = ['ORIGINAL' for _ in range(len(original))] + ['LI' for _ in range(len(original))] + [
+        df["gain"] = ['ORIGINAL' for _ in range(len(original))] + ['LI' for _ in range(len(original))] + [
             'GAIN' for _ in range(len(original))]
         color = []
         for ii in range(time_axis.size):
@@ -145,8 +145,8 @@ def plot_imputed_data(out, imputed_data_x_gain, imputed_data_x_li, raw_data, ori
 
         df["color"] = color + color + color
 
-        # fig_px = px.bar(df, x="time", y="data", color='data_imputation', height=900, text='color', barmode="group", title="nominator rmse gain %d  rmse li %d" % (rmse_gain, rmse_li))
-        fig_px = px.line(df, x="time", y="data", color='data_imputation', height=900, text='color',
+        # fig_px = px.bar(df, x="time", y="data", color='gain', height=900, text='color', barmode="group", title="nominator rmse gain %d  rmse li %d" % (rmse_gain, rmse_li))
+        fig_px = px.line(df, x="time", y="data", color='gain', height=900, text='color',
                          title="nominator rmse gain %d  rmse li %d" % (rmse_gain, rmse_li))
         # fig_px.update_traces(textposition='inside', insidetextanchor="start")
         # fig_px.add_scatter(x=time_axis.tolist(), y=np.abs(original - imputed_li).tolist(), name="abs(original - imputed_li)", mode='lines+markers', marker=dict(color='coral'), connectgaps=True)
@@ -569,79 +569,6 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     #   plot_imputed_data(out, imputed_data_x, imputed_data_x_li, raw_data, original_data_x, ids, timestamp)
 
 
-def mrnn_imputation(data, N_TRANSPOND, output_dir):
-    print()
-    # Inputs for the main function
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     '--seq_len',
-    #     help='sequence length of time-series data',
-    #     default=7,
-    #     type=int)
-    # parser.add_argument(
-    #     '--missing_rate',
-    #     help='the rate of introduced missingness',
-    #     default=0.2,
-    #     type=float)
-    # parser.add_argument(
-    #     '--h_dim',
-    #     help='hidden state dimensions',
-    #     default=10,
-    #     type=int)
-    # parser.add_argument(
-    #     '--batch_size',
-    #     help='the number of samples in mini batch',
-    #     default=128,
-    #     type=int)
-    # parser.add_argument(
-    #     '--iteration',
-    #     help='the number of iteration',
-    #     default=2000,
-    #     type=int)
-    # parser.add_argument(
-    #     '--learning_rate',
-    #     help='learning rate of model training',
-    #     default=0.01,
-    #     type=float)
-    # parser.add_argument(
-    #     '--metric_name',
-    #     help='imputation performance metric',
-    #     default='rmse',
-    #     type=str)
-    #
-    # args = parser.parse_args()
-
-    # print("mrnn_imputation....")
-    # ## Load data
-    # x, m, t, ori_x = data_loader(data)
-    # # mrnn model parameters
-    # model_parameters = {'h_dim': 10,
-    #                     'batch_size': 128,
-    #                     'iteration': 2000,
-    #                     'learning_rate': 0.01}
-    # # Fit mrnn_model
-    # mrnn_model = mrnn(x, model_parameters)
-    # print("fitting....")
-    # mrnn_model.fit(x, m, t)
-    #
-    # # Impute missing data
-    # imputed_x = mrnn_model.transform(x, m, t)
-    #
-    # fig = go.Figure(data=go.Heatmap(
-    #     z=imputed_data[:, :-N_TRANSPOND - 1],
-    #     x=np.array(list(range(imputed_data.shape[1]))[:-N_TRANSPOND - 1]),
-    #     y=np.array(list(range(imputed_data.shape[0]))),
-    #     colorscale='Viridis'))
-    # filename = output_dir + "/" + "imputed_%d.html" % 0
-    # fig.write_html(filename)
-    #
-    # # Evaluate the data_imputation performance
-    # performance = imputation_performance(ori_x, imputed_x, m, 'rmse')
-    #
-    # # Report the result
-    # print('rmse: ' + str(np.round(performance, 4)))
-
-
 def start(args):
     data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job,
                                                                              args.n_top_traces,
@@ -652,55 +579,67 @@ def start(args):
     main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
 
 
-if __name__ == '__main__':
-
+def local_run():
     for miss_rate in np.arange(0.1, 0.99, 0.01):
-        print(miss_rate)
-        # Inputs for the main function
-        parser = argparse.ArgumentParser()
+        arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis2/gain/delmas", miss_rate)
+    for miss_rate in np.arange(0.1, 0.99, 0.01):
+        arg_run("F:/Data2/backfill_1min_cedara_fixed", "E:/thesis2/gain/cedara", miss_rate)
+
+
+def arg_run(data_dir=None, output_dir=None, miss_rate=0):
+    parser = argparse.ArgumentParser()
+    if data_dir is None:
         parser.add_argument('data_dir', type=str)
         parser.add_argument('output_dir', type=str)
-        parser.add_argument(
-            '--batch_size',
-            help='the number of samples in mini-batch',
-            default=128,
-            type=int)
-        parser.add_argument(
-            '--hint_rate',
-            help='hint probability',
-            default=0.9,
-            type=float)
-        parser.add_argument(
-            '--alpha',
-            help='hyperparameter',
-            default=100,
-            type=float)
-        parser.add_argument(
-            '--iterations',
-            help='number of training interations',
-            default=1000,
-            type=int)
-        parser.add_argument(
-            '--miss_rate',
-            help='missing data probability',
-            default=miss_rate,
-            type=float)
-        parser.add_argument('--n_job', type=int, default=8, help='Number of thread to use.')
-        parser.add_argument('--n_top_traces', type=int, default=17,
-                            help='select n traces with highest entropy (<= 0 number to select all traces)')
-        parser.add_argument('--enable_anscombe', type=bool, default=False)
-        parser.add_argument('--enable_remove_zeros', type=bool, default=False)
-        parser.add_argument('--enable_log_anscombe', type=bool, default=True)
-        parser.add_argument('--window', type=bool, default=False)
-        parser.add_argument('--export_csv', type=bool, default=True)
-        parser.add_argument('--export_traces', type=bool, default=True)
-        parser.add_argument('--reshape', type=str, default='y')
-        parser.add_argument('--w', type=str, default='y')
-        parser.add_argument('--add_t_col', type=str, default='n')
-        parser.add_argument('--thresh_daytime', type=str)
-        parser.add_argument('--thresh_nan_ratio', type=str)
+    else:
+        parser.add_argument('--data_dir', type=str, default=data_dir)
+        parser.add_argument('--output_dir', type=str, default=output_dir)
+    parser.add_argument(
+        '--batch_size',
+        help='the number of samples in mini-batch',
+        default=128,
+        type=int)
+    parser.add_argument(
+        '--hint_rate',
+        help='hint probability',
+        default=0.9,
+        type=float)
+    parser.add_argument(
+        '--alpha',
+        help='hyperparameter',
+        default=100,
+        type=float)
+    parser.add_argument(
+        '--iterations',
+        help='number of training interations',
+        default=1000,
+        type=int)
+    parser.add_argument(
+        '--miss_rate',
+        help='missing data probability',
+        default=miss_rate,
+        type=float)
+    parser.add_argument('--n_job', type=int, default=8, help='Number of thread to use.')
+    parser.add_argument('--n_top_traces', type=int, default=17,
+                        help='select n traces with highest entropy (<= 0 number to select all traces)')
+    parser.add_argument('--enable_anscombe', type=bool, default=False)
+    parser.add_argument('--enable_remove_zeros', type=bool, default=False)
+    parser.add_argument('--enable_log_anscombe', type=bool, default=True)
+    parser.add_argument('--window', type=bool, default=False)
+    parser.add_argument('--export_csv', type=bool, default=True)
+    parser.add_argument('--export_traces', type=bool, default=True)
+    parser.add_argument('--reshape', type=str, default='y')
+    parser.add_argument('--w', type=str, default='y')
+    parser.add_argument('--add_t_col', type=str, default='n')
+    parser.add_argument('--thresh_daytime', type=str)
+    parser.add_argument('--thresh_nan_ratio', type=str)
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        start(args)
+    start(args)
+
+
+if __name__ == '__main__':
+    #arg_run()
+    local_run()
 

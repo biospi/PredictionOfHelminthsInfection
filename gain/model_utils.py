@@ -21,7 +21,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 
 def imputation_performance(ori_x, imputed_x, m, metric_name):
-    """Performance metrics for data_imputation.
+    """Performance metrics for gain.
 
     Args:
       - ori_x: original complete data (without missing values)
@@ -30,7 +30,7 @@ def imputation_performance(ori_x, imputed_x, m, metric_name):
       - metric_name: mae, mse, or rmse
 
     Returns:
-      - performance: data_imputation performance in terms or mae, mse, or rmse
+      - performance: gain performance in terms or mae, mse, or rmse
     """
 
     assert metric_name in ['mae', 'mse', 'rmse']
@@ -42,7 +42,7 @@ def imputation_performance(ori_x, imputed_x, m, metric_name):
     imputed_x = np.reshape(imputed_x, [no * seq_len, dim])
     m = np.reshape(m, [no * seq_len, dim])
 
-    # Only compute the data_imputation performance if m = 0 (missing)
+    # Only compute the gain performance if m = 0 (missing)
     if metric_name == 'mae':
         performance = mean_absolute_error(ori_x, imputed_x, 1 - m)
     elif metric_name == 'mse':

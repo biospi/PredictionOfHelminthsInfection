@@ -14,7 +14,7 @@ Contact: jsyoon0823@gmail.com
 import numpy as np
 from tqdm import tqdm
 
-from data_imputation.model_utils import MinMaxScaler
+from gain.model_utils import MinMaxScaler
 
 
 def data_loader(data, seq_len=7,

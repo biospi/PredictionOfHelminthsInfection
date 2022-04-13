@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import plotly.express as px
 
-import imputation
+import gain_imputation
 from utils.Utils import create_rec_dir
 import pandas as pd
 from sys import exit
@@ -50,8 +50,8 @@ if __name__ == "__main__":
         OUT += '\imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_reshape_%s' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE, str(RESHAPE))
         # OUT = 'F:/Data2/imp_reshaped_full/imputation_test_window_%s_anscombe_%s_top%d_remove_zeros_%s_loganscombe_%s_debug' % (WINDOW_ON, ANSCOMBE, NTOP, REMOVE_ZEROS, LOG_ANSCOMBE)
 
-        raw_data, original_data_x, ids, timestamp, date_str, ss_data = imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
-                                                                                             enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
+        raw_data, original_data_x, ids, timestamp, date_str, ss_data = gain_imputation.load_farm_data(DATA_DIR, NJOB, NTOP, enable_remove_zeros=REMOVE_ZEROS,
+                                                                                                      enable_anscombe=ANSCOMBE, enable_log_anscombe=LOG_ANSCOMBE, window=WINDOW_ON)
 
         hist_array = raw_data.flatten()
         hist_array_nrm = hist_array[~np.isnan(hist_array)]
@@ -119,6 +119,6 @@ if __name__ == "__main__":
 
             args = parser.parse_args()
             print(args)
-            imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data)
+            gain_imputation.main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data)
 
 
