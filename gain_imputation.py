@@ -584,15 +584,15 @@ def start(args):
     main(args, data_x_o, ori_data_x, ids, timestamp, date_str, ss_data)
 
 
-def local_run():
+def local_run(input_dir="F:/Data2/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara"):
     thresh_daytime = 100
     thresh_nan_ratio = 80
 
     for miss_rate in np.arange(0.1, 0.99, 0.05):
-        arg_run("F:/Data2/backfill_1min_cedara_fixed", "E:/thesis/gain/cedara", thresh_daytime, thresh_nan_ratio, miss_rate)
+        arg_run(input_dir, output_dir, thresh_daytime, thresh_nan_ratio, miss_rate)
 
-    for miss_rate in np.arange(0.1, 0.99, 0.05):
-        arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis/gain/delmas", thresh_daytime, thresh_nan_ratio, miss_rate)
+    # for miss_rate in np.arange(0.1, 0.99, 0.05):
+    #     arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis/gain/delmas", thresh_daytime, thresh_nan_ratio, miss_rate)
 
 
 def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio=80, miss_rate=0):
@@ -650,5 +650,6 @@ def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio
 
 if __name__ == '__main__':
     #arg_run()
-    local_run()
+    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_cedara_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_cedara_fixed")
+    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_delmas_fixed")
 
