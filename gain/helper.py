@@ -449,7 +449,7 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
             continue
         if positive_count < thresh_pos:
             continue
-        print(positive_count)
+        #print(positive_count)
 
         idx.append(i)
         filtered_row.append(row)

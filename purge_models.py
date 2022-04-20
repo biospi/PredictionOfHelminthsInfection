@@ -16,7 +16,7 @@ def main(
 
     if delete.lower() == 'yes' or delete.lower() == 'y':
         print("deleting...")
-        for p in tqdm(input_dir.rglob("*.pkl"), total=n):
+        for p in tqdm(input_dir.rglob("*.pkl"), total=n_model):
             p.unlink()
         print("done.")
     else:

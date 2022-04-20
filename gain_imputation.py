@@ -41,6 +41,7 @@ import json
 import plotly.graph_objects as go
 from sys import exit
 from tqdm import tqdm
+from pathlib import Path
 
 
 def entropy_(to_resample):
@@ -452,10 +453,14 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     miss_data_x, data_m_x = process(data_x.copy(), miss_rate)
     imputed_data_x_li = linear_interpolation_v(miss_data_x.copy())
 
-    out = output_dir + "/miss_rate_" + str(np.round(miss_rate, 4)).replace(".", "_") + "_iteration_" + \
-          '%04d' % int(iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(
-        enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
-    create_rec_dir(out)
+    # out = Path(output_dir) / "miss_rate_" + str(np.round(miss_rate, 4)).replace(".", "_") + "_iteration_" + \
+    #       '%04d' % int(iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(
+    #     enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
+
+    out = f"miss_rate_{int(miss_rate*100):04}_iteration_{int(iterations):04}_thresh_{THRESH_DT}_anscombe_{enable_anscombe}_n_top_traces_{n_top_traces}"
+
+    Path(out).mkdir(parents=True, exist_ok=True)
+
 
     if RESHAPE:
         miss_data_x_reshaped_thresh, ss_reshaped_thresh, rm_row_idx, shape_o, transp_idx, activity_reshaped, ss_reshaped = reshape_matrix_andy(
@@ -580,13 +585,17 @@ def start(args):
 
 
 def local_run():
-    for miss_rate in np.arange(0.1, 0.99, 0.01):
-        arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis2/gain/delmas", miss_rate)
-    for miss_rate in np.arange(0.1, 0.99, 0.01):
-        arg_run("F:/Data2/backfill_1min_cedara_fixed", "E:/thesis2/gain/cedara", miss_rate)
+    thresh_daytime = 100
+    thresh_nan_ratio = 80
+
+    for miss_rate in np.arange(0.1, 0.99, 0.05):
+        arg_run("F:/Data2/backfill_1min_cedara_fixed", "E:/thesis/gain/cedara", thresh_daytime, thresh_nan_ratio, miss_rate)
+
+    for miss_rate in np.arange(0.1, 0.99, 0.05):
+        arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis/gain/delmas", thresh_daytime, thresh_nan_ratio, miss_rate)
 
 
-def arg_run(data_dir=None, output_dir=None, miss_rate=0):
+def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio=80, miss_rate=0):
     parser = argparse.ArgumentParser()
     if data_dir is None:
         parser.add_argument('data_dir', type=str)
@@ -630,9 +639,9 @@ def arg_run(data_dir=None, output_dir=None, miss_rate=0):
     parser.add_argument('--export_traces', type=bool, default=True)
     parser.add_argument('--reshape', type=str, default='y')
     parser.add_argument('--w', type=str, default='y')
-    parser.add_argument('--add_t_col', type=str, default='n')
-    parser.add_argument('--thresh_daytime', type=str)
-    parser.add_argument('--thresh_nan_ratio', type=str)
+    parser.add_argument('--add_t_col', type=str, default='t')
+    parser.add_argument('--thresh_daytime', type=str, default=thresh_daytime)
+    parser.add_argument('--thresh_nan_ratio', type=str, default=thresh_nan_ratio)
 
     args = parser.parse_args()
 

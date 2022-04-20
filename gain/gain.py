@@ -27,6 +27,7 @@ import warnings
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import pandas as pd
+from pathlib import Path
 
 
 def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
@@ -213,6 +214,8 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             title="Activity data after imputation i=%s" % i,
             xaxis_title="Time (1 min bins)",
             yaxis_title="Transponders")
+
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         filename = output_dir + "/" + "imputed_gain_%d.html" % i
         if (i % 100 == 0) | (i <= 1) | (i == range_iter[-1]):
