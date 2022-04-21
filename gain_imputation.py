@@ -658,6 +658,6 @@ def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio
 
 if __name__ == '__main__':
     # arg_run()
-    local_run()
-    # local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_cedara_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_cedara_fixed")
-    # local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_delmas_fixed")
+    #local_run()
+    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_cedara_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_cedara_fixed")
+    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_delmas_fixed")
