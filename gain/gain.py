@@ -285,7 +285,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             rmse_li.append(rmse_l)
 
             rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
-            with open(outpath + '/rmse_%i.json' % i, 'w') as f:
+            with open(outpath / f'rmse_{i}.json', 'w') as f:
                 json.dump(rmse_info, f)
 
         i += 1
@@ -299,7 +299,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     plt.title(f"GAN error function miss_rate={miss_rate:.2f}")
     ax.set_xlabel('epochs')
     ax.set_ylabel('loss')
-    fig.savefig(outpath + '/gan_loss.png')
+    fig.savefig(outpath / 'gan_loss.png')
 
     if miss_rate > 0:
         plt.clf()
@@ -312,7 +312,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
 
         plt.title(f"RMSE iteration performance miss_rate={miss_rate:.2f}")
         plt.legend()
-        filename = outpath + "/" + "RMSE.png"
+        filename = outpath / "RMSE.png"
         # print(filename)
         plt.savefig(filename)
 

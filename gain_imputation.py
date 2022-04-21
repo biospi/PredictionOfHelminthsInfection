@@ -201,7 +201,7 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
             [x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata[:, i]), 0)])
         df["imputed"] = (idata[:, i] >= 0).astype(int)
         filename = id + ".csv"
-        filepath = out + "/" + filename
+        filepath = out / filename
         df.to_csv(filepath, sep=',', index=False)
         print(filepath)
 
@@ -457,10 +457,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     #       '%04d' % int(iterations) + "_thresh_" + str(THRESH_DT).replace(".", "_") + "_anscombe_" + str(
     #     enable_anscombe) + "_n_top_traces_" + str(n_top_traces)
 
-    out = f"miss_rate_{int(miss_rate*100):04}_iteration_{int(iterations):04}_thresh_{THRESH_DT}_anscombe_{enable_anscombe}_n_top_traces_{n_top_traces}"
+    out = Path(output_dir) / f"miss_rate_{int(miss_rate * 100):04}_iteration_{int(iterations):04}_thresh_{THRESH_DT}_anscombe_{enable_anscombe}_n_top_traces_{n_top_traces}"
 
     Path(out).mkdir(parents=True, exist_ok=True)
-
 
     if RESHAPE:
         miss_data_x_reshaped_thresh, ss_reshaped_thresh, rm_row_idx, shape_o, transp_idx, activity_reshaped, ss_reshaped = reshape_matrix_andy(
@@ -487,26 +486,27 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     for i in range(len(dfs_transponder)):
         d_t = dfs_transponder[i].iloc[:, :-n_top_traces - 2]
         valid = np.sum((~np.isnan(d_t.values)).astype(int))
-        # if valid <= 0:
-        #     continue
-        # ss = ss_reshaped[:, :-N_TRANSPOND - 1]
-        # ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
+        if valid <= 0:
+            continue
+        ss = ss_reshaped[:, :-N_TRANSPOND - 1]
+        ss_t = dfs_ss[i].iloc[:, :-n_top_traces-2]
 
         id = int(dfs_transponder[i]["id"].values[0])
         xaxix_label, yaxis_label = build_formated_axis(timestamp[0], min_in_row=d_t.shape[1], days_in_col=d_t.shape[0])
-        # fig = go.Figure(data=go.Heatmap(
-        #     z=d_t,
-        #     x=xaxix_label,
-        #     y=yaxis_label,
-        #     colorscale='Viridis'))
-        # fig.update_xaxes(tickformat="%H:%M")
-        # fig.update_yaxes(tickformat="%d %b %Y")
-        # fig.update_layout(
-        #     title="%d thresh=%d" % (id, THRESH_DT),
-        #     xaxis_title="Time (1 min bins)")
-        # filename = out + "/" + "%d_reshaped_%d_%d.html" % (id, THRESH_DT, valid)
-        # print(filename)
-        # fig.write_html(filename)
+        fig = go.Figure(data=go.Heatmap(
+            z=d_t,
+            x=xaxix_label,
+            y=yaxis_label,
+            colorscale='Viridis'))
+        fig.update_xaxes(tickformat="%H:%M")
+        fig.update_yaxes(tickformat="%d %b %Y")
+        fig.update_layout(
+            title="%d thresh=%d" % (id, THRESH_DT),
+            xaxis_title="Time (1 min bins)")
+        filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}.html"
+        if i % 100 == 0:
+            print(filename)
+            fig.write_html(filename)
 
         # fig = go.Figure(data=go.Heatmap(
         #     z=ss_t,
@@ -548,8 +548,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
         title="Activity data 1 min bins thresh=%s" % THRESH_DT,
         xaxis_title="Time (1 min bins)",
         yaxis_title="Transponders")
-    filename = out + "/" + "input_reshaped_%d.html" % THRESH_DT
-    fig.write_html(filename)
+    filename = out / f"input_reshaped_{THRESH_DT}.html"
+    if i % 100 == 0:
+        fig.write_html(filename)
 
     imputed_data_x, rmse_iter, rm_row_idx = gain(xaxix_label, timestamp[0], miss_rate, out, THRESH_DT, ids, transp_idx,
                                                  output_dir, shape_o, rm_row_idx, data_m_x.copy(),
@@ -557,6 +558,9 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
                                                  data_x.copy(), miss_data_x_reshaped_thresh.copy(), gain_parameters,
                                                  out,
                                                  RESHAPE, ADD_TRANSP_COL, N_TRANSPOND)
+
+    del dfs_transponder
+    del df
 
     # fig = go.Figure(data=go.Heatmap(
     #     z=imputed_data_x.T,
@@ -589,13 +593,17 @@ def local_run(input_dir="F:/Data2/backfill_1min_cedara_fixed", output_dir="E:/th
     thresh_nan_ratio = 80
 
     for miss_rate in np.arange(0.1, 0.99, 0.05):
-        arg_run(input_dir, output_dir, thresh_daytime, thresh_nan_ratio, miss_rate)
+        arg_run(data_dir=input_dir, output_dir=output_dir,
+                thresh_daytime=thresh_daytime,
+                thresh_nan_ratio=thresh_nan_ratio,
+                miss_rate=miss_rate,
+                n_top_traces=60)
 
     # for miss_rate in np.arange(0.1, 0.99, 0.05):
     #     arg_run("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027", "E:/thesis/gain/delmas", thresh_daytime, thresh_nan_ratio, miss_rate)
 
 
-def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio=80, miss_rate=0):
+def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio=80, miss_rate=0, n_top_traces=17):
     parser = argparse.ArgumentParser()
     if data_dir is None:
         parser.add_argument('data_dir', type=str)
@@ -629,7 +637,7 @@ def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio
         default=miss_rate,
         type=float)
     parser.add_argument('--n_job', type=int, default=8, help='Number of thread to use.')
-    parser.add_argument('--n_top_traces', type=int, default=17,
+    parser.add_argument('--n_top_traces', type=int, default=n_top_traces,
                         help='select n traces with highest entropy (<= 0 number to select all traces)')
     parser.add_argument('--enable_anscombe', type=bool, default=False)
     parser.add_argument('--enable_remove_zeros', type=bool, default=False)
@@ -649,7 +657,7 @@ def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio
 
 
 if __name__ == '__main__':
-    #arg_run()
-    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_cedara_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_cedara_fixed")
-    local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_delmas_fixed")
-
+    # arg_run()
+    local_run()
+    # local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_cedara_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_cedara_fixed")
+    # local_run(input_dir="/mnt/storage/scratch/axel/gain/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/gain/results/backfill_1min_delmas_fixed")

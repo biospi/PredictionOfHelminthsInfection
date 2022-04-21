@@ -387,14 +387,14 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
     shape_o = vstack.shape
 
     if thresh >= 0:
-        filtered_row, filtered_row_ss, rm_idx = remove_rows(THRESH_NAN_R, vstack_ss, vstack, thresh, n_transponder)
-        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh)
+        filtered_row, filtered_row_ss, valid_idx = remove_rows(THRESH_NAN_R, vstack_ss, vstack, thresh, n_transponder)
+        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh) #for visualisation
     else:
         filtered_row = vstack
         filtered_row_ss = vstack_ss
-        rm_idx = []
+        valid_idx = []
 
-    return filtered_row, filtered_row_ss, rm_idx, shape_o, t_idx, vstack, vstack_ss
+    return filtered_row, filtered_row_ss, valid_idx, shape_o, t_idx, vstack, vstack_ss
 
 
 def get_transp_idx(matrix, THRESH_NAN_R, thresh):
@@ -445,12 +445,11 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
         nan_count = np.sum(np.isnan(row).astype(int))
         ratio = nan_count / row.shape[0]
 
-        if ratio > float(thresh_nan / 100):
-            continue
+        # if ratio > float(thresh_nan / 100):
+        #     continue
         if positive_count < thresh_pos:
             continue
         #print(positive_count)
-
         idx.append(i)
         filtered_row.append(row)
         filtered_row_ss.append(vstack_ss[i, :])
@@ -478,7 +477,7 @@ def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out
             yaxis_title="Days")
 
         if i % 100 == 0:
-            filename = output_dir + "/" + "imputed_gain_restored_%d.html" % i
+            filename = output_dir / f"imputed_gain_restored_{i}.html"
             fig.write_html(filename)
 
     # df_ = pd.DataFrame(imputed).iloc[:, :-n_transpond - 1]
@@ -508,7 +507,7 @@ def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out
     #     fig.write_html(filename)
 
     if add_t_col:
-        imputed = imputed[:, :-n_transpond - 1]  # -1 for date col
+        imputed = imputed[:, 0:1440]  # -1 for date col
     split = np.array_split(imputed, n_transpond, axis=0)
     matrix = []
     for s in split:
@@ -519,6 +518,7 @@ def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out
         vstack = np.vstack(days)
         matrix.append(vstack)
     hstack = np.hstack(matrix)
+    print(hstack.shape)
 
     # fig = go.Figure(data=go.Heatmap(
     #     z=hstack.T,
