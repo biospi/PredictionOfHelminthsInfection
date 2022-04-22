@@ -36,4 +36,4 @@ cmds=('ml.py --dataset-folder /user/work/fo18103/cats/peak/0_00800 --n-imputed-d
 )
 # Execute code
 echo ${cmds[${SLURM_ARRAY_TASK_ID}]}
-python ${cmds[${SLURM_ARRAY_TASK_ID}]} > /user/work/fo18103/logs/$cats_{SLURM_ARRAY_TASK_ID}.log
+python ${cmds[${SLURM_ARRAY_TASK_ID}]} > /user/work/fo18103/logs/cats_${SLURM_ARRAY_TASK_ID}.log
