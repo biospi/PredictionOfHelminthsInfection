@@ -9,6 +9,7 @@ from model.data_loader import load_activity_data, parse_param_from_filename
 from model.svm import process_clf, process_clf_
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY, plot_heatmap
+import numpy as np
 
 
 def main(
@@ -86,6 +87,9 @@ def main(
         data_frame = data_frame.sort_values("date_", ascending=True)
         del data_frame["date_"]
 
+        # if 'cedara' in str(dataset_folder):
+        #     data_frame = data_frame.iloc[23:, :]
+
         # print(data_frame)
         nrows = int(data_frame.shape[0] / 2)
         print(nrows)
@@ -103,7 +107,7 @@ def main(
             )
         )
 
-        data_frame, _ = apply_preprocessing_steps(
+        data_frame, df_with_meta = apply_preprocessing_steps(
             meta_columns,
             None,
             None,
@@ -130,6 +134,14 @@ def main(
         X1, y1 = getXY(df1)
         X2, y2 = getXY(df2)
 
+        unique, counts = np.unique(y1, return_counts=True)
+        y1_stat = dict(zip(unique, counts))
+        print(y1_stat)
+
+        unique, counts = np.unique(y2, return_counts=True)
+        y2_stat = dict(zip(unique, counts))
+        print(y2_stat)
+
         plot_heatmap(X1, y1, X2, y2, output_dir, p1_start, p1_end, p2_start, p2_end)
 
         # process_clf_(preprocessing_steps, X1, y1, model_path, output_dir / "pre_trained" / f"{p1_start}{p1_end}_{p2_start}{p2_end}".replace("/", ""))
@@ -142,9 +154,9 @@ def main(
 if __name__ == "__main__":
     #typer.run(main)
 
-    for i in [7]:
-        main(Path(f'E:/Data2/debug4/temporal/delmas/{i}'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-             Path('E:thesis/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG'), n_imputed_days=i)
+    for i in [1, 2, 3, 4, 5, 6, 7]:
+        # main(Path(f'E:/Data2/debug4/temporal/delmas/{i}'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+        #      Path('E:thesis/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG'), n_imputed_days=i)
 
         main(Path(f'E:/Data2/debug4/temporal/cedara/{i}'), Path('E:/Data2/debug3/cedara/dataset6_mrnn_7day'),
              Path('E:/thesis/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG'), n_imputed_days=i)

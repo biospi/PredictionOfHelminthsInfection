@@ -92,14 +92,15 @@ def split_given_size(a, size):
 
 
 def predict_famacha(
-        id,
-        df,
-        model_path,
-        preprocessing_steps,
-        output_dir,
-        class_healthy_label,
-        class_unhealthy_label,
-        sample_size=10080,
+    id,
+    df,
+    model_path,
+    preprocessing_steps,
+    output_dir,
+    class_healthy_label,
+    class_unhealthy_label,
+    sample_size=10080,
+    model_count=-1
 ):
     # first reshape the data as the same shape of the training samples
     chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
@@ -146,6 +147,9 @@ def predict_famacha(
     X_test = data_frame.iloc[:, :-3].values
 
     models = list(model_path.glob("*.pkl"))
+    if model_count > 0:
+        models = models[0:model_count]
+
     y_pred_list = []
     y_pred_proba_list = []
     for i, model_file in enumerate(models):
@@ -161,7 +165,7 @@ def predict_famacha(
 
             if np.all(np.isnan(df["famacha"].values)):
                 for n in range(X_test.shape[0]):
-                    df[f"famacha_pred_{i}"].iloc[n*1440*7] = y_pred[n]
+                    df[f"famacha_pred_{i}"].iloc[n * 1440 * 7] = y_pred[n]
                     df[f"famacha_proba_{i}"].iloc[n * 1440 * 7] = y_pred_proba[n]
 
             cpt = 0
@@ -175,22 +179,23 @@ def predict_famacha(
 
 
 def build_animal_pred(
-        animal_file: Path = typer.Option(
-            ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
-        ),
-        famacha_data: Path = typer.Option(
-            ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
-        ),
-        model_path: Path = typer.Option(
-            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
-        ),
-        out_dir: Path = typer.Option(
-            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
-        ),
-        preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
-        class_healthy_label: List[str] = ["1To1"],
-        class_unhealthy_label: List[str] = ["2To2"],
-        res: str = "1D",
+    animal_file: Path = typer.Option(
+        ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
+    ),
+    famacha_data: Path = typer.Option(
+        ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
+    ),
+    model_path: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    out_dir: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    class_healthy_label: List[str] = ["1To1"],
+    class_unhealthy_label: List[str] = ["2To2"],
+    res: str = "1D",
+    model_count: int = -1
 ):
     id = animal_file.stem
     famacha_data = load_herd(famacha_data)
@@ -243,6 +248,7 @@ def build_animal_pred(
         out_dir,
         class_healthy_label,
         class_unhealthy_label,
+        model_count=model_count
     )
     # n = 1440 * 7 * 4 * 12 *2 # chunk row size
     # list_df = [df[i : i + n] for i in range(0, df.shape[0], n)]
@@ -281,7 +287,9 @@ def build_animal_pred(
     )
 
     famacha_predicted_proba = np.nanmean(
-        df_resampled.loc[:, df_resampled.columns.str.startswith("famacha_proba")].values,
+        df_resampled.loc[
+            :, df_resampled.columns.str.startswith("famacha_proba")
+        ].values,
         axis=1,
     )
 
@@ -300,7 +308,7 @@ def build_animal_pred(
 
     data_f_inc = famacha.copy()
     famacha_inc = famacha[~np.isnan(famacha)] - np.roll(famacha[~np.isnan(famacha)], 1)
-    famacha_inc = (famacha_inc == 1).astype(int)
+    famacha_inc = (famacha_inc >= 1).astype(int)
     cpt = 0
     for i in range(len(data_f_inc)):
         if np.isnan(data_f_inc[i]):
@@ -322,18 +330,18 @@ def build_animal_pred(
         )
         fig.add_trace(trace_f, secondary_y=True)
 
-    # trace_f_inc = go.Scatter(
-    #     x=time_axis,
-    #     y=data_f_inc,
-    #     opacity=1,
-    #     line_color="black",
-    #     name="famacha score increase(real)",
-    #     mode="lines+markers",
-    #     # marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
-    #     marker={"symbol": "x", "size": 7},
-    #     connectgaps=True,
-    # )
-    # fig.add_trace(trace_f_inc, secondary_y=True)
+    trace_f_inc = go.Scatter(
+        x=time_axis,
+        y=data_f_inc,
+        opacity=1,
+        line_color="black",
+        name="famacha score increase(real)",
+        mode="lines+markers",
+        # marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
+        marker={"symbol": "x", "size": 7},
+        connectgaps=True,
+    )
+    fig.add_trace(trace_f_inc, secondary_y=True)
 
     pred_correct = []
     cpt_c = 0
@@ -441,11 +449,27 @@ def build_animal_pred(
     fig.write_html(filepath)
     print(filepath)
     # concat_html(figs, filepath)
-    return out_dir, n_models, time_axis, res, activity, famacha, famacha_predicted_dec, famacha_predicted_proba
+    return (
+        out_dir,
+        n_models,
+        time_axis,
+        res,
+        activity,
+        famacha,
+        famacha_predicted_dec,
+        famacha_predicted_proba,
+    )
 
 
 def build_herd_pred(
-        out_dir, n_models, time_axis, res, herd, famacha_list, famacha_predicted_dec_list, famacha_predicted_proba_list
+    out_dir,
+    n_models,
+    time_axis,
+    res,
+    herd,
+    famacha_list,
+    famacha_predicted_dec_list,
+    famacha_predicted_proba_list,
 ):
     # print(herd, famacha_list, famacha_predicted_dec_list)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -476,6 +500,30 @@ def build_herd_pred(
         )
         fig.add_trace(trace_f, secondary_y=True)
 
+    data_f_inc = famacha.copy()
+    famacha_inc = famacha[~np.isnan(famacha)] - np.roll(famacha[~np.isnan(famacha)], 1)
+    famacha_inc = (famacha_inc > 0).astype(int)
+    print(famacha_inc)
+    cpt = 0
+    for i in range(len(data_f_inc)):
+        if np.isnan(data_f_inc[i]):
+            continue
+        data_f_inc[i] = famacha_inc[cpt]
+        cpt += 1
+
+    trace_f_inc = go.Scatter(
+        x=time_axis,
+        y=data_f_inc,
+        opacity=1,
+        line_color="black",
+        name="famacha score increase(real)",
+        mode="lines+markers",
+        # marker_color=[DEFAULT_PLOTLY_COLORS[int(x)] if not np.isnan(x) else np.nan for x in famacha],
+        marker={"symbol": "x", "size": 7},
+        connectgaps=True,
+    )
+    fig.add_trace(trace_f_inc, secondary_y=True)
+
     trace_f_proba_pred_dec = go.Scatter(
         x=time_axis,
         y=famacha_proba_pred,
@@ -500,13 +548,59 @@ def build_herd_pred(
     )
     fig.add_trace(trace_f_pred_dec, secondary_y=True)
 
+    trace_f_pred_binary = go.Scatter(
+        x=time_axis,
+        y=(famacha_pred > 0.5).astype(int),
+        opacity=0.8,
+        line_color="firebrick",
+        name=f"binary (n_models={n_models}) herd famacha score increase (predicted)",
+        mode="lines+markers",
+        marker=dict(opacity=0),
+        connectgaps=True,
+    )
+    fig.add_trace(trace_f_pred_binary, secondary_y=True)
+
     cpt = 0
     for item in famacha_list:
         if np.all(np.isnan(item)):
             cpt += 1
 
+    y_true = (famacha[famacha > 0]).astype(int)
+    y_pred = (famacha_pred[famacha > 0] > 0.5).astype(int)
+    y_proba = famacha_proba_pred[famacha > 0]
+    tnr = 0
+    fpr = 0
+    fpr = 0
+    fnr = 0
+    tpr = 0
+    if len(y_true) > 0:
+        tnr, fpr, fnr, tpr = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+        tnr = tnr / sum(y_true == 0)
+        fpr = fpr / sum(y_true == 1)
+        fnr = fnr / sum(y_true == 0)
+        tpr = tpr / sum(y_true == 1)
+
+    pred_correct = []
+    cpt_c = 0
+    cpt_ic = 0
+    for y, pred in zip(famacha, famacha_pred):
+        if y == 1 and pred == 0:  # famacha is 1 and pred is healthy
+            pred_correct.append("green")
+            cpt_c += 1
+            continue
+        if y > 1 and pred == 1:  # famacha is >1 and pred is unhealthy
+            pred_correct.append("green")
+            cpt_c += 1
+            continue
+        if np.isnan(y):
+            pred_correct.append(np.nan)
+            continue
+
+        pred_correct.append("red")
+        cpt_ic += 1
+
     fig.update_layout(
-        title_text=f"Timeline of herd(total={len(herd)}), with famacha {len(herd) - cpt}, without famacha {cpt}"
+        title_text=f"Timeline of herd(total={len(herd)}), with famacha {len(herd) - cpt}, without famacha {cpt}| TPR={tpr:.2f} FPR={fpr:.2f} TNR={tnr:.2f} FNR={fnr:.2f} | CORRECT={cpt_c} INCORRECT={cpt_ic}"
     )
 
     fig.update_yaxes(title_text="<b>Activity</b>", secondary_y=False)
@@ -518,16 +612,7 @@ def build_herd_pred(
     print(filepath)
 
 
-def main(
-        activity_files=Path(
-            "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
-        ),
-        famacha_h5=Path("F:/Data2/delmas_animal_data.h5"),
-        models=Path(
-            "E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
-        ),
-        out=Path("E:/thesis2/timelines/delmas")
-):
+def main(activity_files=None, famacha_h5=None, models=None, out=None, model_count=-1):
     herd = []
     famacha_list = []
     famacha_predicted_dec_list = []
@@ -541,17 +626,20 @@ def main(
             activity,
             famacha,
             famacha_predicted_dec,
-            famacha_predicted_proba
+            famacha_predicted_proba,
         ) = build_animal_pred(
             activity_file,
             famacha_h5,
             models,
             out,
+            model_count=model_count
         )
+
         herd.append(activity)
         famacha_list.append(famacha)
         famacha_predicted_dec_list.append(famacha_predicted_dec)
         famacha_predicted_proba_list.append(famacha_predicted_proba)
+
     build_herd_pred(
         out_dir,
         n_models,
@@ -560,7 +648,7 @@ def main(
         herd,
         famacha_list,
         famacha_predicted_dec_list,
-        famacha_predicted_proba_list
+        famacha_predicted_proba_list,
     )
 
 
@@ -573,7 +661,18 @@ if __name__ == "__main__":
         models=Path(
             "E:/thesis2/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
-        out=Path("E:/thesis2/timelines/cedara")
+        model_count=-1,
+        out=Path("E:/thesis_debug2/timelines/cedara"),
     )
-    main()
+    main(
+        activity_files=Path(
+            "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
+        ),
+        famacha_h5=Path("F:/Data2/delmas_animal_data.h5"),
+        models=Path(
+            "E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
+        ),
+        model_count=-1,
+        out=Path("E:/thesis_debug2/timelines/delmas"),
+    )
     # typer.run(main)

@@ -22,7 +22,7 @@ from tqdm import tqdm
 from utils.Utils import anscombe
 
 colormap = plt.cm.gist_ncar  # nipy_spectral, Set1,Paired
-colorst = [colormap(i) for i in np.linspace(0, 0.9, 21)]
+colorst = [colormap(i) for i in np.linspace(0, 0.9, 23)]
 COLOR_MAP = {
     "4To2": colorst[0],
     "1To2": colorst[1],
@@ -45,6 +45,8 @@ COLOR_MAP = {
     "2To2": colorst[18],
     "4To5": colorst[19],
     "1To3": colorst[20],
+    "1To5": colorst[21],
+    "5To1": colorst[22],
 }
 
 
@@ -1369,6 +1371,16 @@ def main(
 
 
 def local_run():
+
+    main(
+        output=Path("E:/thesis2/heatmap"),
+        activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
+        dataset_dir=Path("E:/Data2/debug3/cedara/datasetraw_none_7day"),
+        activity_col="first_sensor_value",
+        farm_id="cedara",
+        day_before_famacha_test=7,
+    )
+
     main(output=Path("E:/thesis2/heatmap"),
          activity_dir=Path("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027"),
          dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
@@ -1376,25 +1388,16 @@ def local_run():
          activity_col="first_sensor_value",
          day_before_famacha_test=7)
 
-    main(
-        output=Path("E:/thesis2/heatmap"),
-        activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
-        dataset_dir=Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
-        activity_col="first_sensor_value",
-        farm_id="cedara",
-        day_before_famacha_test=7,
-    )
-
-    main(
-        output=Path("E:/thesis2/heatmap"),
-        activity_dir=Path(
-            "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
-        ),
-        dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
-        activity_col="first_sensor_value_mrnn",
-        farm_id="delmas_imputed",
-        day_before_famacha_test=7,
-    )
+    # main(
+    #     output=Path("E:/thesis2/heatmap"),
+    #     activity_dir=Path(
+    #         "F:/MRNN/imputed_data/4_missingrate_[0.0]_seql_1440_iteration_100_hw__n_421"
+    #     ),
+    #     dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
+    #     activity_col="first_sensor_value_mrnn",
+    #     farm_id="delmas_imputed",
+    #     day_before_famacha_test=7,
+    # )
 
     # main(output=Path("E:/thesis2/heatmap"),
     #      activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
