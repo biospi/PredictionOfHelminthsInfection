@@ -3,6 +3,8 @@
 
 #SBATCH --job-name=array_job
 #SBATCH --partition=short
+#SBATCH --output=cat_job_out
+#SBATCH --error=cat_job_error
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
