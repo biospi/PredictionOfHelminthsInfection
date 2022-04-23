@@ -577,7 +577,7 @@ def create_heatmap(
     date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    fig, ax = plt.subplots(figsize=(20.20, 7.20))
+    fig, ax = plt.subplots(figsize=(20.20, 10.80))
     ax.yaxis.set_label_position("right")
     ax.yaxis.tick_right()
     im_a_log_anscomb = ax.imshow(

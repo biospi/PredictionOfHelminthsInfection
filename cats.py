@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min2",
+    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min2_std",
     dataset_parent: str = "E:/Cats/build_sec4/peak",
 ):
     """Thesis script runs the cats study
@@ -34,7 +34,7 @@ def main(
             # ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "STD", "CWT(MORL)"],
             # ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STDSCALE"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
@@ -73,7 +73,7 @@ def main(
                         n_activity_days=-1,
                         class_healthy_label=["0.0"],
                         class_unhealthy_label=["1.0"],
-                        n_scales=7,
+                        n_scales=16,
                         n_splits=5,
                         n_repeats=10,
                         n_job=7,

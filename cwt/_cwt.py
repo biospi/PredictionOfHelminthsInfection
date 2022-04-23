@@ -996,6 +996,7 @@ def compute_cwt(
     cwt_raw = []
     # cwt_full = []
     i = 0
+    std_scales = []
     for activity in tqdm(X):
         animal_id, target, date, epoch = parse_param(
             animals_id, dates, i, targets, step_slug
@@ -1020,6 +1021,7 @@ def compute_cwt(
             enable_graph_out=enable_graph_out,
             sub_sample_scales=sub_sample_scales
         )
+        std_scales.append(np.nanstd(power, axis=1))
         power_flatten = np.array(power.flatten())
         # cwt_full.append(power_flatten_masked)
         coi_mask = np.isnan(power_flatten)
@@ -1033,10 +1035,10 @@ def compute_cwt(
     cwt = np.array(cwt)
     #print("done.")
     # cwt_full = np.array(cwt_full)
-
+    std_scales = pd.DataFrame(np.array(std_scales))
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return cwt, cwt_raw, freqs, coi, shape, coi_mask, scales
+    return std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales
 
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
@@ -1124,7 +1126,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         # X = check_array(X, accept_sparse='csr')
-        cwt, cwt_raw, freqs, coi, shape, coi_mask, scales = compute_cwt(
+        std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales = compute_cwt(
             self.hd,
             self.wavelet_f0,
             X,
@@ -1146,7 +1148,7 @@ class CWT(TransformerMixin, BaseEstimator):
         self.shape = shape
         self.coi_mask = coi_mask
         self.scales = scales
-        return cwt, cwt_raw
+        return cwt, cwt_raw, std_scales
 
     def get_scales(self):
         return self.scales
