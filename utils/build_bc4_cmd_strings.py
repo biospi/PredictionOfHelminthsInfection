@@ -83,7 +83,7 @@ if __name__ == "__main__":
         "0_00010",
     ]:
         for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
-            dataset_folder = f"/user/work/fo18103/cats/peak/{t}"
+            dataset_folder = f"/user/work/fo18103/cats/peak/{t}/dataset/training_sets/day_w"
             n_cmd += main(
                 cv_list=[cv],
                 output_dir=output_dir,

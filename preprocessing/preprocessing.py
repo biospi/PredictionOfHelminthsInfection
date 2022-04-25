@@ -318,6 +318,7 @@ def apply_preprocessing_steps(
             assert (
                 std_scales is not None
             ), "CWT need to be calculated first, make sure that CWT is in the steps array before STDSCALE"
+            std_scales.index = df.index  # need to keep original sample index!!!!
             df = pd.concat([std_scales, df_meta], axis=1)
         if "TSNE" in step:
             tsne_dim = int(step[step.find("(") + 1 : step.find(")")])
