@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min2_std",
+    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min5_std",
     dataset_parent: str = "E:/Cats/build_sec2/peak",
 ):
     """Thesis script runs the cats study
@@ -20,7 +20,7 @@ def main(
     for clf in ["rbf"]:
         for steps in [
             # ["LINEAR", "QN", "STD"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"]
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
@@ -34,7 +34,7 @@ def main(
             # ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "STD", "CWT(MORL)"],
             # ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STDSCALE"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL", "STDSCALE"]
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],

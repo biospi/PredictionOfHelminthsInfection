@@ -25,7 +25,7 @@ from typing import List, Optional
 import pandas as pd
 import typer
 from sklearn.preprocessing import StandardScaler
-
+import numpy as np
 from model.data_loader import load_activity_data
 from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
@@ -344,24 +344,41 @@ def main(
         animal_ids = data_frame["id"].astype(str).tolist()
 
         step_slug = "_".join(preprocessing_steps)
-        df_processed, df_processed_meta = apply_preprocessing_steps(
-            meta_columns,
-            n_activity_days,
-            df_hum,
-            df_temp,
-            sfft_window,
-            wavelet_f0,
-            animal_ids,
-            data_frame.copy(),
-            output_dir,
-            preprocessing_steps,
-            class_healthy_label,
-            class_unhealthy_label,
-            clf_name="SVM",
-            output_dim=data_frame.shape[0],
-            n_scales=n_scales,
-            sub_sample_scales=sub_sample_scales
-        )
+
+        steps_ = []
+        if 'APPEND' in preprocessing_steps:
+            steps_.append(preprocessing_steps[0:preprocessing_steps.index('APPEND')])
+            steps_.append(preprocessing_steps[preprocessing_steps.index('APPEND') + 1:])
+        else:
+            steps_ = [preprocessing_steps]
+
+        df_processed_list = []
+        for preprocessing_steps in steps_:
+            df_processed, df_processed_meta = apply_preprocessing_steps(
+                meta_columns,
+                n_activity_days,
+                df_hum,
+                df_temp,
+                sfft_window,
+                wavelet_f0,
+                animal_ids,
+                data_frame.copy(),
+                output_dir,
+                preprocessing_steps,
+                class_healthy_label,
+                class_unhealthy_label,
+                clf_name="SVM",
+                output_dim=data_frame.shape[0],
+                n_scales=n_scales,
+                sub_sample_scales=sub_sample_scales
+            )
+            df_processed_list.append(df_processed)
+
+        df = pd.concat(df_processed_list, axis=1)
+        df = df.loc[:, ~df.columns.duplicated()]
+        target = df.pop('target')
+        health = df.pop('health')
+        df_processed = pd.concat([df, target, health], 1)
 
         plot_umap(
             meta_columns,

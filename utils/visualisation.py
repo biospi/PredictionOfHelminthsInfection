@@ -1888,6 +1888,16 @@ def build_individual_animal_pred(
                 data_i_prob[ids_test[i]].append(y_pred_proba_1[i])
 
         labels = list(data_c.keys())
+
+        labels_new = []
+        for l in labels:
+            if 'name' in data_m[l] and 'age' in data_m[l]:
+                name = data_m[l]['name'][0]
+                age = str(data_m[l]['age'][0]).zfill(6)
+                labels_new.append(f"{age} {name}")
+        if len(labels_new) > 0:
+            labels = labels_new
+
         correct_pred = list(data_c.values())
         incorrect_pred = list(data_i.values())
         correct_pred_prob = list(data_c_prob.values())
@@ -1960,7 +1970,7 @@ def build_individual_animal_pred(
         #df_ = df_.reindex(natsorted(df_.columns), axis=1)
         df_ = df_.astype(float)
         fig_ = plt.figure()
-        boxplot = df_.boxplot(column=list(df_.columns), rot=90, figsize=(12.80, 7.20))
+        boxplot = df_.boxplot(column=list(df_.columns), rot=90, figsize=(19.20, 10.80))
         boxplot.set_ylim(ymin=0, ymax=1)
         boxplot.axhline(y=0.5, color='gray', linestyle='--')
         boxplot.set_title(f"Classifier predictions probability ({tt}) \n per individual label_unhealthy={label_unhealthy}")
@@ -1994,6 +2004,7 @@ def build_individual_animal_pred(
             },
             index=labels
         )
+        df = df.sort_index()
         df = df.astype(np.double)
         df["correct prediction"] = (
                                            df_table["correct prediction"]
