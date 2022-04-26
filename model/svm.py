@@ -34,7 +34,7 @@ from utils.visualisation import (
     build_individual_animal_pred,
     build_report,
     plot_ml_report_final,
-    plot_high_dimension_db, plot_learning_curves)
+    plot_high_dimension_db, plot_learning_curves, plot_fold_details)
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -438,6 +438,7 @@ def process_ml(
             y_h,
             ids,
             meta_data,
+            meta_columns,
             meta_data_short,
             sample_dates,
             augment_training,
@@ -824,6 +825,7 @@ def cross_validate_custom_fast(
     y_h,
     ids,
     meta,
+    meta_columns,
     meta_data_short,
     sample_dates,
     augment_training,
@@ -943,6 +945,8 @@ def cross_validate_custom_fast(
             fold_probas = dict(fold_probas)
             fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
             print("total time (s)= " + str(end - start))
+
+        plot_fold_details(fold_results, meta, meta_columns, out_dir)
 
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{len(fold_results[0]['training_shape'])} testing_shape:{len(fold_results[0]['testing_shape'])}"
         if kernel == "cnn":

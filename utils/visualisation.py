@@ -35,7 +35,7 @@ import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
 from highdimensional.decisionboundaryplot import DBPlot
 from natsort import natsorted
-
+import plotly.express as px
 
 def get_time_ticks(nticks):
     date_string = "2012-12-12 00:00:00"
@@ -1836,6 +1836,74 @@ def plot_2d_decision_boundaries(
 
 def build_roc_curve(output_dir, label_unhealthy, scores):
     print("build_roc_curve...")
+
+
+def plot_fold_details(fold_results, meta, meta_columns, out_dir, filename="fold_details"):
+    print(fold_results)
+    meta_dict = {}
+    for m in meta:
+        id = 0
+        if 'id' in meta_columns:
+            id = m[meta_columns.index('id')]
+        age = 0
+        if 'age' in meta_columns:
+            age = str(m[meta_columns.index('age')]).zfill(6)
+        name = 0
+        if 'name' in meta_columns:
+            name = m[meta_columns.index('name')]
+        meta_dict[id] = f"{age} {name}"
+    data = []
+    for f in fold_results:
+        auc_train = f["auc_train"]
+        auc = f["auc"]
+
+        ids_test = np.unique(f['ids_test']).astype(float)
+        ids_train = np.unique(f['ids_train']).astype(float)
+
+        ids_test_ = np.vectorize(meta_dict.get)(ids_test)
+        ids_train_ = np.vectorize(meta_dict.get)(ids_train)
+
+        data.append([auc_train, auc, ids_test_, ids_train_])
+
+    df = pd.DataFrame(data, columns=["auc_train", "auc_test", "ids_test", "ids_train"])
+    df = df.sort_values(by='auc_test')
+    filepath = out_dir / f"{filename}.csv"
+    df.to_csv(filepath, index=False)
+
+    df_test = df[["auc_test", "auc_train", "ids_test"]]
+    df_test = df_test.sort_values(by='auc_test')
+    df_test.index = df["ids_test"]
+    ax = df_test.plot.bar(
+        rot=90,
+        log=False,
+        figsize=(0.3*len(fold_results), 30.20),
+        title=f"(Testing) Classifier predictions per fold n={len(fold_results)}",
+    )
+    ax.set_xlabel("Fold metadata")
+    ax.set_ylabel("AUC")
+    fig = ax.get_figure()
+    filepath = out_dir / f"{filename}_test.png"
+    print(filepath)
+    fig.tight_layout()
+    fig.savefig(filepath)
+    # plt.clf()
+    # df_train = df[["auc_train", "ids_train"]]
+
+    # df_train = df_train.sort_values(by='auc_train')
+    # df_train.index = df_train["ids_train"]
+    # ax_train = df_train.plot.bar(
+    #     rot=90,
+    #     log=False,
+    #     figsize=(0.3*len(fold_results), 30.20),
+    #     title=f"(Training) Classifier predictions per fold n={len(fold_results)}",
+    # )
+    # ax_train.set_xlabel("Fold metadata")
+    # ax_train.set_ylabel("AUC")
+    # fig_train = ax_train.get_figure()
+    # filepath = out_dir / f"{filename}_training.png"
+    # print(filepath)
+    # #fig_train.tight_layout()
+    # fig_train.savefig(filepath)
 
 
 def build_individual_animal_pred(
