@@ -8,7 +8,7 @@ from numbers import Number
 from sys import exit
 import sys
 import datetime as dt
-from dataset.herd import AnimalData, HerdFile
+from dataset.herd import AnimalData, herd_file
 
 if __name__ == '__main__':
     print("Usage: "
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     print('finished')
     print('dumping result to json file...')
     # Save Herd data to HDF5 File
-    hfile = HerdFile(output_filename)
+    hfile = herd_file(output_filename)
     hfile.saveHerd(animals)
 
 

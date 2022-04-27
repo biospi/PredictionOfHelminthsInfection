@@ -61,11 +61,11 @@ class AnimalData:
             idx = np.where(tag[1, :] == self.Tag)[0][0]
             self.ID = tag[0, idx]
         else:
-            print("Error cannot find Tag in activity Animal List WTF!!! is going on...")
+            print("Error cannot find Tag in activity Animal List!")
             print(f"Cannot find ID for animal Tag: {self.Tag}")
 
 
-class HerdData:
+class herd_data:
     herd = []
     missing = 0
 
@@ -76,17 +76,17 @@ class HerdData:
     def addHerd(self, _herd):
         self.herd = _herd
 
-    def setIDofHerd(self, tagList):
+    def set_id_of_herd(self, tagList):
         for idxh in self.herd:
             idxh.TagToIDSet(tagList)
         self.missing = [(idx, x.Tag) for idx, x in enumerate(self.herd) if x.ID == 0]
 
-    def getMissingList(self):
+    def get_missing_list(self):
         for idx in self.missing:
             print(f"Missing Tag Number: {idx[1]} \t Index: {idx[0]}")
         return self.missing
 
-    def removeMissing(self):
+    def remove_missing(self):
         print("Deleting the following missing (Idx, Tags)", self.missing)
         offset = 0
         for idx in self.missing:
@@ -99,7 +99,7 @@ class HerdData:
         return [x.ID for x in self.herd]
 
 
-class HerdFile:
+class herd_file:
     herdFile = []
 
     def __init__(self, fileName):
@@ -157,7 +157,7 @@ class HerdFile:
         ahf.close()
         return herdData
 
-    def loadHerd(self, _herd):
+    def load_herd(self, _herd):
         herdData = []
 
         ahf = h5.File(self.herdFile, 'r')

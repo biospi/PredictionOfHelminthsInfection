@@ -32,6 +32,13 @@ import json
 #--fam-file F:\Data2\delmas_animal_data.h5 --data-dir "F:\MRNN\imputed_data\1_missingrate_[0.0]_seql_10080_iteration_100_hw__n_298" --out-dir "E:\Data2\debug\delmas\dataset_mrnn_7day"
 #--fam-file F:\Data2\cedara_animal_data.h5 --data-dir "F:\MRNN\imputed_data\3_missingrate_[0.0]_seql_10080_iteration_100_hw__n_238" --out-dir "E:\Data2\cedara\delmas\dataset_mrnn_7day"
 
+
+def local_run():
+    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+         data_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
+         out_dir=Path("E:/thesis_debug/dataset/cedara"), remove_missing=False)
+
+
 def main(
         fam_file: Path = typer.Option(
             ..., exists=False, file_okay=True, dir_okay=False, resolve_path=True
@@ -46,6 +53,7 @@ def main(
         n_days: int = 7,
         farm_id: str = "farmid",
         night: bool = typer.Option(False, "--p"),
+        remove_missing: bool = typer.Option(True, "--p")
 ):
     """This script builds activity/ground truth datasets\n
     Args:\n
@@ -58,28 +66,30 @@ def main(
     """
 
     print("Loading Famacha and Sorce based data from HDF5 file")
-    fileHerd = HerdFile(fam_file)
-    famachaHerd = HerdData()
+    file_herd = herd_file(fam_file)
+    famachaHerd = herd_data()
 
     print("Loading Activity traces and Times of famacha based animals")
-    activityData = ActivityFile(data_dir, data_col)
+    activity_data = activity_file(data_dir, data_col)
 
     # load Famacha based scores from HDF5
-    fileHerd.loadHerd(famachaHerd)
+    file_herd.load_herd(famachaHerd)
 
     # load Filenames of activity data.
-    sheepID = activityData.getID()
+    sheepID = activity_data.getID()
 
-    famachaHerd.setIDofHerd(sheepID)
+    famachaHerd.set_id_of_herd(sheepID)
 
-    mis = famachaHerd.getMissingList()
+    mis = famachaHerd.get_missing_list()
 
-    famachaHerd.removeMissing()
+    if remove_missing:
+        print("remove_missing")
+        famachaHerd.remove_missing()
 
     # Load only data based on Famacha data.
     samples = SampleSet()
 
-    samples.generateSet(famachaHerd, activityData, n_days)
+    samples.generateSet(famachaHerd, activity_data, n_days)
 
     # aTraces = activityData.loadActivityTraceList(famachaHerd.getAnimalIDList())
 
@@ -196,4 +206,5 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    local_run()
+    #typer.run(main)

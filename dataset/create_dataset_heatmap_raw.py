@@ -608,6 +608,8 @@ def create_heatmap(
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
 
     fig.autofmt_xdate(rotation=45)
+    if farm_id == "cedara":
+        ax.axvline(pd.Timestamp('2013-02-14'), color='white', linestyle='--', lw=3)
 
     every_nth = 2
     for n, label in enumerate(ax.xaxis.get_ticklabels()):
@@ -730,6 +732,8 @@ def create_heatmap(
     # axs[1].set_facecolor('pink')
     # axs[2].set_facecolor('pink')
     # fig.tight_layout()
+    ax.set_xlabel('time')
+    ax.set_ylabel('Animals(id)')
 
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
@@ -1373,20 +1377,20 @@ def main(
 def local_run():
 
     main(
-        output=Path("E:/thesis2/heatmap"),
-        activity_dir=Path("F:/Data2/backfill_1min_cedara_fixed"),
-        dataset_dir=Path("E:/Data2/debug3/cedara/datasetraw_none_7day"),
+        output=Path("E:/thesis/heatmap"),
+        activity_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
+        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
         activity_col="first_sensor_value",
         farm_id="cedara",
         day_before_famacha_test=7,
     )
 
-    main(output=Path("E:/thesis2/heatmap"),
-         activity_dir=Path("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027"),
-         dataset_dir=Path("E:/Data2/debug3/delmas/datasetraw_none_7day"),
-         farm_id="delmas",
-         activity_col="first_sensor_value",
-         day_before_famacha_test=7)
+    # main(output=Path("E:/thesis2/heatmap"),
+    #      activity_dir=Path("F:/Data2/backfill_1min_delmas_fixed/delmas_70101200027"),
+    #      dataset_dir=Path("E:/thesis_debug/dataset/cedara"),
+    #      farm_id="delmas",
+    #      activity_col="first_sensor_value",
+    #      day_before_famacha_test=7)
 
     # main(
     #     output=Path("E:/thesis2/heatmap"),

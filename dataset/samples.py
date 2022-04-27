@@ -23,7 +23,10 @@
 import numpy as np
 import pandas as pd
 # from enum import Enum, auto
-from typing import Final
+try:
+    from typing import Final
+except ImportError:
+    from typing_extensions import Final
 from pathlib import Path
 import datetime as dt
 import math
@@ -59,7 +62,7 @@ class TimeConst:
 # More cleaver way than to use enumerations to do famacha fast and can cover all combinations.
 class FamachaVal:
     f = {
-        1: '1', 2: '2', 3: '3', 4: '4', 5: '5',
+        0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 10: '10',
         11: '1To1', 12: '1To2', 13: '1To3', 14: '1To4', 15: '1To5',
         21: '2To1', 22: '2To2', 23: '2To3', 24: '2To4', 25: '2To5',
         31: '3To1', 32: '3To2', 33: '3To3', 34: '3To4', 35: '3To5',
@@ -78,7 +81,7 @@ class FamachaVal:
         return self.getFamachaV(df)
 
 
-class ActivityFile:
+class activity_file:
     dataDir = 0
     files = 0
     ID = 0
@@ -134,7 +137,7 @@ class ActivityFile:
             animalTrace.append(Activity(self.ID[0, idx], atrace, atime))
         return animalTrace
 
-    def loadActivityTrace(self, _ID):
+    def loadActivityTrace(self, _ID, tag=None):
         """
         Load in data from directory containing csv files containing activity trace data return Single Activity
         Trace object.
@@ -142,6 +145,13 @@ class ActivityFile:
         idx = np.where(self.ID == _ID)[1][0]
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
+
+        if _ID == 99999999999: #todo remove this is just for heatmap visualisation no need to save empty transponder trace otherwise
+            filepath = self.files[idx].parent / f"{tag}.csv"
+            print(filepath)
+            dataFrame_ = dataFrame.copy()
+            dataFrame.to_csv(filepath, index=False)
+
         atrace = np.array(dataFrame.loc[:, self.col])
         missingness = np.zeros(dataFrame.shape[0])
         if 'imputed' in dataFrame.columns:
@@ -245,7 +255,15 @@ class SampleSet:
 
         fdt = dt.datetime.fromtimestamp
         for i, aIdx in enumerate(famData.herd):
-            act, miss = actFile.loadActivityTrace(aIdx.ID)
+            try:
+                act, miss = actFile.loadActivityTrace(aIdx.ID)
+            except IndexError as e:
+                print(e)
+                print("missing transponder data!")
+                act, miss = actFile.loadActivityTrace(99999999999, tag=aIdx.Tag)
+                aIdx.ID = aIdx.Tag
+                act.ID = aIdx.Tag
+
             print(f"Procesing animal with ID:{bc.BLUE} {act.ID} \t [{i+1}/{N}] {bc.ENDC}")
             aniSet = []
             T0 = act.T[0]
