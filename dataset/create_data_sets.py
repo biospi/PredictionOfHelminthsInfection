@@ -34,9 +34,14 @@ import json
 
 
 def local_run():
-    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
-         data_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
-         out_dir=Path("E:/thesis_debug/dataset/cedara"), remove_missing=False)
+
+    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+         data_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"),
+         out_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"), remove_missing=False)
+
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
+    #      out_dir=Path("E:/thesis_debug/dataset/cedara"), remove_missing=False)
 
 
 def main(

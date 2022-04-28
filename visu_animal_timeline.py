@@ -103,7 +103,12 @@ def predict_famacha(
     model_count=-1
 ):
     # first reshape the data as the same shape of the training samples
-    chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
+    try:
+        chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
+    except KeyError as e:
+        print(e)
+        chuncks = split_given_size(df["first_sensor_value"].values, sample_size)
+
     samples = []
     rmv = []
     for s in chuncks:
@@ -122,59 +127,63 @@ def predict_famacha(
         "target"
     ] = 0  # add mock meta todo edit apply_processing_steps to handle no meta input
 
-    # apply preprocessing
-    data_frame = data_frame[data_frame["to_remove"] == 0]
-    data_frame, _ = apply_preprocessing_steps(
-        ["health", "target", "to_remove"],
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        data_frame.copy(),
-        output_dir,
-        preprocessing_steps,
-        class_healthy_label,
-        class_unhealthy_label,
-        clf_name="SVM",
-        n_scales=None,
-        farm_name=f"{id}",
-        keep_meta=True,
-    )
-    # if len(chuncks[0]) != sample_size:
-    #     continue
-    X_test = data_frame.iloc[:, :-3].values
-
     models = list(model_path.glob("*.pkl"))
     if model_count > 0:
         models = models[0:model_count]
 
-    y_pred_list = []
-    y_pred_proba_list = []
+    # apply preprocessing
+    data_frame = data_frame[data_frame["to_remove"] == 0]
+    if data_frame.shape[0] > 0:
+        data_frame, _ = apply_preprocessing_steps(
+            ["health", "target", "to_remove"],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            data_frame.copy(),
+            output_dir,
+            preprocessing_steps,
+            class_healthy_label,
+            class_unhealthy_label,
+            clf_name="SVM",
+            n_scales=None,
+            farm_name=f"{id}",
+            keep_meta=True,
+        )
+        # if len(chuncks[0]) != sample_size:
+        #     continue
+        X_test = data_frame.iloc[:, :-3].values
+        y_pred_list = []
+        y_pred_proba_list = []
+
     for i, model_file in enumerate(models):
         print(f"model {i}/{len(models)} predicting X_test...")
         with open(str(model_file), "rb") as f:
             clf = pickle.load(f)
-            y_pred = clf.predict(X_test.copy())
-            y_pred_proba = clf.predict_proba(X_test.copy())[:, 1]
-            y_pred_list.append(y_pred)
-            y_pred_proba_list.append(y_pred_proba)
+            if data_frame.shape[0] > 0:
+                y_pred = clf.predict(X_test.copy())
+                y_pred_proba = clf.predict_proba(X_test.copy())[:, 1]
+                y_pred_list.append(y_pred)
+                y_pred_proba_list.append(y_pred_proba)
             df[f"famacha_pred_{i}"] = np.nan
             df[f"famacha_proba_{i}"] = np.nan
 
-            if np.all(np.isnan(df["famacha"].values)):
-                for n in range(X_test.shape[0]):
-                    df[f"famacha_pred_{i}"].iloc[n * 1440 * 7] = y_pred[n]
-                    df[f"famacha_proba_{i}"].iloc[n * 1440 * 7] = y_pred_proba[n]
+            if data_frame.shape[0] > 0:
+                if np.all(np.isnan(df["famacha"].values)):
+                    for n in range(X_test.shape[0]):
+                        df[f"famacha_pred_{i}"].iloc[n * 1440 * 7] = y_pred[n]
+                        df[f"famacha_proba_{i}"].iloc[n * 1440 * 7] = y_pred_proba[n]
 
-            cpt = 0
-            for n, v in enumerate(df["famacha"].values):
-                if not np.isnan(v):
-                    # print(v)
-                    df[f"famacha_pred_{i}"].iloc[n] = y_pred[cpt]
-                    df[f"famacha_proba_{i}"].iloc[n] = y_pred_proba[cpt]
-                    cpt += 1
+                cpt = 0
+                for n, v in enumerate(df["famacha"].values):
+                    if not np.isnan(v):
+                        # print(v)
+                        df[f"famacha_pred_{i}"].iloc[n] = y_pred[cpt]
+                        df[f"famacha_proba_{i}"].iloc[n] = y_pred_proba[cpt]
+                        cpt += 1
+
     return df, len(models)
 
 
@@ -370,7 +379,7 @@ def build_animal_pred(
     fpr = 0
     fnr = 0
     tpr = 0
-    if len(y_true) > 0:
+    if len(y_true) > 0 and len(y_true) == len(y_pred):
         tnr, fpr, fnr, tpr = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
         tnr = tnr / sum(y_true == 0)
         fpr = fpr / sum(y_true == 1)
@@ -655,13 +664,13 @@ def main(activity_files=None, famacha_h5=None, models=None, out=None, model_coun
 if __name__ == "__main__":
     main(
         activity_files=Path(
-            "F:/MRNN/imputed_data/6_missingrate_[0.0]_seql_1440_iteration_100_hw__n_591"
+            "E:/thesis/activity_data/cedara/6_missingrate_[0.0]_seql_1440_iteration_100_hw__n_591"
         ),
         famacha_h5=Path("F:/Data2/cedara_animal_data.h5"),
         models=Path(
             "E:/thesis2/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
-        model_count=-1,
+        model_count=2,
         out=Path("E:/thesis_debug2/timelines/cedara"),
     )
     main(

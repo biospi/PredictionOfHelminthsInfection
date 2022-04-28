@@ -543,6 +543,9 @@ def create_heatmap(
     header[-2] = "entropy_s2"
     header[-3] = "entropy"
 
+    if df_raw.iloc[:, -1].values[-1] == 99999999999:
+        df_raw = df_raw[:-1]
+
     print(f"add_famacha_format_id_todf... {idx}/{itot} ...")
     df_raw = add_famacha_format_id_todf(df_raw, header, famacha_data)
     print(f"add_famacha_format_id_todf done {idx}/{itot} ...")
@@ -577,7 +580,7 @@ def create_heatmap(
     date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    fig, ax = plt.subplots(figsize=(20.20, 10.80))
+    fig, ax = plt.subplots(figsize=(20.20, 15.80))
     ax.yaxis.set_label_position("right")
     ax.yaxis.tick_right()
     im_a_log_anscomb = ax.imshow(
@@ -732,8 +735,10 @@ def create_heatmap(
     # axs[1].set_facecolor('pink')
     # axs[2].set_facecolor('pink')
     # fig.tight_layout()
-    ax.set_xlabel('time')
-    ax.set_ylabel('Animals(id)')
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Animals')
+    ax.tick_params(axis='both', which='major', labelsize=6)
+    ax.tick_params(axis='both', which='minor', labelsize=6)
 
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
@@ -1377,11 +1382,38 @@ def main(
 def local_run():
 
     main(
-        output=Path("E:/thesis/heatmap"),
+        output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
         activity_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
         dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
         activity_col="first_sensor_value",
         farm_id="cedara",
+        day_before_famacha_test=7,
+    )
+
+    main(
+        output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+        activity_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"),
+        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+        activity_col="first_sensor_value",
+        farm_id="delmas",
+        day_before_famacha_test=7,
+    )
+
+    main(
+        output=Path("E:/thesis/heatmaps/raw_usable"),
+        activity_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed"),
+        dataset_dir=Path("E:/thesis/datasets/cedara/datasetraw_none_7day"),
+        activity_col="first_sensor_value",
+        farm_id="cedara",
+        day_before_famacha_test=7,
+    )
+
+    main(
+        output=Path("E:/thesis/heatmaps/raw_usable"),
+        activity_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed"),
+        dataset_dir=Path("E:/thesis/datasets/delmas/datasetraw_none_7day"),
+        activity_col="first_sensor_value",
+        farm_id="delmas",
         day_before_famacha_test=7,
     )
 

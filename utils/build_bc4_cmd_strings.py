@@ -13,7 +13,11 @@ def main(
     class_unhealthy_label_list=["2To2"],
     study_id="delmas",
     steps_list=[
-        ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+        [""],
+        ["QN"],
+        ["QN", "ANSCOMBE"],
+        ["QN", "ANSCOMBE", "LOG"],
+        ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]
     ],
     meta_columns=[],
     individual_to_ignore=[],
@@ -59,152 +63,162 @@ def main(
 
 if __name__ == "__main__":
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats/ml_peak"
+    # output_dir = "/user/work/fo18103/cats/ml_peak"
+    #
+    # for t in [
+    #     "0_00800",
+    #     "0_00700",
+    #     "0_00600",
+    #     "0_00500",
+    #     "0_00400",
+    #     "0_00300",
+    #     "0_00200",
+    #     "0_00180",
+    #     "0_00160",
+    #     "0_00140",
+    #     "0_00120",
+    #     "0_00110",
+    #     "0_00100",
+    #     "0_00080",
+    #     "0_00070",
+    #     "0_00060",
+    #     "0_00040",
+    #     "0_00020",
+    #     "0_00010",
+    # ]:
+    #     for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
+    #         dataset_folder = f"/user/work/fo18103/cats/peak/{t}/dataset/training_sets/day_w"
+    #         n_cmd += main(
+    #             cv_list=[cv],
+    #             output_dir=output_dir,
+    #             dataset_folder=dataset_folder,
+    #             a_day=-1,
+    #             class_healthy_label_list=["0.0"],
+    #             class_unhealthy_label_list=["1.0"],
+    #             study_id="cats",
+    #             meta_columns=[
+    #                 "label",
+    #                 "id",
+    #                 "imputed_days",
+    #                 "date",
+    #                 "health",
+    #                 "target",
+    #                 "age",
+    #                 "name",
+    #                 "mobility_score",
+    #             ],
+    #             individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+    #         )
 
-    for t in [
-        "0_00800",
-        "0_00700",
-        "0_00600",
-        "0_00500",
-        "0_00400",
-        "0_00300",
-        "0_00200",
-        "0_00180",
-        "0_00160",
-        "0_00140",
-        "0_00120",
-        "0_00110",
-        "0_00100",
-        "0_00080",
-        "0_00070",
-        "0_00060",
-        "0_00040",
-        "0_00020",
-        "0_00010",
-    ]:
-        for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
-            dataset_folder = f"/user/work/fo18103/cats/peak/{t}/dataset/training_sets/day_w"
+
+    cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day"
+    delmas = "/user/work/fo18103/delmas/dataset4_mrnn_7day"
+    output_dir = "/user/work/fo18103/thesis"
+    for activity_days in [1, 3, 7]:
+        for imputed_days in [1, 3, 7]:
             n_cmd += main(
-                cv_list=[cv],
                 output_dir=output_dir,
-                dataset_folder=dataset_folder,
-                a_day=-1,
-                class_healthy_label_list=["0.0"],
-                class_unhealthy_label_list=["1.0"],
-                study_id="cats",
-                meta_columns=[
-                    "label",
-                    "id",
-                    "imputed_days",
-                    "date",
-                    "health",
-                    "target",
-                    "age",
-                    "name",
-                    "mobility_score",
-                ],
-                individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                dataset_folder=delmas,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["1To2"],
+                study_id="delmas",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=delmas,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["2To2"],
+                study_id="delmas",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=delmas,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["2To1"],
+                study_id="delmas",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=delmas,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1", "2To1"],
+                class_unhealthy_label_list=["2To2", "1To2"],
+                study_id="delmas",
             )
 
-
-    # cedara = "/user/work/fo18103/cedara/datasetraw_none_7day"
-    # delmas = "/user/work/fo18103/delmas/datasetraw_none_7day"
-    # output_dir = "/user/work/fo18103/thesis"
-    # for activity_days in [1, 2, 3, 4, 5, 6, 7]:
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=delmas,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["1To2"],
-    #         study_id="delmas",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=delmas,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["2To2"],
-    #         study_id="delmas",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=delmas,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["2To1"],
-    #         study_id="delmas",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=delmas,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1", "2To1"],
-    #         class_unhealthy_label_list=["2To2", "1To2"],
-    #         study_id="delmas",
-    #     )
-    #
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=cedara,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["1To2"],
-    #         study_id="cedara",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=cedara,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["2To2"],
-    #         study_id="cedara",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=cedara,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1"],
-    #         class_unhealthy_label_list=["2To1"],
-    #         study_id="cedara",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=cedara,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1", "2To1"],
-    #         class_unhealthy_label_list=["2To2", "1To2"],
-    #         study_id="cedara",
-    #     )
-    #     n_cmd += main(
-    #         output_dir=output_dir,
-    #         dataset_folder=cedara,
-    #         a_day=activity_days,
-    #         class_healthy_label_list=["1To1", "1To2", "2To1"],
-    #         class_unhealthy_label_list=[
-    #             "4To4",
-    #             "3To5",
-    #             "4To3",
-    #             "5To3",
-    #             "2To5",
-    #             "2To2",
-    #         ],
-    #         study_id="cedara",
-    #     )
-    #     # n_cmd += main(
-    #     #     output_dir=output_dir,
-    #     #     dataset_folder=cedara,
-    #     #     a_day=activity_days,
-    #     #     class_healthy_label_list=["1To1"],
-    #     #     class_unhealthy_label_list=[
-    #     #         "4To4",
-    #     #         "3To5",
-    #     #         "4To3",
-    #     #         "5To3",
-    #     #         "2To5",
-    #     #         "2To2",
-    #     #     ],
-    #     #     study_id="cedara",
-    #     # )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=cedara,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["1To2"],
+                study_id="cedara",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=cedara,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["2To2"],
+                study_id="cedara",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=cedara,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["2To1"],
+                study_id="cedara",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=cedara,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1", "2To1"],
+                class_unhealthy_label_list=["2To2", "1To2"],
+                study_id="cedara",
+            )
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=cedara,
+                a_day=activity_days,
+                i_day=imputed_days,
+                class_healthy_label_list=["1To1", "1To2", "2To1"],
+                class_unhealthy_label_list=[
+                    "4To4",
+                    "3To5",
+                    "4To3",
+                    "5To3",
+                    "2To5",
+                    "2To2",
+                ],
+                study_id="cedara",
+            )
+            # n_cmd += main(
+            #     output_dir=output_dir,
+            #     dataset_folder=cedara,
+            #     a_day=activity_days,
+            #     class_healthy_label_list=["1To1"],
+            #     class_unhealthy_label_list=[
+            #         "4To4",
+            #         "3To5",
+            #         "4To3",
+            #         "5To3",
+            #         "2To5",
+            #         "2To2",
+            #     ],
+            #     study_id="cedara",
+            # )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
