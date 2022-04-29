@@ -580,7 +580,11 @@ def create_heatmap(
     date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    fig, ax = plt.subplots(figsize=(20.20, 15.80))
+    figsize = (20.20, 7.20)
+    if farm_id == "cedara":
+        figsize = (20.20, 15.80)
+
+    fig, ax = plt.subplots(figsize=figsize)
     ax.yaxis.set_label_position("right")
     ax.yaxis.tick_right()
     im_a_log_anscomb = ax.imshow(
@@ -612,7 +616,7 @@ def create_heatmap(
 
     fig.autofmt_xdate(rotation=45)
     if farm_id == "cedara":
-        ax.axvline(pd.Timestamp('2013-02-14'), color='white', linestyle='--', lw=3)
+        ax.axvline(pd.Timestamp("2013-02-14"), color="white", linestyle="--", lw=3)
 
     every_nth = 2
     for n, label in enumerate(ax.xaxis.get_ticklabels()):
@@ -620,7 +624,7 @@ def create_heatmap(
             label.set_visible(False)
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
-    animal_ids_formatted_ent = [x.split(' ')[0] for x in animal_ids_formatted_ent]
+    animal_ids_formatted_ent = [x.split(" ")[0] for x in animal_ids_formatted_ent]
     # animal_ids_formatted_ent = np.array(
     #     [x[1] + " " + x[0] for x in zip(f_id, animal_ids_formatted_ent)]
     # )
@@ -691,9 +695,11 @@ def create_heatmap(
 
     patches = []
     for k in DATASET_INFO.keys():
-        if k == 'total':
+        if k == "total":
             continue
-        patches.append(mpatches.Patch(color=COLOR_MAP[k], label=f"{k} " + str(DATASET_INFO[k])))
+        patches.append(
+            mpatches.Patch(color=COLOR_MAP[k], label=f"{k} " + str(DATASET_INFO[k]))
+        )
 
     # patch1 = mpatches.Patch(
     #     color="lightgray", edgecolor="black", label="1To1 " + str(DATASET_INFO["1To1"])
@@ -735,10 +741,10 @@ def create_heatmap(
     # axs[1].set_facecolor('pink')
     # axs[2].set_facecolor('pink')
     # fig.tight_layout()
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Animals')
-    ax.tick_params(axis='both', which='major', labelsize=6)
-    ax.tick_params(axis='both', which='minor', labelsize=6)
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Animals")
+    ax.tick_params(axis="both", which="major", labelsize=6)
+    ax.tick_params(axis="both", which="minor", labelsize=6)
 
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
@@ -1316,7 +1322,8 @@ def main(
             continue
         results.append(
             pool.apply_async(
-                process_activity_data, (activity_col, file, i, len(files), w, res, start, end)
+                process_activity_data,
+                (activity_col, file, i, len(files), w, res, start, end),
             )
         )
     pool.close()
@@ -1383,7 +1390,9 @@ def local_run():
 
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
-        activity_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
+        activity_dir=Path(
+            "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
+        ),
         dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
         activity_col="first_sensor_value",
         farm_id="cedara",
@@ -1392,7 +1401,9 @@ def local_run():
 
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
-        activity_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"),
+        activity_dir=Path(
+            "E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"
+        ),
         dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
         activity_col="first_sensor_value",
         farm_id="delmas",

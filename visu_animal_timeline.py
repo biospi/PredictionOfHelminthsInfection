@@ -9,7 +9,10 @@ import h5py as h5
 import pickle
 from typing import List
 from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 from preprocessing.preprocessing import apply_preprocessing_steps
+from scipy.stats import entropy
+from itertools import groupby
 
 DEFAULT_PLOTLY_COLORS = [
     "rgb(31, 119, 180)",
@@ -103,25 +106,39 @@ def predict_famacha(
     model_count=-1
 ):
     # first reshape the data as the same shape of the training samples
+    chuncks = split_given_size(df["first_sensor_value"].values, sample_size)
+    chuncks_li = chuncks
     try:
         chuncks = split_given_size(df["first_sensor_value_mrnn"].values, sample_size)
     except KeyError as e:
         print(e)
-        chuncks = split_given_size(df["first_sensor_value"].values, sample_size)
+
+    chuncks_timestamp = split_given_size(df["timestamp"].values, sample_size)
+
+    # for j in range(len(chuncks_timestamp)):
+    #     print(df[df['timestamp'] == chuncks_timestamp[j][0]])
 
     samples = []
-    rmv = []
-    for s in chuncks:
+
+    idxs_to_rmv = []
+    for i, s in enumerate(chuncks_li):
+        m = np.nanmax(s)
+        # plt.plot(s)
+        # plt.title(f"max={m} n={i}")
+        # plt.show()
+        # print(i, m)
+        if np.isnan(m) or m < 100:
+            idxs_to_rmv.append(i)
+
+        # if np.isnan(s).all() or np.all((s <= 1)) or np.all(s == s[0]): #to avoid testing on funky samples
+        #     continue
         samples.append(s)
-        if np.isnan(s).all():
-            rmv.append(1)
-        else:
-            rmv.append(0)
+
     data_frame = pd.DataFrame(samples)
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
-    data_frame = data_frame.fillna(1)
     data_frame = data_frame.astype(np.float)
-    data_frame["to_remove"] = rmv
+    data_frame = data_frame.fillna(1)
+
     data_frame["health"] = 0
     data_frame[
         "target"
@@ -132,10 +149,10 @@ def predict_famacha(
         models = models[0:model_count]
 
     # apply preprocessing
-    data_frame = data_frame[data_frame["to_remove"] == 0]
+    m = ["health", "target"]
     if data_frame.shape[0] > 0:
         data_frame, _ = apply_preprocessing_steps(
-            ["health", "target", "to_remove"],
+            m,
             None,
             None,
             None,
@@ -154,35 +171,39 @@ def predict_famacha(
         )
         # if len(chuncks[0]) != sample_size:
         #     continue
-        X_test = data_frame.iloc[:, :-3].values
-        y_pred_list = []
-        y_pred_proba_list = []
+        X_test = data_frame.iloc[:, :-len(m)]
+        # y_pred_list = []
+        # y_pred_proba_list = []
 
     for i, model_file in enumerate(models):
         print(f"model {i}/{len(models)} predicting X_test...")
         with open(str(model_file), "rb") as f:
             clf = pickle.load(f)
-            if data_frame.shape[0] > 0:
-                y_pred = clf.predict(X_test.copy())
-                y_pred_proba = clf.predict_proba(X_test.copy())[:, 1]
-                y_pred_list.append(y_pred)
-                y_pred_proba_list.append(y_pred_proba)
+            y_pred = clf.predict(X_test.copy()).astype(float)
+            y_pred_proba = clf.predict_proba(X_test.copy())[:, 1].astype(float)
+            y_pred[idxs_to_rmv] = np.nan
+            y_pred_proba[idxs_to_rmv] = np.nan
+            # y_pred_list.append(y_pred)
+            # y_pred_proba_list.append(y_pred_proba)
             df[f"famacha_pred_{i}"] = np.nan
             df[f"famacha_proba_{i}"] = np.nan
 
-            if data_frame.shape[0] > 0:
-                if np.all(np.isnan(df["famacha"].values)):
-                    for n in range(X_test.shape[0]):
-                        df[f"famacha_pred_{i}"].iloc[n * 1440 * 7] = y_pred[n]
-                        df[f"famacha_proba_{i}"].iloc[n * 1440 * 7] = y_pred_proba[n]
+            if np.all(np.isnan(df["famacha"].values)):
+                for n in range(X_test.shape[0]):
+                    samp = X_test.iloc[n, :]
+                    df[f"famacha_pred_{i}"].iloc[n * 1440 * 7] = y_pred[n]
+                    df[f"famacha_proba_{i}"].iloc[n * 1440 * 7] = y_pred_proba[n]
+                    # plt.plot(samp)
+                    # plt.title(f"max={m} n={n}")
+                    # plt.show()
 
-                cpt = 0
-                for n, v in enumerate(df["famacha"].values):
-                    if not np.isnan(v):
-                        # print(v)
-                        df[f"famacha_pred_{i}"].iloc[n] = y_pred[cpt]
-                        df[f"famacha_proba_{i}"].iloc[n] = y_pred_proba[cpt]
-                        cpt += 1
+                # cpt = 0
+                # for n, v in enumerate(df["famacha"].values):
+                #     if not np.isnan(v):
+                #         # print(v)
+                #         df[f"famacha_pred_{i}"].iloc[n] = y_pred[cpt]
+                #         df[f"famacha_proba_{i}"].iloc[n] = y_pred_proba[cpt]
+                #         cpt += 1
 
     return df, len(models)
 
@@ -482,9 +503,13 @@ def build_herd_pred(
 ):
     # print(herd, famacha_list, famacha_predicted_dec_list)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
+    herd = pd.DataFrame(herd).values
     activity_herd = np.mean(herd, axis=0)
+    famacha_list = pd.DataFrame(famacha_list).values
     famacha = np.nanmean(famacha_list, axis=0)
+    famacha_predicted_dec_list = pd.DataFrame(famacha_predicted_dec_list).values
     famacha_pred = np.nanmean(famacha_predicted_dec_list, axis=0)
+    famacha_predicted_proba_list = pd.DataFrame(famacha_predicted_proba_list).values
     famacha_proba_pred = np.nanmean(famacha_predicted_proba_list, axis=0)
 
     trace_a = go.Line(
@@ -671,7 +696,7 @@ if __name__ == "__main__":
             "E:/thesis2/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
         model_count=2,
-        out=Path("E:/thesis_debug2/timelines/cedara"),
+        out=Path("E:/thesis/timelines/cedara"),
     )
     main(
         activity_files=Path(
@@ -681,7 +706,7 @@ if __name__ == "__main__":
         models=Path(
             "E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
-        model_count=-1,
-        out=Path("E:/thesis_debug2/timelines/delmas"),
+        model_count=2,
+        out=Path("E:/thesis/timelines/delmas"),
     )
     # typer.run(main)
