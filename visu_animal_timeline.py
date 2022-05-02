@@ -695,7 +695,7 @@ if __name__ == "__main__":
         models=Path(
             "E:/thesis2/main_experiment/cedara_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
-        model_count=2,
+        model_count=50,
         out=Path("E:/thesis/timelines/cedara"),
     )
     main(
@@ -706,7 +706,7 @@ if __name__ == "__main__":
         models=Path(
             "E:/thesis2/main_experiment/delmas_RepeatedKFold_7_7_QN_ANSCOMBE_LOG_season_False/2To2/models/SVC_linear_7_QN_ANSCOMBE_LOG"
         ),
-        model_count=2,
+        model_count=50,
         out=Path("E:/thesis/timelines/delmas"),
     )
     # typer.run(main)
