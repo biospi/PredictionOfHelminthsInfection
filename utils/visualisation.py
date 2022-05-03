@@ -2074,6 +2074,7 @@ def build_individual_animal_pred(
         )
         df = df.sort_index()
         df = df.astype(np.double)
+        df = df.sort_values('correct prediction')
         df["correct prediction"] = (
                                            df_table["correct prediction"]
                                            / (df_table["correct prediction"] + df_table["incorrect prediction"])

@@ -7,7 +7,7 @@ from pathlib import Path
 
 def main(
     out_parent: str = "E:/Cats/ml_peak_build_sec_w4min8_std",
-    dataset_parent: str = "E:/Cats/build_sec4/peak",
+    dataset_parent: str = "E:/Cats/build_multiple_peak_2",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -46,7 +46,7 @@ def main(
         ]:
             slug = "_".join(steps)
             print(slug)
-            folders = [x.stem for x in Path(dataset_parent).glob("*")]
+            folders = [x.stem for x in Path(dataset_parent).glob("*")][:-1]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -54,7 +54,7 @@ def main(
                     main_pipeline.main(
                         output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
                         dataset_folder=Path(
-                            f"{dataset_parent}/{thresh}/dataset/training_sets/day_w"
+                            f"{dataset_parent}/{thresh}/dataset/training_sets/samples"
                         ),
                         preprocessing_steps=steps,
                         meta_columns=[

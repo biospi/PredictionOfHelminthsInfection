@@ -63,11 +63,11 @@ def main(
 
 if __name__ == "__main__":
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats/ml_n_peak"
+    output_dir = "/user/work/fo18103/cats/ml_multiple_peak"
 
     files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak").glob("*"))]
     print(files)
-    for t in ['002__0_00100__120', '004__0_00100__120', '008__0_00100__120']:
+    for t in files:
         for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
             dataset_folder = f"/user/work/fo18103/cats/peak/{t}/dataset/training_sets/day_w"
             n_cmd += main(
