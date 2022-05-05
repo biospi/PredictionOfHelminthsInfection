@@ -352,6 +352,11 @@ def process_ml(
             animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1
         )
 
+    if cv == "LeaveOneOut":
+        cross_validation_method = StratifiedLeaveTwoOut(
+            animal_ids, sample_idxs, stratified=False, verbose=True, max_comb=-1, leaven=1
+        )
+
     if cv == "LeaveTwoOut":
         cross_validation_method = StratifiedLeaveTwoOut(
             animal_ids, sample_idxs, stratified=False, verbose=True
@@ -720,19 +725,19 @@ def fold_worker(
     print("auc train=", auc_value_train)
     aucs_roc_train.append(auc_value_train)
 
-    if ifold == 0:
-        plot_high_dimension_db(
-            out_dir / "testing",
-            np.concatenate((X_train, X_test), axis=0),
-            np.concatenate((y_train, y_test), axis=0),
-            list(np.arange(len(X_train))),
-            np.concatenate((meta_train_s, meta_test_s), axis=0),
-            clf,
-            days,
-            steps,
-            ifold,
-        )
-        plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+    # if ifold == 0:
+    #     plot_high_dimension_db(
+    #         out_dir / "testing",
+    #         np.concatenate((X_train, X_test), axis=0),
+    #         np.concatenate((y_train, y_test), axis=0),
+    #         list(np.arange(len(X_train))),
+    #         np.concatenate((meta_train_s, meta_test_s), axis=0),
+    #         clf,
+    #         days,
+    #         steps,
+    #         ifold,
+    #     )
+    #     plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -851,18 +856,18 @@ def cross_validate_custom_fast(
         y_ = y_h[np.isin(y_h, [0, 1])]
         meta_ = meta_data_short[np.isin(y_h, [0, 1])]
         clf.fit(X_, y_)
-        plot_high_dimension_db(
-            out_dir / "training",
-            X_,
-            y_,
-            None,
-            meta_,
-            clf,
-            days,
-            steps,
-            0,
-        )
-        plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+        # plot_high_dimension_db(
+        #     out_dir / "training",
+        #     X_,
+        #     y_,
+        #     None,
+        #     meta_,
+        #     clf,
+        #     days,
+        #     steps,
+        #     0,
+        # )
+        # plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
 
     scores, scores_proba = {}, {}
 

@@ -26,6 +26,7 @@ import pandas as pd
 import typer
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+from sys import exit
 from model.data_loader import load_activity_data
 from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
@@ -37,7 +38,7 @@ from utils.visualisation import (
     plot_time_lda,
     plot_groups,
     plot_umap,
-    plot_time_pls)
+    plot_time_pls, plot_ml_report_final)
 
 
 def main(
@@ -100,7 +101,7 @@ def main(
         hum_file: csv file containing humidity features.
         n_splits: Number of splits for repeatedkfold cv.
         n_repeats: Number of repeats for repeatedkfold cv.
-        cv: RepeatedKFold.
+        cv: RepeatedKFold|LeaveOneOut.
         wavelet_f0: Mother Wavelet frequency for CWT.
         sfft_window: STFT window size.
         farm_id: farm id.
@@ -109,6 +110,9 @@ def main(
         output_qn_graph: Output Quotient Normalisation steps figures.
         n_job: Number of threads to use for cross validation.
     """
+
+    plot_ml_report_final(output_dir.parent.parent)
+    exit()
     meta_columns = [x.replace("'", '') for x in meta_columns]
     preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")

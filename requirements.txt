@@ -16,6 +16,7 @@ nlopt==2.7.1
 natsort==8.1.0
 tensorflow==2.8.0
 holoviews==1.14.8
+colour
 
 
 

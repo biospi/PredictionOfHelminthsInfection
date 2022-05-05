@@ -9,7 +9,7 @@ def main(
     exp_main: bool = True,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis3"),
+    output_dir: Path = Path("E:/thesis/bluepebble/thesis/main_experiment"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
     cedara_dir: Path = Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
 ):

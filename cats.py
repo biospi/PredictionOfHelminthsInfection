@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_peak_build_sec_w4min8_std",
+    out_parent: str = "E:/Cats/ml_build_multiple_peak_2",
     dataset_parent: str = "E:/Cats/build_multiple_peak_2",
 ):
     """Thesis script runs the cats study
@@ -48,9 +48,9 @@ def main(
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")][:-1]
             print(folders)
-            for thresh in folders:
+            for thresh in ['002__0_00100__120']:
                 print(f"threshold={thresh}")
-                for cv in ["RepeatedKFold", "StratifiedLeaveTwoOut"]:
+                for cv in ["LeaveOneOut"]:
                     main_pipeline.main(
                         output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
                         dataset_folder=Path(
