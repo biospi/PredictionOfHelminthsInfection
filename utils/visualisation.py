@@ -534,7 +534,7 @@ def formatForBoxPlot(df):
         test_f1_score0 = stringArrayToArray(row["test_f1_score0"])
         test_f1_score1 = stringArrayToArray(row["test_f1_score1"])
         roc_auc_scores = stringArrayToArray(row["roc_auc_scores"])
-        config = [row["config"] for _ in range(len(test_balanced_accuracy_score))]
+        config = [row["config"].replace("->",">").replace(" ","") for _ in range(len(test_balanced_accuracy_score))]
         data["test_balanced_accuracy_score"] = test_balanced_accuracy_score
         data["test_precision_score0"] = test_precision_score0
         data["test_precision_score1"] = test_precision_score1
