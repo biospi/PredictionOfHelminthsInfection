@@ -542,6 +542,8 @@ def formatForBoxPlot(df):
         data["test_recall_score1"] = test_recall_score1
         data["test_f1_score0"] = test_f1_score0
         data["test_f1_score1"] = test_f1_score1
+        data["class0"] = row["class0"]
+        data["class1"] = row["class1"]
         roc_auc_scores.extend(
             [0] * (len(test_balanced_accuracy_score) - len(roc_auc_scores))
         )  # in case auc could not be computed for fold
@@ -626,7 +628,7 @@ def plot_ml_report_final(output_dir):
     df = pd.concat(dfs, axis=0)
     df["health_tags"] = df["class_0_label"] + df["class_1_label"]
     df["color"] = [x.split("->")[-3] for x in df["config"].values]
-    #df = df.sort_values(["median_auc", "color"], ascending=[True, True])
+    # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
     for farm in df["farm_id"].unique():
         df_f = df[df["farm_id"] == farm]
         for h_tag in df_f["health_tags"].unique():
@@ -638,9 +640,13 @@ def plot_ml_report_final(output_dir):
 
             t3 = "Accuracy performance of different inputs<br>%s" % str(label_dict)
 
-            t1 = "Precision class0 performance of different inputs<br>%s" % str(label_dict)
+            t1 = "Precision class0 performance of different inputs<br>%s" % str(
+                label_dict
+            )
 
-            t2 = "Precision class1 performance of different inputs<br>%s" % str(label_dict)
+            t2 = "Precision class1 performance of different inputs<br>%s" % str(
+                label_dict
+            )
 
             fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
             fig_auc_only = make_subplots(rows=1, cols=1)
@@ -658,9 +664,7 @@ def plot_ml_report_final(output_dir):
                 col=1,
             )
             fig.append_trace(
-                px.box(
-                    df_f_, x="config", y="test_balanced_accuracy_score"
-                ).data[0],
+                px.box(df_f_, x="config", y="test_balanced_accuracy_score").data[0],
                 row=3,
                 col=1,
             )
@@ -671,9 +675,7 @@ def plot_ml_report_final(output_dir):
             )
 
             fig_auc_only.append_trace(
-                px.box(df_f_, x="config", y="roc_auc_scores", title=t4).data[
-                    0
-                ],
+                px.box(df_f_, x="config", y="roc_auc_scores", title=t4).data[0],
                 row=1,
                 col=1,
             )
@@ -695,49 +697,158 @@ def plot_ml_report_final(output_dir):
             # fig.show()
 
             x_data = df_f_["config"].unique()
+
             color_data = [x.split("->")[-3] for x in x_data]
+            imp_days_data = [x.split("->")[1].split('=')[1] for x in x_data]
             y_data = []
             for x in df_f_["config"].unique():
                 y_data.append(df_f_[df_f_["config"] == x]["roc_auc_scores"].values)
             traces = []
             colors = []
-            for c, xd, yd in zip(color_data, x_data, y_data):
+            class0_list = []
+            class1_list = []
+            sec_axis = []
+            for i_d, c, xd, yd in zip(imp_days_data, color_data, x_data, y_data):
+                class0 = df_f_[df_f_["config"] == xd]["class0"].unique()
+                class1 = df_f_[df_f_["config"] == xd]["class1"].unique()
+                imp_days = df_f_[df_f_["config"] == xd]["class1"].unique()
+                class0_list.append(class0)
+                class1_list.append(class1)
                 color = CSS_COLORS[c]
                 colors.append(color)
+                traces.append(
+                    go.Bar(
+                        y=class0,
+                        x=[xd],
+                        name="Healthy samples",
+                        width=[0.25],
+                        offsetgroup="Healthy samples",
+                        marker=dict(color="#1f77b4"),
+                        opacity=0.2,
+                        showlegend=False
+                    )
+                )
+                sec_axis.append(False)
+                traces.append(
+                    go.Bar(
+                        y=class1,
+                        x=[xd],
+                        name="Unhealthy samples",
+                        width=[0.25],
+                        offsetgroup="Unhealthy samples",
+                        marker=dict(color="#ff7f0e"),
+                        opacity=0.2,
+                        showlegend=False
+                    )
+                )
+                sec_axis.append(False)
+                # traces.append(
+                #     go.Bar(
+                #         y=[i_d],
+                #         x=[xd],
+                #         name="Imputed days",
+                #         width=[0.25],
+                #         offsetgroup="Imputed days",
+                #         marker=dict(color="#7f7f7f"),
+                #         opacity=0.3,
+                #     )
+                # )
+                # sec_axis.append(False)
                 traces.append(
                     go.Box(
                         y=yd,
                         name=xd,
-                        boxpoints='outliers',
-                        # fillcolor=CSS_COLORS[c],
+                        boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         legendgroup=c,
-                        line_color=color,
+                        marker_color=color,
                         marker_size=2,
-                        line_width=1
+                        line_width=float(i_d)*0.5,
+                        showlegend=False
                     )
                 )
-            h_labels = df_f_["config"].values[0].split('->H=')[1].split('->')[0]
-            uh_labels = df_f_["config"].values[0].split('->UH=')[1].split('->')[0]
-            fig_ = go.Figure(data=traces)
+                sec_axis.append(True)
+
+            for c in np.unique(color_data):
+                traces.append(
+                    go.Box(
+                        y=yd,
+                        name=c,
+                        boxpoints="outliers",
+                        marker=dict(color=CSS_COLORS[c], size=10),
+                        marker_color=CSS_COLORS[c],
+                        showlegend = True,
+                    )
+                )
+                sec_axis.append(True)
+
+            traces.append(
+                go.Bar(
+                    y=class0,
+                    x=[xd],
+                    name="Healthy samples",
+                    width=[0],
+                    offsetgroup="Healthy samples",
+                    marker=dict(color="#1f77b4"),
+                    opacity=0.8,
+                    showlegend=True
+                )
+            )
+            sec_axis.append(False)
+            traces.append(go.Bar(
+                y=class0,
+                x=[xd],
+                name="Unhealthy samples",
+                width=[0],
+                offsetgroup="Unhealthy samples",
+                marker=dict(color="#ff7f0e"),
+                opacity=0.8,
+                showlegend=True
+            ))
+            sec_axis.append(False)
+
+            h_labels = df_f_["config"].values[0].split("->H=")[1].split("->")[0]
+            uh_labels = df_f_["config"].values[0].split("->UH=")[1].split("->")[0]
+            # fig_ = go.Figure(data=traces)
+            fig_ = make_subplots(specs=[[{"secondary_y": True}]])
+            for a, t in zip(sec_axis, traces):
+                fig_.add_trace(t, secondary_y=a)
+                # fig_.add_trace(go.Bar(name=t.name, y=t.y), secondary_y=True)
+                # fig_.add_trace(go.Bar(name=t.name, y=t.y), secondary_y=True)
+
+            # for t in [
+            #     go.Bar(name='Healthy samples', y=[100]),
+            #     go.Bar(name='Unhealthy samples', y=[100])
+            # ]:
+            #     fig_.add_trace(t, secondary_y=True)
+
             fig_.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
             fig_.update_layout(
-                title=f"healthy labels={h_labels} unhealthy labels={uh_labels} | {label_dict}",
-                showlegend=True,
-                yaxis_title='AUC'
+                title=f"healthy labels={h_labels} unhealthy labels={uh_labels}",
+                yaxis_title="AUC"
             )
             fig_.update_xaxes(tickangle=-45)
 
-            d = {}
-            for i, trace in enumerate(fig_['data']):
-                if trace.marker['color'] in d.keys():
-                    trace['showlegend'] = False
-                else:
-                    trace['name'] = trace['name'].split('->')[-3]
-                    trace['showlegend'] = True
-                d[trace.marker['color']] = i
+            # d = {}
+            # for i, trace in enumerate(fig_["data"]):
+            #     if trace.marker["color"] in d.keys():
+            #         trace["showlegend"] = False
+            #     else:
+            #         # name = trace["name"].split("->")
+            #         # if len(name) > 1:
+            #         #     name = name[-3]
+            #         # else:
+            #         #     name = name[0]
+            #         # trace["name"] = name
+            #         trace["showlegend"] = True
+            #     d[trace.marker["color"]] = i
+
             filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
             print(filepath)
+            fig_.update_layout(barmode='group')
+            fig_.update_yaxes(title_text="AUC", secondary_y=True)
+            fig_.update_yaxes(title_text="Sample count", secondary_y=False)
+            fig_.update_xaxes(range=[-1, len(x_data)-0.5])
             fig_.write_html(str(filepath))
 
 
