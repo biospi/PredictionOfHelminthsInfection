@@ -486,13 +486,15 @@ def process_ml(
     #     sample_dates,
     # )
 
-    build_individual_animal_pred(
-        output_dir, steps, class_unhealthy_label, scores, ids, meta_columns
-    )
-    build_individual_animal_pred(
-        output_dir, steps, class_unhealthy_label, scores, ids, meta_columns, tt="train"
-    )
-    build_proba_hist(output_dir, steps, class_unhealthy_label, scores_proba)
+    if cv is not "LeaveOneOut":
+        build_individual_animal_pred(
+            output_dir, steps, class_unhealthy_label, scores, ids, meta_columns
+        )
+        build_individual_animal_pred(
+            output_dir, steps, class_unhealthy_label, scores, ids, meta_columns, tt="train"
+        )
+        build_proba_hist(output_dir, steps, class_unhealthy_label, scores_proba)
+
     build_report(
         output_dir,
         n_imputed_days,
@@ -577,6 +579,7 @@ def augment_(X_train, y_train, n, sample_dates_train, ids_train, meta_train):
 
 
 def fold_worker(
+    cv_name,
     save_model,
     out_dir,
     y_h,
@@ -704,6 +707,10 @@ def fold_worker(
     tprs_test.append(interp_tpr_test)
     auc_value_test = viz_roc_test.roc_auc
     print("auc test=", auc_value_test)
+    if cv_name == "LeaveOneOut":
+        auc_value_test = ((np.mean(y_pred_proba_test) > 0.5).astype(int) == np.mean(y_test)).astype(float)
+        print("auc test=", auc_value_test)
+
     aucs_roc_test.append(auc_value_test)
 
     viz_roc_train = plot_roc_curve(
@@ -768,6 +775,7 @@ def fold_worker(
         "class_healthy": int(class_healthy),
         "class_unhealthy": int(class_unhealthy),
         "y_test": y_test.tolist(),
+        "y_train": y_train.tolist(),
         "y_pred_proba_test": y_pred_proba_test.tolist(),
         "y_pred_proba_train": y_pred_proba_train.tolist(),
         "ids_test": ids_test.tolist(),
@@ -907,6 +915,7 @@ def cross_validate_custom_fast(
                 pool.apply_async(
                     fold_worker,
                     (
+                        cv_name,
                         save_model,
                         out_dir,
                         y_h,
@@ -987,24 +996,57 @@ def cross_validate_custom_fast(
                 ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
                 ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
-        mean_auc = plot_roc_range(
-            ax_roc_merge,
-            ax_roc,
-            tprs_test,
-            mean_fpr_test,
-            aucs_roc_test,
-            tprs_train,
-            mean_fpr_train,
-            aucs_roc_train,
-            out_dir,
-            steps,
-            fig_roc,
-            fig_roc_merge,
-            cv_name,
-            days,
-            info=info,
-            tag=f"{type(clf).__name__}_{clf.kernel}",
-        )
+        if cv_name == "LeaveOneOut":
+            all_y = []
+            all_probs = []
+            for item in fold_results:
+                all_y.extend(item['y_test'])
+                all_probs.extend(np.array(item['y_pred_proba_test'])[:,1])
+            all_y = np.array(all_y)
+            all_probs = np.array(all_probs)
+            fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+            roc_auc = auc(fpr, tpr)
+            ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
+            ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+            ax_roc_merge.set_xlim([-0.05, 1.05])
+            ax_roc_merge.set_ylim([-0.05, 1.05])
+            ax_roc_merge.set_xlabel('False Positive Rate')
+            ax_roc_merge.set_ylabel('True Positive Rate')
+            ax_roc_merge.set_title('Receiver operating characteristic example')
+            ax_roc_merge.legend(loc="lower right")
+            ax_roc_merge.grid()
+            fig_roc.tight_layout()
+            path = out_dir / "roc_curve" / cv_name
+            path.mkdir(parents=True, exist_ok=True)
+            tag = f"{type(clf).__name__}_{clf.kernel}"
+            final_path = path / f"{tag}_roc_{steps}.png"
+            print(final_path)
+            fig_roc.savefig(final_path)
+
+            final_path = path / f"{tag}_roc_{steps}_merge.png"
+            print(final_path)
+            fig_roc_merge.savefig(final_path)
+        else:
+            mean_auc = plot_roc_range(
+                ax_roc_merge,
+                ax_roc,
+                tprs_test,
+                mean_fpr_test,
+                aucs_roc_test,
+                tprs_train,
+                mean_fpr_train,
+                aucs_roc_train,
+                out_dir,
+                steps,
+                fig_roc,
+                fig_roc_merge,
+                cv_name,
+                days,
+                info=info,
+                tag=f"{type(clf).__name__}_{clf.kernel}",
+            )
+
+
 
         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
         scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas

@@ -44,8 +44,8 @@ CSS_COLORS = {
     "5": "brown",
     "4": "pink",
     "3": "olive",
-    "2": "green",
-    "1": "cyan",
+    "LINEAR_QN_ANSCOMBE_LOG_STD": "green",
+    "LINEAR_QN_STD": "cyan",
     "QN": "blue",
     "QN_ANSCOMBE": "purple",
     "QN_ANSCOMBE_LOG": "orange",
@@ -578,7 +578,7 @@ def build_annotations(df, fig_auc_only):
     for item in df["config"].unique():
         imputed_d = int(item.split("ID=")[1][0])
         activity_d = int(item.split("AD=")[1][0])
-        proc_label = item.split("->")[-3]
+        proc_label = item.split(">")[-3]
         annot_str = f"{proc_label}"
         a = dict(
             x=item,
@@ -627,7 +627,7 @@ def plot_ml_report_final(output_dir):
         return
     df = pd.concat(dfs, axis=0)
     df["health_tags"] = df["class_0_label"] + df["class_1_label"]
-    df["color"] = [x.split("->")[-3] for x in df["config"].values]
+    df["color"] = [x.split(">")[-3] for x in df["config"].values]
     # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
     for farm in df["farm_id"].unique():
         df_f = df[df["farm_id"] == farm]
@@ -679,7 +679,7 @@ def plot_ml_report_final(output_dir):
                 row=1,
                 col=1,
             )
-            annot = build_annotations(df_f_, fig_auc_only)
+            #annot = build_annotations(df_f_, fig_auc_only)
             fig.update_xaxes(showticklabels=False)  # hide all the xticks
             fig.update_xaxes(showticklabels=True, row=4, col=1, automargin=True)
 
@@ -698,8 +698,8 @@ def plot_ml_report_final(output_dir):
 
             x_data = df_f_["config"].unique()
 
-            color_data = [x.split("->")[-3] for x in x_data]
-            imp_days_data = [x.split("->")[1].split('=')[1] for x in x_data]
+            color_data = [x.split(">")[-3] for x in x_data]
+            imp_days_data = [x.split(">")[1].split('=')[1] for x in x_data]
             y_data = []
             for x in df_f_["config"].unique():
                 y_data.append(df_f_[df_f_["config"] == x]["roc_auc_scores"].values)
@@ -763,7 +763,7 @@ def plot_ml_report_final(output_dir):
                         legendgroup=c,
                         marker_color=color,
                         marker_size=2,
-                        line_width=float(i_d)*0.5,
+                        line_width=1 if float(i_d) < 0 else float(i_d)*0.5,
                         showlegend=False
                     )
                 )
@@ -807,8 +807,8 @@ def plot_ml_report_final(output_dir):
             ))
             sec_axis.append(False)
 
-            h_labels = df_f_["config"].values[0].split("->H=")[1].split("->")[0]
-            uh_labels = df_f_["config"].values[0].split("->UH=")[1].split("->")[0]
+            h_labels = df_f_["config"].values[0].split(">H=")[1].split(">")[0]
+            uh_labels = df_f_["config"].values[0].split(">UH=")[1].split(">")[0]
             # fig_ = go.Figure(data=traces)
             fig_ = make_subplots(specs=[[{"secondary_y": True}]])
             for a, t in zip(sec_axis, traces):
@@ -834,7 +834,7 @@ def plot_ml_report_final(output_dir):
             #     if trace.marker["color"] in d.keys():
             #         trace["showlegend"] = False
             #     else:
-            #         # name = trace["name"].split("->")
+            #         # name = trace["name"].split(">")
             #         # if len(name) > 1:
             #         #     name = name[-3]
             #         # else:
@@ -2087,8 +2087,8 @@ def plot_fold_details(
         meta_dict[id] = f"{age} {name}"
     data = []
     for f in fold_results:
-        auc_train = f["auc_train"]
-        auc = f["auc"]
+        accuracy_train = f["accuracy_train"]
+        accuracy = f["accuracy"]
 
         ids_test = np.unique(f["ids_test"]).astype(float)
         ids_train = np.unique(f["ids_train"]).astype(float)
@@ -2096,22 +2096,25 @@ def plot_fold_details(
         ids_test_ = np.vectorize(meta_dict.get)(ids_test)
         ids_train_ = np.vectorize(meta_dict.get)(ids_train)
 
-        data.append([auc_train, auc, ids_test_, ids_train_])
+        data.append([accuracy_train, accuracy, ids_test_, ids_train_])
 
-    df = pd.DataFrame(data, columns=["auc_train", "auc_test", "ids_test", "ids_train"])
-    df = df.sort_values(by="auc_test")
+    df = pd.DataFrame(data, columns=["accuracy_train", "accuracy_test", "ids_test", "ids_train"])
+    mean_acc_train = np.mean(df["accuracy_train"].values)
+    mean_acc = np.mean(df["accuracy_test"].values)
+    df = df.sort_values(by="accuracy_test")
     filepath = out_dir / f"{filename}.csv"
     df.to_csv(filepath, index=False)
 
-    df_test = df[["auc_test", "auc_train", "ids_test"]]
-    df_test = df_test.sort_values(by="auc_test")
+    df_test = df[["accuracy_test", "accuracy_train", "ids_test"]]
+    df_test = df_test.sort_values(by="accuracy_test")
     df_test.index = df["ids_test"]
     ax = df_test.plot.bar(
         rot=90,
         log=False,
-        figsize=(0.3 * len(fold_results), 30.20),
-        title=f"(Testing) Classifier predictions per fold n={len(fold_results)}",
+        figsize=(0.3 * len(fold_results), 7.20),
+        title=f"(Testing) Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train} mean_acc_test={mean_acc}",
     )
+    ax.axhline(y=0.5, color='r', linestyle='-')
     ax.set_xlabel("Fold metadata")
     ax.set_ylabel("AUC")
     fig = ax.get_figure()
@@ -2205,14 +2208,15 @@ def build_individual_animal_pred(
 
         labels = list(data_c.keys())
 
-        labels_new = []
-        for l in labels:
-            if "name" in data_m[l] and "age" in data_m[l]:
-                name = data_m[l]["name"][0]
-                age = str(data_m[l]["age"][0]).zfill(6)
-                labels_new.append(f"{age} {name}")
-        if len(labels_new) > 0:
-            labels = labels_new
+        # labels_new = []
+        # for l in labels:
+        #     if "name" in data_m[l] and "age" in data_m[l]:
+        #         print(l, data_m[l]["name"])
+        #         name = data_m[l]["name"][0]
+        #         age = str(data_m[l]["age"][0]).zfill(6)
+        #         labels_new.append(f"{age} {name}")
+        # if len(labels_new) > 0:
+        #     labels = labels_new
 
         correct_pred = list(data_c.values())
         incorrect_pred = list(data_i.values())
