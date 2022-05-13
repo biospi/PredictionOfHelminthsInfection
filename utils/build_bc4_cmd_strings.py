@@ -70,7 +70,7 @@ if __name__ == "__main__":
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations/{t}/dataset/training_sets/day_w"
+            dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations/{t}/dataset/training_sets/samples"
             n_cmd += main(
                 cv_list=[cv],
                 output_dir=f"{output_dir}/{t}",
