@@ -17,7 +17,7 @@ def main(
         ["QN"],
         ["QN", "STD"],
         ["QN", "ANSCOMBE", "LOG"],
-        ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]
+        ["QN", "STD", "CENTER", "CWTMORL"]
     ],
     meta_columns=[],
     individual_to_ignore=[],
