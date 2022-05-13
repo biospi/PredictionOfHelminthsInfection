@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from cwt._cwt import STFT, CWT, CWTVisualisation
+from cwt._cwt import STFT, CWT, CWTVisualisation, DWT
 
 from utils._anscombe import Anscombe, Sqrt, Log
 from utils._normalisation import BaseLineScaler, CenterScaler, QuotientNormalizer
@@ -31,6 +31,7 @@ def apply_preprocessing_steps(
     df_hum,
     df_temp,
     sfft_window,
+    dwt_window,
     wavelet_f0,
     animal_ids,
     df,
@@ -257,6 +258,21 @@ def apply_preprocessing_steps(
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_stft, df_meta], axis=1)
             del data_frame_stft
+        if "DWT" in step:
+            DWT_Transform = DWT(
+                dwt_window=dwt_window,
+                out_dir=graph_outputdir / step,
+                step_slug=step_slug,
+                animal_ids=animal_ids,
+                targets=df["health"].tolist(),
+                dates=df["date"].tolist(),
+            )
+            d = DWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
+            data_frame_dwt = pd.DataFrame(d)
+            data_frame_dwt.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_dwt, df_meta], axis=1)
+            del data_frame_dwt
         if "CWT" in step:
             df_meta = df.iloc[:, -N_META:]
             df_o = df.copy()

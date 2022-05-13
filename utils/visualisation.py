@@ -26,7 +26,7 @@ from sklearn.metrics import auc, precision_recall_curve
 from sklearn.model_selection import learning_curve
 from tqdm import tqdm
 
-from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power
+from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power, DWT
 from utils.Utils import anscombe, concatenate_images
 from utils._normalisation import CenterScaler
 
@@ -40,11 +40,14 @@ from natsort import natsorted
 import plotly.express as px
 
 CSS_COLORS = {
-    "6": "grey",
-    "5": "brown",
-    "4": "pink",
-    "3": "olive",
-    "LINEAR_QN_ANSCOMBE_LOG_STD": "green",
+    "LINEAR_QN_ANSCOMBE_LOG_CENTER_DWT": "teal",
+    "LINEAR_QN_ANSCOMBE_LOG": "green",
+    "LINEAR_QN_ANSCOMBE_LOG_CENTER_CWT(MORL)": "grey",
+    "LINEAR_QN_ANSCOMBE_LOG_STD_APPEND_LINEAR_QN_ANSCOMBE_LOG_CENTER_CWT(MORL)": "brown",
+    "LINEAR_QN_ANSCOMBE_LOG_STD_APPEND_LINEAR_QN_ANSCOMBE_LOG_CENTER_DWT": "coral",
+    "LINEAR_QN_ANSCOMBE_LOG_STD_APPEND_LINEAR_QN_ANSCOMBE_CENTER_DWT": "pink",
+    "LINEAR_QN_ANSCOMBE_CENTER_DWT": "olive",
+    "LINEAR_QN_ANSCOMBE_LOG_STD": "black",
     "LINEAR_QN_STD": "cyan",
     "QN": "blue",
     "QN_ANSCOMBE": "purple",
@@ -652,6 +655,16 @@ def plot_ml_report_final(output_dir):
             fig_auc_only = make_subplots(rows=1, cols=1)
 
             df_f_ = formatForBoxPlot(df_f_)
+            formated_label = []
+            for label in df_f_['config'].values:
+                split = label.split('>')
+                label_formated = ""
+                for i, item in enumerate(split):
+                    label_formated += f"{item}>"
+                    if i == len(split)-4:
+                        label_formated += "<br>"
+                formated_label.append(label_formated)
+            df_f_['config'] = formated_label
 
             fig.append_trace(
                 px.box(df_f_, x="config", y="test_precision_score0").data[0],
@@ -698,7 +711,7 @@ def plot_ml_report_final(output_dir):
 
             x_data = df_f_["config"].unique()
 
-            color_data = [x.split(">")[-3] for x in x_data]
+            color_data = [x.split(">")[-4] for x in x_data]
             imp_days_data = [x.split(">")[1].split('=')[1] for x in x_data]
             y_data = []
             for x in df_f_["config"].unique():
@@ -1326,6 +1339,7 @@ def plot_mean_groups(
     n_scales,
     sfft_window,
     wavelet_f0,
+    dwt_w,
     df,
     label_series,
     N_META,
@@ -1381,15 +1395,27 @@ def plot_mean_groups(
                 sub_sample_scales=sub_sample_scales,
             ).transform([s])
 
-        if sfft_window is not None:
-            STFT(
-                sfft_window=sfft_window,
-                out_dir=out_dir,
-                step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
-                animal_ids=[],
-                targets=[],
-                dates=[],
-            ).transform([s])
+        #if sfft_window is not None:
+        STFT(
+            enable_graph_out=True,
+            sfft_window=sfft_window,
+            out_dir=out_dir,
+            step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
+            animal_ids=[],
+            targets=[],
+            dates=[],
+        ).transform([s])
+
+        #if dwt_w is not None:
+        DWT(
+            enable_graph_out = True,
+            dwt_window=dwt_w,
+            out_dir=out_dir,
+            step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
+            animal_ids=[],
+            targets=[],
+            dates=[],
+        ).transform([s])
 
         fig_group.add_trace(
             go.Scatter(
@@ -2078,13 +2104,13 @@ def plot_fold_details(
         id = 0
         if "id" in meta_columns:
             id = m[meta_columns.index("id")]
-        age = 0
-        if "age" in meta_columns:
-            age = str(m[meta_columns.index("age")]).zfill(6)
+        target = 0
+        if "target" in meta_columns:
+            target = str(m[meta_columns.index("target")])
         name = 0
         if "name" in meta_columns:
             name = m[meta_columns.index("name")]
-        meta_dict[id] = f"{age} {name}"
+        meta_dict[id] = f"{target} {name}"
     data = []
     for f in fold_results:
         accuracy_train = f["accuracy_train"]
@@ -2112,11 +2138,15 @@ def plot_fold_details(
         rot=90,
         log=False,
         figsize=(0.3 * len(fold_results), 7.20),
-        title=f"(Testing) Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train} mean_acc_test={mean_acc}",
+        title=f"(Testing) Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.3f} mean_acc_test={mean_acc:.3f}",
     )
-    ax.axhline(y=0.5, color='r', linestyle='-')
+    ax.axhline(y=0.5, color='r', linestyle='--')
+    for item in ax.get_xticklabels():
+        if int(item.get_text().split(' ')[0].replace('[', '')) == 0:
+            item.set_color("tab:blue")
+
     ax.set_xlabel("Fold metadata")
-    ax.set_ylabel("AUC")
+    ax.set_ylabel("Accuracy")
     fig = ax.get_figure()
     filepath = out_dir / f"{filename}_test.png"
     print(filepath)
@@ -2372,71 +2402,71 @@ def build_individual_animal_pred(
         fig = ax.get_figure()
         filepath = output_dir / f"predictions_per_individual_{k}_{steps}_{tt}.png"
 
-        IDS = [
-            "Greg",
-            "Henry",
-            "Tilly",
-            "Maisie",
-            "Sookie",
-            "Oliver_F",
-            "Ra",
-            "Hector",
-            "Jimmy",
-            "MrDudley",
-            "Kira",
-            "Lucy",
-            "Louis",
-            "Luna_M",
-            "Wookey",
-            "Logan",
-            "Ruby",
-            "Kobe",
-            "Saffy_J",
-            "Enzo",
-            "Milo",
-            "Luna_F",
-            "Oscar",
-            "Kia",
-            "Cat",
-            "AlfieTickles",
-            "Phoebe",
-            "Harvey",
-            "Mia",
-            "Amadeus",
-            "Marley",
-            "Loulou",
-            "Bumble",
-            "Skittle",
-            "Charlie_O",
-            "Ginger",
-            "Hugo_M",
-            "Flip",
-            "Guinness",
-            "Chloe",
-            "Bobby",
-            "QueenPurr",
-            "Jinx",
-            "Charlie_B",
-            "Thomas",
-            "Sam",
-            "Max",
-            "Oliver_S",
-            "Millie",
-            "Clover",
-            "Bobbie",
-            "Gregory",
-            "Kiki",
-            "Hugo_R",
-            "Shadow",
-        ]
-        COLOR_MAP = {}
-        cm = plt.get_cmap("gist_rainbow")
-        for i, c in enumerate(IDS):
-            COLOR_MAP[c] = cm(i // 3 * 3.0 / len(IDS))
-        for xtick in ax.get_xticklabels():
-            label = str(xtick).split(" ")[-1].replace("'", "").replace(")", "")
-            print(label, COLOR_MAP[label])
-            xtick.set_color(COLOR_MAP[label])
+        # IDS = [
+        #     "Greg",
+        #     "Henry",
+        #     "Tilly",
+        #     "Maisie",
+        #     "Sookie",
+        #     "Oliver_F",
+        #     "Ra",
+        #     "Hector",
+        #     "Jimmy",
+        #     "MrDudley",
+        #     "Kira",
+        #     "Lucy",
+        #     "Louis",
+        #     "Luna_M",
+        #     "Wookey",
+        #     "Logan",
+        #     "Ruby",
+        #     "Kobe",
+        #     "Saffy_J",
+        #     "Enzo",
+        #     "Milo",
+        #     "Luna_F",
+        #     "Oscar",
+        #     "Kia",
+        #     "Cat",
+        #     "AlfieTickles",
+        #     "Phoebe",
+        #     "Harvey",
+        #     "Mia",
+        #     "Amadeus",
+        #     "Marley",
+        #     "Loulou",
+        #     "Bumble",
+        #     "Skittle",
+        #     "Charlie_O",
+        #     "Ginger",
+        #     "Hugo_M",
+        #     "Flip",
+        #     "Guinness",
+        #     "Chloe",
+        #     "Bobby",
+        #     "QueenPurr",
+        #     "Jinx",
+        #     "Charlie_B",
+        #     "Thomas",
+        #     "Sam",
+        #     "Max",
+        #     "Oliver_S",
+        #     "Millie",
+        #     "Clover",
+        #     "Bobbie",
+        #     "Gregory",
+        #     "Kiki",
+        #     "Hugo_R",
+        #     "Shadow",
+        # ]
+        # COLOR_MAP = {}
+        # cm = plt.get_cmap("gist_rainbow")
+        # for i, c in enumerate(IDS):
+        #     COLOR_MAP[c] = cm(i // 3 * 3.0 / len(IDS))
+        # for xtick in ax.get_xticklabels():
+        #     label = str(xtick).split(" ")[-1].replace("'", "").replace(")", "")
+        #     print(label, COLOR_MAP[label])
+        #     xtick.set_color(COLOR_MAP[label])
 
         print(filepath)
         fig.tight_layout()

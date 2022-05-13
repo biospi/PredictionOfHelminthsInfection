@@ -20,6 +20,7 @@ def main(
     for clf in ["rbf"]:
         for steps in [
             ["LINEAR", "QN", "STD"],
+            ["LINEAR", "QN", "CWT(MORL)", "STD"],
             # ["LINEAR", "QN", "STD", "APPEND", "LINEAR", "QN", "CENTER", "CWTMORL",
             # "STDSCALE"],
             ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
@@ -46,7 +47,7 @@ def main(
         ]:
             slug = "_".join(steps)
             print(slug)
-            folders = [x.stem for x in Path(dataset_parent).glob("*")][:-1]
+            folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -81,7 +82,7 @@ def main(
                         n_job=7,
                         study_id="cat",
                         cv=cv,
-                        output_qn_graph=True,
+                        output_qn_graph=False,
                         epoch=500,
                     )
 

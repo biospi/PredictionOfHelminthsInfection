@@ -9,7 +9,7 @@ def main(
     exp_main: bool = True,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis/bluepebble/thesis/main_experiment"),
+    output_dir: Path = Path("E:/thesis/"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
     cedara_dir: Path = Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
 ):
@@ -22,21 +22,25 @@ def main(
         print("experiment 1: main pipeline")
 
         steps_list = [
-            ["LINEAR", "QN", "STD"],
-            ["LINEAR", "QN", "ANSCOMBE", "STD"],
-            ["LINEAR", "QN", "LOG", "STD"],
+            # ["LINEAR", "QN", "STD"],
+            # ["LINEAR", "QN", "ANSCOMBE", "STD"],
+            # ["LINEAR", "QN", "LOG", "STD"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
             ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+
+            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
             ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
+            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
+            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [1, 2, 3, 4, 5, 5, 7]:
-                for a_day in [1, 2, 3, 4, 5, 6, 7]:
+            for i_day in [1, 3, 7]:
+                for a_day in [1, 3, 7]:
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [False]:
 
@@ -56,183 +60,183 @@ def main(
                                 add_seasons_to_features=add_seasons_to_features,
                             )
 
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To1_2To1__2To2",
-                                dataset_folder=delmas_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                class_healthy_label=["1To1", "2To1"],
-                                class_unhealthy_label=["2To2"],
-                                study_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features,
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To1_2To1__2To2_1To2",
-                                dataset_folder=delmas_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                class_healthy_label=["1To1", "2To1"],
-                                class_unhealthy_label=["2To2", "1To2"],
-                                study_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features,
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To2",
-                                dataset_folder=delmas_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["1To2"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "2To1",
-                                dataset_folder=delmas_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["2To1"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="delmas",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "2To2",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["2To2"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To1_1To2_2To1__2To2",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_healthy_label=["1To1", "1To2", "2To1"],
-                                class_unhealthy_label=["2To2"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To1_1To2_2To1__4To4_3To5_4To3_5To3_2To5_2To2",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_healthy_label=["1To1", "1To2", "2To1"],
-                                class_unhealthy_label=[
-                                    "4To4",
-                                    "3To5",
-                                    "4To3",
-                                    "5To3",
-                                    "2To5",
-                                    "2To2",
-                                ],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "4To4_3To5_4To3_5To3_2To5_2To2",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=[
-                                    "4To4",
-                                    "3To5",
-                                    "4To3",
-                                    "5To3",
-                                    "2To5",
-                                    "2To2",
-                                ],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "1To2",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["1To2"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
-
-                            main_experiment.main(
-                                output_dir=output_dir
-                                / "main_experiment"
-                                / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                / "2To1_3To1",
-                                dataset_folder=cedara_dir,
-                                preprocessing_steps=steps,
-                                n_imputed_days=i_day,
-                                n_activity_days=a_day,
-                                class_unhealthy_label=["2To1", "3To1"],
-                                cv=cv,
-                                classifiers=["linear", "rbf"],
-                                study_id="cedara",
-                                add_seasons_to_features=add_seasons_to_features
-                            )
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To1_2To1__2To2",
+                            #     dataset_folder=delmas_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     class_healthy_label=["1To1", "2To1"],
+                            #     class_unhealthy_label=["2To2"],
+                            #     study_id="delmas",
+                            #     add_seasons_to_features=add_seasons_to_features,
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To1_2To1__2To2_1To2",
+                            #     dataset_folder=delmas_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     class_healthy_label=["1To1", "2To1"],
+                            #     class_unhealthy_label=["2To2", "1To2"],
+                            #     study_id="delmas",
+                            #     add_seasons_to_features=add_seasons_to_features,
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To2",
+                            #     dataset_folder=delmas_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=["1To2"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="delmas",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "2To1",
+                            #     dataset_folder=delmas_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=["2To1"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="delmas",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "2To2",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=["2To2"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To1_1To2_2To1__2To2",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_healthy_label=["1To1", "1To2", "2To1"],
+                            #     class_unhealthy_label=["2To2"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To1_1To2_2To1__4To4_3To5_4To3_5To3_2To5_2To2",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_healthy_label=["1To1", "1To2", "2To1"],
+                            #     class_unhealthy_label=[
+                            #         "4To4",
+                            #         "3To5",
+                            #         "4To3",
+                            #         "5To3",
+                            #         "2To5",
+                            #         "2To2",
+                            #     ],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "4To4_3To5_4To3_5To3_2To5_2To2",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=[
+                            #         "4To4",
+                            #         "3To5",
+                            #         "4To3",
+                            #         "5To3",
+                            #         "2To5",
+                            #         "2To2",
+                            #     ],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "1To2",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=["1To2"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
+                            #
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment"
+                            #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "2To1_3To1",
+                            #     dataset_folder=cedara_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     class_unhealthy_label=["2To1", "3To1"],
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     study_id="cedara",
+                            #     add_seasons_to_features=add_seasons_to_features
+                            # )
 
     if exp_temporal:
         print("experiment 2: temporal validation")

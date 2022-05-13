@@ -34,6 +34,8 @@ from tqdm import tqdm
 # import matlab.engine
 # matlab = matlab.engine.start_matlab()
 from utils.Utils import concatenate_images
+import pywt
+from pathlib import Path
 
 matlab = None
 
@@ -317,6 +319,83 @@ def make_roc_curve(out_dir, classifier, X, y, cv, param_str, animal):
     plt.close(fig)
     plt.clf()
     return mean_auc
+
+
+def plot_dwt_power(
+    epoch,
+    date,
+    animal_id,
+    target,
+    step_slug,
+    out_dir,
+    i,
+    activity,
+    power_dwt,
+    dwt_time,
+    freqs,
+    format_xaxis=True,
+    vmin=None,
+    vmax=None,
+    standard_scale=False
+):
+    plt.clf()
+    fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+    ticks = list(range(len(activity)))
+    if format_xaxis:
+        ticks = list(range(len(activity)))
+    if standard_scale:
+        axs[0].plot(activity, label="activity")
+    else:
+        axs[0].plot(ticks, activity, label="activity")
+    # axs[0].plot(ticks, activity_centered,
+    #             label='activity centered (signal - average of all sample (=%.2f))' % avg)
+    axs[0].legend(loc="upper right")
+    axs[0].set_title(
+        "Time domain signal %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
+    )
+
+    axs[0].set(xlabel="Time", ylabel="activity")
+    if format_xaxis:
+        axs[0].set(xlabel="Time", ylabel="activity")
+
+    # if format_xaxis:
+    #     axs[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    #     axs[0].xaxis.set_major_locator(mdates.DayLocator())
+
+    p = power_dwt.copy()
+    # if "ANSCOMBE" in step_slug:
+    #     p = anscombe(p)
+
+    pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
+    # pos = axs[1].imshow(np.sqrt(p), extent=[0, p.shape[1], p.shape[0], 1])
+    fig.colorbar(pos, ax=axs[1])
+
+    # axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
+    axs[1].set_aspect("auto")
+    axs[1].set_title(f"DWT Power | window size={date.replace('_', '/')} {animal_id} {str(target)}")
+    axs[1].set_xlabel("Time")
+    if format_xaxis:
+        axs[1].set_xlabel("Time")
+    axs[1].set_ylabel("Frequency")
+    axs[1].set_yscale('log')
+
+    if format_xaxis:
+        n_x_ticks = axs[1].get_xticks().shape[0]
+        labels_ = list(range(dwt_time.shape[1]))
+        labels_ = np.array(labels_)[
+            list(range(1, len(labels_), int(len(labels_) / n_x_ticks)))
+        ]
+        labels_[-2] = labels_[-1]
+        axs[1].set_xticklabels(labels_)
+
+    filename = f"{animal_id}_{str(target)}_{epoch}_{date}_idx_{i}_{step_slug}_dwt.png"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filepath = out_dir / filename
+    print(filepath)
+    fig.tight_layout()
+    fig.savefig(filepath)
+    fig.clear()
+    plt.close(fig)
 
 
 def plot_stft_power(
@@ -806,6 +885,65 @@ def compute_multi_res(
     return mra
 
 
+def scalogram(coeffs, lvls):
+    # cpt_ = []
+    # for c in coeffs:
+    #     print(c.shape)
+    #     cpt_.append(len(c))
+    # print(np.sum(cpt_))
+    cc = np.abs(np.array([coeffs[-1]]))
+    for i in range(lvls - 1):
+        s = np.array([np.repeat(coeffs[lvls - 1 - i], pow(2, i + 1))])
+        s = s[:, 0:cc.shape[1]]
+        a = np.abs([cc, s])
+        cc = np.concatenate(a)
+    # X-axis has a linear scale (time)
+    x = np.linspace(start=0, stop=1, num=cc.shape[1])
+    # Y-axis has a logarithmic scale (frequency)
+    y = np.logspace(start=lvls - 1, stop=0, num=lvls, base=2)
+    dwt_time, freqs = np.meshgrid(x, y)
+    return dwt_time, freqs, cc
+
+
+def dwt_power(
+    activity,
+    animal_id,
+    target,
+    date,
+    epoch,
+    sfft_window,
+    enable_graph_out,
+    step_slug,
+    i,
+    out_dir,
+):
+    w = pywt.Wavelet('coif1')
+
+    coeffs = pywt.wavedec(activity, w)
+    lvls = len(coeffs)
+    dwt_time, freqs, cc = scalogram(coeffs, lvls)
+
+    coefs_cc = np.conj(cc)
+    power_dwt = np.real(np.multiply(cc, cc))
+
+    if enable_graph_out:
+        plot_dwt_power(
+            epoch,
+            date,
+            animal_id,
+            target,
+            step_slug,
+            out_dir,
+            i,
+            activity,
+            power_dwt,
+            dwt_time,
+            freqs,
+        )
+    dwt_data = np.hstack(coeffs)
+    return dwt_data, dwt_data.shape, 1, dwt_data.shape[0]
+
+
 def stft_power(
     activity,
     animal_id,
@@ -955,6 +1093,9 @@ def cwt_power(
         )
     # return coefs.copy().real, freqs, coi, power_masked.shape, scales
     cwt_raw = np.concatenate([coefs.copy().real, coefs.copy().imag])
+    power_cwt = cwt_raw
+    power_masked = cwt_raw
+
     return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales
 
 
@@ -1041,7 +1182,36 @@ def compute_cwt(
     return std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales
 
 
-def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir):
+def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
+            enable_graph_out=False):
+    print("compute_dwt...")
+    out_dir = out_dir / "_dwt"
+    dwts = []
+    i = 0
+    for activity in tqdm(X):
+        animal_id, target, date, epoch = parse_param(
+            animals_id, dates, i, targets, step_slug
+        )
+        dwt, shape, dwt_time, freqs = dwt_power(
+            activity,
+            animal_id,
+            target,
+            date,
+            epoch,
+            dwt_window,
+            enable_graph_out,
+            step_slug,
+            i,
+            out_dir,
+        )
+        dwts.append(dwt.flatten())
+        i += 1
+    dwts = np.array(dwts)
+
+    return dwts, shape
+
+
+def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir, enable_graph_out=False):
     print("compute_sfft...")
     out_dir = out_dir / "_stft"
     sffts = []
@@ -1057,7 +1227,7 @@ def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir)
             date,
             epoch,
             sfft_window,
-            True,
+            enable_graph_out,
             step_slug,
             i,
             out_dir,
@@ -1165,6 +1335,7 @@ class STFT(TransformerMixin, BaseEstimator):
         dates=None,
         sfft_window=None,
         targets=None,
+        enable_graph_out=False
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1177,6 +1348,7 @@ class STFT(TransformerMixin, BaseEstimator):
         self.shape = None
         self.stft_time = None
         self.freqs = None
+        self.enable_graph_out = enable_graph_out
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -1202,10 +1374,67 @@ class STFT(TransformerMixin, BaseEstimator):
             self.sfft_window,
             self.targets,
             self.out_dir,
+            enable_graph_out = self.enable_graph_out,
         )
         self.shape = shape
         self.stft_time = stft_time
         self.freqs = freqs
+        return X
+
+
+class DWT(TransformerMixin, BaseEstimator):
+    def __init__(
+        self,
+        *,
+        out_dir=None,
+        copy=True,
+        step_slug=None,
+        animal_ids=None,
+        dates=None,
+        dwt_window=None,
+        targets=None,
+        enable_graph_out=False
+    ):
+        self.out_dir = out_dir
+        self.copy = copy
+        self.step_slug = step_slug
+        self.animal_ids = animal_ids
+        self.dates = dates
+        self.step_slug = step_slug
+        self.dwt_window = dwt_window
+        self.targets = targets
+        self.shape = None
+        self.dwt_time = None
+        self.freqs = None
+        self.enable_graph_out = enable_graph_out
+
+    def fit(self, X, y=None):
+        """Do nothing and return the estimator unchanged
+
+        This method is just there to implement the usual API and hence
+        work in pipelines.
+
+        Parameters
+        ----------
+        X : array-like
+        """
+        self._validate_data(X, accept_sparse="csr")
+        return self
+
+    def transform(self, X, copy=None):
+        # copy = copy if copy is not None else self.copy
+        # X = check_array(X, accept_sparse='csr')
+        X, shape = compute_dwt(
+            X,
+            self.animal_ids,
+            self.dates,
+            self.step_slug,
+            self.dwt_window,
+            self.targets,
+            self.out_dir,
+            enable_graph_out=self.enable_graph_out
+        )
+        self.shape = shape
         return X
 
 
@@ -1357,15 +1586,13 @@ if __name__ == "__main__":
 
     # X = np.array(createSyntheticActivityData())
     # X = np.array(X) - np.average(np.array(X))
-    X_CWT, X_REAL = CWT(
-        wavelet_f0=0.1,
-        out_dir="F:/Data2/_cwt_unit_before",
-        format_xaxis=False,
+    X_DWT = DWT(
+        enable_graph_out=True,
+        out_dir=Path("F:/Data2/_dwt_unit_before"),
         step_slug="UNIT TEST",
         animal_ids=[],
         targets=[],
-        dates=[],
-        n_scales=10,
+        dates=[]
     ).transform(X)
     # X_SFFT = STFT(out_dir="F:/Data2/_cwt_unit_before", step_slug="UNIT TEST", animal_ids=[], targets=[], dates=[]).transform(X)
     exit()

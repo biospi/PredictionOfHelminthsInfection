@@ -64,7 +64,7 @@ def main(
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_scales: int = 9,
-    sub_sample_scales: int = 1,
+    sub_sample_scales: int = 3,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
     add_seasons_to_features: bool = False,
@@ -74,6 +74,7 @@ def main(
     classifiers: List[str] = [],
     wavelet_f0: int = 6,
     sfft_window: int = 60,
+    dwt_window: str = "coif1",
     study_id: str = "study",
     sampling: str = "T",
     pre_visu: bool = True,
@@ -111,8 +112,6 @@ def main(
         n_job: Number of threads to use for cross validation.
     """
 
-    plot_ml_report_final(output_dir.parent.parent)
-    exit()
     meta_columns = [x.replace("'", '') for x in meta_columns]
     preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
@@ -186,6 +185,7 @@ def main(
                 df_hum,
                 df_temp,
                 sfft_window,
+                dwt_window,
                 wavelet_f0,
                 animal_ids,
                 data_frame.copy(),
@@ -222,6 +222,7 @@ def main(
                 n_scales,
                 sfft_window,
                 wavelet_f0,
+                dwt_window,
                 df_norm,
                 label_series,
                 N_META,
@@ -364,6 +365,7 @@ def main(
                 df_hum,
                 df_temp,
                 sfft_window,
+                dwt_window,
                 wavelet_f0,
                 animal_ids,
                 data_frame.copy(),

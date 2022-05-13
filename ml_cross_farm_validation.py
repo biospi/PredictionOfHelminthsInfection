@@ -81,8 +81,6 @@ def main(
         class_healthy_f1,
         class_unhealthy_f1,
         imputed_days=n_imputed_days,
-        keep_2_only=True,
-        hold_out_pct=0,
         preprocessing_steps=steps
     )
 
@@ -95,8 +93,6 @@ def main(
         class_unhealthy_f2,
         imputed_days=n_imputed_days,
         farm='cedara',
-        keep_2_only=True,
-        hold_out_pct=0,
         preprocessing_steps=steps,
     )
 

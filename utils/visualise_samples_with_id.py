@@ -10,15 +10,15 @@ IDS = [
     "'Greg'",
     "'Henry'",
     "'Tilly'",
-    "'Maisie'",
+    # "'Maisie'",
     "'Sookie'",
-    "'Oliver_F'",
+    # "'Oliver_F'",
     "'Ra'",
     "'Hector'",
     "'Jimmy'",
-    "'MrDudley'",
+    # "'MrDudley'",
     "'Kira'",
-    "'Lucy'",
+    # "'Lucy'",
     "'Louis'",
     "'Luna_M'",
     "'Wookey'",
@@ -75,6 +75,16 @@ def main(
     ids: List[str] = [
         "'Loulou'", "'Enzo'", "'Oscar'", "'Maisie'", "'Millie'"
     ],
+    # ids_g1: List[str] = [
+    #     "'Chloe'", "'Wookey'", "'Max'", "'Gregory'", "'Kia'", "'Bumble'", "'Sookie'", "'Flip'", "'Kobe'", "'Ra'", "'Hector'", "'Jinx'", "'Hugo_M'", "'Henry'", "'Shadow'", "'Cat'", "'Saffy_l'", "'Kiki'", "'Thomas'", "'Milo'", "'Bobby'", "'Luna_F'", "'QueenPurr'", "'Oliver_S'", "'Phoebe'", "'Bobbie'", "'Amadeus'", "'Tilly'", "'Luna_M'"
+    # ],
+    ids_g1: List[str] = [
+        "'Chloe'", "'Wookey'", "'Max'", "'Gregory'", "'Kia'", "'Bumble'", "'Sookie'", "'Flip'", "'Kobe'", "'Ra'",
+        "'Hector'", "'Jinx'", "'Hugo_M'", "'Henry'", "'Shadow'", "'Cat'", "'Saffy_l'", "'Kiki'", "'Thomas'",
+        "'Milo'", "'Bobby'"
+    ],
+    ids_g2: List[str] = ["'Greg'", "'Jimmy'", "'Kira'", "'Louis'", "'Logan'", "'Ruby'", "'Saffy_J'", "'Enzo'", "'Oscar'", "'AlfieTickles'", "'Harvey'", "'Mia'", "'Marley'", "'Loulou'", "'Skittle'", "'Charlie_O'", "'Ginger'", "'Guinness'", "'Charlie_B'", "'Sam'", "'Millie'", "'Clover'", "'Hugo_R'"]
+
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"ids={ids}")
@@ -86,27 +96,40 @@ def main(
 
     for id in ids:
         A = df[df["id"] == id]
-        health = A["health"].values[0]
-        df_activity = A.iloc[:, :-8]
-        print(df_activity)
-        title = f"Samples for {id} health={health}"
-        fig = df_activity.T.plot(
-            kind="line",
-            subplots=True,
-            grid=True,
-            title=title,
-            xlabel="Time",
-            ylabel="Activity",
-            layout=(len(df_activity), 1),
-            sharex=True,
-            sharey=False,
-            legend=False,
-            figsize=(10, 20),
-        ).ravel()[0].get_figure()
-        plt.tight_layout()
-        filepath = output_dir / f"{title}.png"
-        print(filepath)
-        fig.savefig(filepath)
+        sub = "bad"
+        if id in ids_g1:
+            sub = "good"
+        make_plot(A, output_dir /sub, id)
+
+    A1 = df[df["id"].isin(ids_g1)]
+    make_plot(A1, output_dir, "group on the right")
+    A2 = df[df["id"].isin(ids_g2)]
+    make_plot(A2, output_dir, "group on the left")
+
+
+def make_plot(A, output_dir, id):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    #id='_'.join(id).replace("'",'')
+    health = A["health"].mean()
+    df_activity = A.iloc[:, :-8]
+    print(df_activity)
+    title = f"Samples for {id} mean health={health:.2f}"
+    plt.clf()
+    fig = df_activity.T.plot(
+        kind="line",
+        subplots=False,
+        grid=True,
+        legend=False,
+        title=title,
+        alpha=0.7,
+        xlabel="Time",
+        ylabel="Activity"
+    ).get_figure()
+    plt.ylim(0, 1500)
+    plt.tight_layout()
+    filepath = output_dir / f"{title}.png"
+    print(filepath)
+    fig.savefig(filepath)
 
 
 if __name__ == "__main__":
@@ -114,6 +137,6 @@ if __name__ == "__main__":
         dataset_file=Path(
             "E:/Cats/build_multiple_peak_2/002__0_00100__120/dataset/training_sets/samples/samples.csv"
         ),
-        output_dir=Path("E:/Cats/build_multiple_peak_2/visu")
-
+        output_dir=Path("E:/Cats/build_multiple_peak_2/visu2"),
+        ids=IDS
     )
