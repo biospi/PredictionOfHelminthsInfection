@@ -4,7 +4,6 @@ import random
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from colour import Color
 import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
