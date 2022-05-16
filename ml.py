@@ -77,7 +77,7 @@ def main(
     dwt_window: str = "coif1",
     study_id: str = "study",
     sampling: str = "T",
-    pre_visu: bool = True,
+    pre_visu: bool = False,
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
@@ -386,29 +386,29 @@ def main(
         health = df.pop('health')
         df_processed = pd.concat([df, target, health], 1)
 
-        plot_umap(
-            meta_columns,
-            df_processed_meta.copy(),
-            output_dir / f"umap_{step_slug}",
-            label_series,
-            title=f"UMAP after {step_slug}",
-        )
-
-        plot_time_pca(
-            N_META,
-            df_processed_meta,
-            output_dir / f"pca_{step_slug}",
-            label_series,
-            title=f"PCA after {step_slug}",
-        )
-
-        plot_time_pls(
-            N_META,
-            df_processed_meta.copy(),
-            output_dir / f"pls_{step_slug}",
-            label_series,
-            title=f"PLS after {step_slug}",
-        )
+        # plot_umap(
+        #     meta_columns,
+        #     df_processed_meta.copy(),
+        #     output_dir / f"umap_{step_slug}",
+        #     label_series,
+        #     title=f"UMAP after {step_slug}",
+        # )
+        #
+        # plot_time_pca(
+        #     N_META,
+        #     df_processed_meta,
+        #     output_dir / f"pca_{step_slug}",
+        #     label_series,
+        #     title=f"PCA after {step_slug}",
+        # )
+        #
+        # plot_time_pls(
+        #     N_META,
+        #     df_processed_meta.copy(),
+        #     output_dir / f"pls_{step_slug}",
+        #     label_series,
+        #     title=f"PLS after {step_slug}",
+        # )
 
         if len(add_feature) > 0:
             df_meta = pd.DataFrame(meta_data, columns=meta_columns, index=df_processed.index)[add_feature]

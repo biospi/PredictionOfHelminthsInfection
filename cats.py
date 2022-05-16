@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations",
-    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations",
+    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_5",
+    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_5",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -49,14 +49,12 @@ def main(
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
-            for thresh in folders:
+            for thresh in ['004__0_00100__120']:
                 print(f"threshold={thresh}")
                 for cv in ["LeaveOneOut"]:
                     main_pipeline.main(
                         output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
-                        dataset_folder=Path(
-                            f"{dataset_parent}/{thresh}/dataset/training_sets/samples"
-                        ),
+                        dataset_folder=Path(f"{dataset_parent}/{thresh}/dataset/training_sets/samples"),
                         preprocessing_steps=steps,
                         meta_columns=[
                             "label",
@@ -83,6 +81,7 @@ def main(
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=False,
+                        pre_visu=False,
                         epoch=500,
                     )
 
@@ -300,4 +299,5 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main()
+    #typer.run(main)

@@ -66,7 +66,7 @@ if __name__ == "__main__":
     output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations"
 
     files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak").glob("*"))]
-    files = ["008__0_00100__120", "004__0_00100__120", "003__0_00100__120", "002__0_00100__120"]
+    files = ["004__0_00100__120", "003__0_00100__120"]
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
