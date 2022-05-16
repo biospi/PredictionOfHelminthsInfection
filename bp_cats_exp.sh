@@ -1,14 +1,14 @@
 #!/bin/env bash
 
 
-#SBATCH --job-name=array_job_exp
+#SBATCH --job-name=cat_exp
 #SBATCH --partition=short
 #SBATCH --output=cat_job_out_exp
 #SBATCH --error=cat_job_error_exp
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
-#SBATCH --time=3-00:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --mem=100000M
 #SBATCH --array=1-110
 
