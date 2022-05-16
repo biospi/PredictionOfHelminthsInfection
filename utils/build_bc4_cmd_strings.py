@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 FINAL_STR = ""
 
 
@@ -9,15 +10,12 @@ def main(
     i_day=-1,
     a_day=-1,
     cv_list=["RepeatedKFold"],
-    classifiers_list=["linear", "rbf"],
+    classifiers_list=["cnn"],
     class_healthy_label_list=["1To1"],
     class_unhealthy_label_list=["2To2"],
     study_id="delmas",
     steps_list=[
-        ["QN"],
         ["QN", "STD"],
-        ["QN", "ANSCOMBE", "LOG"],
-        ["QN", "STD", "CENTER", "CWTMORL"]
     ],
     meta_columns=[],
     individual_to_ignore=[],
@@ -61,9 +59,67 @@ def main(
     return cpt
 
 
+IDS = [
+    "Greg",
+    "Henry",
+    "Tilly",
+    "Maisie",
+    "Sookie",
+    "Oliver_F",
+    "Ra",
+    "Hector",
+    "Jimmy",
+    "MrDudley",
+    "Kira",
+    "Lucy",
+    "Louis",
+    "Luna_M",
+    "Wookey",
+    "Logan",
+    "Ruby",
+    "Kobe",
+    "Saffy_J",
+    "Enzo",
+    "Milo",
+    "Luna_F",
+    "Oscar",
+    "Kia",
+    "Cat",
+    "AlfieTickles",
+    "Phoebe",
+    "Harvey",
+    "Mia",
+    "Amadeus",
+    "Marley",
+    "Loulou",
+    "Bumble",
+    "Skittle",
+    "Charlie_O",
+    "Ginger",
+    "Hugo_M",
+    "Flip",
+    "Guinness",
+    "Chloe",
+    "Bobby",
+    "QueenPurr",
+    "Jinx",
+    "Charlie_B",
+    "Thomas",
+    "Sam",
+    "Max",
+    "Oliver_S",
+    "Millie",
+    "Clover",
+    "Bobbie",
+    "Gregory",
+    "Kiki",
+    "Hugo_R",
+    "Shadow",
+]
+
 if __name__ == "__main__":
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations_exp"
 
     files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak").glob("*"))]
     files = ["004__0_00100__120", "003__0_00100__120"]
@@ -71,27 +127,29 @@ if __name__ == "__main__":
     for t in files:
         for cv in ["LeaveOneOut"]:
             dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations/{t}/dataset/training_sets/samples"
-            n_cmd += main(
-                cv_list=[cv],
-                output_dir=f"{output_dir}/{t}",
-                dataset_folder=dataset_folder,
-                a_day=-1,
-                class_healthy_label_list=["0.0"],
-                class_unhealthy_label_list=["1.0"],
-                study_id="cats",
-                meta_columns=[
-                    "label",
-                    "id",
-                    "imputed_days",
-                    "date",
-                    "health",
-                    "target",
-                    "age",
-                    "name",
-                    "mobility_score",
-                ],
-                individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-            )
+            for j in range(len(IDS)):
+                print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
+                n_cmd += main(
+                    cv_list=[cv],
+                    output_dir=f"{output_dir}/{t}",
+                    dataset_folder=dataset_folder,
+                    a_day=-1,
+                    class_healthy_label_list=["0.0"],
+                    class_unhealthy_label_list=["1.0"],
+                    study_id="cats",
+                    meta_columns=[
+                        "label",
+                        "id",
+                        "imputed_days",
+                        "date",
+                        "health",
+                        "target",
+                        "age",
+                        "name",
+                        "mobility_score",
+                    ],
+                    individual_to_ignore=np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]),
+                )
 
 
     # cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day"

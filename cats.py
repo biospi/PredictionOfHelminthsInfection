@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_5",
-    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_5",
+    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_4",
+    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_4",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -19,11 +19,11 @@ def main(
 
     for clf in ["rbf"]:
         for steps in [
-            ["LINEAR", "QN", "STD"],
-            ["LINEAR", "QN", "CWT(MORL)", "STD"],
+            ["LINEAR", "QN", "STD"]
+            #["LINEAR", "QN", "CWT(MORL)", "STD"],
             # ["LINEAR", "QN", "STD", "APPEND", "LINEAR", "QN", "CENTER", "CWTMORL",
             # "STDSCALE"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
+            #["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
@@ -49,7 +49,7 @@ def main(
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
-            for thresh in ['004__0_00100__120']:
+            for thresh in ['003__0_00100__120']:
                 print(f"threshold={thresh}")
                 for cv in ["LeaveOneOut"]:
                     main_pipeline.main(
