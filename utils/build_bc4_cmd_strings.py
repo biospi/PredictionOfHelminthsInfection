@@ -131,7 +131,7 @@ if __name__ == "__main__":
                 print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
                 n_cmd += main(
                     cv_list=[cv],
-                    output_dir=f"{output_dir}/{t}",
+                    output_dir=f"{output_dir}/{t}/{j}",
                     dataset_folder=dataset_folder,
                     a_day=-1,
                     class_healthy_label_list=["0.0"],
