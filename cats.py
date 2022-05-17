@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_4",
-    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_4",
+    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_5",
+    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_5",
 ):
     """Thesis script runs the cats study
     Args:\n
