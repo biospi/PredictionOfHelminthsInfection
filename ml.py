@@ -117,9 +117,9 @@ def main(
     print(f"meta_columns={meta_columns}")
     print(f"preprocessing_steps={preprocessing_steps}")
     print(f"output directory is {output_dir}")
-    if output_dir.is_dir():
-        print("output directory already exist. skip run.")
-        return
+    # if output_dir.is_dir():
+    #     print("output directory already exist. skip run.")
+    #     return
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
 
