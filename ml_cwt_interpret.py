@@ -12,6 +12,8 @@ from preprocessing.preprocessing import apply_preprocessing_steps
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from utils.Utils import anscombe
 
 
 def main(
@@ -98,127 +100,200 @@ def main(
         )
         print(data_frame_time)
 
-        for n_activity_days in range(1, n_activity_days):
-            data_frame_time = data_frame_time.loc[data_frame_time['health'].isin([0, 1])]
-            X_train, y_train = data_frame_time.iloc[:, -1440*n_activity_days:-2].values, data_frame_time["health"].values
-            clf = SVC(kernel="linear", probability=True)
-            print("fit...")
-            clf.fit(X_train, y_train)
-            imp = np.abs(clf.coef_[0])
-            mean_time = np.mean(X_train, axis=0)
+        #for n_activity_days in range(1, n_activity_days):
+        print(n_activity_days)
+        data_frame_time = data_frame_time.loc[data_frame_time['health'].isin([0, 1])]
+        X_train, y_train = data_frame_time.iloc[:, -1440*n_activity_days:-2].values, data_frame_time["health"].values
+        clf = SVC(kernel="linear", probability=True)
+        print("fit...")
+        clf.fit(X_train, y_train)
+        imp = np.abs(clf.coef_[0])
+        mean_time = np.mean(X_train, axis=0)
 
-            fig, ax = plt.subplots()
-            ax2 = ax.twinx()
-            ax.plot(mean_time, label="mean activity of all samples")
-            #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
-            ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
+        fig, ax = plt.subplots(figsize=(12.80, 7.20))
+        ax2 = ax.twinx()
+        ax.plot(mean_time, label="mean activity of all samples")
+        #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
+        ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
 
-            df_imp = pd.DataFrame(imp, columns=["imp"])
-            rollavg = df_imp.imp.rolling(roll_avg).mean()
-            ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({roll_avg} points)", alpha=0.9)
+        df_imp = pd.DataFrame(imp, columns=["imp"])
+        rollavg = df_imp.imp.rolling(roll_avg).mean()
+        ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({roll_avg} points)", alpha=0.9)
 
-            ax.legend(loc="upper left")
-            ax2.legend(loc="upper right")
-            ax.set_title(f"Feature importance {type(clf).__name__}")
-            ax.set_xlabel('Time (features)')
-            ax.set_ylabel('Activity')
-            ax2.set_ylabel('Importance', color='red')
-            filename = f"feature_importance_{X_train.shape[1]}.png"
-            filepath = output_dir / filename
-            print(filepath)
-            fig.savefig(filepath)
+        ax.legend(loc="upper left")
+        ax2.legend(loc="upper right")
+        ax.set_title(f"Feature importance {type(clf).__name__}")
+        ax.set_xlabel('Time (features)')
+        ax.set_ylabel('Activity')
+        ax2.set_ylabel('Importance', color='red')
+        filename = f"{n_activity_days}_feature_importance_{X_train.shape[1]}.png"
+        filepath = output_dir / filename
+        print(filepath)
+        fig.savefig(filepath)
 
-            CWT_Transform = CWT(
-                step_slug='_'.join(preprocessing_steps),
-                wavelet_f0=6,
-                out_dir=output_dir,
-                n_scales=8,
-                sub_sample_scales=1,
-                enable_coi=True,
-                enable_graph_out=False
-            )
-            X_train, _, _ = CWT_Transform.transform(X_train)
-            X_train[np.isnan(X_train)] = -1
-            scales = CWT_Transform.get_scales()
-            clf = SVC(kernel="linear", probability=True)
-            print("fit...")
-            clf.fit(X_train, y_train)
-            imp = np.abs(clf.coef_[0])
-            mean_cwt = np.mean(X_train, axis=0)
+        CWT_Transform = CWT(
+            step_slug='_'.join(preprocessing_steps),
+            wavelet_f0=6,
+            out_dir=output_dir,
+            n_scales=8,
+            sub_sample_scales=1,
+            enable_coi=True,
+            enable_graph_out=False
+        )
+        X_train, _, _ = CWT_Transform.transform(X_train)
+        X_train[np.isnan(X_train)] = -1
+        scales = CWT_Transform.get_scales()
+        clf = SVC(kernel="linear", probability=True)
+        print("fit...")
+        clf.fit(X_train, y_train)
+        imp = np.abs(clf.coef_[0])
+        mean_cwt = np.mean(X_train, axis=0)
 
-            fig, ax = plt.subplots()
-            ax2 = ax.twinx()
-            ax.plot(mean_cwt, label="mean cwt(flatten) of all samples")
-            #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
-            ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
-            df_imp = pd.DataFrame(imp, columns=["imp"])
-            rollavg = df_imp.imp.rolling(1000).mean()
-            ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({1000} points)", alpha=0.9)
+        # fig, ax = plt.subplots(figsize=(12.80, 7.20))
+        # ax2 = ax.twinx()
+        # ax.plot(mean_cwt, label="mean cwt(flatten) of all samples")
+        # #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
+        # ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
+        # df_imp = pd.DataFrame(imp, columns=["imp"])
+        # rollavg = df_imp.imp.rolling(1000).mean()
+        # ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({1000} points)", alpha=0.9)
+        #
+        # ax.legend(loc="upper left")
+        # ax2.legend(loc="upper right")
+        # ax.set_title(f"Feature importance {type(clf).__name__}")
+        # ax.set_xlabel('CWT (features)')
+        # ax.set_ylabel('Activity')
+        # ax2.set_ylabel('Importance', color='red')
+        # filename = f"cwt_feature_importance_{X_train.shape[1]}.png"
+        # filepath = output_dir / filename
+        # print(filepath)
+        # fig.savefig(filepath)
 
-            ax.legend(loc="upper left")
-            ax2.legend(loc="upper right")
-            ax.set_title(f"Feature importance {type(clf).__name__}")
-            ax.set_xlabel('CWT (features)')
-            ax.set_ylabel('Activity')
-            ax2.set_ylabel('Importance', color='red')
-            filename = f"cwt_feature_importance_{X_train.shape[1]}.png"
-            filepath = output_dir / filename
-            print(filepath)
-            fig.savefig(filepath)
+        cwt_0 = X_train[y_train == 0]
+        cwt_1 = X_train[y_train == 1]
 
-            cwt_0 = X_train[y_train == 0]
-            cwt_1 = X_train[y_train == 1]
+        cwt_list_0 = []
+        for cwt in cwt_0:
+            cwt_list_0.append(np.reshape(cwt, (CWT_Transform.shape[0], CWT_Transform.shape[1])))
 
-            cwt_list_0 = []
-            for cwt in cwt_0:
-                cwt_list_0.append(np.reshape(cwt, (len(scales), len(mean_time))))
+        cwt_list_1 = []
+        for cwt in cwt_1:
+            cwt_list_1.append(np.reshape(cwt, (CWT_Transform.shape[0], CWT_Transform.shape[1])))
 
-            cwt_list_1 = []
-            for cwt in cwt_1:
-                cwt_list_1.append(np.reshape(cwt, (len(scales), len(mean_time))))
+        coefs_class0_mean = np.mean(cwt_list_0, axis=0)
+        coefs_class1_mean = np.mean(cwt_list_1, axis=0)
+        cwt_imp = np.reshape(imp, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
 
-            coefs_class0_mean = np.mean(cwt_list_0, axis=0)
-            coefs_class1_mean = np.mean(cwt_list_1, axis=0)
-            cwt_imp = np.reshape(imp, (len(scales), len(mean_time)))
+        fig, axs = plt.subplots(3, 1, facecolor='white', figsize=(12.80, 18.80))
+        axs = axs.ravel()
+        fig, ax = plt.subplots(figsize=(12.80, 7.20))
+        ax2 = ax.twinx()
+        ax.plot(mean_cwt, label="mean cwt(flatten) of all samples")
+        #ax.plot(imp*mean, label="mean activity of all samples * feature importance")
+        ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
+        df_imp = pd.DataFrame(imp, columns=["imp"])
+        rollavg = df_imp.imp.rolling(1000).mean()
+        ax2.plot(rollavg, color="black", label=f"feature importance rolling avg ({1000} points)", alpha=0.9)
 
-            fig, axs = plt.subplots(3, 1, facecolor='white')
-            axs = axs.ravel()
+        ax.legend(loc="upper left")
+        ax2.legend(loc="upper right")
+        ax.set_title(f"Feature importance {type(clf).__name__}")
+        ax.set_xlabel('CWT (features)')
+        ax.set_ylabel('Activity')
+        ax2.set_ylabel('Importance', color='red')
+        filename = f"{n_activity_days}_cwt_feature_importance_{X_train.shape[1]}.png"
+        filepath = output_dir / filename
+        print(filepath)
+        fig.savefig(filepath)
 
+        cwt_0 = X_train[y_train == 0]
+        cwt_1 = X_train[y_train == 1]
+
+        cwt_list_0 = []
+        for cwt in cwt_0:
+            cwt_list_0.append(np.reshape(cwt, (CWT_Transform.shape[0], CWT_Transform.shape[1])))
+
+        cwt_list_1 = []
+        for cwt in cwt_1:
+            cwt_list_1.append(np.reshape(cwt, (CWT_Transform.shape[0], CWT_Transform.shape[1])))
+
+        coefs_class0_mean = np.mean(cwt_list_0, axis=0)
+        coefs_class1_mean = np.mean(cwt_list_1, axis=0)
+        cwt_imp = np.reshape(imp, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
+
+        fig, axs = plt.subplots(3, 1, facecolor='white', figsize=(12.80, 18.80))
+        axs = axs.ravel()
+
+        # axs[0].pcolormesh(
+        #     np.arange(coefs_class0_mean.shape[1]),
+        #     scales,
+        #     coefs_class0_mean,
+        #     cmap="viridis"
+        # )
+        axs[0].imshow(
+            coefs_class0_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            interpolation="nearest", aspect='auto'
+        )
+        axs[0].set_title("Element wise mean of CWT healthy")
+        axs[0].set_xlabel('Time')
+        axs[0].set_ylabel('Scales')
+
+        axs[1].imshow(
+            coefs_class1_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            interpolation="nearest", aspect='auto'
+        )
+        axs[1].set_title("Element wise mean of CWT unhealthy")
+        axs[1].set_xlabel('Time')
+        axs[1].set_ylabel('Scales')
+
+        axs[2].imshow(
+            cwt_imp, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            interpolation="nearest", aspect='auto'
+        )
+        axs[2].set_title(f"CWT Features importance {type(clf).__name__}")
+        axs[2].set_xlabel('Time')
+        axs[2].set_ylabel('Scales')
+
+        filename = f"{n_activity_days}_cwt_reshaped_feature_importance_{X_train.shape[1]}.png"
+        filepath = output_dir / filename
+        fig.tight_layout()
+        print(filepath)
+        fig.savefig(filepath)
             # axs[0].pcolormesh(
             #     np.arange(coefs_class0_mean.shape[1]),
             #     scales,
             #     coefs_class0_mean,
             #     cmap="viridis"
             # )
-            axs[0].imshow(
-                coefs_class0_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
-                interpolation="nearest", norm=LogNorm(vmin=0.01, vmax=1)
-            )
-            axs[0].set_title("Element wise mean of CWT healthy")
-            axs[0].set_xlabel('Time')
-            axs[0].set_ylabel('Scales')
-
-            axs[1].imshow(
-                coefs_class1_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
-                interpolation="nearest", norm=LogNorm(vmin=0.01, vmax=1)
-            )
-            axs[1].set_title("Element wise mean of CWT unhealthy")
-            axs[1].set_xlabel('Time')
-            axs[1].set_ylabel('Scales')
-
-            axs[2].imshow(
-                cwt_imp, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
-                interpolation="nearest"
-            )
-            axs[2].set_title(f"CWT Features importance {type(clf).__name__}")
-            axs[2].set_xlabel('Time')
-            axs[2].set_ylabel('Scales')
-
-            filename = f"cwt_reshaped_feature_importance_{X_train.shape[1]}.png"
-            filepath = output_dir / filename
-            fig.tight_layout()
-            print(filepath)
-            fig.savefig(filepath)
+            # axs[0].imshow(
+            #     coefs_class0_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            #     interpolation="nearest", aspect='auto'
+            # )
+            # axs[0].set_title("Element wise mean of CWT healthy")
+            # axs[0].set_xlabel('Time')
+            # axs[0].set_ylabel('Scales')
+            #
+            # axs[1].imshow(
+            #     coefs_class1_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            #     interpolation="nearest", aspect='auto'
+            # )
+            # axs[1].set_title("Element wise mean of CWT unhealthy")
+            # axs[1].set_xlabel('Time')
+            # axs[1].set_ylabel('Scales')
+            #
+            # axs[2].imshow(
+            #     cwt_imp, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            #     interpolation="nearest", aspect='auto'
+            # )
+            # axs[2].set_title(f"CWT Features importance {type(clf).__name__}")
+            # axs[2].set_xlabel('Time')
+            # axs[2].set_ylabel('Scales')
+            #
+            # filename = f"cwt_reshaped_feature_importance_{X_train.shape[1]}.png"
+            # filepath = output_dir / filename
+            # fig.tight_layout()
+            # print(filepath)
+            # fig.savefig(filepath)
 
 
         # df_cwt, class0_count, class1_count, cwt_coefs_data, features_names = get_cwt_data_frame(data_frame)
@@ -244,4 +319,5 @@ def main(
 
 if __name__ == "__main__":
     #typer.run(main)
-    main(Path(f'E:/Data2/debug/cwt_explain'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"), p=False)
+    for j in [1, 2, 3, 4, 5, 6, 7]:
+        main(Path(f'E:/Data2/debug/cwt_explain'), Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"), p=False, n_activity_days=j)

@@ -1092,9 +1092,16 @@ def cwt_power(
             log_yaxis=False,
         )
     # return coefs.copy().real, freqs, coi, power_masked.shape, scales
-    cwt_raw = np.concatenate([coefs.copy().real, coefs.copy().imag])
+    imag = coefs.copy().imag
+    real = coefs.copy().real
+    if enable_coi:
+        imag = mask_cwt(imag.copy(), coi)
+        real = mask_cwt(real.copy(), coi)
+    cwt_raw = np.concatenate([real, imag])
     power_cwt = cwt_raw
     power_masked = cwt_raw
+    if enable_coi:
+        power_masked = mask_cwt(power_masked.copy(), coi)
 
     return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales
 
