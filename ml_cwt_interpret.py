@@ -85,6 +85,7 @@ def main(
             None,
             None,
             None,
+            None,
             data_frame.copy(),
             output_dir,
             preprocessing_steps,
@@ -136,7 +137,7 @@ def main(
                 enable_coi=True,
                 enable_graph_out=False
             )
-            X_train, _ = CWT_Transform.transform(X_train)
+            X_train, _, _ = CWT_Transform.transform(X_train)
             X_train[np.isnan(X_train)] = -1
             scales = CWT_Transform.get_scales()
             clf = SVC(kernel="linear", probability=True)

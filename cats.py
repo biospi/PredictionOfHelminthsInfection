@@ -49,7 +49,7 @@ def main(
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
-            for thresh in ['003__0_00100__120']:
+            for thresh in ['004__0_00100__120']:
                 print(f"threshold={thresh}")
                 for cv in ["LeaveOneOut"]:
                     main_pipeline.main(
