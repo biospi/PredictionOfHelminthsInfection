@@ -152,6 +152,11 @@ if __name__ == "__main__":
                         "name",
                         "mobility_score",
                     ],
+                    steps_list=[
+                        ["QN", "STD"],
+                        ["QN", "STD", "CENTER", "CWTMORL"],
+                        ["QN", "STD", "CENTER", "DWT"],
+                    ],
                     individual_to_ignore=np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]),
                 )
 
