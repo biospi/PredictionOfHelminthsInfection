@@ -54,6 +54,7 @@ CSS_COLORS = {
     "QN_ANSCOMBE": "purple",
     "QN_ANSCOMBE_LOG": "orange",
     "QN_ANSCOMBE_LOG_CENTER_CWTMORL": "red",
+    "QN_ANSCOMBE_LOG_CENTER_DWT": "gold"
 }
 
 
