@@ -745,7 +745,7 @@ def create_heatmap(
     ax.set_ylabel("Animals")
     ax.tick_params(axis="both", which="major", labelsize=6)
     ax.tick_params(axis="both", which="minor", labelsize=6)
-
+    out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
     fig.savefig(file_path, bbox_inches="tight")
@@ -1393,7 +1393,7 @@ def local_run():
         activity_dir=Path(
             "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
         ),
-        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
+        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test_clipped"),
         activity_col="first_sensor_value",
         farm_id="cedara",
         day_before_famacha_test=7,
@@ -1413,7 +1413,7 @@ def local_run():
     main(
         output=Path("E:/thesis/heatmaps/raw_usable"),
         activity_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed"),
-        dataset_dir=Path("E:/thesis/datasets/cedara/datasetraw_none_7day"),
+        dataset_dir=Path("E:/thesis/datasets/cedara/datasetraw_none_7day_clipped"),
         activity_col="first_sensor_value",
         farm_id="cedara",
         day_before_famacha_test=7,

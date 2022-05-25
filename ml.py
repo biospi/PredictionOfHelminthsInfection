@@ -77,7 +77,7 @@ def main(
     dwt_window: str = "coif1",
     study_id: str = "study",
     sampling: str = "T",
-    pre_visu: bool = False,
+    pre_visu: bool = True,
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
