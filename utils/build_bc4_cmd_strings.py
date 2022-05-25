@@ -122,7 +122,7 @@ IDS = [
 
 if __name__ == "__main__":
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations_exp"
+    output_dir = "/user/work/fo18103/cats_data/gpu/ml_build_multiple_peak_permutations"
 
     files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak").glob("*"))]
     files = ["004__0_00100__120", "003__0_00100__120"]
@@ -130,35 +130,35 @@ if __name__ == "__main__":
     for t in files:
         for cv in ["LeaveOneOut"]:
             dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations/{t}/dataset/training_sets/samples"
-            for j in range(0, len(IDS), 5):
-                print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-                n_cmd += main(
-                    cv_list=[cv],
-                    output_dir=f"{output_dir}/{t}/{j}",
-                    dataset_folder=dataset_folder,
-                    a_day=-1,
-                    class_healthy_label_list=["0.0"],
-                    class_unhealthy_label_list=["1.0"],
-                    classifiers_list=["rbf"],
-                    study_id="cats",
-                    meta_columns=[
-                        "label",
-                        "id",
-                        "imputed_days",
-                        "date",
-                        "health",
-                        "target",
-                        "age",
-                        "name",
-                        "mobility_score",
-                    ],
-                    steps_list=[
-                        ["QN", "STD"],
-                        ["QN", "STD", "CENTER", "CWTMORL"],
-                        ["QN", "STD", "CENTER", "DWT"],
-                    ],
-                    individual_to_ignore=np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]),
-                )
+            # for j in range(0, len(IDS), 5):
+            #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
+            n_cmd += main(
+                cv_list=[cv],
+                output_dir=f"{output_dir}/{t}",
+                dataset_folder=dataset_folder,
+                a_day=-1,
+                class_healthy_label_list=["0.0"],
+                class_unhealthy_label_list=["1.0"],
+                classifiers_list=["cnn"],
+                study_id="cats",
+                meta_columns=[
+                    "label",
+                    "id",
+                    "imputed_days",
+                    "date",
+                    "health",
+                    "target",
+                    "age",
+                    "name",
+                    "mobility_score",
+                ],
+                steps_list=[
+                    ["QN", "STD"],
+                    ["QN", "STD", "CENTER", "CWTMORL"],
+                    ["QN", "STD", "CENTER", "DWT"],
+                ],
+                individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+            )
 
 
     # cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day"

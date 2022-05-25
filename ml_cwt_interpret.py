@@ -38,6 +38,7 @@ def main(
     ],
     meta_col_str: List[str] = ["health", "label", "date"],
     roll_avg: int = 30,
+    prct: int = 90,
     p: bool = typer.Option(False, "--p")
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -141,12 +142,16 @@ def main(
             enable_graph_out=False
         )
         X_train, _, _ = CWT_Transform.transform(X_train)
+        X_train_o = X_train.copy()
         X_train[np.isnan(X_train)] = -1
         scales = CWT_Transform.get_scales()
         clf = SVC(kernel="linear", probability=True)
         print("fit...")
         clf.fit(X_train, y_train)
         imp = np.abs(clf.coef_[0])
+        imp_top_n_perct = imp.copy()
+        imp_top_n_perct[imp_top_n_perct <= np.percentile(imp_top_n_perct, prct)] = np.nan
+
         mean_cwt = np.mean(X_train, axis=0)
 
         # fig, ax = plt.subplots(figsize=(12.80, 7.20))
@@ -183,6 +188,7 @@ def main(
         coefs_class0_mean = np.mean(cwt_list_0, axis=0)
         coefs_class1_mean = np.mean(cwt_list_1, axis=0)
         cwt_imp = np.reshape(imp, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
+        cwt_imp_top = np.reshape(imp_top_n_perct, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
 
         fig, axs = plt.subplots(3, 1, facecolor='white', figsize=(12.80, 18.80))
         axs = axs.ravel()
@@ -217,12 +223,17 @@ def main(
         for cwt in cwt_1:
             cwt_list_1.append(np.reshape(cwt, (CWT_Transform.shape[0], CWT_Transform.shape[1])))
 
+        coi_mask = np.reshape(X_train_o[0], (CWT_Transform.shape[0], CWT_Transform.shape[1]))
         coefs_class0_mean = np.mean(cwt_list_0, axis=0)
+        coefs_class0_mean[np.isnan(coi_mask)] = np.nan
         coefs_class1_mean = np.mean(cwt_list_1, axis=0)
+        coefs_class1_mean[np.isnan(coi_mask)] = np.nan
         cwt_imp = np.reshape(imp, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
-
-        fig, axs = plt.subplots(3, 1, facecolor='white', figsize=(12.80, 18.80))
-        axs = axs.ravel()
+        cwt_imp[np.isnan(coi_mask)] = np.nan
+        cwt_imp_top = np.reshape(imp_top_n_perct, (CWT_Transform.shape[0], CWT_Transform.shape[1]))
+        cwt_imp_top[np.isnan(coi_mask)] = np.nan
+        fig, axs = plt.subplots(4, 1, facecolor='white', figsize=(12.80, 18.80))
+        #axs = axs.ravel()
 
         # axs[0].pcolormesh(
         #     np.arange(coefs_class0_mean.shape[1]),
@@ -230,29 +241,41 @@ def main(
         #     coefs_class0_mean,
         #     cmap="viridis"
         # )
-        axs[0].imshow(
+        im = axs[0].imshow(
             coefs_class0_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
             interpolation="nearest", aspect='auto'
         )
+        fig.colorbar(im, ax=axs[0])
         axs[0].set_title("Element wise mean of CWT healthy")
         axs[0].set_xlabel('Time')
         axs[0].set_ylabel('Scales')
 
-        axs[1].imshow(
+        im = axs[1].imshow(
             coefs_class1_mean, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
             interpolation="nearest", aspect='auto'
         )
+        fig.colorbar(im, ax=axs[1])
         axs[1].set_title("Element wise mean of CWT unhealthy")
         axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Scales')
 
-        axs[2].imshow(
+        im = axs[2].imshow(
             cwt_imp, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
             interpolation="nearest", aspect='auto'
         )
+        fig.colorbar(im, ax=axs[2])
         axs[2].set_title(f"CWT Features importance {type(clf).__name__}")
         axs[2].set_xlabel('Time')
         axs[2].set_ylabel('Scales')
+
+        im = axs[3].imshow(
+            cwt_imp_top, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
+            interpolation="nearest", aspect='auto'
+        )
+        fig.colorbar(im, ax=axs[3])
+        axs[3].set_title(f"CWT Features importance top 10% {type(clf).__name__}")
+        axs[3].set_xlabel('Time')
+        axs[3].set_ylabel('Scales')
 
         filename = f"{n_activity_days}_cwt_reshaped_feature_importance_{X_train.shape[1]}.png"
         filepath = output_dir / filename

@@ -9,7 +9,7 @@ def main(
     exp_main: bool = True,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis/"),
+    output_dir: Path = Path("E:/thesis_debug_freq2/"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
     cedara_dir: Path = Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
 ):
@@ -26,21 +26,19 @@ def main(
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
-
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
-            ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)"],
+            ["QN", "ANSCOMBE", "LOG"],
+            ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+            ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [1, 3, 7]:
-                for a_day in [1, 3, 7]:
+            for i_day in [7]:
+                for a_day in [3]:
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [False]:
 
