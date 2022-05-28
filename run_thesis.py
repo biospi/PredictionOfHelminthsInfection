@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    exp_main: bool = True,
-    exp_temporal: bool = True,
+    exp_main: bool = False,
+    exp_temporal: bool = False,
     exp_cross_farm: bool = True,
     output_dir: Path = Path("E:/thesis_debug_freq2/"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
@@ -239,17 +239,20 @@ def main(
     if exp_temporal:
         print("experiment 2: temporal validation")
         for i in [7, 6]:
-            temporal_validation.main(
-                output_dir=output_dir / "temporal_validation" / f"delmas_{i}" / "2To2",
-                dataset_folder=delmas_dir,
-                n_imputed_days=i,
-            )
+            for n_a in [1, 3, 7]:
+                temporal_validation.main(
+                    output_dir=output_dir / "temporal_validation" / f"delmas_{i}_{n_a}" / "2To2",
+                    dataset_folder=delmas_dir,
+                    n_imputed_days=i,
+                    n_activity_days=n_a
+                )
 
-            temporal_validation.main(
-                output_dir=output_dir / "temporal_validation" / f"cedara_{i}" / "2To2",
-                dataset_folder=cedara_dir,
-                n_imputed_days=i,
-            )
+                temporal_validation.main(
+                    output_dir=output_dir / "temporal_validation" / f"cedara_{i}_{n_a}" / "2To2",
+                    dataset_folder=cedara_dir,
+                    n_imputed_days=i,
+                    n_activity_days=n_a
+                )
 
     if exp_cross_farm:
         print("experiment 3: cross farm validation")

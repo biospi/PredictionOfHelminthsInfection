@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+from sys import exit
 FINAL_STR = ""
 
 
@@ -122,44 +123,47 @@ IDS = [
 
 if __name__ == "__main__":
     n_cmd = 0
-    # output_dir = "/user/work/fo18103/cats_data/gpu/ml_build_multiple_peak_permutations"
-    #
-    # files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak").glob("*"))]
-    # files = ["004__0_00100__120", "003__0_00100__120"]
-    # print(files)
-    # for t in files:
-    #     for cv in ["LeaveOneOut"]:
-    #         dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations/{t}/dataset/training_sets/samples"
-    #         # for j in range(0, len(IDS), 5):
-    #         #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-    #         n_cmd += main(
-    #             cv_list=[cv],
-    #             output_dir=f"{output_dir}/{t}",
-    #             dataset_folder=dataset_folder,
-    #             a_day=-1,
-    #             class_healthy_label_list=["0.0"],
-    #             class_unhealthy_label_list=["1.0"],
-    #             classifiers_list=["cnn"],
-    #             study_id="cats",
-    #             meta_columns=[
-    #                 "label",
-    #                 "id",
-    #                 "imputed_days",
-    #                 "date",
-    #                 "health",
-    #                 "target",
-    #                 "age",
-    #                 "name",
-    #                 "mobility_score",
-    #             ],
-    #             steps_list=[
-    #                 ["QN", "STD"],
-    #                 ["QN", "STD", "CENTER", "CWTMORL"],
-    #                 ["QN", "STD", "CENTER", "DWT"],
-    #             ],
-    #             individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-    #         )
+    output_dir = "/user/work/fo18103/cats_data/gpu/ml_build_multiple_peak_permutations"
 
+    files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
+    #files = ["004__0_00100__120", "003__0_00100__120"]
+    print(files)
+    for t in files:
+        for cv in ["LeaveOneOut"]:
+            dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations_sampled/{t}/dataset/training_sets/samples"
+            # for j in range(0, len(IDS), 5):
+            #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
+            n_cmd += main(
+                cv_list=[cv],
+                output_dir=f"{output_dir}/{t}",
+                dataset_folder=dataset_folder,
+                a_day=-1,
+                class_healthy_label_list=["0.0"],
+                class_unhealthy_label_list=["1.0"],
+                classifiers_list=["linear", "rbf"],
+                study_id="cats",
+                meta_columns=[
+                    "label",
+                    "id",
+                    "imputed_days",
+                    "date",
+                    "health",
+                    "target",
+                    "age",
+                    "name",
+                    "mobility_score",
+                ],
+                steps_list=[
+                    ["QN", "STD"],
+                    ["QN", "ANSCOMBE", "LOG"],
+                    ["QN", "STD", "CENTER", "CWTMORL"],
+                    ["QN", "STD", "CENTER", "DWT"],
+                ],
+                individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+            )
+    print(f"total cmd number is {n_cmd}")
+    print(FINAL_STR)
+    exit()
     cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day_clipped"
     delmas = "/user/work/fo18103/delmas/dataset4_mrnn_7day"
     output_dir = "/user/work/fo18103/thesis"

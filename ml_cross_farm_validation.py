@@ -42,6 +42,7 @@ def main(
         "health",
         "target",
     ],
+    meta_col_str: List[str] = ["health", "label", "date"],
     n_fold: int = 50,
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
@@ -81,6 +82,7 @@ def main(
         class_healthy_f1,
         class_unhealthy_f1,
         imputed_days=n_imputed_days,
+        meta_cols_str=meta_col_str,
         preprocessing_steps=steps
     )
 
@@ -91,6 +93,7 @@ def main(
         n_activity_days,
         class_healthy_f2,
         class_unhealthy_f2,
+        meta_cols_str=meta_col_str,
         imputed_days=n_imputed_days,
         farm='cedara',
         preprocessing_steps=steps,
@@ -104,6 +107,7 @@ def main(
     dfs_processed, _ = apply_preprocessing_steps(
         meta_columns,
         n_activity_days,
+        None,
         None,
         None,
         None,

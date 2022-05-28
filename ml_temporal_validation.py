@@ -37,7 +37,7 @@ def main(
     meta_col_str: List[str] = ["health", "label", "date"],
     add_feature: List[str] = [],
     preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
-    train_size: float = 0.9,
+    train_size: float = 0.8,
     n_fold: int = 50
 ):
     """This script train a ml model(SVM) on the dataset first half time period and test on the second half\n
