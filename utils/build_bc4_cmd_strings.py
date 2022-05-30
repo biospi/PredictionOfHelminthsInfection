@@ -123,10 +123,10 @@ IDS = [
 
 if __name__ == "__main__":
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/gpu/ml_build_multiple_peak_permutations"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations_sampled"
 
-    files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
-    #files = ["004__0_00100__120", "003__0_00100__120"]
+    #files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
+    files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
