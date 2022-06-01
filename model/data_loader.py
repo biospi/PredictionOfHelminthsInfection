@@ -30,6 +30,7 @@ def load_activity_data(
         or "cross_farm" in str(out_dir).lower()
         or "temporal" in str(out_dir).lower()
         or "cwt_explain" in str(out_dir).lower()
+        or "dwt_explain" in str(out_dir).lower()
         or "test_distance_validation" in str(out_dir).lower()
     ):
         if "health" not in data_frame.columns:

@@ -267,7 +267,7 @@ def apply_preprocessing_steps(
                 targets=df["health"].tolist(),
                 dates=df["date"].tolist(),
             )
-            d = DWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
+            d, _ = DWT_Transform.transform(df.copy().iloc[:, :-N_META].values)
             data_frame_dwt = pd.DataFrame(d)
             data_frame_dwt.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]

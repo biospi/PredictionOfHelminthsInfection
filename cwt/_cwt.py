@@ -941,7 +941,7 @@ def dwt_power(
             freqs,
         )
     dwt_data = np.hstack(coeffs)
-    return dwt_data, dwt_data.shape, 1, dwt_data.shape[0]
+    return dwt_data, dwt_data.shape, 1, dwt_data.shape[0], cc.real, cc.shape
 
 
 def stft_power(
@@ -1194,12 +1194,13 @@ def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
     print("compute_dwt...")
     out_dir = out_dir / "_dwt"
     dwts = []
+    dwts_cc = []
     i = 0
     for activity in tqdm(X):
         animal_id, target, date, epoch = parse_param(
             animals_id, dates, i, targets, step_slug
         )
-        dwt, shape, dwt_time, freqs = dwt_power(
+        dwt, shape, dwt_time, freqs, cc, cc_shape = dwt_power(
             activity,
             animal_id,
             target,
@@ -1212,10 +1213,12 @@ def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
             out_dir,
         )
         dwts.append(dwt.flatten())
+        dwts_cc.append(cc.flatten())
         i += 1
     dwts = np.array(dwts)
+    dwts_cc = np.array(dwts_cc)
 
-    return dwts, shape
+    return dwts, shape, dwts_cc, cc_shape
 
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir, enable_graph_out=False):
@@ -1431,7 +1434,7 @@ class DWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         # X = check_array(X, accept_sparse='csr')
-        X, shape = compute_dwt(
+        X, shape, X_cc, cc_shape = compute_dwt(
             X,
             self.animal_ids,
             self.dates,
@@ -1441,8 +1444,8 @@ class DWT(TransformerMixin, BaseEstimator):
             self.out_dir,
             enable_graph_out=self.enable_graph_out
         )
-        self.shape = shape
-        return X
+        self.shape = cc_shape
+        return X, X_cc
 
 
 def createSynthetic(activity):
