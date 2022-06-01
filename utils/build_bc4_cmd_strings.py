@@ -23,10 +23,12 @@ def main(
     ],
     meta_columns=[],
     individual_to_ignore=[],
+    n_scales= 9,
+    sub_sample_scales= 3
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} "
+        cmd = f"ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -121,11 +123,12 @@ IDS = [
     "Shadow",
 ]
 
-if __name__ == "__main__":
+
+def cats():
     n_cmd = 0
     output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations_sampled"
 
-    #files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
+    # files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
     files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
     print(files)
     for t in files:
@@ -164,6 +167,54 @@ if __name__ == "__main__":
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
     exit()
+
+
+def cwt_sheep():
+    n_cmd = 0
+    cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day_clipped"
+    delmas = "/user/work/fo18103/delmas/dataset4_mrnn_7day"
+    output_dir = "/user/work/fo18103/thesis/cwt_optimal_exp"
+
+    for scales in [6, 9, 12, 18]:
+        for sub in [1, 3, 6]:
+            n_cmd += main(
+                output_dir=output_dir,
+                dataset_folder=delmas,
+                a_day=3,
+                i_day=3,
+                class_healthy_label_list=["1To1"],
+                class_unhealthy_label_list=["2To2"],
+                study_id="delmas",
+                steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]],
+                n_scales=scales,
+                sub_sample_scales=sub
+            )
+    n_cmd += main(
+        output_dir=output_dir,
+        dataset_folder=delmas,
+        a_day=3,
+        i_day=3,
+        class_healthy_label_list=["1To1"],
+        class_unhealthy_label_list=["2To2"],
+        study_id="delmas",
+        steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]]
+    )
+    n_cmd += main(
+        output_dir=output_dir,
+        dataset_folder=delmas,
+        a_day=3,
+        i_day=3,
+        class_healthy_label_list=["1To1"],
+        class_unhealthy_label_list=["2To2"],
+        study_id="delmas",
+        steps_list=[["QN", "ANSCOMBE", "LOG"]]
+    )
+    print(f"total cmd number is {n_cmd}")
+    print(FINAL_STR)
+
+
+def goat_sheep():
+    n_cmd = 0
     cedara = "/user/work/fo18103/cedara/dataset6_mrnn_7day_clipped"
     delmas = "/user/work/fo18103/delmas/dataset4_mrnn_7day"
     output_dir = "/user/work/fo18103/thesis"
@@ -277,3 +328,9 @@ if __name__ == "__main__":
 
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
+
+
+if __name__ == "__main__":
+    cwt_sheep()
+    # cats()
+    # goat_sheep()
