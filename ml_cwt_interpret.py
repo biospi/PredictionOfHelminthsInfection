@@ -50,6 +50,7 @@ def main(
     roll_avg: int = 30,
     prct: int = 90,
     transform: str = "cwt",
+    individual_to_ignore: List[str] = [],
     p: bool = typer.Option(False, "--p"),
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -87,6 +88,7 @@ def main(
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
             meta_cols_str=meta_col_str,
+            individual_to_ignore=individual_to_ignore
         )
 
         print(data_frame)
@@ -115,10 +117,19 @@ def main(
         # for n_activity_days in range(1, n_activity_days):
         print(n_activity_days)
         data_frame_time = data_frame_time.loc[data_frame_time["health"].isin([0, 1])]
-        X_train, y_train = (
-            data_frame_time.iloc[:, -1440 * n_activity_days : -2].values,
-            data_frame_time["health"].values,
-        )
+        if n_activity_days > 0:
+            X_train, y_train = (
+                data_frame_time.iloc[:, -1440 * n_activity_days : -2].values,
+                data_frame_time["health"].values,
+            )
+        else:
+            #for cats peak samples
+            X_train, y_train = (
+                data_frame_time.iloc[:, :-2].values,
+                data_frame_time["health"].values,
+            )
+            n_activity_days = 1
+
         clf = SVC(kernel="linear", probability=True)
         print("fit...")
         clf.fit(X_train, y_train)
@@ -156,10 +167,10 @@ def main(
         filepath = output_dir / filename
         print(filepath)
 
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
+        ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
+        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
         fig.autofmt_xdate()
         fig.savefig(filepath)
 
@@ -312,9 +323,12 @@ def main(
             aspect="auto",
         )
         fig.colorbar(im, ax=axs[0])
-        axs[0].xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-        axs[0].set_title(f"Element wise mean of {transform} healthy")
+        date_format = "%dT%H %p"
+        if n_activity_days < 0:
+            date_format = "00:%H"
+        axs[0].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[0].set_title(f"Element wise mean of {transform} coefficients healthy")
         axs[0].set_xlabel("Time")
         axs[0].set_ylabel("Scales")
 
@@ -325,9 +339,9 @@ def main(
             aspect="auto",
         )
         fig.colorbar(im, ax=axs[1])
-        axs[1].xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
-        axs[1].set_title(f"Element wise mean of {transform} unhealthy")
+        axs[1].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[1].set_title(f"Element wise mean of {transform} coefficients unhealthy")
         axs[1].set_xlabel("Time")
         axs[1].set_ylabel("Scales")
 
@@ -338,8 +352,8 @@ def main(
             aspect="auto",
         )
         fig.colorbar(im, ax=axs[2])
-        axs[2].xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        axs[2].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
         axs[2].set_title(f"{transform} Features importance {type(clf).__name__}")
         axs[2].set_xlabel("Time")
         axs[2].set_ylabel("Scales")
@@ -351,8 +365,8 @@ def main(
             aspect="auto",
         )
         fig.colorbar(im, ax=axs[3])
-        axs[3].xaxis.set_major_formatter(mdates.DateFormatter("%H %p"))
-        axs[3].xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        axs[3].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[3].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
         axs[3].set_title(
             f"{transform} Features importance top 10% {type(clf).__name__} days={n_activity_days}"
         )
@@ -424,12 +438,38 @@ def main(
 
 if __name__ == "__main__":
     # typer.run(main)
-    for j in [1, 2, 3, 4, 5, 6, 7]:
-        for t in ["dwt", "cwt"]:
-            main(
-                Path(f"E:/Data2/debug/{t}_explain"),
-                Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-                p=False,
-                n_activity_days=j,
-                transform=t,
-            )
+
+    for t in ["dwt", "cwt"]:
+        main(
+            Path(f"E:/Data2/debug/{t}_cat_explain"),
+            Path("E:/Cats/build_multiple_peak_permutations_4/004__0_00100__120/dataset/training_sets/samples"),
+            p=False,
+            n_activity_days=-1,
+            n_imputed_days=-1,
+            transform=t,
+            meta_columns=[
+                "label",
+                "id",
+                "imputed_days",
+                "date",
+                "health",
+                "target",
+                "age",
+                "name",
+                "mobility_score",
+            ],
+            meta_col_str=[],
+            individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+            class_healthy_label=["0.0"],
+            class_unhealthy_label=["1.0"],
+        )
+
+        # for j in [1, 2, 3, 4, 5, 6, 7]:
+        #     main(
+        #         Path(f"E:/Data2/debug/{t}_explain"),
+        #         Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+        #         p=False,
+        #         n_activity_days=j,
+        #         transform=t,
+        #     )
+

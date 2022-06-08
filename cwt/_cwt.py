@@ -330,10 +330,10 @@ def plot_dwt_power(
     out_dir,
     i,
     activity,
-    power_dwt,
+    dwt_scalogram,
     dwt_time,
     freqs,
-    format_xaxis=True,
+    format_xaxis=False,
     vmin=None,
     vmax=None,
     standard_scale=False
@@ -362,22 +362,24 @@ def plot_dwt_power(
     #     axs[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     #     axs[0].xaxis.set_major_locator(mdates.DayLocator())
 
-    p = power_dwt.copy()
+    p = dwt_scalogram.copy()
     # if "ANSCOMBE" in step_slug:
     #     p = anscombe(p)
 
-    pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
+    #pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
+    pos = axs[1].imshow(dwt_scalogram, interpolation='nearest', aspect="auto",
+                        origin="lower", extent=[0, 1, 0, len(dwt_scalogram)])
     # pos = axs[1].imshow(np.sqrt(p), extent=[0, p.shape[1], p.shape[0], 1])
     fig.colorbar(pos, ax=axs[1])
 
     # axs[1].plot(coi_line_array, linestyle="--", linewidth=1, c="red")  # todo fix xratio
     axs[1].set_aspect("auto")
-    axs[1].set_title(f"DWT Power | window size={date.replace('_', '/')} {animal_id} {str(target)}")
+    axs[1].set_title(f"DWT Coefficients {animal_id} {str(target)}")
     axs[1].set_xlabel("Time")
     if format_xaxis:
         axs[1].set_xlabel("Time")
-    axs[1].set_ylabel("Frequency")
-    axs[1].set_yscale('log')
+    axs[1].set_ylabel("levels")
+    #axs[1].set_yscale('log')
 
     if format_xaxis:
         n_x_ticks = axs[1].get_xticks().shape[0]
@@ -918,13 +920,21 @@ def dwt_power(
     out_dir,
 ):
     w = pywt.Wavelet('coif1')
-
+    order = "freq"
+    level = 4
+    wp = pywt.WaveletPacket(activity, w, 'sym', maxlevel=level)
+    nodes = wp.get_level(level, order=order)
+    labels = [n.path for n in nodes]
+    values = np.array([n.data for n in nodes])
+    cc = values
+    dwt_time = np.arange(cc.shape[1])
+    freqs = np.arange(cc.shape[0])
     coeffs = pywt.wavedec(activity, w)
     lvls = len(coeffs)
-    dwt_time, freqs, cc = scalogram(coeffs, lvls)
+    #dwt_time, freqs, cc = scalogram(coeffs, lvls)
 
-    coefs_cc = np.conj(cc)
-    power_dwt = np.real(np.multiply(cc, cc))
+    #coefs_cc = np.conj(cc)
+    #power_dwt = np.real(np.multiply(cc, cc))
 
     if enable_graph_out:
         plot_dwt_power(
@@ -936,7 +946,7 @@ def dwt_power(
             out_dir,
             i,
             activity,
-            power_dwt,
+            cc,
             dwt_time,
             freqs,
         )
