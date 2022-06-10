@@ -158,6 +158,7 @@ def cats():
                 ],
                 steps_list=[
                     ["QN", "STD"],
+                    ["QN", "ANSCOMBE"],
                     ["QN", "STD", "CENTER", "CWTMORL"],
                     ["QN", "STD", "CENTER", "DWT"],
                 ],

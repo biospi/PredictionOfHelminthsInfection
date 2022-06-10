@@ -887,7 +887,7 @@ def compute_multi_res(
     return mra
 
 
-def scalogram(y, coeffs, lvls):
+def scalogram(y, coeffs):
     scalog = np.zeros((len(coeffs), len(coeffs[-1])*2))
     for i, c in enumerate(coeffs[::-1]):
         level_data = []
@@ -925,8 +925,7 @@ def dwt_power(
     # dwt_time = np.arange(cc.shape[1])
     # freqs = np.arange(cc.shape[0])
     coeffs = pywt.wavedec(activity, w)
-    lvls = len(coeffs)
-    dwt_time, freqs, cc = scalogram(y, coeffs, lvls)
+    dwt_time, levels, cc = scalogram(activity, coeffs)
 
     #coefs_cc = np.conj(cc)
     #power_dwt = np.real(np.multiply(cc, cc))
@@ -943,7 +942,7 @@ def dwt_power(
             activity,
             cc,
             dwt_time,
-            freqs,
+            levels,
         )
     dwt_data = np.hstack(coeffs)
     return dwt_data, dwt_data.shape, 1, dwt_data.shape[0], cc.real, cc.shape
