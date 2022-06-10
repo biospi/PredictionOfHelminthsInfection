@@ -318,7 +318,8 @@ def main(
         date_list = mdates.date2num(date_list)
         im = axs[0].imshow(
             coefs_class0_mean,
-            extent=[date_list[0], date_list[-1], coefs_class0_mean.shape[0], 1],
+            origin="upper",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
             aspect="auto",
         )
@@ -334,7 +335,8 @@ def main(
 
         im = axs[1].imshow(
             coefs_class1_mean,
-            extent=[date_list[0], date_list[-1], coefs_class0_mean.shape[0], 1],
+            origin="upper",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
             aspect="auto",
         )
@@ -347,7 +349,8 @@ def main(
 
         im = axs[2].imshow(
             cwt_imp,
-            extent=[date_list[0], date_list[-1], coefs_class0_mean.shape[0], 1],
+            origin="upper",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
             aspect="auto",
         )
@@ -360,7 +363,8 @@ def main(
 
         im = axs[3].imshow(
             cwt_imp_top,
-            extent=[date_list[0], date_list[-1], coefs_class0_mean.shape[0], 1],
+            origin="upper",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
             aspect="auto",
         )
@@ -440,36 +444,36 @@ if __name__ == "__main__":
     # typer.run(main)
 
     for t in ["dwt", "cwt"]:
-        main(
-            Path(f"E:/Data2/debug/{t}_cat_explain"),
-            Path("E:/Cats/build_multiple_peak_permutations_4/004__0_00100__120/dataset/training_sets/samples"),
-            p=False,
-            n_activity_days=-1,
-            n_imputed_days=-1,
-            transform=t,
-            meta_columns=[
-                "label",
-                "id",
-                "imputed_days",
-                "date",
-                "health",
-                "target",
-                "age",
-                "name",
-                "mobility_score",
-            ],
-            meta_col_str=[],
-            individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-            class_healthy_label=["0.0"],
-            class_unhealthy_label=["1.0"],
-        )
+        # main(
+        #     Path(f"E:/Data2/debug/{t}_cat_explain"),
+        #     Path("E:/Cats/build_multiple_peak_permutations_4/004__0_00100__120/dataset/training_sets/samples"),
+        #     p=False,
+        #     n_activity_days=-1,
+        #     n_imputed_days=-1,
+        #     transform=t,
+        #     meta_columns=[
+        #         "label",
+        #         "id",
+        #         "imputed_days",
+        #         "date",
+        #         "health",
+        #         "target",
+        #         "age",
+        #         "name",
+        #         "mobility_score",
+        #     ],
+        #     meta_col_str=[],
+        #     individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+        #     class_healthy_label=["0.0"],
+        #     class_unhealthy_label=["1.0"],
+        # )
 
-        # for j in [1, 2, 3, 4, 5, 6, 7]:
-        #     main(
-        #         Path(f"E:/Data2/debug/{t}_explain"),
-        #         Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-        #         p=False,
-        #         n_activity_days=j,
-        #         transform=t,
-        #     )
+        for j in [1, 2, 3, 4, 5, 6, 7]:
+            main(
+                Path(f"E:/Data2/debug/{t}_explain_{j}"),
+                Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                p=False,
+                n_activity_days=j,
+                transform=t,
+            )
 

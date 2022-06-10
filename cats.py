@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_multiple_peak_permutations_5",
-    dataset_parent: str = "E:/Cats/build_multiple_peak_permutations_5",
+    out_parent: str = "E:/Cats/ml_build_permutations",
+    dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -17,39 +17,17 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["rbf"]:
+    for clf in ["cnn"]:
         for steps in [
-            ["LINEAR", "QN", "STD"]
-            #["LINEAR", "QN", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "STD", "APPEND", "LINEAR", "QN", "CENTER", "CWTMORL",
-            # "STDSCALE"],
-            #["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
-            # ["LINEAR", "QN", "LOG", "STD"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD"],
-            # ["LINEAR", "QN", "CWT(MEXH)", "STD"],
-            # ["LINEAR", "QN", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "CWT(MEXH)"],
-            # ["LINEAR", "QN", "CWT(MORL)"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)", "STD"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MEXH)"],
-            # ["LINEAR", "QN", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "STD", "CWT(MORL)"],
-            # ["LINEAR", "QN", "STD", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL", "STDSCALE"]
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
-            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "ANSCOMBE", "CENTER", "CWT(MORL)", "STD"],
-            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
-            # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)", "STD"],
+            #["QN", "STD"],
+            # ["QN", "STD", "CENTER", "CWTMORL"],
+            ["QN", "STD", "CENTER", "DWT"]
         ]:
             slug = "_".join(steps)
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
-            for thresh in ['004__0_00100__120']:
+            for thresh in folders:
                 print(f"threshold={thresh}")
                 for cv in ["LeaveOneOut"]:
                     main_pipeline.main(

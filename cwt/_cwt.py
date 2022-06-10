@@ -368,7 +368,7 @@ def plot_dwt_power(
 
     #pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
     pos = axs[1].imshow(dwt_scalogram, interpolation='nearest', aspect="auto",
-                        origin="lower", extent=[0, 1, 0, len(dwt_scalogram)])
+                        origin="lower", extent=[0, 1, len(dwt_scalogram), 0 ])
     # pos = axs[1].imshow(np.sqrt(p), extent=[0, p.shape[1], p.shape[0], 1])
     fig.colorbar(pos, ax=axs[1])
 
@@ -887,24 +887,19 @@ def compute_multi_res(
     return mra
 
 
-def scalogram(coeffs, lvls):
-    # cpt_ = []
-    # for c in coeffs:
-    #     print(c.shape)
-    #     cpt_.append(len(c))
-    # print(np.sum(cpt_))
-    cc = np.abs(np.array([coeffs[-1]]))
-    for i in range(lvls - 1):
-        s = np.array([np.repeat(coeffs[lvls - 1 - i], pow(2, i + 1))])
-        s = s[:, 0:cc.shape[1]]
-        a = np.abs([cc, s])
-        cc = np.concatenate(a)
-    # X-axis has a linear scale (time)
-    x = np.linspace(start=0, stop=1, num=cc.shape[1])
-    # Y-axis has a logarithmic scale (frequency)
-    y = np.logspace(start=lvls - 1, stop=0, num=lvls, base=2)
-    dwt_time, freqs = np.meshgrid(x, y)
-    return dwt_time, freqs, cc
+def scalogram(y, coeffs, lvls):
+    scalog = np.zeros((len(coeffs), len(coeffs[-1])*2))
+    for i, c in enumerate(coeffs[::-1]):
+        level_data = []
+        for s in c:
+            n_repeat = pow(2, i + 1)
+            for _ in range(n_repeat):
+                level_data.append(s)
+        scalog[i, :] = level_data[0: scalog.shape[1]]
+    scalog_rev = scalog[::-1]
+    levels = list(range(1, scalog_rev.shape[0]+1))
+    timeaxis = list(range(scalog_rev.shape[1]))
+    return timeaxis, levels, scalog_rev
 
 
 def dwt_power(
@@ -920,18 +915,18 @@ def dwt_power(
     out_dir,
 ):
     w = pywt.Wavelet('coif1')
-    order = "freq"
-    level = 4
-    wp = pywt.WaveletPacket(activity, w, 'sym', maxlevel=level)
-    nodes = wp.get_level(level, order=order)
-    labels = [n.path for n in nodes]
-    values = np.array([n.data for n in nodes])
-    cc = values
-    dwt_time = np.arange(cc.shape[1])
-    freqs = np.arange(cc.shape[0])
+    # order = "freq"
+    # level = 4
+    # wp = pywt.WaveletPacket(activity, w, maxlevel=level)
+    # nodes = wp.get_level(level, order=order)
+    # labels = [n.path for n in nodes]
+    # values = np.array([n.data for n in nodes])
+    # cc = values
+    # dwt_time = np.arange(cc.shape[1])
+    # freqs = np.arange(cc.shape[0])
     coeffs = pywt.wavedec(activity, w)
     lvls = len(coeffs)
-    #dwt_time, freqs, cc = scalogram(coeffs, lvls)
+    dwt_time, freqs, cc = scalogram(y, coeffs, lvls)
 
     #coefs_cc = np.conj(cc)
     #power_dwt = np.real(np.multiply(cc, cc))
@@ -1599,8 +1594,17 @@ def creatSin(freq, time):
 if __name__ == "__main__":
     print("********CWT*********")
     # simple_example()
+    from scipy.signal import chirp
 
-    X = []
+    T = 5
+    n = 5000
+    t = np.linspace(0, T, n, endpoint=False)
+    f0 = 1
+    f1 = 50
+    y = chirp(t, f0, T, f1, method='logarithmic')
+
+
+    X = [y]
     for i in np.arange(5, 100, 5):
         X.append(creatSin(i, 1440))
 

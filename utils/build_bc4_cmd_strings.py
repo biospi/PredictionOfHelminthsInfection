@@ -126,14 +126,14 @@ IDS = [
 
 def cats():
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_multiple_peak_permutations_sampled"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations"
 
-    # files = [x.stem for x in list(Path("E:/Cats/build_multiple_peak_permutations_sampled").glob("*"))]
-    files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
+    files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
+    #files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            dataset_folder = f"/user/work/fo18103/cats_data/build_multiple_peak_permutations_sampled/{t}/dataset/training_sets/samples"
+            dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
             # for j in range(0, len(IDS), 5):
             #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
             n_cmd += main(
@@ -143,7 +143,7 @@ def cats():
                 a_day=-1,
                 class_healthy_label_list=["0.0"],
                 class_unhealthy_label_list=["1.0"],
-                classifiers_list=["linear", "rbf"],
+                classifiers_list=["rbf", "cnn"],
                 study_id="cats",
                 meta_columns=[
                     "label",
@@ -158,7 +158,6 @@ def cats():
                 ],
                 steps_list=[
                     ["QN", "STD"],
-                    ["QN", "ANSCOMBE", "LOG"],
                     ["QN", "STD", "CENTER", "CWTMORL"],
                     ["QN", "STD", "CENTER", "DWT"],
                 ],
@@ -331,6 +330,6 @@ def goat_sheep():
 
 
 if __name__ == "__main__":
-    cwt_sheep()
-    # cats()
+    #cwt_sheep()
+    cats()
     # goat_sheep()
