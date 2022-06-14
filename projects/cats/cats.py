@@ -73,7 +73,7 @@ def main(
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=True,
-                        epoch=500,
+                        epoch=30,
                     )
 
                 # main_pipeline.main(
