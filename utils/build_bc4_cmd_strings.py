@@ -336,6 +336,6 @@ def goat_sheep():
 
 
 if __name__ == "__main__":
-    cwt_sheep()
-    # cats()
+    #cwt_sheep()
+    cats()
     # goat_sheep()
