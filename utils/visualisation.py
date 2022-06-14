@@ -2100,7 +2100,7 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
 def plot_fold_details(
     fold_results, meta, meta_columns, out_dir, filename="fold_details"
 ):
-    print(fold_results)
+    #print(fold_results)
     meta_dict = {}
     for m in meta:
         id = 0

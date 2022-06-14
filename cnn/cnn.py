@@ -313,7 +313,7 @@ def run2DCnn(wavelet_f0, epochs, cross_validation_method, X, y, class_healthy, c
                  cross_validation_method, start_time, output_dir, downsample_false_class, clf_detail=clf_detail)
 
 
-def evaluate2DCnn(i, out_dir, ax, train_data_cwt, y_train, test_data_cwt, y_test, verbose=0, epochs=100, batch_size=5):
+def evaluate2DCnn(i, out_dir, ax, train_data_cwt, y_train, test_data_cwt, y_test, verbose=0, epochs=30, batch_size=5):
     # Xtrain, ytrain, Xtest, ytest = formatDataFor2DCnn(X_train_, X_test_, y_train_, y_test_)
     # train_size = Xtrain.shape[0]
     # test_size = Xtest.shape[0]

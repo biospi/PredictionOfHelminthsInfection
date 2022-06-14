@@ -333,7 +333,7 @@ def process_ml(
     save_model=False,
     augment_training=0,
     n_job=6,
-    epoch=500,
+    epoch=30,
     batch_size=8
 ):
     print("*******************************************************************")
