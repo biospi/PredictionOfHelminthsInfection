@@ -176,40 +176,44 @@ def cwt_sheep():
     delmas = "/user/work/fo18103/delmas/dataset4_mrnn_7day"
     output_dir = "/user/work/fo18103/thesis/cwt_optimal_exp"
 
-    for scales in [6, 9, 12, 18]:
-        for sub in [1, 3, 6]:
-            n_cmd += main(
-                output_dir=output_dir,
-                dataset_folder=delmas,
-                a_day=3,
-                i_day=3,
-                class_healthy_label_list=["1To1"],
-                class_unhealthy_label_list=["2To2"],
-                study_id="delmas",
-                steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]],
-                n_scales=scales,
-                sub_sample_scales=sub
-            )
-    n_cmd += main(
-        output_dir=output_dir,
-        dataset_folder=delmas,
-        a_day=3,
-        i_day=3,
-        class_healthy_label_list=["1To1"],
-        class_unhealthy_label_list=["2To2"],
-        study_id="delmas",
-        steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]]
-    )
-    n_cmd += main(
-        output_dir=output_dir,
-        dataset_folder=delmas,
-        a_day=3,
-        i_day=3,
-        class_healthy_label_list=["1To1"],
-        class_unhealthy_label_list=["2To2"],
-        study_id="delmas",
-        steps_list=[["QN", "ANSCOMBE", "LOG"]]
-    )
+    for cl in ["linear", "rbf"]:
+        for scales in [6, 9, 12, 18]:
+            for sub in [1, 3, 6]:
+                n_cmd += main(
+                    output_dir=output_dir,
+                    dataset_folder=delmas,
+                    a_day=3,
+                    i_day=3,
+                    class_healthy_label_list=["1To1"],
+                    class_unhealthy_label_list=["2To2"],
+                    study_id="delmas",
+                    steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]],
+                    n_scales=scales,
+                    classifiers_list=[cl],
+                    sub_sample_scales=sub
+                )
+        n_cmd += main(
+            output_dir=output_dir,
+            dataset_folder=delmas,
+            a_day=3,
+            i_day=3,
+            class_healthy_label_list=["1To1"],
+            class_unhealthy_label_list=["2To2"],
+            study_id="delmas",
+            classifiers_list=[cl],
+            steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]]
+        )
+        n_cmd += main(
+            output_dir=output_dir,
+            dataset_folder=delmas,
+            a_day=3,
+            i_day=3,
+            class_healthy_label_list=["1To1"],
+            class_unhealthy_label_list=["2To2"],
+            study_id="delmas",
+            classifiers_list=[cl],
+            steps_list=[["QN", "ANSCOMBE", "LOG"]]
+        )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
 
@@ -332,6 +336,6 @@ def goat_sheep():
 
 
 if __name__ == "__main__":
-    #cwt_sheep()
-    cats()
+    cwt_sheep()
+    # cats()
     # goat_sheep()
