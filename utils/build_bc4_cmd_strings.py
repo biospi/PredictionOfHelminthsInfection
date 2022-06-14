@@ -133,37 +133,38 @@ def cats():
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
-            # for j in range(0, len(IDS), 5):
-            #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-            n_cmd += main(
-                cv_list=[cv],
-                output_dir=f"{output_dir}/{t}",
-                dataset_folder=dataset_folder,
-                a_day=-1,
-                class_healthy_label_list=["0.0"],
-                class_unhealthy_label_list=["1.0"],
-                classifiers_list=["rbf", "cnn"],
-                study_id="cats",
-                meta_columns=[
-                    "label",
-                    "id",
-                    "imputed_days",
-                    "date",
-                    "health",
-                    "target",
-                    "age",
-                    "name",
-                    "mobility_score",
-                ],
-                steps_list=[
-                    ["QN", "STD"],
-                    ["QN", "ANSCOMBE"],
-                    ["QN", "STD", "CENTER", "CWTMORL"],
-                    ["QN", "STD", "CENTER", "DWT"],
-                ],
-                individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-            )
+            for cl in ["rbf", "cnn"]:
+                dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
+                # for j in range(0, len(IDS), 5):
+                #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
+                n_cmd += main(
+                    cv_list=[cv],
+                    output_dir=f"{output_dir}/{t}",
+                    dataset_folder=dataset_folder,
+                    a_day=-1,
+                    class_healthy_label_list=["0.0"],
+                    class_unhealthy_label_list=["1.0"],
+                    classifiers_list=[cl],
+                    study_id="cats",
+                    meta_columns=[
+                        "label",
+                        "id",
+                        "imputed_days",
+                        "date",
+                        "health",
+                        "target",
+                        "age",
+                        "name",
+                        "mobility_score",
+                    ],
+                    steps_list=[
+                        ["QN", "STD"],
+                        ["QN", "ANSCOMBE"],
+                        ["QN", "STD", "CENTER", "CWTMORL"],
+                        ["QN", "STD", "CENTER", "DWT"],
+                    ],
+                    individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
     exit()
