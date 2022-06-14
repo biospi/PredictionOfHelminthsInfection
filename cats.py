@@ -60,7 +60,7 @@ def main(
                         cv=cv,
                         output_qn_graph=False,
                         pre_visu=False,
-                        epoch=500,
+                        epoch=100,
                     )
 
                 # main_pipeline.main(

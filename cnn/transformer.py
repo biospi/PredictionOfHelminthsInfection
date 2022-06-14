@@ -489,7 +489,7 @@ def cross_validate_cnn(
     sample_dates,
     clf_name,
     n_job,
-    epochs=500,
+    epochs=100,
     batch_size=32
 ):
     """Cross validate X,y data and plot roc curve with range
