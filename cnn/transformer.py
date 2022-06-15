@@ -402,7 +402,7 @@ def fold_worker(
     print(f"y_test={y_test}")
     print(f"y_pred={y_pred}")
 
-    if y_test == y_pred:
+    if np.array_equal(y_test, y_pred):
         print("perfect prediction!")
         #precision_recall_fscore_support returns same value when prediction is perfect
         precision = np.repeat(precision, 2)
