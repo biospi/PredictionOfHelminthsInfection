@@ -399,6 +399,18 @@ def fold_worker(
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
+    print(f"y_test={y_test}")
+    print(f"y_pred={y_pred}")
+
+    if y_test == y_pred:
+        print("perfect prediction!")
+        #precision_recall_fscore_support returns same value when prediction is perfect
+        precision = np.repeat(precision, 2)
+        recall = np.repeat(recall, 2)
+        fscore = np.repeat(fscore, 2)
+        support = np.repeat(support, 2)
+
+    print(f"precision={precision} recall={recall} fscore={fscore} support={support}")
     correct_predictions_test = (y_test == y_pred).astype(int)
     incorrect_predictions_test = (y_test != y_pred).astype(int)
 

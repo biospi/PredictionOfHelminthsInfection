@@ -51,6 +51,7 @@ CSS_COLORS = {
     "QN": "blue",
     "QN_STD": "navy",
     "QN_STD_CENTER_CWTMORL": "magenta",
+    "QN_STD_CENTER_DWT": "indigo",
     "QN_ANSCOMBE": "purple",
     "QN_ANSCOMBE_LOG": "orange",
     "QN_ANSCOMBE_LOG_CENTER_CWTMORL": "red",
