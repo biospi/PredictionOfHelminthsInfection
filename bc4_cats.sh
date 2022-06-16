@@ -4,12 +4,12 @@
 #SBATCH --job-name=array_job_cats
 #SBATCH --output=cat_job_out
 #SBATCH --error=cat_job_error
-#SBATCH --partition=cpu
+#SBATCH --partition=hmem
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
-#SBATCH --time=2-00:00:00
-#SBATCH --mem=100000M
+#SBATCH --time=1-00:00:00
+#SBATCH --mem=480000M
 #SBATCH --array=1-160
 
 # Load the modules/environment
