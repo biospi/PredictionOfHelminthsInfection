@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from utils.Utils import anscombe
 import matplotlib.dates as mdates
-
+import pycwt as wavelet
+import pywt
 from datetime import datetime, timedelta
 
 
@@ -307,8 +308,8 @@ def main(
             imp_top_n_perct, (f_transform.shape[0], f_transform.shape[1])
         )
         cwt_imp_top[np.isnan(coi_mask)] = np.nan
-        fig, axs = plt.subplots(4, 1, facecolor="white", figsize=(12.80, 18.80))
-        # axs = axs.ravel()
+        fig, axs = plt.subplots(4, 2, facecolor="white", figsize=(25.60, 20.80))
+        axs = axs.ravel()
 
         # axs[0].pcolormesh(
         #     np.arange(coefs_class0_mean.shape[1]),
@@ -378,6 +379,81 @@ def main(
         axs[3].set_xlabel("Time")
         axs[3].set_ylabel("Scales")
 
+        im = axs[4].imshow(
+            cwt_imp*coefs_class0_mean,
+            origin="lower",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
+            interpolation="nearest",
+            aspect="auto",
+        )
+        fig.colorbar(im, ax=axs[4])
+        axs[4].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[4].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[4].set_title(
+            f"{transform} Features importance multipied by coef of healthy class days={n_activity_days}"
+        )
+        axs[4].set_xlabel("Time")
+        axs[4].set_ylabel("Scales")
+
+        im = axs[5].imshow(
+            cwt_imp*coefs_class1_mean,
+            origin="lower",
+            extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
+            interpolation="nearest",
+            aspect="auto",
+        )
+        fig.colorbar(im, ax=axs[5])
+        axs[5].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        axs[5].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[5].set_title(
+            f"{transform} Features importance multipied by coef of unhealthy class days={n_activity_days}"
+        )
+        axs[5].set_xlabel("Time")
+        axs[5].set_ylabel("Scales")
+
+        if transform == "cwt":
+            iwave_h = wavelet.icwt(cwt_imp*coefs_class0_mean, cwt_imp.shape[0], f_transform.delta_t, wavelet=f_transform.wavelet_type.lower())
+            iwave_uh = wavelet.icwt(cwt_imp*coefs_class1_mean, f_transform.scales, f_transform.delta_t, wavelet=f_transform.wavelet_type.lower())
+
+            im = axs[6].plot(iwave_h)
+            axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[6].set_title(
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
+            )
+            axs[6].set_xlabel("Time")
+            axs[6].set_ylabel("Activity")
+
+            im = axs[7].plot(iwave_uh)
+            axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[7].set_title(
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
+            )
+            axs[7].set_xlabel("Time")
+            axs[7].set_ylabel("Activity")
+
+        if transform == "dwt":
+            iwave_h = pywt.waverec(cwt_imp, f_transform.wavelet, f_transform.mode)
+            iwave_uh = pywt.waverec(cwt_imp*coefs_class1_mean, f_transform.wavelet, f_transform.mode)
+            im = axs[6].plot(iwave_h)
+            axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[6].set_title(
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
+            )
+            axs[6].set_xlabel("Time")
+            axs[6].set_ylabel("Activity")
+
+            im = axs[7].plot(iwave_uh)
+            axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[7].set_title(
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
+            )
+            axs[7].set_xlabel("Time")
+            axs[7].set_ylabel("Activity")
+
         filename = f"{n_activity_days}_{transform}_reshaped_feature_importance_{X_train.shape[1]}.png"
         filepath = output_dir / filename
         fig.autofmt_xdate()
@@ -444,15 +520,15 @@ def main(
 if __name__ == "__main__":
     # typer.run(main)
 
-    for t in ["dwt", "cwt"]:
-        # for j in [1, 2, 3, 4, 5, 6, 7]:
-        #     main(
-        #         Path(f"E:/Data2/debug/{t}_explain_{j}"),
-        #         Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-        #         p=False,
-        #         n_activity_days=j,
-        #         transform=t,
-        #     )
+    for t in ["cwt", "dwt"]:
+        for j in [1, 2, 3, 4, 5, 6, 7]:
+            main(
+                Path(f"E:/Data2/debug/{t}_explain_{j}"),
+                Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                p=False,
+                n_activity_days=j,
+                transform=t,
+            )
 
         main(
             Path(f"E:/Data2/debug/{t}_cat_explain_2"),

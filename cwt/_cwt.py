@@ -800,10 +800,12 @@ def compute_cwt_paper_hd(activity, scales, wavelet_f0, step_slug):
     if "MEXH" in step_slug:
         w = wavelet.MexicanHat()
     freqs = 1 / (w.flambda() * scales)
+    delta_t = 1
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(
-        activity, 1, wavelet=w, freqs=freqs
+        activity, delta_t, wavelet=w, freqs=freqs
     )
-    return coefs, coi, scales, freqs
+    wavelet_type = w.name
+    return coefs, coi, scales, freqs, wavelet_type, delta_t
 
 
 def compute_cwt_new(y):
@@ -923,8 +925,11 @@ def dwt_power(
     # values = np.array([n.data for n in nodes])
     # cc = values
     # dwt_time = np.arange(cc.shape[1])
-    # freqs = np.arange(cc.shape[0])
-    coeffs = pywt.wavedec(activity, w)
+    # freqs = np.arange(cc.shape[0]
+    mode = "symmetric"
+    coeffs = pywt.wavedec(activity, w, mode=mode)
+    wavelet = w.name
+
     dwt_time, levels, cc = scalogram(activity, coeffs)
 
     #coefs_cc = np.conj(cc)
@@ -945,7 +950,7 @@ def dwt_power(
             levels,
         )
     dwt_data = np.hstack(coeffs)
-    return dwt_data, dwt_data.shape, 1, dwt_data.shape[0], cc.real, cc.shape
+    return dwt_data, dwt_data.shape, 1, dwt_data.shape[0], cc.real, cc.shape, wavelet, mode
 
 
 def stft_power(
@@ -1052,7 +1057,7 @@ def cwt_power(
     # compute_multi_res(activity, animal_id, target, epoch, date, i, step_slug, out_dir, scales, wavelet_f0)
 
     # coefs, coi, scales, freqs = compute_cwt_paper_sd(activity, scales)
-    coefs, coi, scales, freqs = compute_cwt_paper_hd(
+    coefs, coi, scales, freqs, wavelet_type, delta_t = compute_cwt_paper_hd(
         activity, scales, wavelet_f0, step_slug
     )
     coi = np.log(coi)
@@ -1101,13 +1106,14 @@ def cwt_power(
     if enable_coi:
         imag = mask_cwt(imag.copy(), coi)
         real = mask_cwt(real.copy(), coi)
-    cwt_raw = np.concatenate([real, imag])
+    #cwt_raw = np.concatenate([real, imag])
+    cwt_raw = real
     power_cwt = cwt_raw
     power_masked = cwt_raw
     if enable_coi:
         power_masked = mask_cwt(power_masked.copy(), coi)
 
-    return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales
+    return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales, wavelet_type, delta_t
 
 
 def parse_param(animals_id, dates, i, targets, step_slug):
@@ -1153,7 +1159,7 @@ def compute_cwt(
         animal_id, target, date, epoch = parse_param(
             animals_id, dates, i, targets, step_slug
         )
-        power, raw, freqs, coi, shape, scales = cwt_power(
+        power, raw, freqs, coi, shape, scales, wavelet_type, delta_t = cwt_power(
             hd,
             vmin,
             vmax,
@@ -1190,7 +1196,7 @@ def compute_cwt(
     std_scales = pd.DataFrame(np.array(std_scales))
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT.html", head=False)
     # plotHeatmap(cwt, out_dir=out_dir, title="CWT samples", force_xrange=True, filename="CWT_sub.html", head=True)
-    return std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales
+    return std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales, wavelet_type, delta_t
 
 
 def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
@@ -1204,7 +1210,7 @@ def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
         animal_id, target, date, epoch = parse_param(
             animals_id, dates, i, targets, step_slug
         )
-        dwt, shape, dwt_time, freqs, cc, cc_shape = dwt_power(
+        dwt, shape, dwt_time, freqs, cc, cc_shape, wavelet, mode = dwt_power(
             activity,
             animal_id,
             target,
@@ -1222,7 +1228,7 @@ def compute_dwt(X, animals_id, dates, step_slug, dwt_window, targets, out_dir,
     dwts = np.array(dwts)
     dwts_cc = np.array(dwts_cc)
 
-    return dwts, shape, dwts_cc, cc_shape
+    return dwts, shape, dwts_cc, cc_shape, wavelet, mode
 
 
 def compute_sfft(X, animals_id, dates, step_slug, sfft_window, targets, out_dir, enable_graph_out=False):
@@ -1271,7 +1277,9 @@ class CWT(TransformerMixin, BaseEstimator):
         vmax=None,
         enable_graph_out=None,
         sub_sample_scales=None,
-        enable_coi=True
+        enable_coi=True,
+        delta_t=None,
+        wavelet_type=None
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1310,7 +1318,7 @@ class CWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         # X = check_array(X, accept_sparse='csr')
-        std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales = compute_cwt(
+        std_scales, cwt, cwt_raw, freqs, coi, shape, coi_mask, scales, wavelet_type, delta_t = compute_cwt(
             self.hd,
             self.wavelet_f0,
             X,
@@ -1327,6 +1335,8 @@ class CWT(TransformerMixin, BaseEstimator):
             self.sub_sample_scales,
             self.enable_coi
         )
+        self.wavelet_type = wavelet_type
+        self.delta_t = delta_t
         self.freqs = freqs
         self.coi = coi
         self.shape = shape
@@ -1407,7 +1417,9 @@ class DWT(TransformerMixin, BaseEstimator):
         dates=None,
         dwt_window=None,
         targets=None,
-        enable_graph_out=False
+        enable_graph_out=False,
+        mode=None,
+        wavelet=None
     ):
         self.out_dir = out_dir
         self.copy = copy
@@ -1438,7 +1450,7 @@ class DWT(TransformerMixin, BaseEstimator):
     def transform(self, X, copy=None):
         # copy = copy if copy is not None else self.copy
         # X = check_array(X, accept_sparse='csr')
-        X, shape, X_cc, cc_shape = compute_dwt(
+        X, shape, X_cc, cc_shape, wavelet, mode = compute_dwt(
             X,
             self.animal_ids,
             self.dates,
@@ -1449,6 +1461,8 @@ class DWT(TransformerMixin, BaseEstimator):
             enable_graph_out=self.enable_graph_out
         )
         self.shape = cc_shape
+        self.mode = mode
+        self.wavelet= wavelet
         return X, X_cc
 
 

@@ -632,24 +632,55 @@ def cross_validate_cnn(
         ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
         ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
-    mean_auc = plot_roc_range(
-        ax_roc_merge,
-        ax_roc,
-        tprs_test,
-        mean_fpr_test,
-        aucs_roc_test,
-        tprs_train,
-        mean_fpr_train,
-        aucs_roc_train,
-        out_dir,
-        steps,
-        fig_roc,
-        fig_roc_merge,
-        cv_name,
-        days,
-        info=info,
-        tag=f"{clf_name}",
-    )
+    if cv_name == "LeaveOneOut":
+        all_y = []
+        all_probs = []
+        for item in fold_results:
+            all_y.extend(item['y_test'])
+            all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
+        all_y = np.array(all_y)
+        all_probs = np.array(all_probs)
+        fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+        roc_auc = auc(fpr, tpr)
+        ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
+        ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+        ax_roc_merge.set_xlim([-0.05, 1.05])
+        ax_roc_merge.set_ylim([-0.05, 1.05])
+        ax_roc_merge.set_xlabel('False Positive Rate')
+        ax_roc_merge.set_ylabel('True Positive Rate')
+        ax_roc_merge.set_title('Receiver operating characteristic example')
+        ax_roc_merge.legend(loc="lower right")
+        ax_roc_merge.grid()
+        fig_roc.tight_layout()
+        path = out_dir / "roc_curve" / cv_name
+        path.mkdir(parents=True, exist_ok=True)
+        tag = "cnn"
+        final_path = path / f"{tag}_roc_{steps}.png"
+        print(final_path)
+        fig_roc.savefig(final_path)
+
+        final_path = path / f"{tag}_roc_{steps}_merge.png"
+        print(final_path)
+        fig_roc_merge.savefig(final_path)
+    else:
+        mean_auc = plot_roc_range(
+            ax_roc_merge,
+            ax_roc,
+            tprs_test,
+            mean_fpr_test,
+            aucs_roc_test,
+            tprs_train,
+            mean_fpr_train,
+            aucs_roc_train,
+            out_dir,
+            steps,
+            fig_roc,
+            fig_roc_merge,
+            cv_name,
+            days,
+            info=info,
+            tag="cnn",
+        )
 
     scores[f"{clf_name}_results"] = fold_results
     scores_proba[f"{clf_name}_probas"] = fold_probas
