@@ -81,8 +81,8 @@ def main(
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
-    batch_size: int = 8,
-    epoch: int = 50,
+    batch_size: int = 64,
+    epoch: int = 10,
     individual_to_ignore: List[str] = [],
     save_model: bool = False
 ):

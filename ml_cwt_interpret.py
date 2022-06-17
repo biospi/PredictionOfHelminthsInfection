@@ -53,7 +53,7 @@ def main(
     transform: str = "cwt",
     enable_graph_out: bool = True,
     individual_to_ignore: List[str] = [],
-    sampling: str = "10T",
+    sampling: str = "T",
     p: bool = typer.Option(False, "--p"),
 ):
     """This script builds the graphs for cwt interpretation\n

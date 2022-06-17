@@ -59,8 +59,7 @@ def main(
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=False,
-                        pre_visu=False,
-                        epoch=30,
+                        pre_visu=False
                     )
 
                 # main_pipeline.main(
