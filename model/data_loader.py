@@ -1,9 +1,23 @@
+import datetime
 from collections import Counter
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+
+def resample(df_activity_window, sampling):
+    resampled = []
+    for i in range(df_activity_window.shape[0]):
+        row = df_activity_window.iloc[i, :]
+        mins = [datetime.datetime.today() + datetime.timedelta(minutes=1 * x) for x in range(0, len(row))]
+        row.index = mins
+        df_activity_window_ = row.resample(sampling).sum()
+        resampled.append(df_activity_window_)
+    df_ = pd.DataFrame(resampled)
+    df_.columns = list(range(df_.shape[1]))
+    return df_
 
 
 def load_activity_data(
@@ -62,8 +76,10 @@ def load_activity_data(
 
     if n_activity_days > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
-        assert sampling == "T", "activity sampling must be 1 min per bin!"
+        #assert sampling == "T", "activity sampling must be 1 min per bin!"
         df_activity_window = df_activity_window.iloc[:, -n_activity_days * 1440:]
+        if sampling != "T":
+            df_activity_window = resample(df_activity_window, sampling)
         df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
         #seasons = seasons[np.repeat(seasons.columns.values, df_activity_window.shape[1])]

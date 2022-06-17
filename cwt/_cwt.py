@@ -368,7 +368,7 @@ def plot_dwt_power(
 
     #pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
     pos = axs[1].imshow(dwt_scalogram, interpolation='nearest', aspect="auto",
-                        origin="lower", extent=[0, 1, len(dwt_scalogram), 0 ])
+                        origin="lower", extent=[0, 1, 0, len(dwt_scalogram)])
     # pos = axs[1].imshow(np.sqrt(p), extent=[0, p.shape[1], p.shape[0], 1])
     fig.colorbar(pos, ax=axs[1])
 
@@ -380,6 +380,8 @@ def plot_dwt_power(
         axs[1].set_xlabel("Time")
     axs[1].set_ylabel("levels")
     #axs[1].set_yscale('log')
+    freq_labels = [f"{x} ({pywt.scale2frequency('coif1', x)}Hz)" for x in list(range(1, dwt_scalogram.shape[0]+1))]
+    axs[1].set_yticklabels(freq_labels)
 
     if format_xaxis:
         n_x_ticks = axs[1].get_xticks().shape[0]
@@ -558,8 +560,8 @@ def plot_cwt_power(
 
     # pos = axs[1].imshow(np.log(power_masked), extent=[0, len(activity), len(scales), 1])
     p = power_masked.copy()
-    if "raw_after_qn" in str(out_dir):
-        p = np.sqrt(p)
+    # if "raw_after_qn" in str(out_dir):
+    #     p = np.sqrt(p)
     # if "anscombe" in step_slug.lower():
     #     p = anscombe(p)
     # if "log" in step_slug.lower():
@@ -570,13 +572,12 @@ def plot_cwt_power(
             extent=[0, p.shape[1], p.shape[0], 1],
             # vmin=vmin,
             # vmax=vmax,
-            interpolation="nearest",
-            norm=LogNorm(vmin=0.01, vmax=1)
+            interpolation="nearest"
         )
     else:
         # p = StandardScaler(with_mean=False, with_std=True).fit_transform(p)
         pos = axs[1].imshow(
-            p, extent=[0, p.shape[1], p.shape[0], 1], interpolation="nearest", norm=LogNorm(vmin=0.01, vmax=1)
+            p, extent=[0, p.shape[1], p.shape[0], 1], interpolation="nearest"
         )
 
     fig.colorbar(pos, ax=axs[1])
@@ -804,7 +805,11 @@ def compute_cwt_paper_hd(activity, scales, wavelet_f0, step_slug):
     coefs, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(
         activity, delta_t, wavelet=w, freqs=freqs
     )
-    wavelet_type = w.name
+    wavelet_type = w.name.lower()
+    # plt.clf()
+    # iwave_test = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
+    # plt.plot(iwave_test)
+    # plt.show()
     return coefs, coi, scales, freqs, wavelet_type, delta_t
 
 
@@ -1081,6 +1086,20 @@ def cwt_power(
     else:
         power_masked = power_cwt.copy()
 
+    # return coefs.copy().real, freqs, coi, power_masked.shape, scales
+    imag = coefs.copy().imag
+    real = coefs.copy().real
+    mag = abs(coefs.copy())
+    if enable_coi:
+        imag = mask_cwt(imag.copy(), coi)
+        real = mask_cwt(real.copy(), coi)
+    #cwt_raw = np.concatenate([real, imag])
+    cwt_raw = mag
+    power_cwt = cwt_raw
+    power_masked = cwt_raw
+    if enable_coi:
+        power_masked = mask_cwt(power_masked.copy(), coi)
+
     if enable_graph_out:
         plot_cwt_power(
             vmin,
@@ -1093,25 +1112,13 @@ def cwt_power(
             out_dir,
             i,
             activity,
-            power_masked.copy(),
+            cwt_raw.copy(),
             coi,
             scales,
             format_xaxis=format_xaxis,
             wavelet=None,
             log_yaxis=False,
         )
-    # return coefs.copy().real, freqs, coi, power_masked.shape, scales
-    imag = coefs.copy().imag
-    real = coefs.copy().real
-    if enable_coi:
-        imag = mask_cwt(imag.copy(), coi)
-        real = mask_cwt(real.copy(), coi)
-    #cwt_raw = np.concatenate([real, imag])
-    cwt_raw = real
-    power_cwt = cwt_raw
-    power_masked = cwt_raw
-    if enable_coi:
-        power_masked = mask_cwt(power_masked.copy(), coi)
 
     return power_cwt, cwt_raw, freqs, coi, power_masked.shape, scales, wavelet_type, delta_t
 

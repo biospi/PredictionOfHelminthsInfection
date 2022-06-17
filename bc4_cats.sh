@@ -1,7 +1,7 @@
 #!/bin/env bash
 
 
-#SBATCH --job-name=array_job_cats
+#SBATCH --job-name=cats
 #SBATCH --output=cat_job_out
 #SBATCH --error=cat_job_error
 #SBATCH --partition=hmem
