@@ -178,7 +178,7 @@ def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
     ax_fold.plot(history.history['accuracy'], label="accuracy")
     ax_fold.plot(history.history['loss'], label="loss")
     ##plt.plot(history.history['val_auc'])
-    ax_fold.set_title('model accuracy and loss for fold %d' % i)
+    ax_fold.set_title('Model training accuracy and loss for fold %d' % i)
     ax_fold.set_ylabel('value')
     ax_fold.set_xlabel('epoch')
     ax_fold.legend(loc='upper left')
