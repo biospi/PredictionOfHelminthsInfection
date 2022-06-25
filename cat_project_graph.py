@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import typer
+from sklearn.metrics import roc_curve, auc
 from tqdm import tqdm
 import matplotlib.cm as cm
 
@@ -29,6 +30,10 @@ def mean_confidence_interval(x):
     hi_x_boot = np.percentile(x, 97.5)
     # print(lo_x_boot, hi_x_boot)
     return lo_x_boot, hi_x_boot
+
+
+def local_run(input_dir=Path("E:/Cats/bluepebble5/ml_build_permutations"), out_dir=Path("E:/Cats/bluepebble5/ml_build_permutations")):
+    main(input_dir, out_dir)
 
 
 def main(
@@ -58,20 +63,33 @@ def main(
         n_samples = []
         for index, row in df.iterrows():
             res_file_path = row[df.shape[1]-1]
-            p_steps = row[df.shape[1]-3]
-            thresh = row[df.shape[1]-5]
+            p_steps = row[df.shape[1]-4]
+            thresh = row[df.shape[1]-5].split('__')[-2]
             t_v = thresh.replace("_", ".")
             thresh_float = float(t_v)
             results = json.load(open(res_file_path))
             clf_res = results[list(results.keys())[0]]
             aucs = []
+            all_y = []
+            all_probs = []
             for item in clf_res:
                 if "auc" not in item:
                     continue
-                auc = item["auc"]
-                aucs.append(auc)
-                training_shape = item["training_shape"][0]
-                testing_shape = item["testing_shape"][0]
+                #auc = item["auc"]
+                # aucs.append(auc)
+
+                all_y.extend(item['y_test'])
+                all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
+
+                training_shape = len(item['ids_train'])
+                testing_shape = len(item['ids_test'])
+
+            all_y = np.array(all_y)
+            all_probs = np.array(all_probs)
+            fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+            roc_auc = auc(fpr, tpr)
+            aucs.append(roc_auc)
+
             auc_list.append(aucs)
             median_auc = np.median(aucs)
             data_xaxis.append(thresh_float)
@@ -120,4 +138,5 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    local_run()
+    #typer.run(main)

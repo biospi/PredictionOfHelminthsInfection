@@ -17,7 +17,7 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["cnn"]:
+    for clf in ["cnn2d"]:
         for steps in [
             #["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],
@@ -26,41 +26,42 @@ def main(
             slug = "_".join(steps)
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
+            folders = ["1000__003__0_00100__120", "1000__002__0_00100__120", "1000__001__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
                 for cv in ["LeaveOneOut"]:
-                    main_pipeline.main(
-                        output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
-                        dataset_folder=Path(f"{dataset_parent}/{thresh}/dataset/training_sets/samples"),
-                        preprocessing_steps=steps,
-                        meta_columns=[
-                            "label",
-                            "id",
-                            "imputed_days",
-                            "date",
-                            "health",
-                            "target",
-                            "age",
-                            "name",
-                            "mobility_score",
-                        ],
-                        meta_col_str=[],
-                        individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-                        classifiers=[clf],
-                        n_imputed_days=-1,
-                        n_activity_days=-1,
-                        class_healthy_label=["0.0"],
-                        class_unhealthy_label=["1.0"],
-                        n_scales=8,
-                        n_splits=5,
-                        n_repeats=10,
-                        n_job=7,
-                        study_id="cat",
-                        cv=cv,
-                        output_qn_graph=False,
-                        pre_visu=False
-                    )
+                        main_pipeline.main(
+                            output_dir=Path(f"{out_parent}/{thresh}/{clf}/{slug}_{cv}"),
+                            dataset_folder=Path(f"{dataset_parent}/{thresh}/dataset/training_sets/samples"),
+                            preprocessing_steps=steps,
+                            meta_columns=[
+                                "label",
+                                "id",
+                                "imputed_days",
+                                "date",
+                                "health",
+                                "target",
+                                "age",
+                                "name",
+                                "mobility_score",
+                            ],
+                            meta_col_str=[],
+                            individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                            classifiers=[clf],
+                            n_imputed_days=-1,
+                            n_activity_days=-1,
+                            class_healthy_label=["0.0"],
+                            class_unhealthy_label=["1.0"],
+                            n_scales=8,
+                            n_splits=5,
+                            n_repeats=10,
+                            n_job=7,
+                            study_id="cat",
+                            cv=cv,
+                            output_qn_graph=False,
+                            pre_visu=False
+                        )
 
                 # main_pipeline.main(
                 #     output_dir=Path(

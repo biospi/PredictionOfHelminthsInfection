@@ -49,6 +49,7 @@ def apply_preprocessing_steps(
     output_qn_graph=False,
     sub_sample_scales=1,
 ):
+    time_freq_shape = None
     N_META = len(meta_columns)
     step_slug = "_".join(steps)
     step_slug = farm_name + "_" + step_slug
@@ -272,6 +273,7 @@ def apply_preprocessing_steps(
             data_frame_dwt.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_dwt, df_meta], axis=1)
+            time_freq_shape = DWT_Transform.shape
             del data_frame_dwt
         if "CWT" in step:
             df_meta = df.iloc[:, -N_META:]
@@ -290,6 +292,7 @@ def apply_preprocessing_steps(
             data_frame_cwt, _, std_scales = CWT_Transform.transform(
                 df.copy().iloc[:, :-N_META].values
             )
+            time_freq_shape = CWT_Transform.shape
             data_frame_cwt = pd.DataFrame(data_frame_cwt)
             # data_frame_cwt_raw = pd.DataFrame(data_frame_cwt_raw)
 
@@ -390,7 +393,7 @@ def apply_preprocessing_steps(
     df["target"] = targets
     df["health"] = health
     print(df)
-    return df, df_with_meta
+    return df, df_with_meta, time_freq_shape
 
 
 def main():

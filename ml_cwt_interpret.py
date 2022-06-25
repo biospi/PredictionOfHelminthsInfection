@@ -621,7 +621,7 @@ if __name__ == "__main__":
     # typer.run(main)
 
     for t in ["dwt", "cwt"]:
-        for j in [1, 2, 3, 4, 5, 6, 7]:
+        for j in [3, 4, 5, 6, 7]:
             main(
                 Path(f"E:/Data2/debug/{t}_explain_{j}"),
                 Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),

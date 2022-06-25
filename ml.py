@@ -81,7 +81,7 @@ def main(
     output_qn_graph: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
-    batch_size: int = 128,
+    batch_size: int = 64,
     epoch: int = 10,
     individual_to_ignore: List[str] = [],
     save_model: bool = False
@@ -179,7 +179,7 @@ def main(
             #                                           VISUALISATION                                                   #
             #############################################################################################################
             animal_ids = data_frame["id"].astype(str).tolist()
-            df_norm, _ = apply_preprocessing_steps(
+            df_norm, _, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
                 df_hum,
@@ -359,7 +359,7 @@ def main(
 
         df_processed_list = []
         for preprocessing_steps in steps_:
-            df_processed, df_processed_meta = apply_preprocessing_steps(
+            df_processed, df_processed_meta, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
                 df_hum,
@@ -451,7 +451,8 @@ def main(
             cv=cv,
             n_job=n_job,
             batch_size=batch_size,
-            epoch=epoch
+            epoch=epoch,
+            time_freq_shape=time_freq_shape
         )
 
         # 2DCNN

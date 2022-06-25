@@ -32,7 +32,8 @@ def load_activity_data(
     farm=None,
     meta_cols_str=None,
     sampling='T',
-    individual_to_ignore=[]
+    individual_to_ignore=[],
+    plot_samples_distribution=False
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -151,7 +152,7 @@ def load_activity_data(
         df = data_frame[data_frame["label"] == label]
         samples[label] = df
 
-    if n_activity_days is not None:
+    if plot_samples_distribution:
         plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
 
     class_count = {}

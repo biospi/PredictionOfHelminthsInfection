@@ -1,6 +1,8 @@
 import os
 import sys
-
+import time
+from multiprocessing import Manager, Pool
+from sklearn.metrics import auc
 import pywt
 #from wavelets.wave_python.waveletFunctions import *
 import itertools
@@ -16,17 +18,22 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
+import tensorflow as tf
 import keras
 from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import Sequential
 from keras.callbacks import History
-from sklearn.metrics import classification_report
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+from sklearn.metrics import plot_roc_curve
+from sklearn.metrics import balanced_accuracy_score
+from utils.visualisation import plot_roc_range, plot_pr_range
+from sklearn.metrics import roc_curve, classification_report
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import json
 
 # def plot_wavelet(time, signal, scales,
 #                  waveletname='cmor',
@@ -261,6 +268,46 @@ def load_df_from_datasets(fname, label_col='label'):
     return data_frame_original, data_frame
 
 
+def build_model(
+    n_classes,
+    input_shape
+):
+
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
+                     activation='relu', padding="same",
+                     input_shape=input_shape))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(10, 10)))
+    model.add(Conv2D(64, (5, 5), activation='relu', padding="same"))
+    model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model.add(Flatten())
+    model.add(Dense(1000, activation='relu'))
+    model.add(Dense(n_classes, activation='softmax'))
+
+    # METRICS = [
+    #     keras.metrics.TruePositives(name='tp'),
+    #     keras.metrics.FalsePositives(name='fp'),
+    #     keras.metrics.TrueNegatives(name='tn'),
+    #     keras.metrics.FalseNegatives(name='fn'),
+    #     keras.metrics.BinaryAccuracy(name='accuracy'),
+    #     keras.metrics.Precision(name='precision'),
+    #     keras.metrics.Recall(name='recall'),
+    #     keras.metrics.AUC(name='auc'),
+    # ]
+    # model.compile(loss=keras.losses.categorical_crossentropy,
+    #               optimizer=keras.optimizers.Adam(),
+    #               metrics=METRICS)
+
+    # model.fit(x_train, y_train,
+    #           batch_size=batch_size,
+    #           epochs=epochs,
+    #           verbose=1,
+    #           validation_data=(x_test, y_test),
+    #           callbacks=[history])
+    #
+    return model
+
+
 def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     uci_har_signals_train, uci_har_labels_train, uci_har_signals_test, uci_har_labels_test = load_ucihar_data(X_train_, X_test_, y_train_, y_test_ )
     # print(uci_har_labels_test)
@@ -324,8 +371,8 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     x_train = x_train.astype('float16')
     x_test = x_test.astype('float16')
 
-    y_train = keras.utils.to_categorical(y_train, num_classes)
-    y_test = keras.utils.to_categorical(y_test, num_classes)
+    y_train = keras.utils.np_utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.np_utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
@@ -349,7 +396,7 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
         keras.metrics.AUC(name='auc'),
     ]
     model.compile(loss=keras.losses.categorical_crossentropy,
-                  optimizer=keras.optimizers.Adam(),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   metrics=METRICS)
 
     model.fit(x_train, y_train,
@@ -382,6 +429,558 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     # y_test = np.argmax(y_test, axis=1)
     # print(classification_report(y_test, y_pred_bool))
 
+
+def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
+    y = list(map(lambda x: int(x) - 1, y))
+    data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1))
+    for ii, s in enumerate(samples):
+        matrix_2d = s.reshape(time_freq_shape).astype('float16')
+        # plt.imshow(
+        #     matrix_2d,
+        #     origin="lower",
+        #     aspect="auto",
+        #     interpolation="nearest",
+        #     extent=[0, matrix_2d.shape[1], 0, matrix_2d.shape[0]]
+        # )
+        # plt.show()
+        jj = 0
+        data[ii, :, :, jj] = matrix_2d
+
+    img_x = time_freq_shape[0]
+    img_y = time_freq_shape[1]
+    img_z = 1
+    input_shape = (img_x, img_y, img_z)
+
+    y = keras.utils.np_utils.to_categorical(y, num_classes)
+
+    return data, y, input_shape
+
+
+def fold_worker(
+    out_dir,
+    y_h,
+    ids,
+    meta,
+    meta_data_short,
+    sample_dates,
+    days,
+    steps,
+    tprs_test,
+    tprs_train,
+    aucs_roc_test,
+    aucs_roc_train,
+    fold_results,
+    fold_probas,
+    label_series,
+    mean_fpr_test,
+    mean_fpr_train,
+    clf_name,
+    X,
+    y,
+    train_index,
+    test_index,
+    axis_test,
+    axis_train,
+    ifold,
+    nfold,
+    epochs,
+    batch_size,
+    time_freq_shape=None
+):
+    print(f"process id={ifold}/{nfold}...")
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+    y_h_train, y_h_test = y_h[train_index], y_h[test_index]
+    ids_train, ids_test = ids[train_index], ids[test_index]
+
+    meta_train, meta_test = meta[train_index], meta[test_index]
+    meta_train_s, meta_test_s = (
+        meta_data_short[train_index],
+        meta_data_short[test_index],
+    )
+
+    sample_dates_train, sample_dates_test = (
+        sample_dates[train_index],
+        sample_dates[test_index],
+    )
+    class_healthy, class_unhealthy = 0, 1
+
+    # hold all extra label
+    fold_index = np.array(train_index.tolist() + test_index.tolist())
+    X_fold = X[fold_index]
+    y_fold = y[fold_index]
+    ids_fold = ids[fold_index]
+    sample_dates_fold = sample_dates[fold_index]
+    meta_fold = meta[fold_index]
+
+    # keep healthy and unhealthy only
+    X_train = X_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    y_train = y_h_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    meta_train = meta_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    meta_train_s = meta_train_s[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+
+    X_test = X_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+    y_test = y_h_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+
+    meta_test = meta_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+    meta_test_s = meta_test_s[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+    ids_test = ids_test[np.isin(y_h_test, [class_healthy, class_unhealthy])]
+    sample_dates_test = sample_dates_test[
+        np.isin(y_h_test, [class_healthy, class_unhealthy])
+    ]
+
+    ids_train = ids_train[np.isin(y_h_train, [class_healthy, class_unhealthy])]
+    sample_dates_train = sample_dates_train[
+        np.isin(y_h_train, [class_healthy, class_unhealthy])
+    ]
+
+    start_time = time.time()
+####################################################
+
+    num_classes = len(np.unique(y_train))
+
+    x_train, y_train, input_shape = format_samples_for2dcnn(X_train, y_train, time_freq_shape, num_classes)
+    x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
+    # x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype('float32')
+    # x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
+
+    # idx = np.random.permutation(len(x_train))
+    # x_train = x_train[idx]
+    # y_train = y_train[idx]
+
+    model = build_model(
+        num_classes,
+        input_shape
+    )
+    filepath = out_dir / 'cnn2d_model.png'
+    print(filepath)
+    keras.utils.vis_utils.plot_model(
+        model, to_file=filepath, show_shapes=False, show_dtype=False,
+        show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
+    )
+
+##############################################################
+
+    METRICS = [
+        keras.metrics.TruePositives(name='tp'),
+        keras.metrics.FalsePositives(name='fp'),
+        keras.metrics.TrueNegatives(name='tn'),
+        keras.metrics.FalseNegatives(name='fn'),
+        keras.metrics.BinaryAccuracy(name='accuracy'),
+        keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'),
+        keras.metrics.AUC(name='auc'),
+    ]
+    model.compile(loss=keras.losses.categorical_crossentropy,
+                  optimizer=tf.keras.optimizers.Adam(),
+                  metrics=[keras.metrics.BinaryAccuracy(name='accuracy')])
+
+    # model.compile(
+    #     loss="sparse_categorical_crossentropy",
+    #     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+    #     metrics=["sparse_categorical_accuracy"],
+    # )
+
+    model.summary()
+
+    model_dir = out_dir / "cnn2d_models"
+    print(model_dir)
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    callbacks = [
+        keras.callbacks.ModelCheckpoint(
+            model_dir / f"best_model_{ifold}.h5", save_best_only=True, monitor="val_loss"
+        ),
+        keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=20, min_lr=0.0001
+        ),
+        keras.callbacks.EarlyStopping(monitor="val_loss", patience=50, verbose=1),
+    ]
+
+    history = model.fit(
+        x_train,
+        y_train,
+        batch_size=batch_size,
+        epochs=epochs,
+        callbacks=callbacks,
+        validation_split=0.2,
+        verbose=1,
+    )
+
+    fit_time = time.time() - start_time
+
+    #plot_model_metrics(history, out_dir, ifold, dir_name="model_1dcnn")
+
+###############################################################
+    model = keras.models.load_model(out_dir / "cnn2d_models" / f"best_model_{ifold}.h5")
+
+    test_loss, test_acc = model.evaluate(x_test, y_test)
+
+    print("Test accuracy", test_acc)
+    print("Test loss", test_loss)
+
+    # test healthy/unhealthy
+    y_pred = model.predict(x_test)
+    y_pred_proba_test = y_pred
+    y_pred = (y_pred[:, 1] >= 0.5).astype(int)
+
+    y_test = y_test[:, 1]
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba_test[:, 1])
+    axis_test.append({"fpr": fpr, "tpr": tpr})
+
+    interp_tpr_test = np.interp(mean_fpr_test, fpr, tpr)
+    interp_tpr_test[0] = 0.0
+    tprs_test.append(interp_tpr_test)
+    auc_value_test = auc(fpr, tpr)
+    print("auc test=", auc_value_test)
+    aucs_roc_test.append(auc_value_test)
+
+    # viz_roc_train = plot_roc_curve(
+    #     clf,
+    #     X_train,
+    #     y_train,
+    #     label=None,
+    #     alpha=0.3,
+    #     lw=1,
+    #     ax=None,
+    #     c="tab:blue",
+    # )
+    # axis_train.append(viz_roc_train)
+
+    y_pred_train = model.predict(x_train)
+    y_pred_proba_train = y_pred_train
+    y_pred_train = (y_pred_train[:, 1] >= 0.5).astype(int)
+
+    y_train = y_train[:, 1]
+    fpr, tpr, _ = roc_curve(y_train, y_pred_proba_train[:, 1])
+    axis_train.append({"fpr": fpr, "tpr": tpr})
+
+    interp_tpr_train = np.interp(mean_fpr_train, fpr, tpr)
+    interp_tpr_train[0] = 0.0
+    tprs_train.append(interp_tpr_train)
+    auc_value_train = auc(fpr, tpr)
+    print("auc train=", auc_value_train)
+    aucs_roc_train.append(auc_value_train)
+
+    # if ifold == 0:
+    #     plot_high_dimension_db(
+    #         out_dir / "testing",
+    #         np.concatenate((X_train, X_test), axis=0),
+    #         np.concatenate((y_train, y_test), axis=0),
+    #         list(np.arange(len(X_train))),
+    #         np.concatenate((meta_train_s, meta_test_s), axis=0),
+    #         clf,
+    #         days,
+    #         steps,
+    #         ifold,
+    #     )
+    #     plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+
+    accuracy = balanced_accuracy_score(y_test, y_pred)
+    precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
+    # print(f"y_test={y_test}")
+    # print(f"y_pred={y_pred}")
+
+    if np.array_equal(y_test, y_pred):
+        print("perfect prediction!")
+        #precision_recall_fscore_support returns same value when prediction is perfect
+        precision = np.repeat(precision, 2)
+        recall = np.repeat(recall, 2)
+        fscore = np.repeat(fscore, 2)
+        support = np.repeat(support, 2)
+
+    print(f"precision={precision} recall={recall} fscore={fscore} support={support}")
+    correct_predictions_test = (y_test == y_pred).astype(int)
+    incorrect_predictions_test = (y_test != y_pred).astype(int)
+
+    # data for training
+    accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
+    (
+        precision_train,
+        recall_train,
+        fscore_train,
+        support_train,
+    ) = precision_recall_fscore_support(y_train, y_pred_train)
+
+    correct_predictions_train = (y_train == y_pred_train).astype(int)
+    incorrect_predictions_train = (y_train != y_pred_train).astype(int)
+
+    fold_result = {
+        "training_shape": X_train.shape,
+        "testing_shape": X_test.shape,
+        "target": int(class_unhealthy),
+        "auc": auc_value_test,
+        "accuracy": float(accuracy),
+        "accuracy_train": float(accuracy_train),
+        "class_healthy": int(class_healthy),
+        "class_unhealthy": int(class_unhealthy),
+        "y_test": y_test.tolist(),
+        "y_pred_proba_test": y_pred_proba_test.tolist(),
+        "y_pred_proba_train": y_pred_proba_train.tolist(),
+        "ids_test": ids_test.tolist(),
+        "ids_train": ids_train.tolist(),
+        "sample_dates_test": sample_dates_test.tolist(),
+        "sample_dates_train": sample_dates_train.tolist(),
+        "meta_test": meta_test.tolist(),
+        "meta_fold": meta_fold.tolist(),
+        "meta_train": meta_train.tolist(),
+        "correct_predictions_test": correct_predictions_test.tolist(),
+        "incorrect_predictions_test": incorrect_predictions_test.tolist(),
+        "correct_predictions_train": correct_predictions_train.tolist(),
+        "incorrect_predictions_train": incorrect_predictions_train.tolist(),
+        "test_precision_score_0": float(precision[0]),
+        "test_precision_score_1": float(precision[1]),
+        "test_recall_0": float(recall[0]),
+        "test_recall_1": float(recall[1]),
+        "test_fscore_0": float(fscore[0]),
+        "test_fscore_1": float(fscore[1]),
+        "test_support_0": float(support[0]),
+        "test_support_1": float(support[1]),
+        "train_precision_score_0": float(precision_train[0]),
+        "train_precision_score_1": float(precision_train[1]),
+        "train_recall_0": float(recall_train[0]),
+        "train_recall_1": float(recall_train[1]),
+        "train_fscore_0": float(fscore_train[0]),
+        "train_fscore_1": float(fscore_train[1]),
+        "train_support_0": float(support_train[0]),
+        "train_support_1": float(support_train[1]),
+        "fit_time": fit_time,
+    }
+    fold_results.append(fold_result)
+
+    # test individual labels and store probabilities to be healthy/unhealthy
+    print(f"process id={ifold}/{nfold} test individual labels...")
+    for y_f in np.unique(y_fold):
+        label = label_series[y_f]
+        X_test = X_fold[y_fold == y_f]
+        #x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
+        y_test = y_fold[y_fold == y_f]
+        x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
+        print(f"testing {label} X_test shape is {x_test.shape}...")
+        y_pred_proba_test = model.predict(x_test)
+        fold_proba = {
+            "test_y_pred_proba_0": y_pred_proba_test[:, 0].tolist(),
+            "test_y_pred_proba_1": y_pred_proba_test[:, 1].tolist(),
+        }
+        fold_probas[label].append(fold_proba)
+    print(f"process id={ifold}/{nfold} done!")
+
+
+
+def cross_validate_cnn2d(
+    svc_kernel,
+    out_dir,
+    steps,
+    cv_name,
+    days,
+    label_series,
+    cross_validation_method,
+    X,
+    y,
+    y_h,
+    ids,
+    meta,
+    meta_data_short,
+    sample_dates,
+    clf_name,
+    n_job,
+    epochs=30,
+    batch_size=32,
+    time_freq_shape=None
+):
+    """Cross validate X,y data and plot roc curve with range
+    Args:
+        out_dir: output directory to save figures to
+        steps: postprocessing steps
+        cv_name: name of cross validation method
+        days: count of activity days in sample
+        label_series: dict that holds famacha label/target
+        class_healthy: target integer of healthy class
+        class_unhealthy: target integer of unhealthy class
+        cross_validation_method: Cv object
+        X: samples
+        y: targets
+    """
+    scores, scores_proba = {}, {}
+    plt.clf()
+    fig_roc, ax_roc = plt.subplots(1, 2, figsize=(19.20, 6.20))
+    fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
+    mean_fpr_test = np.linspace(0, 1, 100)
+    mean_fpr_train = np.linspace(0, 1, 100)
+
+    with Manager() as manager:
+        # create result holders
+        tprs_test = manager.list()
+        tprs_train = manager.list()
+        axis_test = manager.list()
+        axis_train = manager.list()
+        aucs_roc_test = manager.list()
+        aucs_roc_train = manager.list()
+        fold_results = manager.list()
+        fold_probas = manager.dict()
+        for k in label_series.values():
+            fold_probas[k] = manager.list()
+
+        #pool = Pool(processes=n_job)
+        start = time.time()
+        for ifold, (train_index, test_index) in enumerate(
+            cross_validation_method.split(X, y)
+        ):
+            fold_worker(
+                out_dir,
+                y_h,
+                ids,
+                meta,
+                meta_data_short,
+                sample_dates,
+                days,
+                steps,
+                tprs_test,
+                tprs_train,
+                aucs_roc_test,
+                aucs_roc_train,
+                fold_results,
+                fold_probas,
+                label_series,
+                mean_fpr_test,
+                mean_fpr_train,
+                clf_name,
+                X,
+                y,
+                train_index,
+                test_index,
+                axis_test,
+                axis_train,
+                ifold,
+                cross_validation_method.get_n_splits(),
+                epochs,
+                batch_size,
+                time_freq_shape=time_freq_shape
+            )
+        #     pool.apply_async(
+        #         fold_worker,
+        #         (
+        #             out_dir,
+        #             y_h,
+        #             ids,
+        #             meta,
+        #             meta_data_short,
+        #             sample_dates,
+        #             days,
+        #             steps,
+        #             tprs_test,
+        #             tprs_train,
+        #             aucs_roc_test,
+        #             aucs_roc_train,
+        #             fold_results,
+        #             fold_probas,
+        #             label_series,
+        #             mean_fpr_test,
+        #             mean_fpr_train,
+        #             clf_name,
+        #             X,
+        #             y,
+        #             train_index,
+        #             test_index,
+        #             axis_test,
+        #             axis_train,
+        #             ifold,
+        #             cross_validation_method.get_n_splits(),
+        #             epochs,
+        #             batch_size
+        #         ),
+        #     )
+        # pool.close()
+        # pool.join()
+        end = time.time()
+        fold_results = list(fold_results)
+        axis_test = list(axis_test)
+        tprs_test = list(tprs_test)
+        aucs_roc_test = list(aucs_roc_test)
+        axis_train = list(axis_train)
+        tprs_train = list(tprs_train)
+        aucs_roc_train = list(aucs_roc_train)
+        fold_probas = dict(fold_probas)
+        fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
+        print("total time (s)= " + str(end - start))
+
+    info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
+    for a in axis_test:
+        xdata = a["fpr"]
+        ydata = a["tpr"]
+        ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+        ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+
+    for a in axis_train:
+        xdata = a["fpr"]
+        ydata = a["tpr"]
+        ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
+        ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
+
+    if cv_name == "LeaveOneOut":
+        all_y = []
+        all_probs = []
+        for item in fold_results:
+            all_y.extend(item['y_test'])
+            all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
+        all_y = np.array(all_y)
+        all_probs = np.array(all_probs)
+        fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+        roc_auc = auc(fpr, tpr)
+        ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
+        ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
+        ax_roc_merge.set_xlim([-0.05, 1.05])
+        ax_roc_merge.set_ylim([-0.05, 1.05])
+        ax_roc_merge.set_xlabel('False Positive Rate')
+        ax_roc_merge.set_ylabel('True Positive Rate')
+        ax_roc_merge.set_title('Receiver operating characteristic example')
+        ax_roc_merge.legend(loc="lower right")
+        ax_roc_merge.grid()
+        fig_roc.tight_layout()
+        path = out_dir / "roc_curve" / cv_name
+        path.mkdir(parents=True, exist_ok=True)
+        tag = "cnn"
+        final_path = path / f"{tag}_roc_{steps}.png"
+        print(final_path)
+        fig_roc.savefig(final_path)
+
+        final_path = path / f"{tag}_roc_{steps}_merge.png"
+        print(final_path)
+        fig_roc_merge.savefig(final_path)
+    else:
+        mean_auc = plot_roc_range(
+            ax_roc_merge,
+            ax_roc,
+            tprs_test,
+            mean_fpr_test,
+            aucs_roc_test,
+            tprs_train,
+            mean_fpr_train,
+            aucs_roc_train,
+            out_dir,
+            steps,
+            fig_roc,
+            fig_roc_merge,
+            cv_name,
+            days,
+            info=info,
+            tag="cnn",
+        )
+
+    scores[f"{clf_name}_results"] = fold_results
+    scores_proba[f"{clf_name}_probas"] = fold_probas
+
+    print("export results to json...")
+    filepath = out_dir / "results.json"
+    print(filepath)
+    with open(str(filepath), "w") as fp:
+        json.dump(scores, fp)
+    filepath = out_dir / "results_proba.json"
+    print(filepath)
+    with open(str(filepath), "w") as fp:
+        json.dump(scores_proba, fp)
+
+    return scores, scores_proba
 
 if __name__ == "__main__":
     # dataset = "http://paos.colorado.edu/research/wavelets/wave_idl/sst_nino3.dat"

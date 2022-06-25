@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 def main(
-    exp_main: bool = False,
-    exp_temporal: bool = False,
+    exp_main: bool = True,
+    exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis_debug_freq2/"),
+    output_dir: Path = Path("E:/thesis_debug_freq3/"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
     cedara_dir: Path = Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
 ):
@@ -27,9 +27,9 @@ def main(
             # ["LINEAR", "QN", "LOG", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
             ["QN", "ANSCOMBE", "LOG"],
-            ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
-            ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+            # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
@@ -56,6 +56,7 @@ def main(
                                 class_unhealthy_label=["2To2"],
                                 study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features,
+                                sampling="0.70T"
                             )
 
                             # main_experiment.main(

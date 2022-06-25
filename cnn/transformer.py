@@ -427,6 +427,8 @@ def fold_worker(
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
+        "training_shape": X_train.shape,
+        "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
         "auc": auc_value_test,
         "accuracy": float(accuracy),

@@ -26,6 +26,7 @@ from sklearn.model_selection import (
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
+from classifier.src.CNN import cross_validate_cnn2d
 from cnn.transformer import cross_validate_cnn
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils.visualisation import (
@@ -334,7 +335,8 @@ def process_ml(
     augment_training=0,
     n_job=6,
     epoch=30,
-    batch_size=8
+    batch_size=8,
+    time_freq_shape=None
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -470,6 +472,29 @@ def process_ml(
             n_job,
             epochs=epoch,
             batch_size=batch_size
+        )
+
+    if "cnn2d" in classifiers:
+        scores, scores_proba = cross_validate_cnn2d(
+            classifiers,
+            output_dir,
+            steps,
+            cv,
+            activity_days,
+            label_series,
+            cross_validation_method,
+            X,
+            y,
+            y_h,
+            ids,
+            meta_data,
+            meta_data_short,
+            sample_dates,
+            "CNN2D",
+            n_job,
+            epochs=epoch,
+            batch_size=batch_size,
+            time_freq_shape=time_freq_shape
         )
 
     # scores, scores_proba = cross_validate_custom(
