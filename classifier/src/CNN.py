@@ -30,6 +30,8 @@ from sklearn import preprocessing
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import balanced_accuracy_score
+
+from cnn.cnn import plot_model_metrics
 from utils.visualisation import plot_roc_range, plot_pr_range
 from sklearn.metrics import roc_curve, classification_report
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
@@ -609,7 +611,7 @@ def fold_worker(
 
     fit_time = time.time() - start_time
 
-    #plot_model_metrics(history, out_dir, ifold, dir_name="model_1dcnn")
+    plot_model_metrics(history, out_dir, ifold, dir_name="model_2dcnn")
 
 ###############################################################
     model = keras.models.load_model(out_dir / "cnn2d_models" / f"best_model_{ifold}.h5")

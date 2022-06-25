@@ -33,7 +33,7 @@ def load_activity_data(
     meta_cols_str=None,
     sampling='T',
     individual_to_ignore=[],
-    plot_samples_distribution=False
+    plot_s_distribution=True
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -152,7 +152,7 @@ def load_activity_data(
         df = data_frame[data_frame["label"] == label]
         samples[label] = df
 
-    if plot_samples_distribution:
+    if plot_s_distribution:
         plot_samples_distribution(out_dir, samples, f"distrib_all_samples_{farm}.png")
 
     class_count = {}
@@ -209,7 +209,7 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-def plot_samples_distribution(out_dir, samples_, filename):
+def plot_samples_distribution(out_dir, samples_, filename, grid_enabled=False):
     out_dir.mkdir(parents=True, exist_ok=True)
     sample_data = samples_.copy()
 
@@ -270,54 +270,55 @@ def plot_samples_distribution(out_dir, samples_, filename):
     # plt.savefig(filepath, bbox_inches='tight')
 
     # grid chart
-    max_famacha = (
-        np.array([[x[0], x[-1]] for x in sample_data.keys()])
-        .flatten()
-        .astype(int)
-        .max()
-    )
-    if max_famacha <= 1:
-        print(f"no famacha data. max_famacha={max_famacha}")
-        return
-    mat_label = np.zeros((max_famacha, max_famacha), dtype=object)
-    for i in range(mat_label.shape[0]):
-        for j in range(mat_label.shape[1]):
-            mat_label[i, j] = f"{i+1}To{j+1}"
-    mat_label = np.flip(mat_label, axis=0)
+    if grid_enabled:
+        max_famacha = (
+            np.array([[x[0], x[-1]] for x in sample_data.keys()])
+            .flatten()
+            .astype(int)
+            .max()
+        )
+        if max_famacha <= 1:
+            print(f"no famacha data. max_famacha={max_famacha}")
+            return
+        mat_label = np.zeros((max_famacha, max_famacha), dtype=object)
+        for i in range(mat_label.shape[0]):
+            for j in range(mat_label.shape[1]):
+                mat_label[i, j] = f"{i+1}To{j+1}"
+        mat_label = np.flip(mat_label, axis=0)
 
-    mat_value = np.zeros(mat_label.shape)
-    for i in range(mat_value.shape[0]):
-        for j in range(mat_value.shape[1]):
-            k = mat_label[i, j]
-            if k not in sample_data:
-                continue
-            mat_value[i, j] = len(sample_data[k])
+        mat_value = np.zeros(mat_label.shape)
+        for i in range(mat_value.shape[0]):
+            for j in range(mat_value.shape[1]):
+                k = mat_label[i, j]
+                if k not in sample_data:
+                    continue
+                mat_value[i, j] = len(sample_data[k])
 
-    yaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value) + 1)][::-1]
+        yaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value) + 1)][::-1]
 
-    xaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value) + 1)]
+        xaxis = [f"Famacha {x}" for x in np.arange(1, len(mat_value) + 1)]
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(mat_value)
-    cbar = ax.figure.colorbar(im, ax=ax)
-    cbar.ax.set_ylabel("Number of samples", rotation=-90, va="bottom")
+        fig, ax = plt.subplots()
+        im = ax.imshow(mat_value)
+        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel("Number of samples", rotation=-90, va="bottom")
 
-    # Show all ticks and label them with the respective list entries
-    ax.set_xticks(np.arange(len(xaxis)))
-    ax.set_yticks(np.arange(len(yaxis)))
-    ax.set_xticklabels(xaxis)
-    ax.set_yticklabels(yaxis)
+        # Show all ticks and label them with the respective list entries
+        ax.set_xticks(np.arange(len(xaxis)))
+        ax.set_yticks(np.arange(len(yaxis)))
+        ax.set_xticklabels(xaxis)
+        ax.set_yticklabels(yaxis)
 
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        # Rotate the tick labels and set their alignment.
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    # Loop over data dimensions and create text annotations.
-    for i in range(len(yaxis)):
-        for j in range(len(xaxis)):
-            text = ax.text(j, i, mat_label[i, j], ha="center", va="center", color="red")
+        # Loop over data dimensions and create text annotations.
+        for i in range(len(yaxis)):
+            for j in range(len(xaxis)):
+                text = ax.text(j, i, mat_label[i, j], ha="center", va="center", color="red")
 
-    ax.set_title(f"Famacha transition of samples across herd\n{info}")
-    fig.tight_layout()
-    filepath = str(out_dir / f"grid_{filename}")
-    print(filepath)
-    plt.savefig(filepath, bbox_inches="tight")
+        ax.set_title(f"Famacha transition of samples across herd\n{info}")
+        fig.tight_layout()
+        filepath = str(out_dir / f"grid_{filename}")
+        print(filepath)
+        plt.savefig(filepath, bbox_inches="tight")
