@@ -12,8 +12,9 @@
 
 # Load the modules/environment
 module purge
-module load lang/cuda/11.0
+
 module load lang/cuda/10.1.105
+module load lang/cuda/11.0
 module load lang/python/anaconda/3.7-2019.03-tensorflow
 conda init
 source ~/.bashrc

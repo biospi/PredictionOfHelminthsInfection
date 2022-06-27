@@ -554,12 +554,14 @@ def fold_worker(
         num_classes,
         input_shape
     )
-    filepath = out_dir / 'cnn2d_model.png'
-    print(filepath)
-    keras.utils.vis_utils.plot_model(
-        model, to_file=filepath, show_shapes=False, show_dtype=False,
-        show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
-    )
+
+    if os.name == 'nt': #plot_model requires to install graphviz on linux os but hpc wont let you use apt-get
+        filepath = out_dir / 'cnn2d_model.png'
+        print(filepath)
+        keras.utils.vis_utils.plot_model(
+            model, to_file=filepath, show_shapes=False, show_dtype=False,
+            show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
+        )
 
 ##############################################################
 
@@ -904,7 +906,12 @@ def cross_validate_cnn2d(
         aucs_roc_train = list(aucs_roc_train)
         fold_probas = dict(fold_probas)
         fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
-        print("total time (s)= " + str(end - start))
+        fit_test_time = "total time (s)= " + str(end - start)
+        print(fit_test_time)
+        time_file_path = out_dir / "fit_test_time.txt"
+        print(time_file_path)
+        with open(time_file_path, "w") as text_file:
+            text_file.write(fit_test_time)
 
     info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
     for a in axis_test:

@@ -82,7 +82,7 @@ def main(
     enable_downsample_df: bool = False,
     n_job: int = 7,
     batch_size: int = 64,
-    epoch: int = 10,
+    epoch: int = 100,
     individual_to_ignore: List[str] = [],
     save_model: bool = False
 ):
@@ -93,7 +93,7 @@ def main(
         preprocessing_steps: preprocessing steps.
         class_healthy_label: Label for healthy class.
         class_unhealthy_label: Label for unhealthy class.
-        meta_columns: List of names of the metadata columns in the dataset file.
+        meta_columns: List of names of the metadata columns in the dataset file.plo
         meta_col_str: List of meta data to display on decision boundary plot.
         n_imputed_days: number of imputed days allowed in a sample.
         n_activity_days: number of activity days in a sample.

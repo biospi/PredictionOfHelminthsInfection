@@ -955,7 +955,7 @@ def dwt_power(
             levels,
         )
     # dwt_data = np.hstack(coeffs)
-    dwt_data = np.hstack(cc)
+    dwt_data = np.hstack(cc).astype(np.float16)
     return dwt_data, dwt_data.shape, 1, dwt_data.shape[0], cc.real, cc.shape, wavelet, mode
 
 

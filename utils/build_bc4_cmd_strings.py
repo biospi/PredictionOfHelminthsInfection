@@ -133,7 +133,7 @@ def cats():
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            for cl in ["rbf", "cnn"]:
+            for cl in ["cnn2d"]:
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
@@ -158,8 +158,6 @@ def cats():
                         "mobility_score",
                     ],
                     steps_list=[
-                        ["QN", "STD"],
-                        ["QN", "ANSCOMBE"],
                         ["QN", "STD", "CENTER", "CWTMORL"],
                         ["QN", "STD", "CENTER", "DWT"],
                     ],
