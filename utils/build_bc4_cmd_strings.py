@@ -126,7 +126,7 @@ IDS = [
 
 def cats():
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_2dcnn"
 
     files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
     #files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
@@ -327,7 +327,6 @@ def goat_sheep():
                 class_unhealthy_label_list=["2To2", "1To2"],
                 study_id="delmas",
             )
-
 
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)

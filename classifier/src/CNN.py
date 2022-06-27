@@ -454,6 +454,7 @@ def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
     input_shape = (img_x, img_y, img_z)
 
     y = keras.utils.np_utils.to_categorical(y, num_classes)
+    data = data.astype(np.float16)
 
     return data, y, input_shape
 
