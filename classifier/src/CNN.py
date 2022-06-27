@@ -434,9 +434,9 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
 
 def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
     y = list(map(lambda x: int(x) - 1, y))
-    data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1))
+    data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1), dtype=np.float16)
     for ii, s in enumerate(samples):
-        matrix_2d = s.reshape(time_freq_shape).astype('float16')
+        matrix_2d = s.reshape(time_freq_shape).astype(np.float16)
         # plt.imshow(
         #     matrix_2d,
         #     origin="lower",
