@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 from multiprocessing import Manager, Pool
@@ -21,7 +23,8 @@ from pathlib import Path
 def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
     # summarize history for accuracy
     fig_fold, ax_fold = plt.subplots()
-    ax_fold.plot(history.history['auc'])
+    print(history.history.keys())
+    ax_fold.plot(history.history['accuracy'])
     ##plt.plot(history.history['val_auc'])
     ax_fold.set_title('model auc for fold %d' % i)
     ax_fold.set_ylabel('auc')
@@ -130,6 +133,7 @@ def build_model(
 
 
 def fold_worker(
+    info,
     out_dir,
     y_h,
     ids,
@@ -159,6 +163,8 @@ def fold_worker(
     epochs,
     batch_size,
 ):
+    X = X.astype(np.float16)
+    y = y.astype(int)
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
     y_train, y_test = y[train_index], y[test_index]
@@ -218,14 +224,14 @@ def fold_worker(
     # plt.show()
     # plt.close()
 
-    x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype('float32')
-    x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
+    x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype(np.float16)
+    x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype(np.float16)
 
     num_classes = len(np.unique(y_train))
 
-    idx = np.random.permutation(len(x_train))
-    x_train = x_train[idx]
-    y_train = y_train[idx]
+    # idx = np.random.permutation(len(x_train))
+    # x_train = x_train[idx]
+    # y_train = y_train[idx]
 
     input_shape = x_train.shape[1:]
     model = build_model(
@@ -239,11 +245,12 @@ def fold_worker(
         mlp_dropout=0.4,
         dropout=0.25,
     )
-    #
-    # keras.utils.plot_model(
-    #     model, to_file=out_dir / 'cnn_model.png', show_shapes=False, show_dtype=False,
-    #     show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
-    # )
+
+    if os.name == 'nt': #plot_model requires to install graphviz on linux os but hpc wont let you use apt-get
+        keras.utils.plot_model(
+            model, to_file=out_dir / 'transformer_model.png', show_shapes=False, show_dtype=False,
+            show_layer_names=True, rankdir='TB', expand_nested=False, dpi=96
+        )
 
 ##############################################################
     # METRICS = [
@@ -260,12 +267,12 @@ def fold_worker(
     model.compile(
         loss="sparse_categorical_crossentropy",
         optimizer=keras.optimizers.Adam(learning_rate=1e-4),
-        metrics=["sparse_categorical_accuracy"],
+        metrics=["accuracy"],
     )
 
     model.summary()
 
-    model_dir = out_dir / "cnn_models"
+    model_dir = out_dir / "transformer_models"
     print(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -291,10 +298,10 @@ def fold_worker(
 
     fit_time = time.time() - start_time
 
-    #plot_model_metrics(history, out_dir, ifold, dir_name="model_1dcnn")
+    plot_model_metrics(history, out_dir, ifold, dir_name="model_transformer")
 
 ###############################################################
-    model = keras.models.load_model(out_dir / "cnn_models" / f"best_model_{ifold}.h5")
+    model = keras.models.load_model(model_dir / f"best_model_{ifold}.h5")
 
     test_loss, test_acc = model.evaluate(x_test, y_test)
 
@@ -427,6 +434,8 @@ def fold_worker(
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
+        "i_fold": ifold,
+        "info": info,
         "training_shape": X_train.shape,
         "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
@@ -467,6 +476,14 @@ def fold_worker(
         "train_support_1": float(support_train[1]),
         "fit_time": fit_time,
     }
+    print("export result to json...")
+    out = out_dir / "fold_data"
+    out.mkdir(parents=True, exist_ok=True)
+    filepath = out / f"{ifold}_result.json"
+    print(filepath)
+    with open(str(filepath), "w") as fp:
+        json.dump(fold_result, fp)
+
     fold_results.append(fold_result)
 
     # test individual labels and store probabilities to be healthy/unhealthy
@@ -486,7 +503,7 @@ def fold_worker(
     print(f"process id={ifold}/{nfold} done!")
 
 
-def cross_validate_cnn(
+def cross_validate_transformer(
     svc_kernel,
     out_dir,
     steps,
@@ -541,10 +558,11 @@ def cross_validate_cnn(
 
         #pool = Pool(processes=n_job)
         start = time.time()
-        for ifold, (train_index, test_index) in enumerate(
-            cross_validation_method.split(X, y)
+        for ifold, (train_index, test_index) in enumerate(cross_validation_method.split(X, y)
         ):
+            info = cross_validation_method.get_fold_info(ifold)
             fold_worker(
+                info,
                 out_dir,
                 y_h,
                 ids,
@@ -656,7 +674,7 @@ def cross_validate_cnn(
         fig_roc.tight_layout()
         path = out_dir / "roc_curve" / cv_name
         path.mkdir(parents=True, exist_ok=True)
-        tag = "cnn"
+        tag = "transformer"
         final_path = path / f"{tag}_roc_{steps}.png"
         print(final_path)
         fig_roc.savefig(final_path)
@@ -681,7 +699,7 @@ def cross_validate_cnn(
             cv_name,
             days,
             info=info,
-            tag="cnn",
+            tag="transformer",
         )
 
     scores[f"{clf_name}_results"] = fold_results

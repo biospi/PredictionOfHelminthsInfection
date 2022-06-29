@@ -17,16 +17,18 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["cnn2d"]:
+    for clf in ["transformer", "rbf"]:
         for steps in [
-            #["QN", "STD"],
+            ["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],
-            ["QN", "STD", "CENTER", "DWT"]
+            #["QN", "STD", "CENTER", "DWT"]
         ]:
             slug = "_".join(steps)
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
-            folders = ["5000__004__0_00100__120", "1000__002__0_00100__120", "1000__003__0_00100__120"]
+            print(folders)
+            #folders = ["1000__002__0_00100__120", "5000__004__0_00100__120", "1000__003__0_00100__120"]
+            folders = ["800__001__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")

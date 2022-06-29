@@ -270,11 +270,10 @@ def load_df_from_datasets(fname, label_col='label'):
     return data_frame_original, data_frame
 
 
-def build_model(
+def build_2dcnn_model(
     n_classes,
     input_shape
 ):
-
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(5, 5), strides=(5, 5),
                      activation='relu', padding="same",
@@ -285,28 +284,23 @@ def build_model(
     model.add(Flatten())
     model.add(Dense(1000, activation='relu'))
     model.add(Dense(n_classes, activation='softmax'))
+    return model
 
-    # METRICS = [
-    #     keras.metrics.TruePositives(name='tp'),
-    #     keras.metrics.FalsePositives(name='fp'),
-    #     keras.metrics.TrueNegatives(name='tn'),
-    #     keras.metrics.FalseNegatives(name='fn'),
-    #     keras.metrics.BinaryAccuracy(name='accuracy'),
-    #     keras.metrics.Precision(name='precision'),
-    #     keras.metrics.Recall(name='recall'),
-    #     keras.metrics.AUC(name='auc'),
-    # ]
-    # model.compile(loss=keras.losses.categorical_crossentropy,
-    #               optimizer=keras.optimizers.Adam(),
-    #               metrics=METRICS)
 
-    # model.fit(x_train, y_train,
-    #           batch_size=batch_size,
-    #           epochs=epochs,
-    #           verbose=1,
-    #           validation_data=(x_test, y_test),
-    #           callbacks=[history])
-    #
+def build_1dcnn_model(nb_classes, input_shape):
+    padding = 'valid'
+    input_layer = keras.layers.Input(input_shape)
+    conv1 = keras.layers.Conv1D(filters=6,kernel_size=7,padding=padding,activation='sigmoid')(input_layer)
+    conv1 = keras.layers.AveragePooling1D(pool_size=3)(conv1)
+
+    conv2 = keras.layers.Conv1D(filters=12,kernel_size=7,padding=padding,activation='sigmoid')(conv1)
+    conv2 = keras.layers.AveragePooling1D(pool_size=3)(conv2)
+
+    flatten_layer = keras.layers.Flatten()(conv2)
+
+    output_layer = keras.layers.Dense(units=nb_classes,activation='sigmoid')(flatten_layer)
+
+    model = keras.models.Model(inputs=input_layer, outputs=output_layer)
     return model
 
 
@@ -461,6 +455,7 @@ def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
 
 
 def fold_worker(
+    info,
     out_dir,
     y_h,
     ids,
@@ -489,7 +484,8 @@ def fold_worker(
     nfold,
     epochs,
     batch_size,
-    time_freq_shape=None
+    time_freq_shape=None,
+    cnnd=2
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -543,22 +539,22 @@ def fold_worker(
 
     num_classes = len(np.unique(y_train))
 
-    x_train, y_train, input_shape = format_samples_for2dcnn(X_train, y_train, time_freq_shape, num_classes)
-    x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
-    # x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype('float32')
-    # x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
+    if cnnd == 1:
+        model = build_1dcnn_model(
+            num_classes,
+            X_train.shape
+        )
 
-    # idx = np.random.permutation(len(x_train))
-    # x_train = x_train[idx]
-    # y_train = y_train[idx]
-
-    model = build_model(
-        num_classes,
-        input_shape
-    )
+    if cnnd == 2:
+        x_train, y_train, input_shape = format_samples_for2dcnn(X_train, y_train, time_freq_shape, num_classes)
+        x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
+        model = build_2dcnn_model(
+            num_classes,
+            input_shape
+        )
 
     if os.name == 'nt': #plot_model requires to install graphviz on linux os but hpc wont let you use apt-get
-        filepath = out_dir / 'cnn2d_model.png'
+        filepath = out_dir / f'cnn{cnnd}d_model.png'
         print(filepath)
         keras.utils.vis_utils.plot_model(
             model, to_file=filepath, show_shapes=False, show_dtype=False,
@@ -567,29 +563,22 @@ def fold_worker(
 
 ##############################################################
 
-    METRICS = [
-        keras.metrics.TruePositives(name='tp'),
-        keras.metrics.FalsePositives(name='fp'),
-        keras.metrics.TrueNegatives(name='tn'),
-        keras.metrics.FalseNegatives(name='fn'),
-        keras.metrics.BinaryAccuracy(name='accuracy'),
-        keras.metrics.Precision(name='precision'),
-        keras.metrics.Recall(name='recall'),
-        keras.metrics.AUC(name='auc'),
-    ]
+    # METRICS = [
+    #     keras.metrics.TruePositives(name='tp'),
+    #     keras.metrics.FalsePositives(name='fp'),
+    #     keras.metrics.TrueNegatives(name='tn'),
+    #     keras.metrics.FalseNegatives(name='fn'),
+    #     keras.metrics.BinaryAccuracy(name='accuracy'),
+    #     keras.metrics.Precision(name='precision'),
+    #     keras.metrics.Recall(name='recall'),
+    #     keras.metrics.AUC(name='auc'),
+    # ]
     model.compile(loss=keras.losses.categorical_crossentropy,
                   optimizer=tf.keras.optimizers.Adam(),
                   metrics=[keras.metrics.BinaryAccuracy(name='accuracy')])
-
-    # model.compile(
-    #     loss="sparse_categorical_crossentropy",
-    #     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-    #     metrics=["sparse_categorical_accuracy"],
-    # )
-
     model.summary()
 
-    model_dir = out_dir / "cnn2d_models"
+    model_dir = out_dir / f"cnn{cnnd}d_models"
     print(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -615,10 +604,10 @@ def fold_worker(
 
     fit_time = time.time() - start_time
 
-    plot_model_metrics(history, out_dir, ifold, dir_name="model_2dcnn")
+    plot_model_metrics(history, out_dir, ifold, dir_name=f"model_{cnnd}dcnn")
 
 ###############################################################
-    model = keras.models.load_model(out_dir / "cnn2d_models" / f"best_model_{ifold}.h5")
+    model = keras.models.load_model(out_dir / f"cnn{cnnd}d_models" / f"best_model_{ifold}.h5")
 
     test_loss, test_acc = model.evaluate(x_test, y_test)
 
@@ -652,7 +641,7 @@ def fold_worker(
     #     c="tab:blue",
     # )
     # axis_train.append(viz_roc_train)
-
+    x_train = x_train.astype(np.float16)
     y_pred_train = model.predict(x_train)
     y_pred_proba_train = y_pred_train
     y_pred_train = (y_pred_train[:, 1] >= 0.5).astype(int)
@@ -712,6 +701,8 @@ def fold_worker(
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
+        "i_fold": ifold,
+        "info": info,
         "training_shape": X_train.shape,
         "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
@@ -792,7 +783,8 @@ def cross_validate_cnn2d(
     n_job,
     epochs=30,
     batch_size=32,
-    time_freq_shape=None
+    time_freq_shape=None,
+    cnnd=2
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -832,7 +824,9 @@ def cross_validate_cnn2d(
         for ifold, (train_index, test_index) in enumerate(
             cross_validation_method.split(X, y)
         ):
+            info = cross_validation_method.get_fold_info(ifold)
             fold_worker(
+                info,
                 out_dir,
                 y_h,
                 ids,
@@ -861,7 +855,8 @@ def cross_validate_cnn2d(
                 cross_validation_method.get_n_splits(),
                 epochs,
                 batch_size,
-                time_freq_shape=time_freq_shape
+                time_freq_shape=time_freq_shape,
+                cnnd=cnnd
             )
         #     pool.apply_async(
         #         fold_worker,
@@ -950,7 +945,7 @@ def cross_validate_cnn2d(
         fig_roc.tight_layout()
         path = out_dir / "roc_curve" / cv_name
         path.mkdir(parents=True, exist_ok=True)
-        tag = "cnn"
+        tag = "cnn2d"
         final_path = path / f"{tag}_roc_{steps}.png"
         print(final_path)
         fig_roc.savefig(final_path)
@@ -975,7 +970,7 @@ def cross_validate_cnn2d(
             cv_name,
             days,
             info=info,
-            tag="cnn",
+            tag="cnn2d",
         )
 
     scores[f"{clf_name}_results"] = fold_results
@@ -992,6 +987,7 @@ def cross_validate_cnn2d(
         json.dump(scores_proba, fp)
 
     return scores, scores_proba
+
 
 if __name__ == "__main__":
     # dataset = "http://paos.colorado.edu/research/wavelets/wave_idl/sst_nino3.dat"

@@ -28,33 +28,34 @@ def datetime_range(start, end, delta):
 
 
 def main(
-    output_dir: Path = typer.Option(
-        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
-    ),
-    dataset_folder: Path = typer.Option(
-        ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
-    ),
-    class_healthy_label: List[str] = ["1To1"],
-    class_unhealthy_label: List[str] = ["2To2"],
-    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "CENTER"],
-    n_activity_days: int = 7,
-    n_imputed_days: int = 7,
-    meta_columns: List[str] = [
-        "label",
-        "id",
-        "imputed_days",
-        "date",
-        "health",
-        "target",
-    ],
-    meta_col_str: List[str] = ["health", "label", "date"],
-    roll_avg: int = 30,
-    prct: int = 90,
-    transform: str = "cwt",
-    enable_graph_out: bool = True,
-    individual_to_ignore: List[str] = [],
-    sampling: str = "T",
-    p: bool = typer.Option(False, "--p"),
+        output_dir: Path = typer.Option(
+            ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+        ),
+        dataset_folder: Path = typer.Option(
+            ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
+        ),
+        class_healthy_label: List[str] = ["1To1"],
+        class_unhealthy_label: List[str] = ["2To2"],
+        preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "CENTER"],
+        n_activity_days: int = 7,
+        n_imputed_days: int = 7,
+        meta_columns: List[str] = [
+            "label",
+            "id",
+            "imputed_days",
+            "date",
+            "health",
+            "target",
+        ],
+        meta_col_str: List[str] = ["health", "label", "date"],
+        roll_avg: int = 30,
+        prct: int = 90,
+        transform: str = "cwt",
+        enable_graph_out: bool = True,
+        individual_to_ignore: List[str] = [],
+        sampling: str = "T",
+        resolution: float = None,
+        p: bool = typer.Option(False, "--p"),
 ):
     """This script builds the graphs for cwt interpretation\n
     Args:\n
@@ -92,12 +93,13 @@ def main(
             preprocessing_steps=preprocessing_steps,
             meta_cols_str=meta_col_str,
             individual_to_ignore=individual_to_ignore,
-            sampling=sampling
+            sampling=sampling,
+            resolution=resolution
         )
 
         print(data_frame)
 
-        data_frame_time, _ = apply_preprocessing_steps(
+        data_frame_time, _, _ = apply_preprocessing_steps(
             meta_columns,
             None,
             None,
@@ -123,11 +125,11 @@ def main(
         data_frame_time = data_frame_time.loc[data_frame_time["health"].isin([0, 1])]
         if n_activity_days > 0:
             X_train, y_train = (
-                data_frame_time.iloc[:, -1440 * n_activity_days : -2].values,
+                data_frame_time.iloc[:, : -2].values,
                 data_frame_time["health"].values,
             )
         else:
-            #for cats peak samples
+            # for cats peak samples
             X_train, y_train = (
                 data_frame_time.iloc[:, :-2].values,
                 data_frame_time["health"].values,
@@ -171,10 +173,11 @@ def main(
         filepath = output_dir / filename
         print(filepath)
 
+        T = 60*12
         ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
-        ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         fig.autofmt_xdate()
         fig.savefig(filepath)
 
@@ -207,7 +210,7 @@ def main(
         imp_top_n_perct = imp.copy()
         imp_top_n_perct[
             imp_top_n_perct <= np.percentile(imp_top_n_perct, prct)
-        ] = np.nan
+            ] = np.nan
 
         mean_cwt = np.mean(X_train, axis=0)
 
@@ -346,7 +349,7 @@ def main(
         if n_activity_days < 0:
             date_format = "00:%H"
         axs[0].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[0].set_title(f"Element wise mean of {transform} coefficients healthy")
         axs[0].set_xlabel("Time")
         axs[0].set_ylabel("Scales")
@@ -362,7 +365,7 @@ def main(
         )
         fig.colorbar(im, ax=axs[1])
         axs[1].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[1].set_title(f"Element wise mean of {transform} coefficients unhealthy")
         axs[1].set_xlabel("Time")
         axs[1].set_ylabel("Scales")
@@ -380,7 +383,7 @@ def main(
         )
         fig.colorbar(im, ax=axs[2])
         axs[2].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[2].set_title(f"{transform} Features importance {type(clf).__name__}")
         axs[2].set_xlabel("Time")
         axs[2].set_ylabel("Scales")
@@ -396,17 +399,17 @@ def main(
         )
         fig.colorbar(im, ax=axs[3])
         axs[3].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[3].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[3].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[3].set_title(
             f"{transform} Features importance top 10% {type(clf).__name__} days={n_activity_days}"
         )
         axs[3].set_xlabel("Time")
         axs[3].set_ylabel("Scales")
 
-        mat_max = max([np.nanmax(cwt_imp*coefs_class0_mean), np.nanmax(cwt_imp*coefs_class1_mean)])
-        mat_min = min([np.nanmin(cwt_imp*coefs_class0_mean), np.nanmin(cwt_imp*coefs_class1_mean)])
+        mat_max = max([np.nanmax(cwt_imp * coefs_class0_mean), np.nanmax(cwt_imp * coefs_class1_mean)])
+        mat_min = min([np.nanmin(cwt_imp * coefs_class0_mean), np.nanmin(cwt_imp * coefs_class1_mean)])
         im = axs[4].imshow(
-            cwt_imp*coefs_class0_mean,
+            cwt_imp * coefs_class0_mean,
             origin=origin,
             extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
@@ -416,7 +419,7 @@ def main(
         )
         fig.colorbar(im, ax=axs[4])
         axs[4].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[4].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[4].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[4].set_title(
             f"{transform} Features importance multipied by coef of healthy class days={n_activity_days}"
         )
@@ -424,7 +427,7 @@ def main(
         axs[4].set_ylabel("Scales")
 
         im = axs[5].imshow(
-            cwt_imp*coefs_class1_mean,
+            cwt_imp * coefs_class1_mean,
             origin=origin,
             extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
@@ -434,7 +437,7 @@ def main(
         )
         fig.colorbar(im, ax=axs[5])
         axs[5].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        axs[5].xaxis.set_major_locator(mdates.MinuteLocator(interval=60*n_activity_days))
+        axs[5].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[5].set_title(
             f"{transform} Features importance multipied by coef of unhealthy class days={n_activity_days}"
         )
@@ -452,8 +455,8 @@ def main(
 
             axs[6].plot(iwave_h)
             fig.colorbar(im, ax=axs[6])
-            # axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-            # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[6].set_title(
                 f"{transform} Inverse of coefs of healthy d={n_activity_days}"
             )
@@ -463,8 +466,8 @@ def main(
 
             axs[7].plot(iwave_uh)
             fig.colorbar(im, ax=axs[7])
-            # axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-            # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[7].set_title(
                 f"{transform} Inverse of coefs of healthy d={n_activity_days}"
             )
@@ -472,15 +475,17 @@ def main(
             axs[7].set_ylabel("Activity")
             axs[7].set_ylim([ymin, ymax])
 
-            iwave_h = wavelet.icwt(cwt_imp*coefs_class0_mean, f_transform.scales, f_transform.delta_t, wavelet=f_transform.wavelet_type.lower()).real
-            iwave_uh = wavelet.icwt(cwt_imp*coefs_class1_mean, f_transform.scales, f_transform.delta_t, wavelet=f_transform.wavelet_type.lower()).real
+            iwave_h = wavelet.icwt(cwt_imp * coefs_class0_mean, f_transform.scales, f_transform.delta_t,
+                                   wavelet=f_transform.wavelet_type.lower()).real
+            iwave_uh = wavelet.icwt(cwt_imp * coefs_class1_mean, f_transform.scales, f_transform.delta_t,
+                                    wavelet=f_transform.wavelet_type.lower()).real
             ymin = min([iwave_h.min(), iwave_uh.min()])
             ymax = max([iwave_h.max(), iwave_uh.max()])
 
             axs[8].plot(iwave_h)
             fig.colorbar(im, ax=axs[8])
-            # axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-            # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[8].set_title(
                 f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
             )
@@ -490,8 +495,8 @@ def main(
 
             axs[9].plot(iwave_uh)
             fig.colorbar(im, ax=axs[9])
-            # axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-            # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+            axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+            axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[9].set_title(
                 f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
             )
@@ -509,7 +514,7 @@ def main(
         #     axs[6].plot(iwave_h)
         #     fig.colorbar(im, ax=axs[6])
         #     # axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        #     # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+        #     # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[6].set_title(
         #         f"{transform} Inverse of coefs of healthy d={n_activity_days}"
         #     )
@@ -520,7 +525,7 @@ def main(
         #     axs[7].plot(iwave_uh)
         #     fig.colorbar(im, ax=axs[7])
         #     # axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        #     # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+        #     # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[7].set_title(
         #         f"{transform} Inverse of coefs of healthy d={n_activity_days}"
         #     )
@@ -535,7 +540,7 @@ def main(
         #     im = axs[8].plot(iwave_h)
         #     fig.colorbar(im, ax=axs[8])
         #     # axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        #     # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+        #     # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[8].set_title(
         #         f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
         #     )
@@ -546,7 +551,7 @@ def main(
         #     axs[9].plot(iwave_uh)
         #     fig.colorbar(im, ax=axs[9])
         #     # axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
-        #     # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=60 * n_activity_days))
+        #     # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[9].set_title(
         #         f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
         #     )
@@ -620,14 +625,26 @@ def main(
 if __name__ == "__main__":
     # typer.run(main)
 
-    for t in ["dwt", "cwt"]:
+    for t in ["cwt"]:
         for j in [3, 4, 5, 6, 7]:
             main(
-                Path(f"E:/Data2/debug/{t}_explain_{j}"),
+                Path(f"E:/Data2/debug/{t}_explain_{j}/with_resampling"),
                 Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
                 p=False,
                 n_activity_days=j,
                 transform=t,
+                resolution=0.7,
+                enable_graph_out=True
+            )
+
+            main(
+                Path(f"E:/Data2/debug/{t}_explain_{j}/without_resampling"),
+                Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                p=False,
+                n_activity_days=j,
+                transform=t,
+                resolution=None,
+                enable_graph_out=True
             )
 
         # main(
@@ -679,5 +696,3 @@ if __name__ == "__main__":
         #     class_healthy_label=["0.0"],
         #     class_unhealthy_label=["1.0"],
         # )
-
-

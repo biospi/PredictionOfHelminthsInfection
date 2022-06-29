@@ -27,7 +27,7 @@ from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
 from classifier.src.CNN import cross_validate_cnn2d
-from cnn.transformer import cross_validate_cnn
+from cnn.transformer import cross_validate_transformer
 from utils._custom_split import StratifiedLeaveTwoOut
 from utils.visualisation import (
     plot_roc_range,
@@ -385,6 +385,7 @@ def process_ml(
         )
 
     if cv == "RepeatedKFoldMRNN":
+        #todo fix
         from utils._custom_split import RepeatedKFoldCustom
 
         cross_validation_method = RepeatedKFoldCustom(
@@ -431,7 +432,7 @@ def process_ml(
     print("X-> class0=" + class0_count + " class1=" + class1_count)
 
     if "linear" in classifiers or "rbf" in classifiers:
-        scores, scores_proba = cross_validate_custom_fast(
+        scores, scores_proba = cross_validate_svm_fast(
             save_model,
             classifiers,
             output_dir,
@@ -452,8 +453,8 @@ def process_ml(
             n_job,
         )
 
-    if "cnn" in classifiers:
-        scores, scores_proba = cross_validate_cnn(
+    if "transformer" in classifiers:
+        scores, scores_proba = cross_validate_transformer(
             classifiers,
             output_dir,
             steps,
@@ -468,10 +469,34 @@ def process_ml(
             meta_data,
             meta_data_short,
             sample_dates,
-            "CNN",
+            "TRF",
             n_job,
             epochs=epoch,
             batch_size=batch_size
+        )
+
+    if "cnn1d" in classifiers:
+        scores, scores_proba = cross_validate_cnn2d(
+            classifiers,
+            output_dir,
+            steps,
+            cv,
+            activity_days,
+            label_series,
+            cross_validation_method,
+            X,
+            y,
+            y_h,
+            ids,
+            meta_data,
+            meta_data_short,
+            sample_dates,
+            "CNN1D",
+            n_job,
+            epochs=epoch,
+            batch_size=batch_size,
+            time_freq_shape=time_freq_shape,
+            cnnd=1
         )
 
     if "cnn2d" in classifiers:
@@ -604,6 +629,7 @@ def augment_(X_train, y_train, n, sample_dates_train, ids_train, meta_train):
 
 
 def fold_worker(
+    info,
     cv_name,
     save_model,
     out_dir,
@@ -791,6 +817,8 @@ def fold_worker(
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
     fold_result = {
+        "i_fold": ifold,
+        "info": info,
         "training_shape": X_train.shape,
         "testing_shape": X_test.shape,
         "target": int(class_unhealthy),
@@ -833,6 +861,12 @@ def fold_worker(
         "train_support_1": float(support_train[1]),
         "fit_time": fit_time,
     }
+    print("export result to json...")
+    filepath = out_dir / "fold_data" / f"{ifold}_result.json"
+    filepath.mkdir(parents=True, exist_ok=True)
+    print(filepath)
+    with open(str(filepath), "w") as fp:
+        json.dump(fold_result, fp)
     fold_results.append(fold_result)
 
     # test individual labels and store probabilities to be healthy/unhealthy
@@ -850,7 +884,7 @@ def fold_worker(
     print(f"process id={ifold}/{nfold} done!")
 
 
-def cross_validate_custom_fast(
+def cross_validate_svm_fast(
     save_model,
     svc_kernel,
     out_dir,
@@ -938,9 +972,11 @@ def cross_validate_custom_fast(
             for ifold, (train_index, test_index) in enumerate(
                 cross_validation_method.split(X, y)
             ):
+                info = cross_validation_method.get_fold_info(ifold)
                 pool.apply_async(
                     fold_worker,
                     (
+                        info,
                         cv_name,
                         save_model,
                         out_dir,
@@ -989,7 +1025,7 @@ def cross_validate_custom_fast(
         plot_fold_details(fold_results, meta, meta_columns, out_dir)
 
         info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{len(fold_results[0]['training_shape'])} testing_shape:{len(fold_results[0]['testing_shape'])}"
-        if kernel == "cnn":
+        if kernel == "transformer":
             for a in axis_test:
                 xdata = a["fpr"]
                 ydata = a["tpr"]

@@ -28,7 +28,7 @@ def main(
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"ml.py --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
+        cmd = f"ml.py --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -126,14 +126,14 @@ IDS = [
 
 def cats():
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_2dcnn"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_transformer"
 
     files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
     #files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            for cl in ["cnn2d"]:
+            for cl in ["transformer"]:
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
@@ -158,8 +158,7 @@ def cats():
                         "mobility_score",
                     ],
                     steps_list=[
-                        ["QN", "STD", "CENTER", "CWTMORL"],
-                        ["QN", "STD", "CENTER", "DWT"],
+                        ["QN", "STD"],
                     ],
                     individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
                 )

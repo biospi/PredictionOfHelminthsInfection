@@ -5,6 +5,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import signal
+
+
+def resample_s(df_activity_window, sampling):
+    resampled = []
+    for i in range(df_activity_window.shape[0]):
+        row = df_activity_window.iloc[i, :]
+        row = signal.resample(row, sampling)
+        resampled.append(row)
+    df_ = pd.DataFrame(resampled)
+    df_.columns = list(range(df_.shape[1]))
+    return df_
 
 
 def resample(df_activity_window, sampling):
@@ -33,7 +45,8 @@ def load_activity_data(
     meta_cols_str=None,
     sampling='T',
     individual_to_ignore=[],
-    plot_s_distribution=True
+    plot_s_distribution=True,
+    resolution = None
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -81,6 +94,10 @@ def load_activity_data(
         df_activity_window = df_activity_window.iloc[:, -n_activity_days * 1440:]
         if sampling != "T":
             df_activity_window = resample(df_activity_window, sampling)
+
+        if resolution is not None:
+            df_activity_window = resample_s(df_activity_window, int(np.ceil(df_activity_window.shape[1] / resolution)))
+
         df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)
         #seasons = seasons[np.repeat(seasons.columns.values, df_activity_window.shape[1])]

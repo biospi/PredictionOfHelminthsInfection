@@ -368,7 +368,7 @@ def plot_dwt_power(
 
     #pos = axs[1].pcolormesh(dwt_time, freqs, np.sqrt(p), shading="gouraud")
     pos = axs[1].imshow(dwt_scalogram, interpolation='nearest', aspect="auto",
-                        origin="lower", extent=[0, 1, 0, len(dwt_scalogram)])
+                        origin="lower", extent=[0, len(activity), 0, len(dwt_scalogram)])
     # pos = axs[1].imshow(np.sqrt(p), extent=[0, p.shape[1], p.shape[0], 1])
     fig.colorbar(pos, ax=axs[1])
 
