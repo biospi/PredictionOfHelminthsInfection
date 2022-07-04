@@ -84,7 +84,10 @@ def main(
     batch_size: int = 100,
     epoch: int = 100,
     individual_to_ignore: List[str] = [],
-    save_model: bool = False
+    individual_to_keep: List[str] = [],
+    individual_to_test: List[str] = [],
+    save_model: bool = False,
+    resolution: float = None
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -169,7 +172,8 @@ def main(
             preprocessing_steps=preprocessing_steps,
             meta_cols_str=meta_col_str,
             sampling=sampling,
-            individual_to_ignore=individual_to_ignore
+            individual_to_keep=individual_to_keep,
+            resolution=resolution
         )
 
         N_META = len(meta_columns)
@@ -452,7 +456,8 @@ def main(
             n_job=n_job,
             batch_size=batch_size,
             epoch=epoch,
-            time_freq_shape=time_freq_shape
+            time_freq_shape=time_freq_shape,
+            individual_to_test=individual_to_test
         )
 
         # 2DCNN

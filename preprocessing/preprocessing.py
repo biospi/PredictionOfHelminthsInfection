@@ -10,6 +10,7 @@ from cwt._cwt import STFT, CWT, CWTVisualisation, DWT
 
 from utils._anscombe import Anscombe, Sqrt, Log
 from utils._normalisation import BaseLineScaler, CenterScaler, QuotientNormalizer
+from utils.resampling import resample_s
 from utils.visualisation import plot_distribution
 
 
@@ -372,6 +373,15 @@ def apply_preprocessing_steps(
             df_meta = df.iloc[:, -N_META:]
             df = pd.concat([data_frame_umap, df_meta], axis=1)
             del data_frame_umap
+
+        if "UPSAMP" in step:
+            resolution = 0.7
+            df_before_up = df.iloc[:, :-N_META].values
+            data_frame_up = pd.DataFrame(resample_s(df_before_up, int(np.ceil(df_before_up.shape[1] / resolution)), axis=1))
+            data_frame_up.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df = pd.concat([data_frame_up, df_meta], axis=1)
+
 
         print("AFTER STEP ->", df)
         # if "CWT" not in step_slug:

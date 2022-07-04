@@ -8,8 +8,8 @@ import json
 # import pickle
 # from keras import metrics
 # from sklearn.metrics import plot_roc_curve
-
-from utils.visualisation import plot_roc_range
+from utils.Utils import plot_model_metrics
+from utils.visualisation import plot_roc_range, plot_fold_details
 from sklearn.metrics import recall_score, balanced_accuracy_score, precision_score, f1_score
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from tensorflow import keras
@@ -20,39 +20,39 @@ import warnings
 from pathlib import Path
 
 
-def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
-    # summarize history for accuracy
-    fig_fold, ax_fold = plt.subplots()
-    print(history.history.keys())
-    ax_fold.plot(history.history['accuracy'])
-    ##plt.plot(history.history['val_auc'])
-    ax_fold.set_title('model auc for fold %d' % i)
-    ax_fold.set_ylabel('auc')
-    ax_fold.set_xlabel('epoch')
-    ax_fold.legend(['train', 'test'], loc='upper left')
-    path = "%s/%s" % (out_dir, dir_name)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
-    print(final_path)
-    fig_fold.savefig(final_path)
-    fig_fold.clear()
-    plt.close(fig_fold)
-
-    fig_fold, ax_fold = plt.subplots()
-    # summarize history for loss
-    ax_fold.plot(history.history['loss'])
-    ##plt.plot(history.history['val_loss'])
-    ax_fold.set_title('model loss for fold %d' % i)
-    ax_fold.set_ylabel('loss')
-    ax_fold.set_xlabel('epoch')
-    ax_fold.legend(['train', 'test'], loc='upper left')
-    path = "%s/%s" % (out_dir, dir_name)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
-    print(final_path)
-    fig_fold.savefig(final_path)
-    fig_fold.clear()
-    plt.close(fig_fold)
+# def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
+#     # summarize history for accuracy
+#     fig_fold, ax_fold = plt.subplots()
+#     print(history.history.keys())
+#     ax_fold.plot(history.history['accuracy'])
+#     ##plt.plot(history.history['val_auc'])
+#     ax_fold.set_title('model auc for fold %d' % i)
+#     ax_fold.set_ylabel('auc')
+#     ax_fold.set_xlabel('epoch')
+#     ax_fold.legend(['train', 'test'], loc='upper left')
+#     path = "%s/%s" % (out_dir, dir_name)
+#     Path(path).mkdir(parents=True, exist_ok=True)
+#     final_path = '%s/%s' % (path, 'fold%d_modelauc.png' % (i))
+#     print(final_path)
+#     fig_fold.savefig(final_path)
+#     fig_fold.clear()
+#     plt.close(fig_fold)
+#
+#     fig_fold, ax_fold = plt.subplots()
+#     # summarize history for loss
+#     ax_fold.plot(history.history['loss'])
+#     ##plt.plot(history.history['val_loss'])
+#     ax_fold.set_title('model loss for fold %d' % i)
+#     ax_fold.set_ylabel('loss')
+#     ax_fold.set_xlabel('epoch')
+#     ax_fold.legend(['train', 'test'], loc='upper left')
+#     path = "%s/%s" % (out_dir, dir_name)
+#     Path(path).mkdir(parents=True, exist_ok=True)
+#     final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
+#     print(final_path)
+#     fig_fold.savefig(final_path)
+#     fig_fold.clear()
+#     plt.close(fig_fold)
 
 
 def plot_roc(ax, model, X_test, y_test):
@@ -516,6 +516,7 @@ def cross_validate_transformer(
     y_h,
     ids,
     meta,
+    meta_columns,
     meta_data_short,
     sample_dates,
     clf_name,
@@ -638,6 +639,8 @@ def cross_validate_transformer(
         fold_probas = dict(fold_probas)
         fold_probas = dict([a, list(x)] for a, x in fold_probas.items())
         print("total time (s)= " + str(end - start))
+
+    plot_fold_details(fold_results, meta, meta_columns, out_dir)
 
     info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
     for a in axis_test:

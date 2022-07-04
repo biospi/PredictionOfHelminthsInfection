@@ -104,7 +104,7 @@ def main(
 
     dataframe = pd.concat([dataset1, dataset2], axis=0)
 
-    dfs_processed, _ = apply_preprocessing_steps(
+    dfs_processed, _ , _ = apply_preprocessing_steps(
         meta_columns,
         n_activity_days,
         None,

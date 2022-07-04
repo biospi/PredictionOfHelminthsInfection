@@ -21,6 +21,7 @@ def main(
         ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
         ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
     ],
+    individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
     meta_columns=[],
     individual_to_ignore=[],
     n_scales= 9,
@@ -32,6 +33,9 @@ def main(
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
+
+        for itotest in individual_to_test:
+            cmd += f"--individual-to-test {itotest} "
 
         for meta in meta_columns:
             cmd += f"--meta-columns {meta} "

@@ -17,8 +17,8 @@ import pandas as pd
 from sklearn.datasets import make_blobs
 from tqdm import tqdm
 
-from utils.Utils import create_rec_dir
-from utils._custom_split import StratifiedLeaveTwoOut
+from utils.Utils import create_rec_dir, plot_model_metrics
+from utils._custom_split import LeaveNOut
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, classification_report
 from sklearn.metrics import auc
@@ -170,41 +170,6 @@ def evaluate1DCNN(i, out_dir, ax, trainX, trainy, testX, testy, verbose=0, epoch
                                       batch_size=batch_size, verbose=0)
     roc_auc, fpr, tpr, report, acc, p0, p1, r0, r1, f0, f1 = plot_roc(ax, model, X_test, y_test)
     return roc_auc, fpr, tpr, acc, p0, p1, r0, r1, f0, f1
-
-
-def plot_model_metrics(history, out_dir, i, dir_name="model_cnn"):
-    # summarize history for accuracy
-    fig_fold, ax_fold = plt.subplots()
-    ax_fold.plot(history.history['accuracy'], label="accuracy")
-    ax_fold.plot(history.history['loss'], label="loss")
-    ##plt.plot(history.history['val_auc'])
-    ax_fold.set_title('Model training accuracy and loss for fold %d' % i)
-    ax_fold.set_ylabel('value')
-    ax_fold.set_xlabel('epoch')
-    ax_fold.legend(loc='upper left')
-    path = "%s/%s" % (out_dir, dir_name)
-    create_rec_dir(path)
-    final_path = '%s/%s' % (path, 'fold%d_model_acc_loss.png' % (i))
-    print(final_path)
-    fig_fold.savefig(final_path)
-    fig_fold.clear()
-    plt.close(fig_fold)
-
-    # fig_fold, ax_fold = plt.subplots()
-    # # summarize history for loss
-    # ax_fold.plot(history.history['loss'])
-    # ##plt.plot(history.history['val_loss'])
-    # ax_fold.set_title('model loss for fold %d' % i)
-    # ax_fold.set_ylabel('loss')
-    # ax_fold.set_xlabel('epoch')
-    # ax_fold.legend(['train', 'test'], loc='upper left')
-    # path = "%s/%s" % (out_dir, dir_name)
-    # create_rec_dir(path)
-    # final_path = '%s/%s' % (path, 'fold%d_modelloss.png' % (i))
-    # print(final_path)
-    # fig_fold.savefig(final_path)
-    # fig_fold.clear()
-    # plt.close(fig_fold)
 
 
 def formatDataForKeras(X):
@@ -428,7 +393,7 @@ def run1DCnn(epochs, cross_validation_method, X, y, class_healthy, class_unhealt
     test_f1_score1 = []
     i = 0
     for train_index, test_index in cross_validation_method.split(X, y):
-        if isinstance(cross_validation_method, StratifiedLeaveTwoOut):
+        if isinstance(cross_validation_method, LeaveNOut):
             print("processing fold %d/%d ..." % (i, cross_validation_method.nfold))
         else:
             print("processing fold %d/%d ..." % (i, cross_validation_method.n_repeats * cross_validation_method.cvargs['n_splits']))
@@ -533,5 +498,5 @@ if __name__ == "__main__":
     output_dir = "F:/Data2/cnn_debug"
     label_series = {0: "l0", 1: "l1", 2: "l2", 3: "l3", 4: "l4"}
     stratified = False
-    cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idx, stratified=stratified, verbose=True)
+    cross_validation_method = LeaveNOut(animal_ids, sample_idx, stratified=stratified, verbose=True)
     run1DCnn(cross_validation_method, X, y, animal_ids, sample_idx, 1, 2, "steps->2", 7, "farm_id", "sampling", label_series, False, output_dir)

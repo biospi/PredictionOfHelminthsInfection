@@ -2116,6 +2116,7 @@ def plot_fold_details(
         meta_dict[id] = f"{target} {name}"
     data = []
     for f in fold_results:
+        i_fold = f["i_fold"]
         accuracy_train = f["accuracy_train"]
         accuracy = f["accuracy"]
 
@@ -2140,8 +2141,8 @@ def plot_fold_details(
     ax = df_test.plot.bar(
         rot=90,
         log=False,
-        figsize=(0.3 * len(fold_results), 7.20),
-        title=f"(Testing) Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.3f} mean_acc_test={mean_acc:.3f}",
+        figsize=(0.8 * len(fold_results), 7.20),
+        title=f"Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.2f} mean_acc_test={mean_acc:.2f}",
     )
     ax.axhline(y=0.5, color='r', linestyle='--')
     for item in ax.get_xticklabels():

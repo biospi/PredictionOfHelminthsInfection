@@ -2,7 +2,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold, RepeatedKFold, Leav
 
 from cnn.cnn import run1DCnn, run2DCnn
 from model.svm import downsample_df
-from utils._custom_split import StratifiedLeaveTwoOut
+from utils._custom_split import LeaveNOut
 
 
 def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_frame, days, farm_id, steps, n_splits, n_repeats, sampling,
@@ -17,10 +17,10 @@ def process_data_frame_1dcnn(epochs, stratify, animal_ids, output_dir, data_fram
     sample_idxs = data_frame.index.tolist()
 
     if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=True, verbose=True)
+        cross_validation_method = LeaveNOut(animal_ids, sample_idxs, stratified=True, verbose=True)
 
     if cv == "LeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=False, verbose=True)
+        cross_validation_method = LeaveNOut(animal_ids, sample_idxs, stratified=False, verbose=True)
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)
@@ -52,10 +52,10 @@ def process_data_frame_2dcnn(wavelet_f0, epochs, stratify, animal_ids, output_di
     sample_idxs = data_frame.index.tolist()
 
     if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=True, verbose=True)
+        cross_validation_method = LeaveNOut(animal_ids, sample_idxs, stratified=True, verbose=True)
 
     if cv == "LeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(animal_ids, sample_idxs, stratified=False, verbose=True)
+        cross_validation_method = LeaveNOut(animal_ids, sample_idxs, stratified=False, verbose=True)
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=0)

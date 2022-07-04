@@ -26,9 +26,9 @@ from sklearn.model_selection import (
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
-from classifier.src.CNN import cross_validate_cnn2d
+from classifier.src.CNN import cross_validate_cnnnd
 from cnn.transformer import cross_validate_transformer
-from utils._custom_split import StratifiedLeaveTwoOut
+from utils._custom_split import LeaveNOut
 from utils.visualisation import (
     plot_roc_range,
     build_proba_hist,
@@ -336,7 +336,8 @@ def process_ml(
     n_job=6,
     epoch=30,
     batch_size=8,
-    time_freq_shape=None
+    time_freq_shape=None,
+    individual_to_test=None
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -350,28 +351,28 @@ def process_ml(
     # animal_ids = data_frame["id"].tolist()
     sample_idxs = data_frame.index.tolist()
     if cv == "StratifiedLeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
+        cross_validation_method = LeaveNOut(
             animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1
         )
 
     if cv == "LeaveOneOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
+        cross_validation_method = LeaveNOut(
             animal_ids, sample_idxs, stratified=False, verbose=True, max_comb=-1, leaven=1
         )
 
     if cv == "LeaveTwoOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
+        cross_validation_method = LeaveNOut(
             animal_ids, sample_idxs, stratified=False, verbose=True
         )
 
     if cv == "StratifiedLeaveOneOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
+        cross_validation_method = LeaveNOut(
             animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1, leaven=1
         )
 
     if cv == "LeaveOneOut":
-        cross_validation_method = StratifiedLeaveTwoOut(
-            animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1
+        cross_validation_method = LeaveNOut(
+            animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1, individual_to_test=individual_to_test
         )
 
     if cv == "RepeatedStratifiedKFold":
@@ -467,6 +468,7 @@ def process_ml(
             y_h,
             ids,
             meta_data,
+            meta_columns,
             meta_data_short,
             sample_dates,
             "TRF",
@@ -476,7 +478,7 @@ def process_ml(
         )
 
     if "cnn1d" in classifiers:
-        scores, scores_proba = cross_validate_cnn2d(
+        scores, scores_proba = cross_validate_cnnnd(
             classifiers,
             output_dir,
             steps,
@@ -489,6 +491,7 @@ def process_ml(
             y_h,
             ids,
             meta_data,
+            meta_columns,
             meta_data_short,
             sample_dates,
             "CNN1D",
@@ -500,7 +503,7 @@ def process_ml(
         )
 
     if "cnn2d" in classifiers:
-        scores, scores_proba = cross_validate_cnn2d(
+        scores, scores_proba = cross_validate_cnnnd(
             classifiers,
             output_dir,
             steps,
@@ -513,6 +516,7 @@ def process_ml(
             y_h,
             ids,
             meta_data,
+            meta_columns,
             meta_data_short,
             sample_dates,
             "CNN2D",
@@ -709,12 +713,12 @@ def fold_worker(
 
     start_time = time.time()
 
-    if augment_training > 0:
-        print(f"augment_training X_train shape={X_train.shape}..")
-        X_train, y_train, sample_dates_train, ids_train, meta_train = augment_(X_train, y_train, augment_training, sample_dates_train, ids_train, meta_train)
-        print(f"augment_training X_train shape={X_train.shape}..")
-        X_test = X_test[:, 0:X_train.shape[1]] #todo fix
-        X_fold = X_fold[:, 0:X_train.shape[1]]
+    # if augment_training > 0:
+    #     print(f"augment_training X_train shape={X_train.shape}..")
+    #     X_train, y_train, sample_dates_train, ids_train, meta_train = augment_(X_train, y_train, augment_training, sample_dates_train, ids_train, meta_train)
+    #     print(f"augment_training X_train shape={X_train.shape}..")
+    #     X_test = X_test[:, 0:X_train.shape[1]] #todo fix
+    #     X_fold = X_fold[:, 0:X_train.shape[1]]
 
     clf.fit(X_train, y_train)
 
@@ -862,8 +866,9 @@ def fold_worker(
         "fit_time": fit_time,
     }
     print("export result to json...")
-    filepath = out_dir / "fold_data" / f"{ifold}_result.json"
-    filepath.mkdir(parents=True, exist_ok=True)
+    out = out_dir / "fold_data"
+    filepath = out / f"{ifold}_result.json"
+    out.mkdir(parents=True, exist_ok=True)
     print(filepath)
     with open(str(filepath), "w") as fp:
         json.dump(fold_result, fp)
@@ -972,7 +977,7 @@ def cross_validate_svm_fast(
             for ifold, (train_index, test_index) in enumerate(
                 cross_validation_method.split(X, y)
             ):
-                info = cross_validation_method.get_fold_info(ifold)
+                info = {} #
                 pool.apply_async(
                     fold_worker,
                     (

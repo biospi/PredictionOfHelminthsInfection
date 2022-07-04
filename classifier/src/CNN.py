@@ -31,8 +31,8 @@ from sklearn import preprocessing
 from sklearn.metrics import plot_roc_curve
 from sklearn.metrics import balanced_accuracy_score
 
-from cnn.cnn import plot_model_metrics
-from utils.visualisation import plot_roc_range, plot_pr_range
+from utils.Utils import plot_model_metrics
+from utils.visualisation import plot_roc_range, plot_pr_range, plot_fold_details
 from sklearn.metrics import roc_curve, classification_report
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import json
@@ -426,6 +426,29 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
     # print(classification_report(y_test, y_pred_bool))
 
 
+def format_samples_for1dcnn(samples, y, num_classes):
+    y = list(map(lambda x: int(x) - 1, y))
+    data = np.ndarray(shape=(len(samples), len(samples[0]), 1), dtype=np.float16)
+    for ii, s in enumerate(samples):
+        # plt.imshow(
+        #     matrix_2d,
+        #     origin="lower",
+        #     aspect="auto",
+        #     interpolation="nearest",
+        #     extent=[0, matrix_2d.shape[1], 0, matrix_2d.shape[0]]
+        # )
+        # plt.show()
+        data[ii, :, 0] = s
+
+    input_shape = (data.shape[1], 1)
+
+    y = keras.utils.np_utils.to_categorical(y, num_classes)
+    data = data.astype(np.float16)
+    y = y.astype(np.float16)
+
+    return data, y, input_shape
+
+
 def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
     y = list(map(lambda x: int(x) - 1, y))
     data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1), dtype=np.float16)
@@ -540,9 +563,10 @@ def fold_worker(
     num_classes = len(np.unique(y_train))
 
     if cnnd == 1:
+        x_train, y_train, input_shape = format_samples_for1dcnn(X_train, y_train, num_classes)
+        x_test, y_test, input_shape = format_samples_for1dcnn(X_test, y_test, num_classes)
         model = build_1dcnn_model(
-            num_classes,
-            X_train.shape
+            num_classes, input_shape
         )
 
     if cnnd == 2:
@@ -604,7 +628,13 @@ def fold_worker(
 
     fit_time = time.time() - start_time
 
-    plot_model_metrics(history, out_dir, ifold, dir_name=f"model_{cnnd}dcnn")
+    #todo clean up
+    met = ""
+    try:
+        met = meta_test[0][7]
+    except Exception as e:
+        print(e)
+    plot_model_metrics(history, out_dir, ifold, meta=met, dir_name=f"model_{cnnd}dcnn")
 
 ###############################################################
     model = keras.models.load_model(out_dir / f"cnn{cnnd}d_models" / f"best_model_{ifold}.h5")
@@ -619,7 +649,7 @@ def fold_worker(
     y_pred_proba_test = y_pred
     y_pred = (y_pred[:, 1] >= 0.5).astype(int)
 
-    y_test = y_test[:, 1]
+    y_test = y_test[:, 0]
     fpr, tpr, _ = roc_curve(y_test, y_pred_proba_test[:, 1])
     axis_test.append({"fpr": fpr, "tpr": tpr})
 
@@ -752,7 +782,10 @@ def fold_worker(
         X_test = X_fold[y_fold == y_f]
         #x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype('float32')
         y_test = y_fold[y_fold == y_f]
-        x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
+        if cnnd == 1:
+            x_test, y_test, input_shape = format_samples_for1dcnn(X_test, y_test, num_classes)
+        if cnnd == 2:
+            x_test, y_test, input_shape = format_samples_for2dcnn(X_test, y_test, time_freq_shape, num_classes)
         print(f"testing {label} X_test shape is {x_test.shape}...")
         y_pred_proba_test = model.predict(x_test)
         fold_proba = {
@@ -764,7 +797,7 @@ def fold_worker(
 
 
 
-def cross_validate_cnn2d(
+def cross_validate_cnnnd(
     svc_kernel,
     out_dir,
     steps,
@@ -777,6 +810,7 @@ def cross_validate_cnn2d(
     y_h,
     ids,
     meta,
+    meta_columns,
     meta_data_short,
     sample_dates,
     clf_name,
@@ -910,6 +944,8 @@ def cross_validate_cnn2d(
         with open(time_file_path, "w") as text_file:
             text_file.write(fit_test_time)
 
+    plot_fold_details(fold_results, meta, meta_columns, out_dir)
+
     info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)}"
     for a in axis_test:
         xdata = a["fpr"]
@@ -945,7 +981,7 @@ def cross_validate_cnn2d(
         fig_roc.tight_layout()
         path = out_dir / "roc_curve" / cv_name
         path.mkdir(parents=True, exist_ok=True)
-        tag = "cnn2d"
+        tag = clf_name
         final_path = path / f"{tag}_roc_{steps}.png"
         print(final_path)
         fig_roc.savefig(final_path)
@@ -970,7 +1006,7 @@ def cross_validate_cnn2d(
             cv_name,
             days,
             info=info,
-            tag="cnn2d",
+            tag=clf_name,
         )
 
     scores[f"{clf_name}_results"] = fold_results

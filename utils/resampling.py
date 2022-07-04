@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 
-def resample_s(y, n):
-    return signal.resample(y, n)
+def resample_s(y, n, axis=0):
+    return signal.resample(y, n, axis=axis)
 
 
 def resample(df_activity_window, sampling):

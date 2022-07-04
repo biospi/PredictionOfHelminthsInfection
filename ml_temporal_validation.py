@@ -107,7 +107,7 @@ def main(
             )
         )
 
-        data_frame, df_with_meta = apply_preprocessing_steps(
+        data_frame, df_with_meta, _ = apply_preprocessing_steps(
             meta_columns,
             None,
             None,

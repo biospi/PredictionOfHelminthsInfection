@@ -175,7 +175,7 @@ class RepeatedKFoldCustom:
     #         yield train_index, test_index
 
 
-class StratifiedLeaveTwoOut:
+class LeaveNOut:
     def __init__(
         self,
         animal_ids,
@@ -185,6 +185,7 @@ class StratifiedLeaveTwoOut:
         n_test_samples_th=-1,
         stratified=False,
         verbose=False,
+        individual_to_test=None
     ):
         self.nfold = 0
         self.leaven = leaven
@@ -195,6 +196,7 @@ class StratifiedLeaveTwoOut:
         self.sample_idx = np.array(sample_idx).flatten()
         self.animal_ids = np.array(animal_ids).flatten()
         self.info_list = []
+        self.individual_to_test = individual_to_test
 
     def get_n_splits(self):
         return self.nfold
@@ -217,6 +219,8 @@ class StratifiedLeaveTwoOut:
         # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
         df = df.apply(pd.to_numeric, downcast="integer")
         df.columns = ["target", "animal_id", "sample_idx"]
+        if self.individual_to_test is not None and len(self.individual_to_test) > 0:
+            df = df.loc[df['animal_id'].isin(self.individual_to_test)]
         ##df.index = df["sample_idx"]
 
         groupby_target = pd.DataFrame(df.groupby("animal_id")["target"].apply(list))

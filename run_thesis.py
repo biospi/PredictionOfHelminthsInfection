@@ -9,7 +9,7 @@ def main(
     exp_main: bool = True,
     exp_temporal: bool = True,
     exp_cross_farm: bool = True,
-    output_dir: Path = Path("E:/thesis_debug_freq3/"),
+    output_dir: Path = Path("E:/thesis_debug_freq7/"),
     delmas_dir: Path = Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
     cedara_dir: Path = Path("E:/Data2/debug3/cedara/dataset6_mrnn_7day"),
 ):
@@ -26,11 +26,11 @@ def main(
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG"],
-            ["QN", "ANSCOMBE", "LOG"],
-            # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
-            ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+            #["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
@@ -42,9 +42,27 @@ def main(
                     for cv in ['RepeatedKFold']:
                         for add_seasons_to_features in [False]:
 
+                            # main_experiment.main(
+                            #     output_dir=output_dir
+                            #     / "main_experiment_"
+                            #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                            #     / "2To2",
+                            #     dataset_folder=delmas_dir,
+                            #     preprocessing_steps=steps,
+                            #     n_imputed_days=i_day,
+                            #     n_activity_days=a_day,
+                            #     cv=cv,
+                            #     classifiers=["linear", "rbf"],
+                            #     class_unhealthy_label=["2To2"],
+                            #     study_id="delmas",
+                            #     add_seasons_to_features=add_seasons_to_features,
+                            #     sampling="T",
+                            #     resolution=-1
+                            # )
+
                             main_experiment.main(
                                 output_dir=output_dir
-                                / "main_experiment"
+                                / "main_experiment_07"
                                 / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
                                 / "2To2",
                                 dataset_folder=delmas_dir,
@@ -56,7 +74,8 @@ def main(
                                 class_unhealthy_label=["2To2"],
                                 study_id="delmas",
                                 add_seasons_to_features=add_seasons_to_features,
-                                sampling="0.70T"
+                                sampling="T",
+                                resolution=0.7
                             )
 
                             # main_experiment.main(

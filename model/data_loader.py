@@ -45,8 +45,9 @@ def load_activity_data(
     meta_cols_str=None,
     sampling='T',
     individual_to_ignore=[],
+    individual_to_keep=[],
     plot_s_distribution=True,
-    resolution = None
+    resolution = None,
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -88,15 +89,20 @@ def load_activity_data(
     if len(individual_to_ignore) > 0:
         data_frame = data_frame.loc[~data_frame['name'].isin(individual_to_ignore)]
 
+    if len(individual_to_keep) > 0:
+        data_frame = data_frame.loc[data_frame['name'].isin(individual_to_keep)]
+
     if n_activity_days > 0:
         df_activity_window = data_frame.iloc[:, data_frame.columns.str.isnumeric()]
         #assert sampling == "T", "activity sampling must be 1 min per bin!"
-        df_activity_window = df_activity_window.iloc[:, -n_activity_days * 1440:]
+        end = int(df_activity_window.shape[1])
+        start = int(end - n_activity_days * 1440)
+        df_activity_window = df_activity_window.iloc[:, start:end]
         if sampling != "T":
             df_activity_window = resample(df_activity_window, sampling)
 
-        if resolution is not None:
-            df_activity_window = resample_s(df_activity_window, int(np.ceil(df_activity_window.shape[1] / resolution)))
+        # if resolution is not None and resolution > 0:
+        #     df_activity_window = resample_s(df_activity_window, int(np.ceil(df_activity_window.shape[1] / resolution)))
 
         df_meta = data_frame[meta_columns]
         data_frame = pd.concat([df_activity_window, df_meta], axis=1)

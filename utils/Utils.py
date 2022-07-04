@@ -8,6 +8,7 @@ from PIL import Image
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 """
 Utility class for static methods
@@ -305,3 +306,22 @@ def reduce_mem_usage(df, int_cast=False, obj_to_category=False, subset=None):
     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
 
     return df
+
+
+def plot_model_metrics(history, out_dir, i, dir_name="model_cnn", meta=""):
+    # summarize history for accuracy
+    fig_fold, ax_fold = plt.subplots()
+    ax_fold.plot(history.history['accuracy'], label="accuracy")
+    ax_fold.plot(history.history['loss'], label="loss")
+    ##plt.plot(history.history['val_auc'])
+    ax_fold.set_title(f'Model training accuracy and loss for fold {i} {meta}')
+    ax_fold.set_ylabel('value')
+    ax_fold.set_xlabel('epoch')
+    ax_fold.legend(loc='upper left')
+    path = out_dir / dir_name
+    create_rec_dir(path)
+    final_path = path / f'fold{i}_{meta}_model_acc_loss.png'
+    print(final_path)
+    fig_fold.savefig(final_path)
+    fig_fold.clear()
+    plt.close(fig_fold)

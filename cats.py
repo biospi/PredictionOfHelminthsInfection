@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations",
+    out_parent: str = "E:/Cats/ml_build_permutations_6",
     dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
@@ -17,7 +17,7 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["transformer", "rbf"]:
+    for clf in ["transformer", "cnn1d"]:
         for steps in [
             ["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],
@@ -27,8 +27,8 @@ def main(
             print(slug)
             folders = [x.stem for x in Path(dataset_parent).glob("*")]
             print(folders)
-            #folders = ["1000__002__0_00100__120", "5000__004__0_00100__120", "1000__003__0_00100__120"]
-            folders = ["800__001__0_00100__120"]
+            #folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
+            #folders = ["1000__002__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -50,6 +50,8 @@ def main(
                             ],
                             meta_col_str=[],
                             individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                            individual_to_keep=[],
+                            individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
                             classifiers=[clf],
                             n_imputed_days=-1,
                             n_activity_days=-1,
@@ -63,7 +65,8 @@ def main(
                             cv=cv,
                             output_qn_graph=False,
                             pre_visu=False,
-                            epoch=1000
+                            epoch=1000,
+                            batch_size=1000
                         )
 
                 # main_pipeline.main(
