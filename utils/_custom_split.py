@@ -297,7 +297,10 @@ class LeaveNOut:
             # if len(all_test_idx) < self.n_test_samples_th:
             #     continue
             if self.individual_to_test is not None and len(self.individual_to_test) > 0:
-                if int(float(np.unique(self.animal_ids[all_test_idx]).tolist()[0])) not in self.individual_to_test:
+                a = int(float(np.unique(self.animal_ids[all_test_idx]).tolist()[0]))
+                b = np.array(self.individual_to_test).astype(int)
+                print(a, b)
+                if a not in b:
                     continue
 
             training_idx.append(all_train_idx)
