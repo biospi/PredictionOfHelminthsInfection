@@ -17,7 +17,7 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["transformer", "cnn1d"]:
+    for clf in ["transformer"]:
         for steps in [
             ["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],

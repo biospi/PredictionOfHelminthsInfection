@@ -150,6 +150,7 @@ def cats():
                     class_unhealthy_label_list=["1.0"],
                     classifiers_list=[cl],
                     study_id="cats",
+                    individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
                     meta_columns=[
                         "label",
                         "id",
