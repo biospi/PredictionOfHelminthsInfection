@@ -219,8 +219,8 @@ class LeaveNOut:
         # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
         df = df.apply(pd.to_numeric, downcast="integer")
         df.columns = ["target", "animal_id", "sample_idx"]
-        if self.individual_to_test is not None and len(self.individual_to_test) > 0:
-            df = df.loc[df['animal_id'].isin(self.individual_to_test)]
+        # if self.individual_to_test is not None and len(self.individual_to_test) > 0:
+        #     df = df.loc[df['animal_id'].isin(self.individual_to_test)]
         ##df.index = df["sample_idx"]
 
         groupby_target = pd.DataFrame(df.groupby("animal_id")["target"].apply(list))
@@ -296,6 +296,9 @@ class LeaveNOut:
                 continue
             # if len(all_test_idx) < self.n_test_samples_th:
             #     continue
+            if self.individual_to_test is not None and len(self.individual_to_test) > 0:
+                if int(float(np.unique(self.animal_ids[all_test_idx]).tolist()[0])) not in self.individual_to_test:
+                    continue
 
             training_idx.append(all_train_idx)
             testing_idx.append(all_test_idx)

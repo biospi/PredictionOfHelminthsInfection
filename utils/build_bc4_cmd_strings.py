@@ -25,11 +25,13 @@ def main(
     meta_columns=[],
     individual_to_ignore=[],
     n_scales= 9,
-    sub_sample_scales= 3
+    sub_sample_scales= 3,
+    batch_size = 10,
+    epoch=100
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"ml.py --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
+        cmd = f"ml.py --batch-size {batch_size} --epoch {epoch} --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -134,6 +136,32 @@ def cats():
 
     files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
     #files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
+    files = [
+        "800__001__0_00100__120",
+        "800__002__0_00100__120",
+        "800__003__0_00100__120",
+        "800__004__0_00100__120",
+        "800__006__0_00100__120",
+        "1000__001__0_00100__120",
+        "1000__002__0_00100__120",
+        "1000__003__0_00100__120",
+        "1000__004__0_00100__120",
+        "1000__006__0_00100__120",
+        "2000__001__0_00100__120",
+        "2000__002__0_00100__120",
+        "2000__003__0_00100__120",
+        "2000__004__0_00100__120",
+        "2000__006__0_00100__120",
+        "3000__004__0_00100__120",
+        "4000__004__0_00100__120",
+        "5000__001__0_00100__120",
+        "5000__002__0_00100__120",
+        "5000__003__0_00100__120",
+        "5000__004__0_00100__120",
+        "5000__006__0_00100__120",
+        "6000__004__0_00100__120",
+
+    ]
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
@@ -150,6 +178,8 @@ def cats():
                     class_unhealthy_label_list=["1.0"],
                     classifiers_list=[cl],
                     study_id="cats",
+                    batch_size=10,
+                    epoch=200,
                     individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
                     meta_columns=[
                         "label",
