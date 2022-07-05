@@ -88,7 +88,7 @@ def main(
                             661,
                             621,
                             609,
-                            622,
+                            632,
                             658,
                         ],
                         classifiers=[clf],
@@ -104,8 +104,8 @@ def main(
                         cv=cv,
                         output_qn_graph=False,
                         pre_visu=False,
-                        epoch=1000,
-                        batch_size=1000,
+                        epoch=100,
+                        batch_size=100,
                     )
 
                 # main_pipeline.main(
