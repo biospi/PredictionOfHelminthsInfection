@@ -178,8 +178,8 @@ def cats():
                     class_unhealthy_label_list=["1.0"],
                     classifiers_list=[cl],
                     study_id="cats",
-                    batch_size=10,
-                    epoch=2,
+                    batch_size=20,
+                    epoch=100,
                     individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
                     meta_columns=[
                         "label",
@@ -219,7 +219,7 @@ def cwt_sheep():
                     class_healthy_label_list=["1To1"],
                     class_unhealthy_label_list=["2To2"],
                     study_id="delmas",
-                    steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"]],
+                    steps_list=[["QN", "ANSCOMBE", "LOG", "CENTER", f"CWTMORLs{scales}s{sub}"]],
                     n_scales=scales,
                     classifiers_list=[cl],
                     sub_sample_scales=sub
@@ -367,6 +367,6 @@ def goat_sheep():
 
 
 if __name__ == "__main__":
-    #cwt_sheep()
-    cats()
+    cwt_sheep()
+    #cats()
     # goat_sheep()

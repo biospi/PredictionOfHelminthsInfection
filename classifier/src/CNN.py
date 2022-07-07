@@ -964,7 +964,7 @@ def cross_validate_cnnnd(
         all_probs = []
         for item in fold_results:
             all_y.extend(item['y_test'])
-            all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
+            all_probs.extend(np.array(item['y_pred_proba_test'])[:, 0])
         all_y = np.array(all_y)
         all_probs = np.array(all_probs)
         fpr, tpr, thresholds = roc_curve(all_y, all_probs)
