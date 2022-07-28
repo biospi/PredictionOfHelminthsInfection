@@ -13,7 +13,6 @@ from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.visualisation import plot_umap, plot_time_pca, plot_time_pls
 from natsort import natsorted
-from tsaug import TimeWarp, Crop, Quantize, Drift, Reverse
 
 
 def interpolate_time(a, new_length):
@@ -116,6 +115,148 @@ def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealth
         "Auc",
         days,
     )
+
+
+def main_(
+    output_dir: Path = typer.Option(
+        ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
+    ),
+    dataset_file: Path = typer.Option(
+        ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
+    ),
+    class_healthy_label: List[str] = ["1To1"],
+    class_unhealthy_label: List[str] = ["2To2"],
+    famacha_healthy: List[str] = ["1To1", "1To1"],
+    famacha_unhealthy: List[str] = ["2To2", "2To2"],
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    n_activity_days: int = 7,
+    n_imputed_days: int = 7,
+    meta_columns: List[str] = [
+        "label",
+        "id",
+        "imputed_days",
+        "date",
+        "health",
+        "target",
+    ],
+    n_scales: int = 9,
+    sub_sample_scales: int = 1,
+    n_splits: int = 5,
+    n_repeats: int = 10,
+    cv: str = "RepeatedKFold",
+    wavelet_f0: int = 6,
+    sfft_window: int = 60,
+    add_feature: List[str] = [],
+    meta_col_str: List[str] = ["health", "label", "date"],
+    svc_kernel: List[str] = ["linear"],
+    study_id: str = "study",
+    sampling: str = "T",
+    output_qn_graph: bool = True,
+    add_seasons_to_features: bool = False,
+    enable_downsample_df: bool = False,
+    window: int = 1440*3,
+    stride: int = 1440,
+    days_between: int = 7,
+    back_to_back: bool = True,
+    n_job: int = 7,
+):
+    """This script builds...\n
+    Args:\n
+    """
+
+    print(f"loading dataset file {dataset_file} ...")
+    (
+        data_frame,
+        meta_data,
+        meta_data_short,
+        _,
+        _,
+        label_series,
+        samples,
+        _
+    ) = load_activity_data(
+        output_dir,
+        meta_columns,
+        dataset_file,
+        n_activity_days,
+        class_healthy_label,
+        class_unhealthy_label,
+        imputed_days=n_imputed_days,
+        preprocessing_steps=preprocessing_steps,
+        meta_cols_str=meta_col_str
+    )
+    #print(data_frame)
+    sample_dates = pd.to_datetime(
+        data_frame["date"], format="%d/%m/%Y"
+    ).values.astype(float)
+    animal_ids = data_frame["id"].astype(str).values
+
+    step_slug = "_".join(preprocessing_steps)
+
+    df_processed, _, _ = apply_preprocessing_steps(
+        meta_columns,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        data_frame.copy(),
+        output_dir,
+        preprocessing_steps,
+        class_healthy_label,
+        class_unhealthy_label,
+        clf_name="SVM",
+        n_scales=None,
+        farm_name=study_id,
+        keep_meta=False,
+    )
+
+    df_processed["target"] = pd.to_numeric(df_processed["target"])
+    df_processed["health"] = pd.to_numeric(df_processed["health"])
+
+    shape_healthy = df_processed[df_processed["health"] == 0].shape
+    shape_unhealthy = df_processed[df_processed["health"] == 1].shape
+
+    df_target = df_processed[["target", "health"]]
+    df_activity_window = df_processed.iloc[:, np.array([str(x).isnumeric() for x in df_processed.columns])]
+    cpt = 0
+    for i in range(0, df_activity_window.shape[1] - window, stride):
+        start = i
+        end = start + window
+        print(start, end)
+        df_a_w = df_activity_window.iloc[:, start:end]
+        df_week = pd.concat([df_a_w, df_target], axis=1)
+        print(df_week)
+        process_ml(
+            svc_kernel,
+            add_feature,
+            animal_ids,#meta
+            animal_ids,#meta
+            output_dir / f"week_{str(cpt).zfill(3)}",
+            animal_ids,
+            sample_dates,
+            df_week,
+            n_activity_days,
+            n_imputed_days,
+            study_id,
+            step_slug,
+            n_splits,
+            n_repeats,
+            sampling,
+            enable_downsample_df,
+            label_series,
+            class_healthy_label,
+            class_unhealthy_label,
+            meta_columns,
+            add_seasons_to_features,
+            cv=cv,
+            n_job=n_job,
+        )
+        cpt += 1
+
+    plot_progression(output_dir, days_between, window, class_healthy_label, class_unhealthy_label, shape_healthy, shape_unhealthy)
 
 
 def main(
@@ -338,12 +479,11 @@ if __name__ == "__main__":
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
-    for w in [1440*2]:
-        for a in [0]:
-            main(Path(f'E:/Data2/debug2/test_distance_validation_debug_w_{w}_a_{a}'),
-                 Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
-                 famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=a,
-                 study_id="delmas", window=w)
+    for w in [1440]:
+        main_(Path(f'E:/thesis/test_distance_validation_debug_w_{w}'),
+             Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
+             famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
+             study_id="delmas", window=w, stride=1440, n_activity_days=21)
 
     # for w in [1440*5, 1440*3, 1440]:
     #     for a in [15, 20]:

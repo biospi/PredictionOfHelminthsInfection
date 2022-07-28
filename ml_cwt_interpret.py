@@ -4,8 +4,9 @@ from typing import List
 
 import typer
 from matplotlib.colors import LogNorm
+from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVC
-
+from sklearn.ensemble import RandomForestClassifier
 from cwt._cwt import CWT, DWT
 from model.data_loader import load_activity_data, parse_param_from_filename
 from preprocessing.preprocessing import apply_preprocessing_steps
@@ -18,6 +19,30 @@ import matplotlib.dates as mdates
 import pycwt as wavelet
 import pywt
 from datetime import datetime, timedelta
+from skfeature.function.similarity_based import fisher_score
+
+from utils.visualisation import plot_high_dimension_db
+
+
+def elemwise_cwt(X, preprocessing_steps, output_dir):
+    f_transform = CWT(
+        step_slug="_".join(preprocessing_steps),
+        wavelet_f0=6,
+        out_dir=output_dir,
+        n_scales=8,
+        sub_sample_scales=1,
+        enable_coi=False,
+        enable_graph_out=False,
+    )
+    X_cwt, _, _ = f_transform.transform(X)
+
+    cwt_list_0 = []
+    for cwt in X_cwt:
+        cwt_list_0.append(
+            np.reshape(cwt, (f_transform.shape[0], f_transform.shape[1]))
+        )
+    coefs_class0_mean = np.mean(cwt_list_0, axis=0)
+    return coefs_class0_mean
 
 
 def datetime_range(start, end, delta):
@@ -36,7 +61,7 @@ def main(
         ),
         class_healthy_label: List[str] = ["1To1"],
         class_unhealthy_label: List[str] = ["2To2"],
-        preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "UPSAMP", "CENTER"],
+        preprocessing_steps: List[str] = ["None"],
         n_activity_days: int = 7,
         n_imputed_days: int = 7,
         meta_columns: List[str] = [
@@ -50,11 +75,15 @@ def main(
         meta_col_str: List[str] = ["health", "label", "date"],
         roll_avg: int = 30,
         prct: int = 90,
+        _size: int = 2,
         transform: str = "cwt",
         enable_graph_out: bool = True,
+        # distance: bool = True,
+        random_forest: bool = True,
         individual_to_ignore: List[str] = [],
         sampling: str = "T",
         resolution: float = None,
+        plot_high_dimension_db: bool = False,
         p: bool = typer.Option(False, "--p"),
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -123,6 +152,7 @@ def main(
 
         # for n_activity_days in range(1, n_activity_days):
         print(n_activity_days)
+        meta_ = meta_data_short[data_frame_time["health"].isin([0, 1])]
         data_frame_time = data_frame_time.loc[data_frame_time["health"].isin([0, 1])]
         if n_activity_days > 0:
             X_train, y_train = (
@@ -138,9 +168,138 @@ def main(
             n_activity_days = 1
 
         clf = SVC(kernel="linear", probability=True)
+        #clf = LinearRegression()
+        if random_forest:
+            clf = RandomForestClassifier(random_state=0)
+
         print("fit...")
+        fisher_s = fisher_score.fisher_score(X_train, y_train)
         clf.fit(X_train, y_train)
-        imp = np.abs(clf.coef_[0])
+
+        if plot_high_dimension_db:
+            plot_high_dimension_db(
+                output_dir / "training",
+                X_train,
+                y_train,
+                None,
+                meta_,
+                clf,
+                n_activity_days,
+                preprocessing_steps,
+                0,
+            )
+
+        if random_forest:
+            imp = clf.feature_importances_
+        else:
+            imp = abs(clf.coef_[0])
+
+        y = clf.decision_function(X_train)
+        w_norm = np.linalg.norm(clf.coef_)
+        dist = abs(y / w_norm)
+
+        df_dist = pd.DataFrame(X_train)
+        df_dist["y"] = y_train
+        df_dist["dist"] = dist
+        df_dist = df_dist.sort_values("dist")
+
+
+        df_dist_healthy = df_dist[df_dist["y"] == 0]
+        df_dist_unhealthy = df_dist[df_dist["y"] == 1]
+
+        d_m = max([df_dist_healthy.shape[0], df_dist_unhealthy.shape[0]])
+
+        r = int(np.ceil(d_m / _size))
+
+        fig, axs = plt.subplots(_size, 4, facecolor="white", figsize=(42.80, 12.80))
+        cpt = 0
+        min_a = []
+        max_a = []
+        for i in range(0, d_m, r):
+            end = int(i + r)
+            start = i
+            d_h = df_dist_healthy[start:end]
+            d_uh = df_dist_unhealthy[start:end]
+            activity_h = np.mean(d_h.iloc[:, :-2]).values
+            activity_uh = np.mean(d_uh.iloc[:, :-2]).values
+            min_a.append(np.min(activity_h))
+            min_a.append(np.min(activity_uh))
+            max_a.append(np.max(activity_h))
+            max_a.append(np.max(activity_uh))
+        min_a = np.min(min_a)
+        max_a = np.max(max_a)
+
+        for i in range(0, d_m, r):
+            end = int(i + r)
+            start = i
+            d = df_dist[start:end]
+
+            min_d = d["dist"].values[0]
+            max_d = d["dist"].values[-1]
+
+            d_h = df_dist_healthy[start:end]
+            d_uh = df_dist_unhealthy[start:end]
+
+            activity_h = np.mean(d_h.iloc[:, :-2]).values
+            activity_uh = np.mean(d_uh.iloc[:, :-2]).values
+
+            cwt_h = elemwise_cwt(d_h.iloc[:, :-2].values, preprocessing_steps, output_dir)
+            cwt_uh = elemwise_cwt(d_uh.iloc[:, :-2].values, preprocessing_steps, output_dir)
+
+            if i == 0:
+                mat_max = max([np.nanmax(cwt_h), np.nanmax(cwt_uh)])
+                mat_min = min([np.nanmin(cwt_h), np.nanmin(cwt_uh)])
+
+
+            axs[cpt, 0].plot(activity_h)
+            axs[cpt, 0].set_title(f"Healthy samples distance range [{min_d:.3f} {max_d:.3f}] {d_h.iloc[:, :-2].shape}")
+            axs[cpt, 0].set_xlabel("Time")
+            axs[cpt, 0].set_ylabel("Activity")
+            axs[cpt, 0].set_ylim([min_a, max_a])
+
+            axs[cpt, 1].plot(activity_uh)
+            axs[cpt, 1].set_title(f"Unhealthy samples distance range [{min_d:.3f} {max_d:.3f} {d_uh.iloc[:, :-2].shape}]")
+            axs[cpt, 1].set_xlabel("Time")
+            axs[cpt, 1].set_ylabel("Activity")
+            axs[cpt, 1].set_ylim([min_a, max_a])
+
+            origin = "upper"
+            im = axs[cpt, 2].imshow(
+                cwt_h,
+                origin=origin,
+                extent=[0, len(activity_h), 1, cwt_h.shape[0]],
+                interpolation="nearest",
+                aspect="auto",
+                vmin=mat_min,
+                vmax=mat_max
+            )
+            axs[cpt, 2].set_title(f"Element wise mean of cwt coefficients healthy")
+            axs[cpt, 2].set_xlabel("Time")
+            axs[cpt, 2].set_ylabel("Scales")
+            fig.colorbar(im, ax=axs[cpt, 2])
+
+            im = axs[cpt, 3].imshow(
+                cwt_uh,
+                origin=origin,
+                extent=[0, len(activity_h), 1, cwt_h.shape[0]],
+                interpolation="nearest",
+                aspect="auto",
+                vmin=mat_min,
+                vmax=mat_max
+            )
+            axs[cpt, 3].set_title(f"Element wise mean of cwt coefficients unhealthy")
+            axs[cpt, 3].set_xlabel("Time")
+            axs[cpt, 3].set_ylabel("Scales")
+            fig.colorbar(im, ax=axs[cpt, 3])
+            cpt += 1
+
+        filename = f"{n_activity_days}_{transform}_{r}_distance_from_db_{X_train.shape[1]}.png"
+        filepath = output_dir / filename
+        fig.tight_layout()
+        print(filepath)
+        fig.savefig(filepath)
+
+        intercept = clf.intercept_
         mean_time = np.mean(X_train, axis=0)
 
         date_list = [
@@ -151,8 +310,11 @@ def main(
         fig, ax = plt.subplots(figsize=(12.80, 7.20))
         ax2 = ax.twinx()
         ax.plot(date_list, mean_time, label="mean activity of all samples")
-        # ax.plot(imp*mean, label="mean activity of all samples * feature confidence")
-        ax2.plot(date_list, imp, color="red", label="feature confidence", alpha=0.3)
+        # ax.plot(imp*mean, label="mean activity of all samples * feature importance")
+        ax2.plot(date_list, imp, color="red", label="weight", alpha=0.3)
+        #ax2.plot(date_list, fisher_s, color="green", label="Fisher score", alpha=0.3)
+
+        #ax2.plot(date_list, intercept, color="purple", label="intercept", alpha=0.3)
 
         df_imp = pd.DataFrame(imp, columns=["imp"])
         rollavg = df_imp.imp.rolling(roll_avg).mean()
@@ -160,17 +322,17 @@ def main(
             date_list,
             rollavg,
             color="black",
-            label=f"feature confidence rolling avg ({roll_avg} points)",
+            label=f"feature importance rolling avg ({roll_avg} points)",
             alpha=0.9,
         )
 
         ax.legend(loc="upper left")
         ax2.legend(loc="upper right")
-        ax.set_title(f"Feature confidence {type(clf).__name__} days={n_activity_days}")
+        ax.set_title(f"Feature importance {type(clf).__name__} days={n_activity_days}")
         ax.set_xlabel("Time")
         ax.set_ylabel("Activity")
-        ax2.set_ylabel("confidence", color="red")
-        filename = f"{n_activity_days}_feature_confidence_{X_train.shape[1]}.png"
+        ax2.set_ylabel("importance", color="red")
+        filename = f"{n_activity_days}_feature_importance_{X_train.shape[1]}.png"
         filepath = output_dir / filename
         print(filepath)
 
@@ -205,35 +367,30 @@ def main(
         X_train[np.isnan(X_train)] = -1
         # scales = CWT_Transform.get_scales()
         clf = SVC(kernel="linear", probability=True)
+        #clf = LinearRegression()
+        if random_forest:
+            clf = RandomForestClassifier(random_state=0)
+
         print("fit...")
         clf.fit(X_train, y_train)
-        imp = np.abs(clf.coef_[0])
+        if random_forest:
+            imp = clf.feature_importances_
+        else:
+            imp = abs(clf.coef_[0])
+
+        # if distance:
+        #     y = clf.decision_function(X_train)
+        #     w_norm = np.linalg.norm(clf.coef_)
+        #     dist = y / w_norm
+        #     imp = dist
+        #
+        intercept = clf.intercept_
         imp_top_n_perct = imp.copy()
         imp_top_n_perct[
             imp_top_n_perct <= np.percentile(imp_top_n_perct, prct)
             ] = np.nan
 
-        mean_cwt = np.mean(X_train, axis=0)
-
-        # fig, ax = plt.subplots(figsize=(12.80, 7.20))
-        # ax2 = ax.twinx()
-        # ax.plot(mean_cwt, label="mean cwt(flatten) of all samples")
-        # #ax.plot(imp*mean, label="mean activity of all samples * feature confidence")
-        # ax2.plot(imp, color="red", label="feature confidence", alpha=0.3)
-        # df_imp = pd.DataFrame(imp, columns=["imp"])
-        # rollavg = df_imp.imp.rolling(1000).mean()
-        # ax2.plot(rollavg, color="black", label=f"feature confidence rolling avg ({1000} points)", alpha=0.9)
-        #
-        # ax.legend(loc="upper left")
-        # ax2.legend(loc="upper right")
-        # ax.set_title(f"Feature confidence {type(clf).__name__}")
-        # ax.set_xlabel('CWT (features)')
-        # ax.set_ylabel('Activity')
-        # ax2.set_ylabel('confidence', color='red')
-        # filename = f"cwt_feature_confidence_{X_train.shape[1]}.png"
-        # filepath = output_dir / filename
-        # print(filepath)
-        # fig.savefig(filepath)
+        mean_ = np.mean(X_train, axis=0)
 
         cwt_0 = X_train[y_train == 0]
         cwt_1 = X_train[y_train == 1]
@@ -261,26 +418,26 @@ def main(
         axs = axs.ravel()
         fig, ax = plt.subplots(figsize=(12.80, 7.20))
         ax2 = ax.twinx()
-        ax.plot(mean_cwt, label=f"mean {transform}(flatten) of all samples")
-        # ax.plot(imp*mean, label="mean activity of all samples * feature confidence")
-        ax2.plot(imp, color="red", label="feature confidence", alpha=0.3)
+        ax.plot(mean_, label=f"mean {transform}(flatten) of all samples")
+        # ax.plot(imp*mean, label="mean activity of all samples * feature importance")
+        ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
         df_imp = pd.DataFrame(imp, columns=["imp"])
         rollavg = df_imp.imp.rolling(1000).mean()
         ax2.plot(
             rollavg,
             color="black",
-            label=f"feature confidence rolling avg ({1000} points)",
+            label=f"feature importance rolling avg ({1000} points)",
             alpha=0.9,
         )
 
         ax.legend(loc="upper left")
         ax2.legend(loc="upper right")
-        ax.set_title(f"Feature confidence {type(clf).__name__} days={n_activity_days}")
+        ax.set_title(f"Feature importance {type(clf).__name__} days={n_activity_days}")
         ax.set_xlabel(f"{transform} (features)")
         ax.set_ylabel("Activity")
-        ax2.set_ylabel("confidence", color="red")
+        ax2.set_ylabel("importance", color="red")
         filename = (
-            f"{n_activity_days}_{transform}_feature_confidence_{X_train.shape[1]}.png"
+            f"{n_activity_days}_{transform}_feature_importance_{X_train.shape[1]}.png"
         )
         filepath = output_dir / filename
         print(filepath)
@@ -314,7 +471,9 @@ def main(
         coefs_class1_mean = np.mean(cwt_list_1, axis=0)
         coefs_class1_mean[np.isnan(coi_mask)] = np.nan
         cwt_imp = np.reshape(imp, (f_transform.shape[0], f_transform.shape[1]))
-        cwt_imp[np.isnan(coi_mask)] = np.nan
+        # cwt_intercept = np.reshape(intercept, (f_transform.shape[0], f_transform.shape[1]))
+
+        #cwt_imp[np.isnan(coi_mask)] = np.nan
         cwt_imp_top = np.reshape(
             imp_top_n_perct, (f_transform.shape[0], f_transform.shape[1])
         )
@@ -385,7 +544,7 @@ def main(
         fig.colorbar(im, ax=axs[2])
         axs[2].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         axs[2].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
-        axs[2].set_title(f"{transform} Features confidence {type(clf).__name__}")
+        axs[2].set_title(f"{transform} Features importance {type(clf).__name__}")
         axs[2].set_xlabel("Time")
         axs[2].set_ylabel("Scales")
 
@@ -402,15 +561,21 @@ def main(
         axs[3].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         axs[3].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[3].set_title(
-            f"{transform} Features confidence top 10% {type(clf).__name__} days={n_activity_days}"
+            f"{transform} Features importance top 10% {type(clf).__name__} days={n_activity_days}"
         )
         axs[3].set_xlabel("Time")
         axs[3].set_ylabel("Scales")
 
-        mat_max = max([np.nanmax(cwt_imp * coefs_class0_mean), np.nanmax(cwt_imp * coefs_class1_mean)])
-        mat_min = min([np.nanmin(cwt_imp * coefs_class0_mean), np.nanmin(cwt_imp * coefs_class1_mean)])
+        a = (cwt_imp * coefs_class0_mean) - intercept
+        b = (cwt_imp * coefs_class1_mean) - intercept
+        # if distance:
+        #     a = (cwt_imp * coefs_class0_mean)
+        #     b = (cwt_imp * coefs_class1_mean)
+
+        mat_max = max([np.nanmax(a), np.nanmax(b)])
+        mat_min = min([np.nanmin(a), np.nanmin(b)])
         im = axs[4].imshow(
-            cwt_imp * coefs_class0_mean,
+            a,
             origin=origin,
             extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
@@ -422,13 +587,13 @@ def main(
         axs[4].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         axs[4].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[4].set_title(
-            f"{transform} Features confidence multipied by coef of healthy class days={n_activity_days}"
+            f"{transform} Features importance multipied by coef of healthy class days={n_activity_days}"
         )
         axs[4].set_xlabel("Time")
         axs[4].set_ylabel("Scales")
 
         im = axs[5].imshow(
-            cwt_imp * coefs_class1_mean,
+            b,
             origin=origin,
             extent=[date_list[0], date_list[-1], 1, coefs_class0_mean.shape[0]],
             interpolation="nearest",
@@ -440,7 +605,7 @@ def main(
         axs[5].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         axs[5].xaxis.set_major_locator(mdates.MinuteLocator(interval=T*n_activity_days))
         axs[5].set_title(
-            f"{transform} Features confidence multipied by coef of unhealthy class days={n_activity_days}"
+            f"{transform} Features importance multipied by coef of unhealthy class days={n_activity_days}"
         )
         axs[5].set_xlabel("Time")
         axs[5].set_ylabel("Scales")
@@ -476,9 +641,9 @@ def main(
             axs[7].set_ylabel("Activity")
             axs[7].set_ylim([ymin, ymax])
 
-            iwave_h = abs(wavelet.icwt(cwt_imp * coefs_class0_mean, f_transform.scales, f_transform.delta_t,
+            iwave_h = abs(wavelet.icwt(a, f_transform.scales, f_transform.delta_t,
                                    wavelet=f_transform.wavelet_type.lower()))
-            iwave_uh = abs(wavelet.icwt(cwt_imp * coefs_class1_mean, f_transform.scales, f_transform.delta_t,
+            iwave_uh = abs(wavelet.icwt(b, f_transform.scales, f_transform.delta_t,
                                     wavelet=f_transform.wavelet_type.lower()))
             ymin = min([iwave_h.min(), iwave_uh.min()])
             ymax = max([iwave_h.max(), iwave_uh.max()])
@@ -488,7 +653,7 @@ def main(
             #axs[8].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
             #axs[8].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[8].set_title(
-                f"{transform} Inverse of Features confidence multipied by coef of healthy d={n_activity_days}"
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
             )
             axs[8].set_xlabel("Time")
             axs[8].set_ylabel("Activity")
@@ -499,7 +664,7 @@ def main(
             #axs[9].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
             #axs[9].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             axs[9].set_title(
-                f"{transform} Inverse of Features confidence multipied by coef of healthy d={n_activity_days}"
+                f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
             )
             axs[9].set_xlabel("Time")
             axs[9].set_ylabel("Activity")
@@ -543,7 +708,7 @@ def main(
         #     # axs[6].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         #     # axs[6].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[8].set_title(
-        #         f"{transform} Inverse of Features confidence multipied by coef of healthy d={n_activity_days}"
+        #         f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
         #     )
         #     axs[8].set_xlabel("Time")
         #     axs[8].set_ylabel("Activity")
@@ -554,13 +719,13 @@ def main(
         #     # axs[7].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         #     # axs[7].xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
         #     axs[9].set_title(
-        #         f"{transform} Inverse of Features confidence multipied by coef of healthy d={n_activity_days}"
+        #         f"{transform} Inverse of Features importance multipied by coef of healthy d={n_activity_days}"
         #     )
         #     axs[9].set_xlabel("Time")
         #     axs[9].set_ylabel("Activity")
         #     axs[9].set_ylim([ymin, ymax])
 
-        filename = f"{n_activity_days}_{transform}_reshaped_feature_confidence_{X_train.shape[1]}.png"
+        filename = f"{n_activity_days}_{transform}_reshaped_feature_importance_{X_train.shape[1]}.png"
         filepath = output_dir / filename
         # fig.autofmt_xdate()
         fig.tight_layout()
@@ -592,11 +757,11 @@ def main(
         #     cwt_imp, extent=[0, coefs_class0_mean.shape[1], coefs_class0_mean.shape[0], 1],
         #     interpolation="nearest", aspect='auto'
         # )
-        # axs[2].set_title(f"CWT Features confidence {type(clf).__name__}")
+        # axs[2].set_title(f"CWT Features importance {type(clf).__name__}")
         # axs[2].set_xlabel('Time')
         # axs[2].set_ylabel('Scales')
         #
-        # filename = f"cwt_reshaped_feature_confidence_{X_train.shape[1]}.png"
+        # filename = f"cwt_reshaped_feature_importance_{X_train.shape[1]}.png"
         # filepath = output_dir / filename
         # fig.tight_layout()
         # print(filepath)
@@ -629,12 +794,14 @@ if __name__ == "__main__":
     for t in ["dwt", "cwt"]:
         for j in [1, 2, 3, 4, 5, 6, 7]:
             main(
-                Path(f"E:/Data2/debug3/{t}_explain_{j}/with_resampling"),
-                Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
+                Path(f"E:/Data2/debug4/{t}_explain_{j}_datasetmrnn7_17"),
+                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "CENTER"],
                 p=False,
                 n_activity_days=j,
                 transform=t,
-                enable_graph_out=True
+                enable_graph_out=False,
+                random_forest=False
             )
 
             # main(

@@ -98,6 +98,7 @@ def load_activity_data(
         end = int(df_activity_window.shape[1])
         start = int(end - n_activity_days * 1440)
         df_activity_window = df_activity_window.iloc[:, start:end]
+        #df_activity_window = df_activity_window.iloc[:, ::-1]
         if sampling != "T":
             df_activity_window = resample(df_activity_window, sampling)
 
@@ -192,7 +193,7 @@ def load_activity_data(
     meta_data = data_frame[meta_columns].values
     meta_data_short = []
     for j, m in enumerate(meta_data):
-        str_f = str(j)
+        str_f = str(j) + " "
         for i, elem in enumerate(m):
             elem = str(elem)
             m_col = meta_columns[i]

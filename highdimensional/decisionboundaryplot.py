@@ -447,14 +447,14 @@ class DBPlot(BaseEstimator):
             marker="p",
         )
         # generated demo points
-        if generate_testpoints:
-            plt.scatter(
-                self.X_testpoints_2d[:, 0],
-                self.X_testpoints_2d[:, 1],
-                20 * scatter_size_scale,
-                c=["g" if i else "b" for i in self.y_testpoints],
-                alpha=0.6,
-            )
+        # if generate_testpoints:
+        #     plt.scatter(
+        #         self.X_testpoints_2d[:, 0],
+        #         self.X_testpoints_2d[:, 1],
+        #         20 * scatter_size_scale,
+        #         c=["g" if i else "b" for i in self.y_testpoints],
+        #         alpha=0.6,
+        #     )
 
         # training data
         plt.scatter(
@@ -513,12 +513,26 @@ class DBPlot(BaseEstimator):
         )
 
         # label data points with their indices
+        map_color = {1:'tab:blue',
+                     2:'tab:orange',
+                     3:'tab:green',
+                     4:'tab:red',
+                     5:'tab:purple',
+                     6:'tab:brown',
+                     7:'tab:pink',
+                     8:'tab:gray',
+                     9:'tab:olive',
+                     10:'tab:cyan',
+                     11:'black',
+                     12:'white'}
+        months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
         for i in range(len(self.X2d)):
             plt.text(
                 self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2,
                 self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2,
-                str(meta[i]),
-                size=8,
+                str(meta[i].split(' ')[1] +"_"+ meta[i].split(' ')[2]),
+                size=12,
+                color=months[i]
             )
 
         if legend:

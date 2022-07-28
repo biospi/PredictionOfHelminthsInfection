@@ -63,7 +63,7 @@ def main(
     add_feature: List[str] = [],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
-    n_scales: int = 9,
+    n_scales: int = 6,
     sub_sample_scales: int = 3,
     hum_file: Optional[Path] = Path("."),
     temp_file: Optional[Path] = Path("."),
@@ -87,7 +87,8 @@ def main(
     individual_to_keep: List[str] = [],
     individual_to_test: List[str] = [],
     save_model: bool = False,
-    resolution: float = None
+    resolution: float = None,
+    plot_2d_space: bool = False
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -126,7 +127,7 @@ def main(
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
 
-    print("found %d files." % len(files))
+    print(f"found {len(files)} files. in {dataset_folder}")
     print(files)
 
     df_hum = None
@@ -173,6 +174,7 @@ def main(
             meta_cols_str=meta_col_str,
             sampling=sampling,
             individual_to_keep=individual_to_keep,
+            individual_to_ignore=individual_to_ignore,
             resolution=resolution
         )
 
@@ -457,7 +459,8 @@ def main(
             batch_size=batch_size,
             epoch=epoch,
             time_freq_shape=time_freq_shape,
-            individual_to_test=individual_to_test
+            individual_to_test=individual_to_test,
+            plot_2d_space=plot_2d_space
         )
 
         # 2DCNN

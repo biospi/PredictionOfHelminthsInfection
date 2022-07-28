@@ -142,15 +142,17 @@ class activity_file:
         Load in data from directory containing csv files containing activity trace data return Single Activity
         Trace object.
         """
+
         idx = np.where(self.ID == _ID)[1][0]
+
         print(f"Loading Activity from file: {bc.CYAN}{self.files[idx]}{bc.ENDC}")
         dataFrame = pd.read_csv(self.files[idx])
 
-        if _ID == 99999999999: #todo remove this is just for heatmap visualisation no need to save empty transponder trace otherwise
-            filepath = self.files[idx].parent / f"{tag}.csv"
-            print(filepath)
-            dataFrame_ = dataFrame.copy()
-            dataFrame.to_csv(filepath, index=False)
+        # if _ID == 99999999999: #todo remove this is just for heatmap visualisation no need to save empty transponder trace otherwise
+        #     filepath = self.files[idx].parent / f"{tag}.csv"
+        #     print(filepath)
+        #     dataFrame_ = dataFrame.copy()
+        #     dataFrame.to_csv(filepath, index=False)
 
         atrace = np.array(dataFrame.loc[:, self.col])
         missingness = np.zeros(dataFrame.shape[0])
@@ -260,9 +262,10 @@ class SampleSet:
             except IndexError as e:
                 print(e)
                 print("missing transponder data!")
-                act, miss = actFile.loadActivityTrace(99999999999, tag=aIdx.Tag)
-                aIdx.ID = aIdx.Tag
-                act.ID = aIdx.Tag
+                continue
+                # act, miss = actFile.loadActivityTrace(99999999999, tag=aIdx.Tag)
+                # aIdx.ID = aIdx.Tag
+                # act.ID = aIdx.Tag
 
             print(f"Procesing animal with ID:{bc.BLUE} {act.ID} \t [{i+1}/{N}] {bc.ENDC}")
             aniSet = []

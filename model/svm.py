@@ -337,7 +337,8 @@ def process_ml(
     epoch=30,
     batch_size=8,
     time_freq_shape=None,
-    individual_to_test=None
+    individual_to_test=None,
+    plot_2d_space=False
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -452,6 +453,7 @@ def process_ml(
             sample_dates,
             augment_training,
             n_job,
+            plot_2d_space
         )
 
     if "transformer" in classifiers:
@@ -908,6 +910,7 @@ def cross_validate_svm_fast(
     sample_dates,
     augment_training,
     n_job=None,
+    plot_2d_space=False
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -922,25 +925,25 @@ def cross_validate_svm_fast(
         X: samples
         y: targets
     """
-
-    for kernel in svc_kernel:
-        clf = SVC(kernel=kernel, probability=True)
-        X_ = X[np.isin(y_h, [0, 1])]
-        y_ = y_h[np.isin(y_h, [0, 1])]
-        meta_ = meta_data_short[np.isin(y_h, [0, 1])]
-        clf.fit(X_, y_)
-        # plot_high_dimension_db(
-        #     out_dir / "training",
-        #     X_,
-        #     y_,
-        #     None,
-        #     meta_,
-        #     clf,
-        #     days,
-        #     steps,
-        #     0,
-        # )
-        # plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+    if plot_2d_space:
+        for kernel in svc_kernel:
+            clf = SVC(kernel=kernel, probability=True)
+            X_ = X[np.isin(y_h, [0, 1])]
+            y_ = y_h[np.isin(y_h, [0, 1])]
+            meta_ = meta_data_short[np.isin(y_h, [0, 1])]
+            clf.fit(X_, y_)
+            plot_high_dimension_db(
+                out_dir / "training",
+                X_,
+                y_,
+                None,
+                meta_,
+                clf,
+                days,
+                steps,
+                0,
+            )
+            plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
 
     scores, scores_proba = {}, {}
 

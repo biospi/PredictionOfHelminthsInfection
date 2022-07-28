@@ -36,8 +36,11 @@ import json
 def local_run():
 
     main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"),
-         out_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"), remove_missing=False)
+         data_dir=Path("F:/MRNN/imputed_data/17_missingrate_[0.0]_seql_1440_iteration_100_hw__n_299"),
+         out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn21_17"),
+         data_col="first_sensor_value_mrnn",
+         n_days=21,
+         remove_missing=False)
 
     # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
     #      data_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),
@@ -54,11 +57,11 @@ def main(
         out_dir: Path = typer.Option(
             ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
         ),
-        data_col: str = "first_sensor_value",
+        data_col: str = "first_sensor_value_mrnn",
         n_days: int = 7,
         farm_id: str = "farmid",
-        night: bool = typer.Option(False, "--p"),
-        remove_missing: bool = typer.Option(True, "--p")
+        night: bool = False,
+        remove_missing: bool = False
 ):
     """This script builds activity/ground truth datasets\n
     Args:\n

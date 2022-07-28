@@ -371,7 +371,7 @@ def plot_umap(meta_columns, df, output_dir, label_series, title="title", y_col="
     mapper = umap.UMAP().fit(df_before_reduction)
 
     ids = df["id"].values
-    labels = df["label"].values
+    labels = df[y_col].values
     seasons = (
         pd.to_datetime(df["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1
     ).map({1: "winter", 2: "spring", 3: "summer", 4: "fall"})
@@ -2145,9 +2145,12 @@ def plot_fold_details(
         title=f"Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.2f} mean_acc_test={mean_acc:.2f}",
     )
     ax.axhline(y=0.5, color='r', linestyle='--')
-    for item in ax.get_xticklabels():
-        if int(item.get_text().split(' ')[0].replace('[', '')) == 0:
-            item.set_color("tab:blue")
+    try:
+        for item in ax.get_xticklabels():
+            if int(item.get_text().split(' ')[0].replace('[', '')) == 0:
+                item.set_color("tab:blue")
+    except ValueError as e:
+        print(e)
 
     ax.set_xlabel("Fold metadata")
     ax.set_ylabel("Accuracy")

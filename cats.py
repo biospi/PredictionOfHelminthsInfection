@@ -54,7 +54,7 @@ def main(
                 "800__006__0_00100__120",
             ]
 
-            # folders = ["1000__002__0_00100__120"]
+            folders = ["1000__003__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
