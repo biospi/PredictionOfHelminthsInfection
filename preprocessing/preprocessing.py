@@ -48,6 +48,7 @@ def apply_preprocessing_steps(
     plot_all_target=None,
     enable_graph_out=None,
     output_qn_graph=False,
+    enable_qn_peak_filter=False,
     sub_sample_scales=1,
 ):
     time_freq_shape = None
@@ -243,7 +244,7 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
             df.iloc[:, :-N_META] = QuotientNormalizer(
-                out_dir=graph_outputdir / step, output_graph=output_qn_graph
+                out_dir=graph_outputdir / step, output_graph=output_qn_graph, enable_qn_peak_filter=enable_qn_peak_filter
             ).transform(df.iloc[:, :-N_META].values)
         if "STFT" in step:
             STFT_Transform = STFT(

@@ -72,7 +72,7 @@ def plot_ribbon(path, data, title, y_label, days):
     sns.lineplot(x=df["time"], y="acc", data=df, marker="o", ax=ax)
     fig.suptitle(title)
     # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
-    ax.set_xlabel("days")
+    ax.set_xlabel("days (window shift from test)")
     ax.set_ylabel(y_label)
 
     labels = [item.get_text() for item in ax.get_xticklabels()]
@@ -90,14 +90,14 @@ def plot_ribbon(path, data, title, y_label, days):
 
     print("labels", labels)
 
-    # ax.set_xticklabels(time_axis_s)
+    #ax.set_xticklabels(time_axis_s)
     fig.tight_layout()
     file_path = path / "model_auc_progression.png"
     print(file_path)
     fig.savefig(str(file_path))
 
 
-def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealthy, shape_healthy, shape_unhealthy):
+def plot_progression(title, output_dir, days, window, famacha_healthy, famacha_unhealthy, shape_healthy, shape_unhealthy):
     print("plot progression...")
     files = [x for x in list(output_dir.glob("**/*.csv")) if 'classification_report_days' in str(x)]
     files = natsorted(files)
@@ -111,7 +111,7 @@ def plot_progression(output_dir, days, window, famacha_healthy, famacha_unhealth
     plot_ribbon(
         output_dir,
         aucs,
-        f"Classifier Auc over time during increase of the FAMACHA score (window={window})\nhealthy:{famacha_healthy} {shape_healthy} unhealthy:{famacha_unhealthy} {shape_unhealthy}",
+        title,
         "Auc",
         days,
     )
@@ -211,6 +211,7 @@ def main_(
         n_scales=None,
         farm_name=study_id,
         keep_meta=False,
+        output_qn_graph=False
     )
 
     df_processed["target"] = pd.to_numeric(df_processed["target"])
@@ -219,12 +220,16 @@ def main_(
     shape_healthy = df_processed[df_processed["health"] == 0].shape
     shape_unhealthy = df_processed[df_processed["health"] == 1].shape
 
+    # title = f"Classifier Auc with moving window (window={window})\nhealthy:{famacha_healthy} {shape_healthy} unhealthy:{famacha_unhealthy} {shape_unhealthy}"
+    # plot_progression(title, output_dir, days_between, window, class_healthy_label, class_unhealthy_label, shape_healthy, shape_unhealthy)
+
     df_target = df_processed[["target", "health"]]
     df_activity_window = df_processed.iloc[:, np.array([str(x).isnumeric() for x in df_processed.columns])]
     cpt = 0
     for i in range(0, df_activity_window.shape[1] - window, stride):
         start = i
         end = start + window
+        print("****")
         print(start, end)
         df_a_w = df_activity_window.iloc[:, start:end]
         df_week = pd.concat([df_a_w, df_target], axis=1)
@@ -256,7 +261,8 @@ def main_(
         )
         cpt += 1
 
-    plot_progression(output_dir, days_between, window, class_healthy_label, class_unhealthy_label, shape_healthy, shape_unhealthy)
+    title = f"Classifier Auc with moving window (window={window} stride={stride})\nhealthy:{famacha_healthy} {shape_healthy} unhealthy:{famacha_unhealthy} {shape_unhealthy}"
+    plot_progression(title, output_dir, n_activity_days, window, class_healthy_label, class_unhealthy_label, shape_healthy, shape_unhealthy)
 
 
 def main(
@@ -479,11 +485,17 @@ if __name__ == "__main__":
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
-    for w in [1440]:
-        main_(Path(f'E:/thesis/test_distance_validation_debug_w_{w}'),
-             Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
-             famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
-             study_id="delmas", window=w, stride=1440, n_activity_days=21)
+    for w in [1440*6, 1440*5, 1440*4, 1440*3]:
+        for n_i in [21, 11, 7, 1]:
+            main_(Path(f'E:/thesis_debug_dist4/delmas_test_distance_validation_debug_w_{w}_{n_i}'),
+                 Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
+                 famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
+                 study_id="delmas", window=w, stride=720, n_activity_days=21, n_imputed_days=n_i)
+
+            main_(Path(f'E:/thesis_debug_dist5/delmas_test_distance_validation_debug_w_{w}_{n_i}'),
+                 Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
+                 famacha_healthy=["1To1"], famacha_unhealthy=["1To2"], back_to_back=True,
+                 study_id="delmas", window=w, stride=720, n_activity_days=21, n_imputed_days=n_i)
 
     # for w in [1440*5, 1440*3, 1440]:
     #     for a in [15, 20]:

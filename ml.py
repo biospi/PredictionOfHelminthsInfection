@@ -79,6 +79,7 @@ def main(
     sampling: str = "T",
     pre_visu: bool = True,
     output_qn_graph: bool = False,
+    enable_qn_peak_filter: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 7,
     batch_size: int = 100,
@@ -204,7 +205,8 @@ def main(
                 n_scales=n_scales,
                 keep_meta=True,
                 output_qn_graph=output_qn_graph,
-                sub_sample_scales=sub_sample_scales
+                sub_sample_scales=sub_sample_scales,
+                enable_qn_peak_filter=enable_qn_peak_filter
             )
 
             # plot_zeros_distrib(
@@ -382,7 +384,8 @@ def main(
                 clf_name="SVM",
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
-                sub_sample_scales=sub_sample_scales
+                sub_sample_scales=sub_sample_scales,
+                enable_qn_peak_filter=enable_qn_peak_filter
             )
             df_processed_list.append(df_processed)
 

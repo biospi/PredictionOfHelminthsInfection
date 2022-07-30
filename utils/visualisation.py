@@ -730,7 +730,7 @@ def plot_ml_report_final(output_dir):
                 imp_days = df_f_[df_f_["config"] == xd]["class1"].unique()
                 class0_list.append(class0)
                 class1_list.append(class1)
-                color = CSS_COLORS[c]
+                color = CSS_COLORS[c.replace("(", '').replace(")", '')]
                 colors.append(color)
                 traces.append(
                     go.Bar(
@@ -791,8 +791,8 @@ def plot_ml_report_final(output_dir):
                         y=yd,
                         name=c,
                         boxpoints="outliers",
-                        marker=dict(color=CSS_COLORS[c], size=10),
-                        marker_color=CSS_COLORS[c],
+                        marker=dict(color=CSS_COLORS[c.replace("(", '').replace(")", '')], size=10),
+                        marker_color=CSS_COLORS[c.replace("(", '').replace(")", '')],
                         showlegend = True,
                     )
                 )
@@ -2691,7 +2691,7 @@ def build_proba_hist(output_dir, steps, label_unhealthy, scores):
         plt.clf()
         fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
 
-        if "delmas" in str(output_dir) or "cedara" in str(output_dir):
+        if "delmas" in str(output_dir) or "cedara" in str(output_dir): #todo use farm id
             fig, axs = plt.subplots(
                 3, max_col, facecolor="white", figsize=(4.0 * max_col, 8.0)
             )

@@ -6,11 +6,12 @@ from pathlib import Path
 
 
 def local_run():
-    main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
-    main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
-    main(output_dir=Path("E:/thesis_debug_mrnn20/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_20"))
-    main(output_dir=Path("E:/thesis_debug_mrnn21/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_21"))
-    main(output_dir=Path("E:/thesis_debug_mrnn22/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_22"))
+    main(output_dir=Path("E:/thesis_debug_mrnn9/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_9"))
+    # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
+    # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
+    # main(output_dir=Path("E:/thesis_debug_mrnn20/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_20"))
+    # main(output_dir=Path("E:/thesis_debug_mrnn21/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_21"))
+    # main(output_dir=Path("E:/thesis_debug_mrnn22/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_22"))
 
 
 def main(

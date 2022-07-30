@@ -54,7 +54,7 @@ def main(
                 "800__006__0_00100__120",
             ]
 
-            folders = ["1000__003__0_00100__120"]
+            #folders = ["1000__003__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -102,8 +102,9 @@ def main(
                         n_job=7,
                         study_id="cat",
                         cv=cv,
-                        output_qn_graph=False,
-                        pre_visu=False,
+                        output_qn_graph=True,
+                        enable_qn_peak_filter=True,
+                        pre_visu=True,
                         epoch=100,
                         batch_size=100,
                     )

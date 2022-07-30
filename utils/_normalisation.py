@@ -13,11 +13,33 @@ from utils.Utils import anscombe
 np.random.seed(0)
 
 
-def normalize(X, out_dir, output_graph):
+def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
     out_dir_ = out_dir / "_normalisation"
     traces = []
     X = X.astype(np.float)
-    zmin, zmax = np.min(np.log(anscombe(X))), np.max(np.log(anscombe(X)))
+    X_o = X.copy()
+
+    if enable_qn_peak_filter:
+        X_peak_mask = X.copy()
+        X_peak_mask[:] = np.nan
+        n_peak = int(X.shape[1]/(4*60))
+        if n_peak == 1:
+            stride = int(X.shape[1]/n_peak/2)
+        else:
+            stride = int(X.shape[1] / n_peak)
+        w = 30
+
+        if n_peak == 1:
+            for i in range(X.shape[0]):
+                    X_peak_mask[i, stride - w:stride + w] = X[i, stride - w:stride + w]
+        else:
+            for i in range(X.shape[0]):
+                for j in range(stride, X.shape[1], stride):
+                    print(j)
+                    X_peak_mask[i, j-w:j+w] = X[i, j-w:j+w]
+        X = X_peak_mask
+
+    zmin, zmax = np.nanmin(np.log(anscombe(X))), np.nanmax(np.log(anscombe(X)))
     if np.isinf(zmin) or np.isnan(zmin):
         zmin = 0
     if np.isinf(zmax) or np.isnan(zmax):
@@ -95,8 +117,11 @@ def normalize(X, out_dir, output_graph):
 
     # step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
-    for i, s in enumerate(X):
-        qnorm_samples.append(np.divide(s, within_median[i]))
+    for i, (s, s_o) in enumerate(zip(X, X_o)):
+        q_sample = np.divide(s, within_median[i])
+        q_sample[np.isnan(q_sample)] = s_o[np.isnan(q_sample)]
+        qnorm_samples.append(q_sample)
+
     if output_graph:
         traces.append(
             plotHeatmap(
@@ -239,11 +264,12 @@ class CenterScaler(TransformerMixin, BaseEstimator):
 
 
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
-    def __init__(self, norm="q", *, out_dir=None, copy=True, output_graph=False):
+    def __init__(self, norm="q", *, out_dir=None, copy=True, output_graph=False, enable_qn_peak_filter=False):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
         self.output_graph = output_graph
+        self.enable_qn_peak_filter = enable_qn_peak_filter
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -271,7 +297,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         """
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse="csr")
-        norm = normalize(X, self.out_dir, self.output_graph)
+        norm = normalize(X, self.out_dir, self.output_graph, self.enable_qn_peak_filter)
         # norm_simple = normalize_simple(X, self.out_dir)
         return norm
 
