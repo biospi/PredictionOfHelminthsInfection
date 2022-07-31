@@ -131,7 +131,7 @@ IDS = [
 
 def cats():
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_transformer"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_qnf"
 
     files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
     #files = ["500__006__0_00100__120", "400__006__0_00100__120", "300__006__0_00100__120", "200__006__0_00100__120"]
@@ -164,7 +164,7 @@ def cats():
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            for cl in ["transformer"]:
+            for cl in ["rbf"]:
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
