@@ -18,7 +18,6 @@ def main(
     steps_list=[
         ["QN"],
         ["QN", "ANSCOMBE", "LOG"],
-        ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
         ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
     ],
     individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
@@ -31,7 +30,7 @@ def main(
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"ml.py --batch-size {batch_size} --epoch {epoch} --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
+        cmd = f"ml.py --enable-qn-peak-filter --batch-size {batch_size} --epoch {epoch} --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -180,7 +179,8 @@ def cats():
                     study_id="cats",
                     batch_size=20,
                     epoch=100,
-                    individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
+                    #individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
+                    individual_to_test=[],
                     meta_columns=[
                         "label",
                         "id",
@@ -192,9 +192,9 @@ def cats():
                         "name",
                         "mobility_score",
                     ],
-                    steps_list=[
-                        ["QN", "STD"],
-                    ],
+                    # steps_list=[
+                    #     ["QN", "STD"],
+                    # ],
                     individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
                 )
     print(f"total cmd number is {n_cmd}")
@@ -367,6 +367,6 @@ def goat_sheep():
 
 
 if __name__ == "__main__":
-    cwt_sheep()
-    #cats()
+    #cwt_sheep()
+    cats()
     # goat_sheep()

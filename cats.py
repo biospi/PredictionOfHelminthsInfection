@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations_10",
+    out_parent: str = "E:/Cats/ml_build_permutations_qnf",
     dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
@@ -79,18 +79,18 @@ def main(
                         meta_col_str=[],
                         individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
                         individual_to_keep=[],
-                        individual_to_test=[
-                            603,
-                            627,
-                            77,
-                            651,
-                            607,
-                            661,
-                            621,
-                            609,
-                            632,
-                            658,
-                        ],
+                        # individual_to_test=[
+                        #     603,
+                        #     627,
+                        #     77,
+                        #     651,
+                        #     607,
+                        #     661,
+                        #     621,
+                        #     609,
+                        #     632,
+                        #     658,
+                        # ],
                         classifiers=[clf],
                         n_imputed_days=-1,
                         n_activity_days=-1,

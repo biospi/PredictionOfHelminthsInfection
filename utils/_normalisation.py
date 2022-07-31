@@ -23,10 +23,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
         X_peak_mask = X.copy()
         X_peak_mask[:] = np.nan
         n_peak = int(X.shape[1]/(4*60))
-        if n_peak == 1:
-            stride = int(X.shape[1]/n_peak/2)
-        else:
-            stride = int(X.shape[1] / n_peak)
+        stride = int(X.shape[1] / n_peak / 2)
         w = 30
 
         if n_peak == 1:
@@ -34,8 +31,12 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                     X_peak_mask[i, stride - w:stride + w] = X[i, stride - w:stride + w]
         else:
             for i in range(X.shape[0]):
+                cpt = 0
                 for j in range(stride, X.shape[1], stride):
-                    print(j)
+                    cpt += 1
+                    if cpt % 2 == 0:
+                        continue
+                    #print(j)
                     X_peak_mask[i, j-w:j+w] = X[i, j-w:j+w]
         X = X_peak_mask
 
