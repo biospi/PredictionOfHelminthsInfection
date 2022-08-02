@@ -35,11 +35,11 @@ import json
 
 def local_run():
 
-    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("F:/MRNN/imputed_data/17_missingrate_[0.0]_seql_1440_iteration_100_hw__n_299"),
-         out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn21_17"),
+    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+         data_dir=Path("F:/MRNN/imputed_data/23_missingrate_[0.0]_seql_1440_iteration_100_hw__n_325"),
+         out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
          data_col="first_sensor_value_mrnn",
-         n_days=21,
+         n_days=7,
          remove_missing=False)
 
     # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
