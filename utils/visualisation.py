@@ -1370,6 +1370,9 @@ def plot_mean_groups(
         mean = np.mean(df_.iloc[:, :-N_META], axis=0)
         median = np.median(df_.iloc[:, :-N_META], axis=0)
 
+        dfs_mean = [(g['name'].values[0], np.mean(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+        dfs_median = [(g['name'].values[0], np.median(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+
         s = mean.values
         s = anscombe(s)
         s = np.log(s)
@@ -1429,12 +1432,28 @@ def plot_mean_groups(
                 line_color="#000000",
             )
         )
+
+        for m1, m2 in zip(dfs_mean, dfs_median):
+            fig_group.add_trace(
+                go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}", line_color="#000000")
+            )
+            # fig_group.add_trace(
+            #     go.Scatter(x=x, y=m2[1].values, mode="lines", name=f"Median {m2[0]}", line_color="#000000")
+            # )
+            fig_group_means.add_trace(
+                go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}")
+            )
+            fig_group_median.add_trace(
+                go.Scatter(x=x, y=m2[1], mode="lines", name=f"Mean {m2[0]}")
+            )
+
         fig_group_means.add_trace(
             go.Scatter(x=x, y=mean, mode="lines", name="Mean (%d) %s" % (n, label))
         )
         fig_group_median.add_trace(
             go.Scatter(x=x, y=median, mode="lines", name="Median (%d) %s" % (n, label))
         )
+
         fig_group.update_layout(
             title="%d samples in category %s" % (n, label),
             xaxis_title="Time",

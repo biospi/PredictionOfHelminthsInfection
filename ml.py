@@ -237,6 +237,18 @@ def main(
                 output_dir / "groups_after_qn",
             )
 
+            plot_mean_groups(
+                sub_sample_scales,
+                n_scales,
+                sfft_window,
+                wavelet_f0,
+                dwt_window,
+                data_frame,
+                label_series,
+                N_META,
+                output_dir / "groups_before_qn",
+            )
+
             # plot median wise cwt for each target(label)
             # apply_preprocessing_steps(
             #     meta_columns,

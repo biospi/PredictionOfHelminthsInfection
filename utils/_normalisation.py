@@ -24,11 +24,11 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
         X_peak_mask[:] = np.nan
         n_peak = int(X.shape[1]/(4*60))
         stride = int(X.shape[1] / n_peak / 2)
-        w = 30
+        w = 1
 
         if n_peak == 1:
             for i in range(X.shape[0]):
-                    X_peak_mask[i, stride - w:stride + w] = X[i, stride - w:stride + w]
+                    X_peak_mask[i, stride - w:stride + w+1] = X[i, stride - w:stride + w+1]
         else:
             for i in range(X.shape[0]):
                 cpt = 0
@@ -119,8 +119,8 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
     # step 4 Use the array of medians to scale(divide) each original sample, which will give all quotient normalized samples.
     qnorm_samples = []
     for i, (s, s_o) in enumerate(zip(X, X_o)):
+        s[np.isnan(s)] = s_o[np.isnan(s)]
         q_sample = np.divide(s, within_median[i])
-        q_sample[np.isnan(q_sample)] = s_o[np.isnan(q_sample)]
         qnorm_samples.append(q_sample)
 
     if output_graph:
