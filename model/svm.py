@@ -338,7 +338,8 @@ def process_ml(
     batch_size=8,
     time_freq_shape=None,
     individual_to_test=None,
-    plot_2d_space=False
+    plot_2d_space=False,
+    export_fig_as_pdf=False
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -453,7 +454,8 @@ def process_ml(
             sample_dates,
             augment_training,
             n_job,
-            plot_2d_space
+            plot_2d_space,
+            export_fig_as_pdf
         )
 
     if "transformer" in classifiers:
@@ -475,8 +477,9 @@ def process_ml(
             sample_dates,
             "TRF",
             n_job,
-            epochs=epoch,
-            batch_size=batch_size
+            epoch,
+            batch_size,
+            export_fig_as_pdf
         )
 
     if "cnn1d" in classifiers:
@@ -498,10 +501,11 @@ def process_ml(
             sample_dates,
             "CNN1D",
             n_job,
-            epochs=epoch,
-            batch_size=batch_size,
-            time_freq_shape=time_freq_shape,
-            cnnd=1
+            epoch,
+            batch_size,
+            time_freq_shape,
+            1,
+            export_fig_as_pdf
         )
 
     if "cnn2d" in classifiers:
@@ -523,9 +527,10 @@ def process_ml(
             sample_dates,
             "CNN2D",
             n_job,
-            epochs=epoch,
-            batch_size=batch_size,
-            time_freq_shape=time_freq_shape
+            epoch,
+            batch_size,
+            time_freq_shape,
+            export_fig_as_pdf
         )
 
     # scores, scores_proba = cross_validate_custom(
@@ -665,6 +670,7 @@ def fold_worker(
     ifold,
     augment_training,
     nfold,
+    export_fig_as_pdf
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -790,19 +796,20 @@ def fold_worker(
     print("auc train=", auc_value_train)
     aucs_roc_train.append(auc_value_train)
 
-    # if ifold == 0:
-    #     plot_high_dimension_db(
-    #         out_dir / "testing",
-    #         np.concatenate((X_train, X_test), axis=0),
-    #         np.concatenate((y_train, y_test), axis=0),
-    #         list(np.arange(len(X_train))),
-    #         np.concatenate((meta_train_s, meta_test_s), axis=0),
-    #         clf,
-    #         days,
-    #         steps,
-    #         ifold,
-    #     )
-    #     plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+    if ifold == 0:
+        plot_high_dimension_db(
+            out_dir / "testing",
+            np.concatenate((X_train, X_test), axis=0),
+            np.concatenate((y_train, y_test), axis=0),
+            list(np.arange(len(X_train))),
+            np.concatenate((meta_train_s, meta_test_s), axis=0),
+            clf,
+            days,
+            steps,
+            ifold,
+            export_fig_as_pdf
+        )
+        plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -910,7 +917,8 @@ def cross_validate_svm_fast(
     sample_dates,
     augment_training,
     n_job=None,
-    plot_2d_space=False
+    plot_2d_space=False,
+    export_fig_as_pdf=False
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -942,6 +950,7 @@ def cross_validate_svm_fast(
                 days,
                 steps,
                 0,
+                export_fig_as_pdf
             )
             plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
 
@@ -957,8 +966,8 @@ def cross_validate_svm_fast(
     for kernel in svc_kernel:
         clf = SVC(kernel=kernel, probability=True)
         plt.clf()
-        fig_roc, ax_roc = plt.subplots(1, 2, figsize=(19.20, 6.20))
-        fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
+        fig_roc, ax_roc = plt.subplots(1, 2, figsize=(8, 8))
+        fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(8, 8))
         mean_fpr_test = np.linspace(0, 1, 100)
         mean_fpr_train = np.linspace(0, 1, 100)
 
@@ -1014,6 +1023,7 @@ def cross_validate_svm_fast(
                         ifold,
                         augment_training,
                         cross_validation_method.get_n_splits(),
+                        export_fig_as_pdf
                     ),
                 )
             pool.close()
@@ -1096,6 +1106,16 @@ def cross_validate_svm_fast(
             final_path = path / f"{tag}_roc_{steps}_merge.png"
             print(final_path)
             fig_roc_merge.savefig(final_path)
+
+            if export_fig_as_pdf:
+                final_path = path / f"{tag}_roc_{steps}.pdf"
+                print(final_path)
+                fig_roc.savefig(final_path)
+
+                final_path = path / f"{tag}_roc_{steps}_merge.pdf"
+                print(final_path)
+                fig_roc_merge.savefig(final_path)
+
         else:
             mean_auc = plot_roc_range(
                 ax_roc_merge,
@@ -1114,6 +1134,7 @@ def cross_validate_svm_fast(
                 days,
                 info=info,
                 tag=f"{type(clf).__name__}_{clf.kernel}",
+                export_fig_as_pdf=export_fig_as_pdf,
             )
 
 
@@ -1305,6 +1326,7 @@ def process_clf_(
 
 
 def process_clf(
+    n_activity_days,
     train_size,
     label_series_f1,
     label_series_f2,
@@ -1317,6 +1339,7 @@ def process_clf(
     y_test,
     output_dir,
     n_job=None,
+    export_fig_as_pdf=None
 ):
     """Trains multiple model with n 90% samples
     Args:
@@ -1397,6 +1420,8 @@ def process_clf(
         #     n_jobs=-1,
         # )
         clf.fit(X_train.copy(), y_train.copy())
+
+
         clf_best = clf
         print("Best estimator from gridsearch=")
         print(clf_best)
@@ -1411,6 +1436,21 @@ def process_clf(
         filename = f"{output_dir / 'reports'}/report_{i}.csv"
         print(filename)
         df.to_csv(filename)
+
+        if i == 0:
+            plot_high_dimension_db(
+                output_dir / "testing",
+                np.concatenate((X_train, X_test), axis=0),
+                np.concatenate((y_train, y_test), axis=0),
+                list(np.arange(len(X_train))),
+                [],
+                clf,
+                n_activity_days,
+                steps,
+                i,
+                export_fig_as_pdf
+            )
+
         # X = np.array(X_train.tolist() + X_test.tolist())
         # y = np.array(y_train.tolist() + y_test.tolist())
         # results.append([clf_best, X, y])
@@ -1485,7 +1525,7 @@ def process_clf(
         fig_roc,
         fig_roc_merge,
         f"90% fold {n_fold}",
-        7,
+        n_activity_days,
         info=info,
         tag=f"{type(clf).__name__}",
     )

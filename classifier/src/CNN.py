@@ -818,7 +818,8 @@ def cross_validate_cnnnd(
     epochs=30,
     batch_size=32,
     time_freq_shape=None,
-    cnnd=2
+    cnnd=2,
+    export_fig_as_pdf=False
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:

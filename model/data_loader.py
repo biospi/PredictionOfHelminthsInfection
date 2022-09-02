@@ -48,6 +48,7 @@ def load_activity_data(
     individual_to_keep=[],
     plot_s_distribution=True,
     resolution = None,
+    sample_date_filter = None
 ):
     print(f"load activity from datasets...{filepath}")
     data_frame = pd.read_csv(filepath, sep=",", header=None, low_memory=False)
@@ -85,6 +86,11 @@ def load_activity_data(
     data_frame["date"] = data_frame["date"].astype(str).str.replace("'", "")
     # cast transponder ids to string instead of float
     data_frame["id"] = data_frame["id"].astype(str).str.split(".", expand=True, n=0)[0]
+
+    if sample_date_filter is not None:
+        data_frame["datetime"] = pd.to_datetime(data_frame['date'])
+        data_frame = data_frame[data_frame["datetime"] > pd.Timestamp(sample_date_filter)]
+        data_frame = data_frame.drop('datetime', 1)
 
     if len(individual_to_ignore) > 0:
         data_frame = data_frame.loc[~data_frame['name'].isin(individual_to_ignore)]

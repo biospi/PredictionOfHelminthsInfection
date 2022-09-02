@@ -39,6 +39,7 @@ from natsort import natsorted
 import plotly.express as px
 
 CSS_COLORS = {
+    "QN_ANSCOMBE_LOG_STDS": "forestgreen",
     "LINEAR_QN_ANSCOMBE_LOG_CENTER_DWT": "teal",
     "LINEAR_QN_ANSCOMBE_LOG": "green",
     "LINEAR_QN_ANSCOMBE_LOG_CENTER_CWTMORL": "grey",
@@ -1169,6 +1170,7 @@ def plot_roc_range(
     days,
     info="None",
     tag="",
+    export_fig_as_pdf=False
 ):
     ax_roc_merge.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -1248,13 +1250,31 @@ def plot_roc_range(
     fig.tight_layout()
     path = out_dir / "roc_curve" / cv_name
     path.mkdir(parents=True, exist_ok=True)
-    final_path = path / f"{tag}_roc_{classifier_name}.png"
-    print(final_path)
-    fig.savefig(final_path)
+    # final_path = path / f"{tag}_roc_{classifier_name}.png"
+    # print(final_path)
+    # fig.savefig(final_path)
 
     final_path = path / f"{tag}_roc_{classifier_name}_merge.png"
     print(final_path)
     fig_roc_merge.savefig(final_path)
+
+    filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}_merge.png"
+    print(filepath)
+    fig_roc_merge.savefig(filepath)
+
+    if export_fig_as_pdf:
+        final_path = path / f"{tag}_roc_{classifier_name}_merge.pdf"
+        print(final_path)
+        fig_roc_merge.savefig(final_path)
+
+        filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}_merge.pdf"
+        print(filepath)
+        fig_roc_merge.savefig(filepath)
+
+
+    # filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}.png"
+    # print(filepath)
+    # fig.savefig(filepath)
 
     # path = "%s/roc_curve/svg/" % out_dir
     # create_rec_dir(path)
@@ -1370,8 +1390,26 @@ def plot_mean_groups(
         mean = np.mean(df_.iloc[:, :-N_META], axis=0)
         median = np.median(df_.iloc[:, :-N_META], axis=0)
 
-        dfs_mean = [(g['name'].values[0], np.mean(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
-        dfs_median = [(g['name'].values[0], np.median(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+        try:
+            dfs_mean = [(g['name'].values[0], np.mean(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+            dfs_median = [(g['name'].values[0], np.median(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+
+            for m1, m2 in zip(dfs_mean, dfs_median):
+                fig_group.add_trace(
+                    go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}", line_color="#000000")
+                )
+                # fig_group.add_trace(
+                #     go.Scatter(x=x, y=m2[1].values, mode="lines", name=f"Median {m2[0]}", line_color="#000000")
+                # )
+                fig_group_means.add_trace(
+                    go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}")
+                )
+                fig_group_median.add_trace(
+                    go.Scatter(x=x, y=m2[1], mode="lines", name=f"Mean {m2[0]}")
+                )
+
+        except Exception as e:
+            print(e)
 
         s = mean.values
         s = anscombe(s)
@@ -1432,20 +1470,6 @@ def plot_mean_groups(
                 line_color="#000000",
             )
         )
-
-        for m1, m2 in zip(dfs_mean, dfs_median):
-            fig_group.add_trace(
-                go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}", line_color="#000000")
-            )
-            # fig_group.add_trace(
-            #     go.Scatter(x=x, y=m2[1].values, mode="lines", name=f"Median {m2[0]}", line_color="#000000")
-            # )
-            fig_group_means.add_trace(
-                go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}")
-            )
-            fig_group_median.add_trace(
-                go.Scatter(x=x, y=m2[1], mode="lines", name=f"Mean {m2[0]}")
-            )
 
         fig_group_means.add_trace(
             go.Scatter(x=x, y=mean, mode="lines", name="Mean (%d) %s" % (n, label))
@@ -1880,34 +1904,34 @@ def plot_3D_decision_boundaries(
 #
 
 
-def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, ifold):
+def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, ifold, export_fig_as_pdf):
     """
     Plot high-dimensional decision boundary
     """
     print(f"plot_high_dimension_db {ifold}")
     try:
-        db = DBPlot(clf)
-        db.fit(X, y, training_indices=train_index)
-        fig, ax = plt.subplots(figsize=(19.20, 19.20))
-        db.plot(
-            ax, generate_testpoints=True, meta=meta
-        )  # set generate_testpoints=False to speed up plotting
-        models_visu_dir = (
-            out_dir
-            / "models_visu_pca"
-            / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-        )
-        models_visu_dir.mkdir(parents=True, exist_ok=True)
-        filepath = models_visu_dir / f"{ifold}.png"
-        print(filepath)
-        plt.savefig(filepath)
+        # db = DBPlot(clf)
+        # db.fit(X, y, training_indices=train_index)
+        # fig, ax = plt.subplots(figsize=(19.20, 19.20))
+        # db.plot(
+        #     ax, generate_testpoints=True, meta=meta
+        # )  # set generate_testpoints=False to speed up plotting
+        # models_visu_dir = (
+        #     out_dir
+        #     / "models_visu_pca"
+        #     / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        # )
+        # models_visu_dir.mkdir(parents=True, exist_ok=True)
+        # filepath = models_visu_dir / f"{ifold}.png"
+        # print(filepath)
+        # plt.savefig(filepath)
         # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
 
         db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
         db.fit(X, y, training_indices=train_index)
-        fig, ax = plt.subplots(figsize=(19.20, 19.20))
+        fig, ax = plt.subplots(figsize=(8.0, 8.0))
         db.plot(
-            ax, generate_testpoints=True, meta=meta
+            ax, generate_testpoints=False, meta=meta
         )  # set generate_testpoints=False to speed up plotting
         models_visu_dir = (
             out_dir
@@ -1918,6 +1942,11 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
         filepath = models_visu_dir / f"{ifold}.png"
         print(filepath)
         plt.savefig(filepath)
+        if export_fig_as_pdf:
+            filepath = models_visu_dir / f"{ifold}.pdf"
+            print(filepath)
+            plt.savefig(filepath)
+
         # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
     except Exception as e:
         print(e)

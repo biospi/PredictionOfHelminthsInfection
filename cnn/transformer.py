@@ -522,7 +522,8 @@ def cross_validate_transformer(
     clf_name,
     n_job,
     epochs=30,
-    batch_size=32
+    batch_size=32,
+    export_fig_as_pdf= False
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:

@@ -935,7 +935,7 @@ def dwt_power(
     coeffs = pywt.wavedec(activity, w, mode=mode)
     wavelet = w.name
 
-    dwt_time, levels, cc = scalogram(activity, coeffs)
+    dwt_time, levels, cc = scalogram(activity, coeffs[2:])#ignore bottom 2 levels
 
     #coefs_cc = np.conj(cc)
     #power_dwt = np.real(np.multiply(cc, cc))

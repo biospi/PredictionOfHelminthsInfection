@@ -13,6 +13,8 @@ from highdimensional.utils import minimum_spanning_tree, polar_to_cartesian
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 
 
 class DBPlot(BaseEstimator):
@@ -271,14 +273,16 @@ class DBPlot(BaseEstimator):
                 "Failed to find initial decision boundary. Retrying... If this keeps happening, increasing the acceptance threshold might help. Also, make sure the classifier is able to find a point with 0.5 prediction probability (usually requires an even number of estimators/neighbors/etc)."
             )
             return None
-            #return self.fit(X, y, training_indices)
+            # return self.fit(X, y, training_indices)
 
         # step 3. look for decision boundary points between already known db
         # points that are too distant (search on connecting line first, then on
         # surrounding hypersphere surfaces)
-        edges, gap_distances, gap_probability_scores = (
-            self._get_sorted_db_keypoint_distances()
-        )  # find gaps
+        (
+            edges,
+            gap_distances,
+            gap_probability_scores,
+        ) = self._get_sorted_db_keypoint_distances()  # find gaps
         self.nn_model_decision_boundary_points = NearestNeighbors(n_neighbors=2)
         self.nn_model_decision_boundary_points.fit(self.decision_boundary_points)
 
@@ -352,9 +356,11 @@ class DBPlot(BaseEstimator):
                 i += 1
                 retries = 0
 
-            edges, gap_distances, gap_probability_scores = (
-                self._get_sorted_db_keypoint_distances()
-            )  # reload gaps
+            (
+                edges,
+                gap_distances,
+                gap_probability_scores,
+            ) = self._get_sorted_db_keypoint_distances()  # reload gaps
 
         self.decision_boundary_points = np.array(self.decision_boundary_points)
         self.decision_boundary_points_2d = np.array(self.decision_boundary_points_2d)
@@ -377,7 +383,7 @@ class DBPlot(BaseEstimator):
         background_resolution=800,
         scatter_size_scale=1.0,
         legend=True,
-        meta=None
+        meta=None,
     ):
         """Plots the dataset and the identified decision boundary in 2D.
         (If you wish to create custom plots, get the data using generate_plot() and plot it manually)
@@ -418,6 +424,8 @@ class DBPlot(BaseEstimator):
         print("plotting high dimension db...")
         if plt == None:
             plt = mplt
+
+        plt.set_facecolor((215 / 255, 239 / 255, 233 / 255))
 
         if len(self.X_testpoints) == 0:
             self.generate_plot(
@@ -468,16 +476,7 @@ class DBPlot(BaseEstimator):
                 else (
                     "b"
                     if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
-                    else (
-                        "orange"
-                        if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
-                        else (
-                            "r"
-                            if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
-                            else
-                            "gray"
-                        )
-                    )
+                    else "r"
                 )
                 for i in range(len(self.train_idx))
             ],
@@ -491,61 +490,131 @@ class DBPlot(BaseEstimator):
             facecolor=["g" if i else "b" for i in self.y[self.test_idx]],
             edgecolor=[
                 "g"
-                if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 1
+                if self.y_pred[self.test_idx[i]] == self.y[self.test_idx[i]] == 1
                 else (
                     "b"
-                    if self.y_pred[self.train_idx[i]] == self.y[self.train_idx[i]] == 0
-                    else (
-                        "orange"
-                        if self.y_pred[self.train_idx[i]] == 0 and self.y[self.train_idx[i]] == 1
-                        else (
-                            "r"
-                            if self.y_pred[self.train_idx[i]] == 1 and self.y[self.train_idx[i]] == 0
-                            else
-                            "gray"
-                        )
-                    )
+                    if self.y_pred[self.test_idx[i]] == self.y[self.test_idx[i]] == 0
+                    else "r"
                 )
-                for i in range(len(self.train_idx))
+                for i in range(len(self.test_idx))
             ],
             linewidths=5 * scatter_size_scale,
             marker="s",
         )
 
         # label data points with their indices
-        map_color = {1:'tab:blue',
-                     2:'tab:orange',
-                     3:'tab:green',
-                     4:'tab:red',
-                     5:'tab:purple',
-                     6:'tab:brown',
-                     7:'tab:pink',
-                     8:'tab:gray',
-                     9:'tab:olive',
-                     10:'tab:cyan',
-                     11:'black',
-                     12:'white'}
-        months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
-        for i in range(len(self.X2d)):
-            plt.text(
-                self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2,
-                self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2,
-                str(meta[i].split(' ')[1] +"_"+ meta[i].split(' ')[2]),
-                size=12,
-                color=months[i]
-            )
+        # map_color = {1:'tab:blue',
+        #              2:'tab:orange',
+        #              3:'tab:green',
+        #              4:'tab:red',
+        #              5:'tab:purple',
+        #              6:'tab:brown',
+        #              7:'tab:pink',
+        #              8:'tab:gray',
+        #              9:'tab:olive',
+        #              10:'tab:cyan',
+        #              11:'black',
+        #              12:'white'}
+        # months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
+        # for i in range(len(self.X2d)):
+        #     plt.text(
+        #         self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2,
+        #         self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2,
+        #         str(meta[i].split(' ')[1] +"_"+ meta[i].split(' ')[2]),
+        #         size=12,
+        #         color=months[i]
+        #     )
 
+        # blue 1to1
+        # green 2to2
         if legend:
-            plt.legend(
-                [
-                    "Estimated decision boundary keypoints",
-                    "Generated test data around decision boundary",
-                    "Training data",
-                    "Testing data",
-                ],
-                loc="lower right",
-                prop={"size": 9},
-            )
+            legend_elements = [
+                Line2D(
+                    [0],
+                    [0],
+                    marker="p",
+                    color="w",
+                    label="Estimated decision boundary keypoints",
+                    markerfacecolor="c",
+                    markersize=15,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="s",
+                    color="w",
+                    label="Training data healthy",
+                    markerfacecolor="b",
+                    markersize=15,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label="Testing data healthy",
+                    markerfacecolor="b",
+                    markersize=15,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="s",
+                    color="w",
+                    label="Training data unhealthy",
+                    markerfacecolor="g",
+                    markersize=15,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label="Testing data unhealthy",
+                    markerfacecolor="g",
+                    markersize=15,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label="Misclassification",
+                    markerfacecolor="r",
+                    markersize=15,
+                ),
+            ]
+
+            plt.legend(handles=legend_elements, loc="lower right", ncol=2)
+
+            # plt.legend(handles=[plt.scatter([0, 1], [2, 3], marker="p", c="c").legend_elements()[0],
+            #                     plt.scatter([0, 1], [2, 3], marker="s", c="b").legend_elements()[0],
+            #                     plt.scatter([0, 1], [2, 3], marker="o", c="b").legend_elements()[0],
+            #                     plt.scatter([0, 1], [2, 3], marker="s", c="g").legend_elements()[0],
+            #                     plt.scatter([0, 1], [2, 3], marker="o", c="g").legend_elements()[0],
+            #                     plt.scatter([0, 1], [2, 3], marker="o", c="r").legend_elements()[0],
+            #                     ],
+            #            labels=[
+            #             "Estimated decision boundary keypoints",
+            #             "Training data healthy",
+            #             "Testing data healthy",
+            #             "Training data unhealthy",
+            #             "Testing data unhealthy",
+            #             "Misclassification",
+            #             ],
+            #            loc="lower right"
+            #            )
+
+            # plt.legend(
+            #     [
+            #         "Estimated decision boundary keypoints",
+            #         # "Generated test data around decision boundary",
+            #         "Training data",
+            #         "Testing data",
+            #     ],
+            #     loc="lower right",
+            #     prop={"size": 9},
+            # )
 
         # decision boundary keypoints, in case not visible in background
         plt.scatter(
@@ -735,8 +804,7 @@ class DBPlot(BaseEstimator):
             return self.decision_boundary_points_2d
 
     def _generate_testpoints(self, tries=100):
-        """Generate random demo points around decision boundary keypoints
-        """
+        """Generate random demo points around decision boundary keypoints"""
         nn_model = NearestNeighbors(n_neighbors=3)
         nn_model.fit(self.decision_boundary_points)
 
@@ -749,7 +817,7 @@ class DBPlot(BaseEstimator):
         for i in range(len(self.decision_boundary_points)):
             if self.verbose:
                 msg = "Generating testpoint for plotting {}/{}"
-                #print(msg.format(i, len(self.decision_boundary_points)))
+                # print(msg.format(i, len(self.decision_boundary_points)))
             testpoints = np.zeros((0, self.X.shape[1]))
             # generate Np points in Gaussian around decision_boundary_points[i] with
             # radius depending on the distance to the next point

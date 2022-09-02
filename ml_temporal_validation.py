@@ -10,6 +10,7 @@ from model.svm import process_clf, process_clf_
 from preprocessing.preprocessing import apply_preprocessing_steps
 from utils.Utils import getXY, plot_heatmap
 import numpy as np
+from sys import exit
 
 
 def main(
@@ -22,7 +23,7 @@ def main(
     model_path: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    n_imputed_days: int = 7,
+    n_imputed_days: int = 6,
     n_activity_days: int = 7,
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
@@ -37,8 +38,10 @@ def main(
     meta_col_str: List[str] = ["health", "label", "date"],
     add_feature: List[str] = [],
     preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
-    train_size: float = 0.8,
-    n_fold: int = 50
+    train_size: float = 0.9,
+    n_fold: int = 50,
+    sample_date_filter: str = None,
+    export_fig_as_pdf:bool = False
 ):
     """This script train a ml model(SVM) on the dataset first half time period and test on the second half\n
     Args:\n
@@ -76,12 +79,13 @@ def main(
             class_unhealthy_label,
             imputed_days=n_imputed_days,
             preprocessing_steps=preprocessing_steps,
-            meta_cols_str=meta_col_str
+            meta_cols_str=meta_col_str,
+            sample_date_filter=sample_date_filter
         )
 
-        # data_frame = data_frame[
-        #     data_frame["health"].isin([0, 1])
-        # ]
+        data_frame = data_frame[
+            data_frame["health"].isin([0, 1])
+        ]
 
         data_frame["date_"] = pd.to_datetime(data_frame["date"], dayfirst=True)
         data_frame = data_frame.sort_values("date_", ascending=True)
@@ -98,14 +102,20 @@ def main(
         p2_start = p1_end
         p2_end = str(data_frame["date"].iloc[-1]).split(" ")[0]
 
+        p1_start = pd.to_datetime(p1_start, format='%d/%m/%Y').strftime('%B %Y')
+        p1_end = pd.to_datetime(p1_end, format='%d/%m/%Y').strftime('%B %Y')
+        p2_start = pd.to_datetime(p2_start, format='%d/%m/%Y').strftime('%B %Y')
+        p2_end = pd.to_datetime(p2_end, format='%d/%m/%Y').strftime('%B %Y')
+
         print(
-            "data_frame:%s %s %s"
+            "data_frame: %s->%s->%s"
             % (
                 p1_start,
                 p1_end,
                 p2_end
             )
         )
+        return
 
         data_frame, df_with_meta, _ = apply_preprocessing_steps(
             meta_columns,
@@ -148,8 +158,8 @@ def main(
         # process_clf_(preprocessing_steps, X1, y1, model_path, output_dir / "pre_trained" / f"{p1_start}{p1_end}_{p2_start}{p2_end}".replace("/", ""))
         # process_clf_(preprocessing_steps, X2, y2, model_path, output_dir / "pre_trained" / f"{p2_start}{p2_end}_{p1_start}{p1_end}".replace("/", ""))
 
-        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir / f"{p1_start}_{p2_start}".replace("/", ""))
-        process_clf(train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / f"{p2_start}_{p1_start}".replace("/", ""))
+        process_clf(n_activity_days, train_size, label_series, label_series, info, preprocessing_steps, n_fold, X1, X2, y1, y2, output_dir / f"{p1_start}_{p2_start}".replace("/", ""))
+        process_clf(n_activity_days, train_size, label_series, label_series, info, preprocessing_steps, n_fold, X2, X1, y2, y1, output_dir / f"{p2_start}_{p1_start}".replace("/", ""))
 
 
 if __name__ == "__main__":

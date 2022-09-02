@@ -89,7 +89,8 @@ def main(
     individual_to_test: List[str] = [],
     save_model: bool = False,
     resolution: float = None,
-    plot_2d_space: bool = False
+    plot_2d_space: bool = False,
+    export_fig_as_pdf:bool = False
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -475,7 +476,8 @@ def main(
             epoch=epoch,
             time_freq_shape=time_freq_shape,
             individual_to_test=individual_to_test,
-            plot_2d_space=plot_2d_space
+            plot_2d_space=plot_2d_space,
+            export_fig_as_pdf=export_fig_as_pdf
         )
 
         # 2DCNN

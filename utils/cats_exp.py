@@ -60,7 +60,7 @@ def main(folder_path):
 
         for peak in df_data["n_peaks"].unique():
             df_plot = df_data[df_data["n_peaks"] == peak]
-            df_plot = tes[tes["n_peaks"] == 2]
+            #df_plot = tes[tes["n_peaks"] == 2]
             df_plot = df_plot.sort_values(by='training_shape')
 
             x_axis = df_plot["training_shape"]
@@ -102,5 +102,5 @@ def main(folder_path):
 
 
 if __name__ == "__main__":
-    main(Path("E:/Cats/bluepebble5/ml_build_permutations"))
+    main(Path("E:/Cats/biospi/ml_build_permutations_qnf"))
     #main(Path("E:/Cats/bluepebble2"))

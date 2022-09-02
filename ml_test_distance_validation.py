@@ -258,6 +258,7 @@ def main_(
             add_seasons_to_features,
             cv=cv,
             n_job=n_job,
+            plot_2d_space=True
         )
         cpt += 1
 
@@ -487,15 +488,15 @@ if __name__ == "__main__":
 
     for w in [1440*6, 1440*5, 1440*4, 1440*3]:
         for n_i in [21, 11, 7, 1]:
-            main_(Path(f'E:/thesis_debug_dist4/delmas_test_distance_validation_debug_w_{w}_{n_i}'),
+            main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_debug_w_{w}_{n_i}_2to2'),
                  Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
                  famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
-                 study_id="delmas", window=w, stride=720, n_activity_days=21, n_imputed_days=n_i)
+                 study_id="delmas", window=w, stride=1440, n_activity_days=21, n_imputed_days=n_i)
 
-            main_(Path(f'E:/thesis_debug_dist5/delmas_test_distance_validation_debug_w_{w}_{n_i}'),
+            main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_debug_w_{w}_{n_i}_1to2'),
                  Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
                  famacha_healthy=["1To1"], famacha_unhealthy=["1To2"], back_to_back=True,
-                 study_id="delmas", window=w, stride=720, n_activity_days=21, n_imputed_days=n_i)
+                 study_id="delmas", window=w, stride=1440, n_activity_days=21, n_imputed_days=n_i)
 
     # for w in [1440*5, 1440*3, 1440]:
     #     for a in [15, 20]:

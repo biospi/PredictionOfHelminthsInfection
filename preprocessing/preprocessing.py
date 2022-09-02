@@ -213,7 +213,7 @@ def apply_preprocessing_steps(
             )
         if step in ["STANDARDSCALER", "STDS"]:
             df.iloc[:, :-N_META] = StandardScaler(
-                with_mean=False, with_std=True
+                with_mean=True, with_std=True
             ).fit_transform(df.iloc[:, :-N_META].values)
 
             # if "TEMPERATURE" not in step_slug and "HUMIDITY" not in step_slug and "PCA" not in step_slug:

@@ -52,6 +52,36 @@ def datetime_range(start, end, delta):
         current += delta
 
 
+def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir):
+    #print(date_list)
+    light = np.array(["night" if x.hour>=7 and x.hour<19 else "day" for x in date_list])
+    light_ = np.array([0 if x.hour>=7 and x.hour<19 else 1 for x in date_list])
+
+    fig_, ax_ = plt.subplots(figsize=(12.80, 7.20))
+    filename = f"{n_activity_days}_period_{X_train.shape[1]}.png"
+    filepath = output_dir / filename
+    print(filepath)
+    ax_.plot(activity)
+    ax_.plot(light_)
+    fig_.savefig(filepath)
+
+    day_imp = imp[light == "day"]
+    night_imp = imp[light == "night"]
+
+    std = [day_imp.std(), night_imp.std()]
+    mean = [day_imp.mean(), night_imp.mean()]
+    median = [np.median(day_imp), np.median(night_imp)]
+    index = ['Daytime', 'Nighttime']
+    df = pd.DataFrame({'std': std,
+                       'mean': mean,
+                       'median': median}, index=index)
+    fig_ = df.plot.bar(rot=0, title="Feature importance", figsize=(3, 6)).get_figure()
+    filename = f"{n_activity_days}_day_night_{X_train.shape[1]}.png"
+    filepath = output_dir / filename
+    print(filepath)
+    fig_.savefig(filepath)
+
+
 def main(
         output_dir: Path = typer.Option(
             ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -149,11 +179,39 @@ def main(
         )
         print(data_frame_time)
 
+        data_frame_time_o, _, _ = apply_preprocessing_steps(
+            meta_columns,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            data_frame.copy(),
+            output_dir,
+            ["QN", "ANSCOMBE", "LOG"],
+            class_healthy_label,
+            class_unhealthy_label,
+            clf_name="SVM",
+            n_scales=None,
+            farm_name="FARMS",
+            keep_meta=False,
+        )
+
 
         # for n_activity_days in range(1, n_activity_days):
         print(n_activity_days)
         meta_ = meta_data_short[data_frame_time["health"].isin([0, 1])]
         data_frame_time = data_frame_time.loc[data_frame_time["health"].isin([0, 1])]
+
+        data_frame = data_frame.loc[data_frame["health"].isin([0, 1])]
+
+        X_train_o, y_train_o = (
+            data_frame_time_o.iloc[:, : -2].values,
+            data_frame_time_o["health"].values,
+        )
+
         if n_activity_days > 0:
             X_train, y_train = (
                 data_frame_time.iloc[:, : -2].values,
@@ -202,7 +260,6 @@ def main(
         df_dist["y"] = y_train
         df_dist["dist"] = dist
         df_dist = df_dist.sort_values("dist")
-
 
         df_dist_healthy = df_dist[df_dist["y"] == 0]
         df_dist_unhealthy = df_dist[df_dist["y"] == 1]
@@ -301,15 +358,19 @@ def main(
 
         intercept = clf.intercept_
         mean_time = np.mean(X_train, axis=0)
+        mean_time_o = np.mean(X_train_o, axis=0)
 
         date_list = [
             datetime(2016, 9, 1, 12) + timedelta(minutes=1 * x)
             for x in range(0, len(mean_time))
         ]
 
-        fig, ax = plt.subplots(figsize=(12.80, 7.20))
+        get_imp_stat(date_list, imp, mean_time_o, n_activity_days, X_train, output_dir)
+
+        fig, ax = plt.subplots(figsize=(16.80, 7.20))
         ax2 = ax.twinx()
-        ax.plot(date_list, mean_time, label="mean activity of all samples")
+        ax.plot(date_list, mean_time, label=f"mean activity of all samples({class_healthy_label}, {class_unhealthy_label}) after {preprocessing_steps}")
+        ax.plot(date_list, mean_time_o, label=f"mean activity of all samples({class_healthy_label}, {class_unhealthy_label}) after {['QN', 'ANSCOMBE', 'LOG']}")
         # ax.plot(imp*mean, label="mean activity of all samples * feature importance")
         ax2.plot(date_list, imp, color="red", label="weight", alpha=0.3)
         #ax2.plot(date_list, fisher_s, color="green", label="Fisher score", alpha=0.3)
@@ -791,12 +852,22 @@ def main(
 if __name__ == "__main__":
     # typer.run(main)
 
-    for t in ["dwt", "cwt"]:
+    for t in ["dwt"]:
         for j in [1, 2, 3, 4, 5, 6, 7]:
             main(
-                Path(f"E:/Data2/debug4/{t}_explain_{j}_datasetmrnn7_17"),
+                Path(f"E:/preprint/thesis/interpret/delmas_{t}_explain_{j}_datasetmrnn7_17"),
                 Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "CENTER"],
+                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+                p=False,
+                n_activity_days=j,
+                transform=t,
+                enable_graph_out=False,
+                random_forest=False
+            )
+            main(
+                Path(f"E:/preprint/thesis/interpret/cedara_{t}_explain_{j}_datasetmrnn7_23"),
+                Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
+                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
                 p=False,
                 n_activity_days=j,
                 transform=t,
