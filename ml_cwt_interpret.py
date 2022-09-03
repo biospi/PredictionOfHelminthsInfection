@@ -54,9 +54,38 @@ def datetime_range(start, end, delta):
 
 def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir):
     #print(date_list)
+    dfs = []
+    for i in range(n_activity_days):
+        start = i*1440
+        end = start + 1440
+        a = activity[start: end]
+        imp_ = imp[start:end]
+        date = date_list[start: end]
+        light = np.array(["night" if x.hour >= 7 and x.hour < 19 else "day" for x in date])
+
+        day_imp = imp_[light == "day"]
+        night_imp = imp_[light == "night"]
+
+        std = [day_imp.std(), night_imp.std()]
+        mean = [day_imp.mean(), night_imp.mean()]
+        median = [np.median(day_imp), np.median(night_imp)]
+        index = [f'Daytime {i}', f'Nighttime {i}']
+        df = pd.DataFrame({'Std': std,
+                           'Mean': mean,
+                           'Median': median
+                           }, index=index)
+        dfs.append(df)
+        df = pd.concat(dfs)
+    fig_ = df.plot.bar(rot=-45, title="Feature importance per day", colormap='gray', edgecolor='black', figsize=(4, 6)).get_figure()
+    filename = f"{n_activity_days}_per_day_night_{X_train.shape[1]}.png"
+    filepath = output_dir / filename
+    print(filepath)
+    fig_.tight_layout()
+    fig_.savefig(filepath)
+
+
     light = np.array(["night" if x.hour>=7 and x.hour<19 else "day" for x in date_list])
     light_ = np.array([0 if x.hour>=7 and x.hour<19 else 1 for x in date_list])
-
     fig_, ax_ = plt.subplots(figsize=(12.80, 7.20))
     filename = f"{n_activity_days}_period_{X_train.shape[1]}.png"
     filepath = output_dir / filename
@@ -71,14 +100,18 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
     std = [day_imp.std(), night_imp.std()]
     mean = [day_imp.mean(), night_imp.mean()]
     median = [np.median(day_imp), np.median(night_imp)]
+    max = [np.max(day_imp), np.max(night_imp)]
+    min = [np.min(day_imp), np.min(night_imp)]
     index = ['Daytime', 'Nighttime']
-    df = pd.DataFrame({'std': std,
-                       'mean': mean,
-                       'median': median}, index=index)
-    fig_ = df.plot.bar(rot=0, title="Feature importance", figsize=(3, 6)).get_figure()
+    df = pd.DataFrame({'Std': std,
+                       'Mean': mean,
+                       'Median': median
+                       }, index=index)
+    fig_ = df.plot.bar(rot=0, title="Feature importance", colormap='gray', edgecolor='black', figsize=(4, 6)).get_figure()
     filename = f"{n_activity_days}_day_night_{X_train.shape[1]}.png"
     filepath = output_dir / filename
     print(filepath)
+    fig_.tight_layout()
     fig_.savefig(filepath)
 
 
