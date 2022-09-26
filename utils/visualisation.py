@@ -50,6 +50,8 @@ CSS_COLORS = {
     "LINEAR_QN_ANSCOMBE_LOG_STD": "black",
     "LINEAR_QN_STD": "cyan",
     "QN": "blue",
+    "STD": "blue",
+    "QN": "blue",
     "QN_STD": "navy",
     "QN_STD_CENTER_CWTMORL": "magenta",
     "QN_STD_CENTER_DWT": "indigo",
