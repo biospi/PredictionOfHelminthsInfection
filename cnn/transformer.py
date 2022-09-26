@@ -672,7 +672,7 @@ def cross_validate_transformer(
         ax_roc_merge.set_ylim([-0.05, 1.05])
         ax_roc_merge.set_xlabel('False Positive Rate')
         ax_roc_merge.set_ylabel('True Positive Rate')
-        ax_roc_merge.set_title('Receiver operating characteristic example')
+        ax_roc_merge.set_title('Receiver operating characteristic')
         ax_roc_merge.legend(loc="lower right")
         ax_roc_merge.grid()
         fig_roc.tight_layout()

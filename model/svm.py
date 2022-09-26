@@ -1069,12 +1069,14 @@ def cross_validate_svm_fast(
                 ax_roc[1].plot(xdata, ydata, color="tab:blue", alpha=alpha, linewidth=lw)
                 ax_roc_merge.plot(xdata, ydata, color="tab:blue", alpha=lw, linewidth=lw)
 
-            for a in axis_train:
+            for idx, a in enumerate(axis_train):
                 f, ax = a.figure_, a.ax_
+                if len(ax.lines) == 0:
+                    continue
                 xdata = ax.lines[0].get_xdata()
                 ydata = ax.lines[0].get_ydata()
                 ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
-                ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
+                #ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
         if cv_name == "LeaveOneOut":
             all_y = []
@@ -1092,7 +1094,7 @@ def cross_validate_svm_fast(
             ax_roc_merge.set_ylim([-0.05, 1.05])
             ax_roc_merge.set_xlabel('False Positive Rate')
             ax_roc_merge.set_ylabel('True Positive Rate')
-            ax_roc_merge.set_title('Receiver operating characteristic example')
+            ax_roc_merge.set_title('Receiver operating characteristic')
             ax_roc_merge.legend(loc="lower right")
             ax_roc_merge.grid()
             fig_roc.tight_layout()
@@ -1136,8 +1138,6 @@ def cross_validate_svm_fast(
                 tag=f"{type(clf).__name__}_{clf.kernel}",
                 export_fig_as_pdf=export_fig_as_pdf,
             )
-
-
 
         scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
         scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
@@ -1388,8 +1388,8 @@ def process_clf(
 
     # results = []
     plt.clf()
-    fig_roc, ax_roc = plt.subplots(1, 2, figsize=(19.80, 6.20))
-    fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(12.80, 7.20))
+    fig_roc, ax_roc = plt.subplots(1, 2, figsize=(8.0, 8.0))
+    fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(8.0, 8.0))
     mean_fpr_test = np.linspace(0, 1, 100)
     tprs_test = []
     aucs_roc_test = []

@@ -102,5 +102,5 @@ def main(folder_path):
 
 
 if __name__ == "__main__":
-    main(Path("E:/Cats/biospi/ml_build_permutations_qnf"))
+    main(Path("E:/Cats/bluepebble3/ml_all"))
     #main(Path("E:/Cats/bluepebble2"))

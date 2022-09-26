@@ -115,7 +115,6 @@ def main(
                 p2_end
             )
         )
-        return
 
         data_frame, df_with_meta, _ = apply_preprocessing_steps(
             meta_columns,

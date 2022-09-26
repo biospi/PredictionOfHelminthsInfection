@@ -26,11 +26,15 @@ def main(
     n_scales= 9,
     sub_sample_scales= 3,
     batch_size = 10,
-    epoch=100
+    epoch = 100,
+    enable_qn_peak_filter = True
 ):
     cpt = 0
     for steps in steps_list:
-        cmd = f"ml.py --enable-qn-peak-filter --batch-size {batch_size} --epoch {epoch} --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
+        cmd = f"ml.py --batch-size {batch_size} --epoch {epoch} --no-pre-visu --dataset-folder {dataset_folder} --n-imputed-days {i_day} --n-activity-days {a_day} --study-id {study_id} --n-scales {n_scales} --sub-sample-scales {sub_sample_scales} "
+
+        if enable_qn_peak_filter:
+            cmd += "--enable-qn-peak-filter "
 
         for step in steps:
             cmd += f"--preprocessing-steps {step} "
@@ -164,39 +168,41 @@ def cats():
     print(files)
     for t in files:
         for cv in ["LeaveOneOut"]:
-            for cl in ["rbf"]:
+            for cl in ["linear", "rbf"]:
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-                n_cmd += main(
-                    cv_list=[cv],
-                    output_dir=f"{output_dir}/{t}",
-                    dataset_folder=dataset_folder,
-                    a_day=-1,
-                    class_healthy_label_list=["0.0"],
-                    class_unhealthy_label_list=["1.0"],
-                    classifiers_list=[cl],
-                    study_id="cats",
-                    batch_size=20,
-                    epoch=100,
-                    #individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
-                    individual_to_test=[],
-                    meta_columns=[
-                        "label",
-                        "id",
-                        "imputed_days",
-                        "date",
-                        "health",
-                        "target",
-                        "age",
-                        "name",
-                        "mobility_score",
-                    ],
-                    # steps_list=[
-                    #     ["QN", "STD"],
-                    # ],
-                    individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-                )
+                for qn_filter in [True, False]:
+                    n_cmd += main(
+                        cv_list=[cv],
+                        output_dir=f"{output_dir}/{t}",
+                        dataset_folder=dataset_folder,
+                        a_day=-1,
+                        class_healthy_label_list=["0.0"],
+                        class_unhealthy_label_list=["1.0"],
+                        classifiers_list=[cl],
+                        study_id="cats",
+                        batch_size=20,
+                        epoch=100,
+                        #individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
+                        individual_to_test=[],
+                        meta_columns=[
+                            "label",
+                            "id",
+                            "imputed_days",
+                            "date",
+                            "health",
+                            "target",
+                            "age",
+                            "name",
+                            "mobility_score",
+                        ],
+                        steps_list=[
+                            ["QN", "STD"],
+                        ],
+                        individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                        enable_qn_peak_filter=qn_filter
+                    )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
     exit()

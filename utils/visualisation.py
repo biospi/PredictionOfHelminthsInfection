@@ -2150,6 +2150,55 @@ def plot_fold_details(
     fold_results, meta, meta_columns, out_dir, filename="fold_details"
 ):
     #print(fold_results)
+    #create one histogram per test fold (for loo)
+    try:
+        hist_list = []
+        names = []
+        for item in fold_results:
+            probs = [x[1] for x in item['y_pred_proba_test']]
+            test_fold_name = f"{item['meta_test'][0][7]}_{item['meta_test'][0][1]}_{item['meta_test'][0][0]}"
+            names.append(test_fold_name)
+            plt.clf()
+            h, _, _ = plt.hist(probs, density=True, bins=50, alpha=0.5, label=f"prob of sample (mean={np.mean([x[1] for x in item['y_pred_proba_test']]):.2f})")
+            hist_list.append(h)
+            plt.ylabel("Density")
+            plt.xlabel("Probability of being unhealthy(target=1) per sample(perm of peaks)")
+            plt.xlim(xmin=0, xmax=1)
+            plt.title(
+                f"Histograms of prediction probabilities\n{test_fold_name} testing_shape={item['testing_shape']} target={item['meta_test'][0][0]}")
+            plt.axvline(x=0.5, color="gray", ls="--")
+            plt.legend(loc="upper right")
+            # plt.show()
+            filename = f"histogram_of_prob_{test_fold_name}.png"
+            out = out_dir / 'loo_histograms'
+            out.mkdir(parents=True, exist_ok=True)
+            filepath = out / filename
+            print(filepath)
+            plt.savefig(str(filepath))
+
+        hist_list = np.array(hist_list)
+        fig, ax = plt.subplots(figsize=(8.20, 7.20))
+        im = ax.imshow(hist_list)
+
+        x_axis = [f"{x:.1f}" for x in np.linspace(start=0, stop=1, num=hist_list.shape[1])]
+        ax.set_xticks(np.arange(len(x_axis)), labels=x_axis)
+        ax.set_yticks(np.arange(len(names)), labels=names)
+        ax.xaxis.set_major_locator(plt.MaxNLocator(10))
+
+        ax.set_title("Histograms of test prediction probabilities")
+
+        filename = f"heatmap_histogram_of_prob.png"
+        out = out_dir / 'loo_histograms'
+        out.mkdir(parents=True, exist_ok=True)
+        filepath = out / filename
+
+        fig.tight_layout()
+        print(filepath)
+        fig.savefig(filepath)
+
+    except Exception as e:
+        print(e)
+
     meta_dict = {}
     for m in meta:
         id = 0
