@@ -55,7 +55,7 @@ def main(folder_path):
     df_data["thresh"] = [ int(x.split('__')[0]) for x in df_data['n_c'].values]
     dfs_data = [group for _, group in df_data.groupby(df_data["config"])]
 
-    fig, ax = plt.subplots(figsize=(19.20, 10.80))
+    fig, ax = plt.subplots(figsize=(8.0, 8.0))
     for df_data in dfs_data:
 
         for peak in df_data["n_peaks"].unique():
@@ -71,17 +71,17 @@ def main(folder_path):
                 continue
             ax.plot(x_axis, y_axis, lw=2, alpha=0.5, linestyle='-', marker='x', label=f"Test peak={peak}_config={config}")
             ax.plot(x_axis, y_axis_, lw=2, alpha=0.5, linestyle='--', marker='o', label=f"Train peak={peak}_config={config}")
-    ax.set_xlabel("Samples in training fold")
+    ax.set_xlabel("Number of peaks")
     ax.set_ylabel("Median AUC")
     ax.set_title(f"Auc evolution with increasing dataset sample size")
-    ax.legend(loc="upper right")
+    ax.legend(loc="lower right")
     final_path = folder_path / f"auc_test_train_{config}.png"
     print(final_path)
     fig.savefig(final_path)
     plt.close(fig)
 
     for i, df_data in enumerate(dfs_data):
-        fig, ax = plt.subplots(figsize=(19.20, 10.80))
+        fig, ax = plt.subplots(figsize=(8.0, 8.0))
         for thresh in df_data["thresh"].unique():
             df_plot = df_data[df_data["thresh"] == thresh]
             df_plot = df_plot.sort_values(by='training_shape')
@@ -91,10 +91,10 @@ def main(folder_path):
             config = df_plot["config"].values[0]
             ax.plot(x_axis, y_axis, lw=2, alpha=0.5, linestyle='-', marker='x', label=f"Test thresh={thresh}_config={config}")
             #ax.plot(x_axis, y_axis_, lw=2, alpha=0.5, linestyle='--', marker='o', label=f"Train thresh={thresh}_config={config}")
-            ax.set_xlabel("Samples in training fold")
+            ax.set_xlabel("Number of peaks")
             ax.set_ylabel("Median AUC")
             ax.set_title(f"Auc evolution with increasing number of peaks")
-            ax.legend(loc="upper right")
+            ax.legend(loc="lower right")
             final_path = folder_path / f"auc_npeaks_{thresh}_{i}.png"
             print(final_path)
             fig.savefig(final_path)
@@ -102,5 +102,5 @@ def main(folder_path):
 
 
 if __name__ == "__main__":
-    main(Path("E:/Cats/bluepebble3/ml_all"))
+    main(Path("E:/Cats/biospi/ml_build_permutations_qnf"))
     #main(Path("E:/Cats/bluepebble2"))

@@ -197,7 +197,7 @@ def make_plot(A, output_dir, id, n_meta):
     health = A["health"].mean()
     df_activity = A.iloc[:, :-n_meta]
     print(df_activity)
-    title = f"Samples for {id} mean health={health:.2f}"
+    title = f"Samples after normalisation mean health={health:.2f}"
     plt.clf()
     fig = df_activity.T.plot(
         kind="line",
@@ -206,8 +206,8 @@ def make_plot(A, output_dir, id, n_meta):
         legend=False,
         title=title,
         alpha=0.7,
-        xlabel="Time",
-        ylabel="Activity",
+        xlabel="Time(s)",
+        ylabel="Activity count",
     ).get_figure()
     plt.ylim(0, 70)
     plt.tight_layout()
@@ -219,7 +219,7 @@ def make_plot(A, output_dir, id, n_meta):
 if __name__ == "__main__":
     main(
         dataset_file=Path(
-            "E:/Cats/build_permutations/6000__004__0_00100__120/dataset/training_sets/samples/samples.csv"
+            "E:/Cats/build_permutations/1000__003__0_00100__120/dataset/training_sets/samples/samples.csv"
         ),
         output_dir=Path("E:/Cats/build_permutations/visu"),
         ids=IDS2,
