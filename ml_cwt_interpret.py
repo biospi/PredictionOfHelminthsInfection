@@ -445,7 +445,7 @@ def main(
         fig, ax = plt.subplots(figsize=(16.80, 7.20))
         ax2 = ax.twinx()
         ax.plot(date_list, mean_time, label=f"mean activity of all samples({class_healthy_label}, {class_unhealthy_label}) after {preprocessing_steps}")
-        ax.plot(date_list, mean_time_o, label=f"mean activity of all samples({class_healthy_label}, {class_unhealthy_label}) after {['QN', 'ANSCOMBE', 'LOG']}")
+        #ax.plot(date_list, mean_time_o, label=f"mean activity of all samples({class_healthy_label}, {class_unhealthy_label}) after {['QN', 'ANSCOMBE', 'LOG']}")
         # ax.plot(imp*mean, label="mean activity of all samples * feature importance")
         ax2.plot(date_list, imp, color="red", label="weight", alpha=0.3)
         #ax2.plot(date_list, fisher_s, color="green", label="Fisher score", alpha=0.3)
@@ -928,11 +928,22 @@ if __name__ == "__main__":
     # typer.run(main)
 
     for t in ["dwt"]:
-        for j in [5, 6, 7]:
+        for j in [5]:
             main(
-                Path(f"E:/preprint/thesis/interpret/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__"),
+                Path(f"E:/preprint/thesis/interpret/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__A"),
                 Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
                 preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+                p=False,
+                n_activity_days=j,
+                transform=t,
+                enable_graph_out=False,
+                random_forest=False
+            )
+
+            main(
+                Path(f"E:/preprint/thesis/interpret/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__B"),
+                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
                 p=False,
                 n_activity_days=j,
                 transform=t,
