@@ -32,7 +32,10 @@ def mean_confidence_interval(x):
     return lo_x_boot, hi_x_boot
 
 
-def local_run(input_dir=Path("E:/Cats/bluepebble5/ml_build_permutations"), out_dir=Path("E:/Cats/bluepebble5/ml_build_permutations")):
+def local_run(
+    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final"),
+    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final"),
+):
     main(input_dir, out_dir)
 
 
@@ -46,92 +49,119 @@ def main(
 ):
     data = []
     for p in input_dir.rglob("*.json"):
-        if "proba" in str(p):
+        if "proba" in str(p) or "fold_data" in str(p):
             continue
         split = list(PurePath(p).parts)
         data.append(split + [p])
 
     df = pd.DataFrame(data)
-    dfs = [group for _, group in df.groupby(df[df.shape[1]-3])]
-    print(f"there are {len(dfs)} different processing pipeline.")
-    fig, ax1 = plt.subplots(figsize=(20.48, 11.52))
-    ax2 = ax1.twinx()
-    for i, df in tqdm(enumerate(dfs), total=len(dfs)):
-        data_xaxis = []
-        data_yaxis = []
-        auc_list = []
-        n_samples = []
-        for index, row in df.iterrows():
-            res_file_path = row[df.shape[1]-1]
-            p_steps = row[df.shape[1]-4]
-            thresh = row[df.shape[1]-5].split('__')[-2]
-            t_v = thresh.replace("_", ".")
-            thresh_float = float(t_v)
+
+    thresh_list = []
+    median_auc_list = []
+    auc_list = []
+    n_samples = []
+    window_size_list = []
+    p_steps_list = []
+    n_peaks = []
+
+    for index, row in df.iterrows():
+        res_file_path = row[8]
+        try:
             results = json.load(open(res_file_path))
-            clf_res = results[list(results.keys())[0]]
-            aucs = []
-            all_y = []
-            all_probs = []
-            for item in clf_res:
-                if "auc" not in item:
-                    continue
-                #auc = item["auc"]
-                # aucs.append(auc)
+        except Exception as e:
+            print(e)
+            continue
+        p_steps_list.append(row[5])
+        window_size_list.append(int(row[4].split("_")[-1]))
+        thresh = row[4].split("__")[-2]
+        t_v = thresh.replace("_", ".")
+        thresh_float = float(t_v)
+        n_peaks.append(int(row[4].split("__")[1]))
+        print(res_file_path)
 
-                all_y.extend(item['y_test'])
-                all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
+        clf_res = results[list(results.keys())[0]]
+        aucs = []
+        all_y = []
+        all_probs = []
+        for item in clf_res:
+            if "auc" not in item:
+                continue
+            # auc = item["auc"]
+            # aucs.append(auc)
 
-                training_shape = len(item['ids_train'])
-                testing_shape = len(item['ids_test'])
+            all_y.extend(item["y_test"])
+            all_probs.extend(np.array(item["y_pred_proba_test"])[:, 1])
 
-            all_y = np.array(all_y)
-            all_probs = np.array(all_probs)
-            fpr, tpr, thresholds = roc_curve(all_y, all_probs)
-            roc_auc = auc(fpr, tpr)
-            aucs.append(roc_auc)
+            training_shape = len(item["ids_train"])
+            testing_shape = len(item["ids_test"])
 
-            auc_list.append(aucs)
-            median_auc = np.median(aucs)
-            data_xaxis.append(thresh_float)
-            data_yaxis.append(median_auc)
-            n_samples.append(training_shape+testing_shape)
+        all_y = np.array(all_y)
+        all_probs = np.array(all_probs)
+        fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+        roc_auc = auc(fpr, tpr)
+        aucs.append(roc_auc)
 
-        out_dir.mkdir(parents=True, exist_ok=True)
-        df_ = pd.DataFrame(auc_list)
-        data_yaxis = np.array(data_yaxis)
-        df_ci = pd.DataFrame(df_.apply(mean_confidence_interval, axis=1).tolist(), index=df_.index)
+        auc_list.append(aucs)
+        median_auc = np.median(aucs)
+        thresh_list.append(thresh_float)
+        median_auc_list.append(median_auc)
+        n_samples.append(training_shape + testing_shape)
 
-        ax1.plot(
-            data_xaxis,
-            data_yaxis,
-            label=f"Median AUC | processing steps={p_steps}",
-            marker="x"
-        )
+    df_data = pd.DataFrame(
+        {
+            "auc_list": auc_list,
+            "median_auc": median_auc_list,
+            "thresh_list": thresh_list,
+            "n_samples": n_samples,
+            "p_steps_list": p_steps_list,
+            "window_size_list": window_size_list,
+            "n_peaks": n_peaks,
+        }
+    )
 
-        ax2.plot(
-            data_xaxis,
-            n_samples,
-            marker="x",
-            color="grey"
-        )
+    print(df_data)
+    fig, ax1 = plt.subplots(figsize=(7.20, 7.20))
+    ax2 = ax1.twinx()
+    dfs = [group for _, group in df_data.groupby(['p_steps_list'])]
 
-        ax1.fill_between(data_xaxis, df_ci[0].values, df_ci[1].values, alpha=0.2)
-        ax1.legend()
-        ax1.set_xticks(data_xaxis, rotation=-45)
-        ax2.set_xticks(data_xaxis, rotation=-45)
-        ax2.set_yticks(n_samples)
+    ax2.bar(
+        [1, 2, 3, 4],
+        [520, 4680, 37440, 52000],
+        color="grey",
+        label="n samples",
+        alpha=0.4,
+        width=0.2
+    )
 
+    for i, df in enumerate(dfs):
+        dfs_ = [group for _, group in df.groupby(['window_size_list'])]
+        for df_ in dfs_:
+            df_ = df_[df_['n_peaks'] <= 4]
+            # if 'linear' in df_['p_steps_list'].tolist()[0]:
+            #     continue
+            # if 'STD_rbf' in df_['p_steps_list'].tolist()[0]:
+            #     continue
+
+            if len(df_["median_auc"]) != 4:
+                continue
+            print(df_["n_samples"])
+            ax1.plot(
+                df_["n_peaks"],
+                df_["median_auc"],
+                label=f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}",
+                marker="x"
+            )
     ax1.axhline(y=0.5, color='black', linestyle='--')
-    ax1.xaxis.set_major_formatter(FormatStrFormatter("%.4f"))
-    fig.suptitle("Intensity threshold and AUC (CI=0.5% 99% percentile)")
-    ax1.set_xlabel("Intensity threshold")
+    fig.suptitle("Evolution of AUC with N peak increase")
+    ax1.set_xlabel("Number of peaks")
     ax1.set_ylabel("Mean AUC")
     ax2.set_ylabel("Number of samples(high activity peak window)")
-    ax1.set_xticklabels(data_xaxis, rotation=-45)
-    ax2.set_xticklabels(data_xaxis, rotation=-45)
     #plt.legend()
-    ax2.legend().set_visible(False)
-    filename = f"auc_intensity.png"
+    ax1.legend(loc="lower right").set_visible(True)
+    ax2.legend(loc="upper left").set_visible(True)
+    fig.tight_layout()
+    filename = f"auc_per_npeak.png"
+    out_dir.mkdir(parents=True, exist_ok=True)
     filepath = out_dir / filename
     print(filepath)
     fig.savefig(filepath)
@@ -139,4 +169,4 @@ def main(
 
 if __name__ == "__main__":
     local_run()
-    #typer.run(main)
+    # typer.run(main)

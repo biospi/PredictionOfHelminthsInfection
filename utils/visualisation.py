@@ -3,6 +3,7 @@ import pathlib
 import random
 import time
 from datetime import datetime, timedelta
+from operator import itemgetter
 from pathlib import Path
 import matplotlib
 import matplotlib.dates as mdates
@@ -12,7 +13,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
 import umap
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from matplotlib.lines import Line2D
 from plotly.graph_objs.layout.scene import Annotation
 from plotly.subplots import make_subplots
@@ -2156,6 +2157,7 @@ def plot_fold_details(
     try:
         hist_list = []
         names = []
+        fold_results = sorted(fold_results, key=itemgetter('target'))
         for item in fold_results:
             probs = [x[1] for x in item['y_pred_proba_test']]
             test_fold_name = f"{item['meta_test'][0][7]}_{item['meta_test'][0][1]}_{item['meta_test'][0][0]}"
@@ -2179,13 +2181,16 @@ def plot_fold_details(
             plt.savefig(str(filepath))
 
         hist_list = np.array(hist_list)
+        hist_list = hist_list + 1
+        hist_list = np.log(hist_list)
         fig, ax = plt.subplots(figsize=(8.20, 7.20))
         im = ax.imshow(hist_list)
-
         x_axis = [f"{x:.1f}" for x in np.linspace(start=0, stop=1, num=hist_list.shape[1])]
         ax.set_xticks(np.arange(len(x_axis)), labels=x_axis)
         ax.set_yticks(np.arange(len(names)), labels=names)
         ax.xaxis.set_major_locator(plt.MaxNLocator(10))
+        ax.set_xlabel("Model Prediction Value (log)")
+        #ax.set_xscale('log')
 
         ax.set_title("Histograms of test prediction probabilities")
 
