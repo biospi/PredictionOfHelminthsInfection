@@ -339,7 +339,8 @@ def process_ml(
     time_freq_shape=None,
     individual_to_test=None,
     plot_2d_space=False,
-    export_fig_as_pdf=False
+    export_fig_as_pdf=False,
+    wheather_days=None
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -560,6 +561,7 @@ def process_ml(
         output_dir,
         n_imputed_days,
         activity_days,
+        wheather_days,
         scores,
         y_h,
         steps,
@@ -770,10 +772,10 @@ def fold_worker(
     tprs_test.append(interp_tpr_test)
     auc_value_test = viz_roc_test.roc_auc
     print("auc test=", auc_value_test)
-    if cv_name == "LeaveOneOut":
-        #auc_value_test = ((np.mean(y_pred_proba_test) > 0.5).astype(int) == np.mean(y_test)).astype(float)
-        auc_value_test = balanced_accuracy_score(y_test, y_pred)
-        print("auc test=", auc_value_test)
+    # if cv_name == "LeaveOneOut":
+    #     #auc_value_test = ((np.mean(y_pred_proba_test) > 0.5).astype(int) == np.mean(y_test)).astype(float)
+    #     #auc_value_test = balanced_accuracy_score(y_test, y_pred)
+    #     print("acc test=", auc_value_test)
 
     aucs_roc_test.append(auc_value_test)
 
@@ -798,7 +800,7 @@ def fold_worker(
 
     if ifold == 0:
         plot_high_dimension_db(
-            out_dir / "testing",
+            out_dir / "testing" / str(ifold),
             np.concatenate((X_train, X_test), axis=0),
             np.concatenate((y_train, y_test), axis=0),
             list(np.arange(len(X_train))),
@@ -809,7 +811,7 @@ def fold_worker(
             ifold,
             export_fig_as_pdf
         )
-        plot_learning_curves(clf, X, y, ifold, out_dir / "testing")
+        plot_learning_curves(clf, X, y, ifold, out_dir / "testing" / str(ifold))
 
     accuracy = balanced_accuracy_score(y_test, y_pred)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
@@ -1083,11 +1085,12 @@ def cross_validate_svm_fast(
             all_probs = []
             for item in fold_results:
                 all_y.extend(item['y_test'])
-                all_probs.extend(np.array(item['y_pred_proba_test'])[:,1])
+                all_probs.extend(np.array(item['y_pred_proba_test'])[:, 1])
             all_y = np.array(all_y)
             all_probs = np.array(all_probs)
             fpr, tpr, thresholds = roc_curve(all_y, all_probs)
             roc_auc = auc(fpr, tpr)
+            print(roc_auc)
             ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
             ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
             ax_roc_merge.set_xlim([-0.05, 1.05])

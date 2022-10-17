@@ -60,6 +60,13 @@ CSS_COLORS = {
     "QN_ANSCOMBE_LOG": "orange",
     "QN_ANSCOMBE_LOG_CENTER_CWTMORL": "red",
     "QN_ANSCOMBE_LOG_CENTER_DWT": "gold",
+    "QN_ANSCOMBE_LOG_SEASONS": "cyan",
+
+    "HUMIDITY_STDS": "blue",
+    "TEMPERATURE_STDS": "violet",
+    "QN_ANSCOMBE_LOG_HUMIDITYAPPEND_TEMPERATUREAPPEND_STDS": "purple",
+    "QN_ANSCOMBE_LOG_HUMIDITYAPPEND_STDS": "teal",
+    "QN_ANSCOMBE_LOG_TEMPERATUREAPPEND_STDS": "crimson"
 }
 
 
@@ -1929,12 +1936,11 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
         # print(filepath)
         # plt.savefig(filepath)
         # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
-
         db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
         db.fit(X, y, training_indices=train_index)
         fig, ax = plt.subplots(figsize=(8.0, 8.0))
         db.plot(
-            ax, generate_testpoints=False, meta=meta
+            ax, generate_testpoints=True, meta=meta
         )  # set generate_testpoints=False to speed up plotting
         models_visu_dir = (
             out_dir
@@ -2901,6 +2907,7 @@ def build_report(
     output_dir,
     n_imputed_days,
     activity_days,
+    wheather_days,
     data,
     y,
     steps,
@@ -2943,7 +2950,7 @@ def build_report(
         scores["post_p"] = steps
         scores[
             "steps"
-        ] = f"{study_id}->ID={n_imputed_days}->AD={activity_days}->H={str(class_healthy_label)}->UH={str(class_unhealthy_label)}->SEA={season}->{steps}->{cv}"
+        ] = f"{study_id}->ID={n_imputed_days}->AD={activity_days}->W={wheather_days}->H={str(class_healthy_label)}->UH={str(class_unhealthy_label)}->SEA={season}->{steps}->{cv}"
         scores["days"] = days
         scores["farm_id"] = study_id
         scores["balanced_accuracy_score_mean"] = np.mean(test_balanced_accuracy_score)

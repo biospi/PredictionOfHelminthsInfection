@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations_qnf",
+    out_parent: str = "E:/Cats/ml_build_permutations_qnf_ldebug",
     dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
@@ -17,7 +17,7 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["rbf"]:
+    for clf in ["linear", "rbf"]:
         for steps in [
             ["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],
@@ -109,6 +109,7 @@ def main(
                         pre_visu=False,
                         epoch=100,
                         batch_size=100,
+                        plot_2d_space=True,
                     )
 
                 # main_pipeline.main(

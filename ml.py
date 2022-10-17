@@ -18,15 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with seaMass.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import json
 from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
 import typer
+from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from sys import exit
+from datetime import timedelta
 from model.data_loader import load_activity_data
 from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
@@ -41,6 +43,19 @@ from utils.visualisation import (
     plot_time_pls, plot_ml_report_final)
 
 
+def format_time(time):
+    if len(time) == 1:
+        return '00:00'
+    if len(time) == 3:
+        return "0%s:00" % time.split('00')[0]
+    if len(time) == 4 and time != '1000' and time != '2000':
+        return "%s:00" % time.split('00')[0]
+    if time == '1000':
+        return '10:00'
+    if time == '2000':
+        return '20:00'
+
+
 def main(
     output_dir: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -48,7 +63,7 @@ def main(
     dataset_folder: Path = typer.Option(
         ..., exists=True, file_okay=False, dir_okay=True, resolve_path=True
     ),
-    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "STDS"],
     class_healthy_label: List[str] = ["1To1"],
     class_unhealthy_label: List[str] = ["2To2"],
     meta_columns: List[str] = [
@@ -63,10 +78,10 @@ def main(
     add_feature: List[str] = [],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
+    n_weather_days:int = 7,
     n_scales: int = 6,
     sub_sample_scales: int = 3,
-    hum_file: Optional[Path] = Path("."),
-    temp_file: Optional[Path] = Path("."),
+    weather_file: Optional[Path] = Path("."),
     add_seasons_to_features: bool = False,
     n_splits: int = 5,
     n_repeats: int = 10,
@@ -118,6 +133,8 @@ def main(
         n_job: Number of threads to use for cross validation.
     """
 
+    # plot_ml_report_final(output_dir.parent.parent)
+    # exit()
     meta_columns = [x.replace("'", '') for x in meta_columns]
     preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
@@ -131,35 +148,6 @@ def main(
 
     print(f"found {len(files)} files. in {dataset_folder}")
     print(files)
-
-    df_hum = None
-    if hum_file.is_file():
-        print("humidity file detected!", hum_file)
-        df_hum = pd.read_csv(hum_file)
-        print(df_hum.shape)
-        plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
-
-    df_temp = None
-    if temp_file.is_file():
-        print("temperature file detected!", temp_file)
-        df_temp = pd.read_csv(temp_file)
-        plotHeatmap(
-            df_temp.values, output_dir, "Samples temperature", "temperature.html"
-        )
-        print(df_temp.shape)
-
-    df_hum_temp = None
-    if temp_file.is_file() and hum_file.is_file():
-        print("temperature file detected!", temp_file)
-        print("humidity file detected!", hum_file)
-        df_hum_temp = pd.concat([df_temp, df_hum], axis=1)
-        plotHeatmap(
-            df_hum_temp.values,
-            output_dir,
-            "Samples temperature and Humidity",
-            "temperature_humidity.html",
-        )
-        print(df_hum_temp.shape)
 
     for file in files:
         # _, _, option, sampling = parse_param_from_filename(file)
@@ -181,12 +169,63 @@ def main(
         )
 
         N_META = len(meta_columns)
+        df_hum = None
+        df_temp = None
         if pre_visu:
             # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
             #############################################################################################################
             #                                           VISUALISATION                                                   #
             #############################################################################################################
             animal_ids = data_frame["id"].astype(str).tolist()
+
+            if weather_file.is_file():
+                print(weather_file)
+                ##########################################get weather data
+                with open(weather_file) as f:
+                    lines = f.readlines()
+
+                    data = []
+                    for line in lines:
+                        try:
+                            js = json.loads(line)
+                        except Exception as e:
+                            print(e)
+                            continue
+                        if 'weather' not in js['data']:
+                            continue
+                        for w in js['data']['weather']:
+                            date = w['date']
+                            date = pd.to_datetime(date, format='%Y-%m-%d').strftime("%d/%m/%Y")
+                            for h in w['hourly']:
+                                time = format_time(h['time'])
+                                humidity = int(h['humidity'])
+                                temp_c = int(h['tempC'])
+                                data.append({'datetime': f"{date}", 'humidity': humidity, 'temp_c': temp_c})
+
+                    df_weather = pd.DataFrame(data)
+                ##########################################
+                df_hum_list = []
+                df_temp_list = []
+                for j, d in tqdm(enumerate(data_frame['date'])):
+                    d = pd.to_datetime(d) - timedelta(days=n_weather_days)
+                    df_h = []
+                    df_t = []
+                    print(f"SAMPLE {j}/{data_frame.shape[0]}")
+                    for n in range(n_weather_days):
+                        d_ = d - timedelta(days=n)
+                        d_ = d_.strftime("%d/%m/%Y")
+                        df_h_ = df_weather[df_weather['datetime'] == d_]['humidity'].values
+                        df_h.extend(df_h_)
+                        df_t_ = df_weather[df_weather['datetime'] == d_]['temp_c'].values
+                        df_t.extend(df_t_)
+                    df_hum_list.append(df_h)
+                    df_temp_list.append(df_t)
+
+                df_hum = pd.DataFrame(df_hum_list)
+                df_temp = pd.DataFrame(df_temp_list)
+                plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
+                plotHeatmap(df_temp.values, output_dir, "Samples temperature", "temperature.html")
+
             df_norm, _, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
@@ -477,7 +516,8 @@ def main(
             time_freq_shape=time_freq_shape,
             individual_to_test=individual_to_test,
             plot_2d_space=plot_2d_space,
-            export_fig_as_pdf=export_fig_as_pdf
+            export_fig_as_pdf=export_fig_as_pdf,
+            wheather_days=n_weather_days
         )
 
         # 2DCNN

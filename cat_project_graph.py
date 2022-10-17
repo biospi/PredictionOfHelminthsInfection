@@ -125,8 +125,8 @@ def main(
     dfs = [group for _, group in df_data.groupby(['p_steps_list'])]
 
     ax2.bar(
-        [1, 2, 3, 4],
-        [520, 4680, 37440, 52000],
+        [1, 2, 3, 4, 5, 6],
+        [520, 4680, 37440, 52000, 52000, 52000],
         color="grey",
         label="n samples",
         alpha=0.4,
@@ -136,14 +136,15 @@ def main(
     for i, df in enumerate(dfs):
         dfs_ = [group for _, group in df.groupby(['window_size_list'])]
         for df_ in dfs_:
-            df_ = df_[df_['n_peaks'] <= 4]
+            # df_ = df_[df_['n_peaks'] <= 4]
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
-            # if 'STD_rbf' in df_['p_steps_list'].tolist()[0]:
-            #     continue
-
-            if len(df_["median_auc"]) != 4:
+            if 'linear' in df_['p_steps_list'].tolist()[0]:
                 continue
+            print(df_['p_steps_list'].tolist()[0])
+            #
+            # if len(df_["median_auc"]) != 4:
+            #     continue
             print(df_["n_samples"])
             ax1.plot(
                 df_["n_peaks"],

@@ -23,12 +23,24 @@ def purge_file(filename):
         print("file not found.")
 
 
-def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015", db_name="south_africa",
-                            char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
+def connect_to_sql_database(
+    db_server_name="localhost",
+    db_user="axel",
+    db_password="Mojjo@2015",
+    db_name="south_africa",
+    char_set="utf8mb4",
+    cusror_type=pymysql.cursors.DictCursor,
+):
     # print("connecting to db %s..." % db_name)
     global sql_db
-    sql_db = pymysql.connect(host=db_server_name, user=db_user, password=db_password,
-                             db=db_name, charset=char_set, cursorclass=cusror_type)
+    sql_db = pymysql.connect(
+        host=db_server_name,
+        user=db_user,
+        password=db_password,
+        db=db_name,
+        charset=char_set,
+        cursorclass=cusror_type,
+    )
     return sql_db
 
 
@@ -52,9 +64,9 @@ def execute_sql_query(query, records=None, log_enabled=True):
         print("Exeception occured:{}".format(e))
 
 
-def get_historical_weather_data(days_, out_file=None, city=None):
+def get_historical_weather_data(days_, out_file=None, city=None, farm_id=None):
     # days = execute_sql_query("SELECT DISTINCT timestamp_s FROM %s_resolution_day" % farm_id)
-    #df = pd.read_csv(dataset_file, header=None)
+    # df = pd.read_csv(dataset_file, header=None)
     # days_ = pd.to_datetime(df[df.columns[-1]], format='%d/%m/%Y').dt.strftime('%Y-%m-%dT00:00')
     # days = pd.to_datetime(dates, format='%d/%m/%Y')
     # q_dates = []
@@ -79,61 +91,40 @@ def get_historical_weather_data(days_, out_file=None, city=None):
     # days_ = list(set(days))
     # days_ = sorted(days_, key=lambda n: datetime.strptime(n, '%Y-%m-%d'))
     print(len(days_), days_)
-    REQ = 499
-    keys = ["8d6a9b03cf40436e9f203817212411"]
-    n_d = np.ceil(len(days_)/REQ)
-    print("For 500 req a day you'll need %d days." % n_d)
+    key = "3d109634f16f4f0ba27133341221410"
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
     purge_file(out_file)
-    with open(out_file, 'a') as outfile:
-        i = 0
-        while True:
-            if i >= len(days_):
-                break
-
-            for key in keys:
-                cpt = 0
-
-                while True:
-                    if i >= len(days_):
-                        break
-
-                    PARAMS = {'key': key, 'q': "%s,south+africa" % city,
-                              'date': days_[i], 'tp': 1, 'format': 'json'}
-                    r = requests.get(url=URL, params=PARAMS)
-                    data = r.json()
-                    print("progress %d/%d" % (i, len(days_)))
-                    json.dump(data, outfile)
-                    outfile.write('\n')
-                    sleep(0.5)
-                    cpt += 1
-                    i += 1
-                    if cpt >= REQ:
-                        print("use next avail key %s." % key)
-                        break
-
-            print("used all avail keys wait until 2AM...")
-            t = datetime.datetime.today()
-            future = datetime.datetime(t.year, t.month, t.day, 2, 0)
-            if t.hour >= 2:
-                future += datetime.timedelta(days=1)
-            time.sleep((future - t).total_seconds())
-            print("reached max req %d for the day. Wait for next day..." % REQ*len(keys))
+    with open(out_file, "a") as outfile:
+        for i, day in enumerate(days_): # 2076
+            PARAMS = {
+                "key": key,
+                "q": "%s,south+africa" % city,
+                "date": day,
+                "tp": 1,
+                "format": "json",
+            }
+            r = requests.get(url=URL, params=PARAMS)
+            data = r.json()
+            print(data)
+            print("progress %d/%d" % (i, len(days_)))
+            json.dump(data, outfile)
+            outfile.write("\n")
+            sleep(0.2)
 
     print(outfile)
 
 
 def format_time(time):
     if len(time) == 1:
-        return '00:00'
+        return "00:00"
     if len(time) == 3:
-        return "0%s:00" % time.split('00')[0]
-    if len(time) == 4 and time != '1000' and time != '2000':
-        return "%s:00" % time.split('00')[0]
-    if time == '1000':
-        return '10:00'
-    if time == '2000':
-        return '20:00'
+        return "0%s:00" % time.split("00")[0]
+    if len(time) == 4 and time != "1000" and time != "2000":
+        return "%s:00" % time.split("00")[0]
+    if time == "1000":
+        return "10:00"
+    if time == "2000":
+        return "20:00"
 
 
 def get_humidity_date(path, name):
@@ -142,27 +133,28 @@ def get_humidity_date(path, name):
         lines = f.readlines()
         for line in lines:
             js = json.loads(line)
-            for w in js['data']['weather']:
-                date = w['date']
+            for w in js["data"]["weather"]:
+                date = w["date"]
                 list = []
-                for h in w['hourly']:
-                    time = format_time(h['time'])
-                    humidity = h['humidity']
-                    temp_c = h['tempC']
-                    list.append({'time': time, 'humidity': humidity, 'temp_c': temp_c})
+                for h in w["hourly"]:
+                    time = format_time(h["time"])
+                    humidity = h["humidity"]
+                    temp_c = h["tempC"]
+                    list.append({"time": time, "humidity": humidity, "temp_c": temp_c})
                     print(date, time, temp_c, humidity)
                 data[date] = list
         print(data)
-        purge_file('%s_weather.json' % name)
-        with open('%s_weather.json' % name, 'a') as outfile:
+        purge_file("%s_weather.json" % name)
+        with open("%s_weather.json" % name, "a") as outfile:
             json.dump(data, outfile)
 
 
 def create_weather_data_for_mrnn():
-    df = pd.read_csv("F:/Data2/mrnn_formatted_activity/cedara/sf_activity/activity_data.csv")
-    days = pd.to_datetime(df["date_str"], format='%Y-%m-%dT%H:%M')
-
-    days_ = np.array([x.strftime('%Y-%m-%dT00:00') for x in days])
+    df = pd.read_csv(
+        "F:/Data2/mrnn_formatted_activity/cedara/sf_activity/activity_data.csv"
+    )
+    days = pd.to_datetime(df["date_str"], format="%Y-%m-%dT%H:%M")
+    days_ = np.array([x.strftime("%Y-%m-%dT00:00") for x in days])
     days_ = np.unique(days_)
 
     get_historical_weather_data(days_, out_file="Cedara_weather.json", city="Cedara")
@@ -172,19 +164,26 @@ def create_weather_data_for_mrnn():
         for line in lines:
             js = json.loads(line)
             print(js)
-            data_dict[js['data']['weather'][0]['date']] = js['data']['weather'][0]['hourly']
+            data_dict[js["data"]["weather"][0]["date"]] = js["data"]["weather"][0][
+                "hourly"
+            ]
 
     print(df)
-    dates_q = np.array([x.strftime('%Y-%m-%dT%H:%M') for x in pd.to_datetime(df["date_str"], format='%Y-%m-%dT%H:%M')])
+    dates_q = np.array(
+        [
+            x.strftime("%Y-%m-%dT%H:%M")
+            for x in pd.to_datetime(df["date_str"], format="%Y-%m-%dT%H:%M")
+        ]
+    )
     humidity_list = []
     temperature_list = []
     for d in dates_q:
-        s = d.split('T')
+        s = d.split("T")
         day_q = s[0]
-        time_q = int(s[1].split(':')[0])
+        time_q = int(s[1].split(":")[0])
         data = data_dict[day_q][time_q]
-        humidity = data['humidity']
-        temperature = data['tempC']
+        humidity = data["humidity"]
+        temperature = data["tempC"]
         print(d, humidity, temperature)
         humidity_list.append(humidity)
         temperature_list.append(temperature)
@@ -201,28 +200,34 @@ def make_weather_calender(filepath, filename, title, start, end):
         data = []
         for line in lines:
             js = json.loads(line)
-            for w in js['data']['weather']:
-                date = w['date']
-                for h in w['hourly']:
-                    time = format_time(h['time'])
-                    humidity = int(h['humidity'])
-                    temp_c = int(h['tempC'])
-                    data.append({'datetime': f"{date}T{time}", 'humidity': humidity, 'temp_c': temp_c})
+            for w in js["data"]["weather"]:
+                date = w["date"]
+                for h in w["hourly"]:
+                    time = format_time(h["time"])
+                    humidity = int(h["humidity"])
+                    temp_c = int(h["tempC"])
+                    data.append(
+                        {
+                            "datetime": f"{date}T{time}",
+                            "humidity": humidity,
+                            "temp_c": temp_c,
+                        }
+                    )
 
         df = pd.DataFrame(data)
-        df["datetime"] = pd.to_datetime(df["datetime"], format='%Y-%m-%dT%H:%M')
+        df["datetime"] = pd.to_datetime(df["datetime"], format="%Y-%m-%dT%H:%M")
 
-        df = df[df["datetime"] > pd.to_datetime(start, format='%B %Y')]
+        df = df[df["datetime"] > pd.to_datetime(start, format="%B %Y")]
 
-        df = df[df["datetime"] < pd.to_datetime(end, format='%B %Y')]
+        df = df[df["datetime"] < pd.to_datetime(end, format="%B %Y")]
 
         df.index = df["datetime"]
-        df = df.drop('datetime', 1)
+        df = df.drop("datetime", 1)
         print(df)
         print(filename)
         df.to_csv(filename, index=False)
 
-        df = df.sort_values(by='datetime')
+        df = df.sort_values(by="datetime")
         dfs = [group for _, group in df.groupby(df.index.strftime("%B/%Y"))]
         dfs = sorted(dfs, key=lambda x: x.index.max(axis=0))
 
@@ -239,7 +244,7 @@ def make_weather_calender(filepath, filename, title, start, end):
                 rot=90,
                 title=pd.to_datetime(d.index.values[0]).strftime("%B %Y"),
                 ylim=(0, 100),
-                stacked=False
+                stacked=False,
             )
             axs[i].set_axis_on()
         filepath = f"calender_{title}.png"
@@ -248,13 +253,37 @@ def make_weather_calender(filepath, filename, title, start, end):
         fig.savefig(filepath)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(sys.argv)
-    make_weather_calender(Path("Delmas_weather.json"), "delmas_weather_data.csv", "Delmas Weather", "march 2015", "april 2016")
-    make_weather_calender(Path("Cedara_weather.json"), "cedara_weather_data.csv", "Cedara Weather", "june 2012", "july 2013")
-    #create_weather_data_for_mrnn()
-    #connect_to_sql_database()
-    #get_historical_weather_data("F:/Data2/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="delmas_70101200027", out_file="delmas_weather_raw.json", city="Delmas")
+    # make_weather_calender(Path("Delmas_weather.json"), "delmas_weather_data.csv", "Delmas Weather", "march 2015", "april 2016")
+    # make_weather_calender(Path("Cedara_weather.json"), "cedara_weather_data.csv", "Cedara Weather", "june 2012", "july 2013")
+    # create_weather_data_for_mrnn()
+    # connect_to_sql_database()
+
+    start = datetime.datetime.strptime("01/01/2012", "%d/%m/%Y")
+    end = datetime.datetime.strptime("01/12/2015", "%d/%m/%Y")
+    date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
+    days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
+
+    # get_historical_weather_data(
+    #     days_,
+    #     out_file="delmas_weather_raw.json",
+    #     farm_id="delmas_70101200027",
+    #     city="Delmas"
+    # )
+
+    # start = datetime.datetime.strptime("01/01/2013", "%d/%m/%Y")
+    # end = datetime.datetime.strptime("01/12/2013", "%d/%m/%Y")
+    # date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
+    # days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
+
     # get_humidity_date('delmas_weather_raw.json', 'delmas')
-    #get_historical_weather_data("F:/Data2/job_cedara_debug/dataset_gain_7day/activity_delmas_70101200027_dbft_7_1min.csv", farm_id="cedara_70091100056", out_file="cedara_weather_raw.json", city="Cedara")
-    #get_humidity_date('delmas_weather_raw.json', 'delmas')
+    get_historical_weather_data(
+        days_,
+        out_file="cedara_weather_raw.json",
+        farm_id="cedara_70091100056",
+        city="Cedara"
+    )
+
+    # get_humidity_date('delmas_weather_raw.json', 'delmas')
+    get_humidity_date('cedara_weather_raw.json', 'cedara')
