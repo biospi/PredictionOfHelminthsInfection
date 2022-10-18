@@ -219,7 +219,7 @@ def cats():
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-                for qn_filter in [True, False]:
+                for qn_filter in [True]:
                     n_cmd += main(
                         cv_list=[cv],
                         output_dir=f"{output_dir}/{t}",
