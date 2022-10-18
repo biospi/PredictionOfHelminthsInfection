@@ -325,7 +325,7 @@ class LeaveNOut:
 
         self.nfold = len(training_idx)
         print(
-            "StratifiedLeaveTwoOut could build %d unique folds. stratification=%s"
+            "LeaveNOut could build %d unique folds. stratification=%s"
             % (self.nfold, self.stratified)
         )
         for n in range(len(training_idx)):

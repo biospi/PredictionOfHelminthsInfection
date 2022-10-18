@@ -93,7 +93,7 @@ def load_activity_data(
         data_frame = data_frame.drop('datetime', 1)
 
     if len(individual_to_ignore) > 0:
-        data_frame = data_frame.loc[~data_frame['name'].isin(individual_to_ignore)]
+        data_frame = data_frame.loc[~data_frame['name'].isin(individual_to_ignore)]#todo fix
 
     if len(individual_to_keep) > 0:
         data_frame = data_frame.loc[data_frame['name'].isin(individual_to_keep)]
@@ -125,13 +125,14 @@ def load_activity_data(
     )
 
     #if imputed_days > 0:
-    if "ZEROPAD" in preprocessing_steps[0]:
-        data_frame = data_frame.fillna(0)
+    if len(preprocessing_steps) > 0:
+        if "ZEROPAD" in preprocessing_steps[0]:
+            data_frame = data_frame.fillna(0)
 
-    if "LINEAR" in preprocessing_steps[0]:
-        data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
-            :, : -len(meta_columns)
-        ].astype(float).interpolate(axis=1, limit_direction="both")
+        if "LINEAR" in preprocessing_steps[0]:
+            data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
+                :, : -len(meta_columns)
+            ].astype(float).interpolate(axis=1, limit_direction="both")
 
     data_frame = data_frame.dropna()
 

@@ -22,7 +22,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
     if enable_qn_peak_filter:
         X_peak_mask = X.copy()
         X_peak_mask[:] = np.nan
-        n_peak = int(X.shape[1]/(4*60))
+        n_peak = int(np.ceil(X.shape[1]/(4*60)))
         stride = int(X.shape[1] / n_peak / 2)
         w = 1
 
@@ -62,7 +62,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
 
     # step 1 find pointwise median sample [median of col1, .... median of col n].
     median_array = np.median(X, axis=0)
-    median_array[median_array == 0] = 1
+    median_array[median_array <= 0] = 1
     if output_graph:
         traces.append(
             plotLine(
@@ -80,7 +80,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
         div = np.divide(x, median_array)
         div[div == -np.inf] = np.nan
         div[div == np.inf] = np.nan
-        div[div == 0] = np.nan
+        div[div <= 0] = np.nan
         X_median.append(div)
     if output_graph:
         traces.append(
@@ -101,7 +101,11 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
     within_median = []
     for msample in X_median:
         clean_sample = msample[~np.isnan(msample)]
-        within_median.append(np.median(clean_sample))
+        m = np.median(clean_sample)
+        if m <= 0:
+            m = 1
+        within_median.append(m)
+
     if output_graph:
         traces.append(
             plotLine(
@@ -112,7 +116,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 "values (1 per samples)",
                 "3_within_median.html",
                 x_axis_count=True,
-                y_log=True,
+                y_log=False,
             )
         )
 
@@ -375,6 +379,7 @@ def plotHeatmap(
 ):
     # fig = make_subplots(rows=len(transponders), cols=1)
     # ticks = get_time_ticks(X.shape[1])
+    X = X + 0
     ticks = list(range(X.shape[1]))
     fig = make_subplots(rows=1, cols=1)
     if y_log:
