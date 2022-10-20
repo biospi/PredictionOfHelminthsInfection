@@ -33,8 +33,8 @@ def mean_confidence_interval(x):
 
 
 def local_run(
-    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final"),
-    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final"),
+    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final2"),
+    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final2"),
 ):
     main(input_dir, out_dir)
 

@@ -60,131 +60,131 @@ def main(
                     for w_day in [7*30, 7*20, 7*10, 7*5, 7*1]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To2",
-                                    dataset_folder=delmas_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    n_weather_days=w_day,
-                                    cv=cv,
-                                    classifiers=["rbf"],
-                                    class_unhealthy_label=["2To2"],
-                                    study_id="delmas",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    export_fig_as_pdf=True,
-                                    plot_2d_space=True,
-                                    weather_file=Path(
-                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json"),
-                                )
-                                continue
                                 # main_experiment.main(
                                 #     output_dir=output_dir
                                 #     / "main_experiment"
-                                #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "1To1_2To1__2To2",
+                                #     / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                #     / "2To2",
                                 #     dataset_folder=delmas_dir,
                                 #     preprocessing_steps=steps,
                                 #     n_imputed_days=i_day,
                                 #     n_activity_days=a_day,
+                                #     n_weather_days=w_day,
                                 #     cv=cv,
-                                #     classifiers=["linear", "rbf"],
-                                #     class_healthy_label=["1To1", "2To1"],
+                                #     classifiers=["rbf"],
                                 #     class_unhealthy_label=["2To2"],
                                 #     study_id="delmas",
                                 #     add_seasons_to_features=add_seasons_to_features,
+                                #     export_fig_as_pdf=True,
+                                #     plot_2d_space=True,
+                                #     weather_file=Path(
+                                #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json"),
                                 # )
+                                #
+                                # # main_experiment.main(
+                                # #     output_dir=output_dir
+                                # #     / "main_experiment"
+                                # #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                # #     / "1To1_2To1__2To2",
+                                # #     dataset_folder=delmas_dir,
+                                # #     preprocessing_steps=steps,
+                                # #     n_imputed_days=i_day,
+                                # #     n_activity_days=a_day,
+                                # #     cv=cv,
+                                # #     classifiers=["linear", "rbf"],
+                                # #     class_healthy_label=["1To1", "2To1"],
+                                # #     class_unhealthy_label=["2To2"],
+                                # #     study_id="delmas",
+                                # #     add_seasons_to_features=add_seasons_to_features,
+                                # # )
+                                # #
+                                # # main_experiment.main(
+                                # #     output_dir=output_dir
+                                # #     / "main_experiment"
+                                # #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                # #     / "1To1_2To1__2To2_1To2",
+                                # #     dataset_folder=delmas_dir,
+                                # #     preprocessing_steps=steps,
+                                # #     n_imputed_days=i_day,
+                                # #     n_activity_days=a_day,
+                                # #     cv=cv,
+                                # #     classifiers=["linear", "rbf"],
+                                # #     class_healthy_label=["1To1", "2To1"],
+                                # #     class_unhealthy_label=["2To2", "1To2"],
+                                # #     study_id="delmas",
+                                # #     add_seasons_to_features=add_seasons_to_features,
+                                # # )
+                                # #
+                                # # main_experiment.main(
+                                # #     output_dir=output_dir
+                                # #     / "main_experiment"
+                                # #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                # #     / "1To2",
+                                # #     dataset_folder=delmas_dir,
+                                # #     preprocessing_steps=steps,
+                                # #     n_imputed_days=i_day,
+                                # #     n_activity_days=a_day,
+                                # #     class_unhealthy_label=["1To2"],
+                                # #     cv=cv,
+                                # #     classifiers=["linear", "rbf"],
+                                # #     study_id="delmas",
+                                # #     add_seasons_to_features=add_seasons_to_features
+                                # # )
                                 #
                                 # main_experiment.main(
                                 #     output_dir=output_dir
                                 #     / "main_experiment"
                                 #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "1To1_2To1__2To2_1To2",
+                                #     / "2To1",
                                 #     dataset_folder=delmas_dir,
                                 #     preprocessing_steps=steps,
                                 #     n_imputed_days=i_day,
                                 #     n_activity_days=a_day,
+                                #     class_unhealthy_label=["2To1"],
                                 #     cv=cv,
                                 #     classifiers=["linear", "rbf"],
-                                #     class_healthy_label=["1To1", "2To1"],
-                                #     class_unhealthy_label=["2To2", "1To2"],
                                 #     study_id="delmas",
                                 #     add_seasons_to_features=add_seasons_to_features,
+                                #     plot_2d_space=True,
+                                #     export_fig_as_pdf=True
                                 # )
                                 #
                                 # main_experiment.main(
                                 #     output_dir=output_dir
                                 #     / "main_experiment"
-                                #     / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "1To2",
-                                #     dataset_folder=delmas_dir,
+                                #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                #     / "2To1",
+                                #     dataset_folder=cedara_dir,
                                 #     preprocessing_steps=steps,
                                 #     n_imputed_days=i_day,
                                 #     n_activity_days=a_day,
-                                #     class_unhealthy_label=["1To2"],
+                                #     class_unhealthy_label=["2To1"],
                                 #     cv=cv,
                                 #     classifiers=["linear", "rbf"],
-                                #     study_id="delmas",
-                                #     add_seasons_to_features=add_seasons_to_features
+                                #     study_id="cedara",
+                                #     add_seasons_to_features=add_seasons_to_features,
+                                #     plot_2d_space=True,
+                                #     export_fig_as_pdf=True
                                 # )
-
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"delmas_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To1",
-                                    dataset_folder=delmas_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    class_unhealthy_label=["2To1"],
-                                    cv=cv,
-                                    classifiers=["linear", "rbf"],
-                                    study_id="delmas",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    plot_2d_space=True,
-                                    export_fig_as_pdf=True
-                                )
-
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To1",
-                                    dataset_folder=cedara_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    class_unhealthy_label=["2To1"],
-                                    cv=cv,
-                                    classifiers=["linear", "rbf"],
-                                    study_id="cedara",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    plot_2d_space=True,
-                                    export_fig_as_pdf=True
-                                )
-
-
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To2_2To4_3To4_1To4_1To3_4To5_2To3",
-                                    dataset_folder=cedara_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    class_unhealthy_label=["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
-                                    cv=cv,
-                                    classifiers=["linear", "rbf"],
-                                    study_id="cedara",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    plot_2d_space=True,
-                                    export_fig_as_pdf=True
-                                )
+                                #
+                                #
+                                # main_experiment.main(
+                                #     output_dir=output_dir
+                                #     / "main_experiment"
+                                #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                #     / "2To2_2To4_3To4_1To4_1To3_4To5_2To3",
+                                #     dataset_folder=cedara_dir,
+                                #     preprocessing_steps=steps,
+                                #     n_imputed_days=i_day,
+                                #     n_activity_days=a_day,
+                                #     class_unhealthy_label=["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
+                                #     cv=cv,
+                                #     classifiers=["linear", "rbf"],
+                                #     study_id="cedara",
+                                #     add_seasons_to_features=add_seasons_to_features,
+                                #     plot_2d_space=True,
+                                #     export_fig_as_pdf=True
+                                # )
 
                                 main_experiment.main(
                                     output_dir=output_dir
@@ -196,13 +196,17 @@ def main(
                                     n_imputed_days=i_day,
                                     n_activity_days=a_day,
                                     class_unhealthy_label=["2To2"],
+                                    n_weather_days=w_day,
                                     cv=cv,
                                     classifiers=["linear", "rbf"],
                                     study_id="cedara",
                                     add_seasons_to_features=add_seasons_to_features,
                                     plot_2d_space=True,
-                                    export_fig_as_pdf=True
+                                    export_fig_as_pdf=True,
+                                    weather_file=Path(
+                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/cedara_weather_raw.json"),
                                 )
+                                continue
 
                                 # main_experiment.main(
                                 #     output_dir=output_dir

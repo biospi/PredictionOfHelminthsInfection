@@ -260,7 +260,7 @@ if __name__ == "__main__":
     # create_weather_data_for_mrnn()
     # connect_to_sql_database()
 
-    start = datetime.datetime.strptime("01/01/2012", "%d/%m/%Y")
+    start = datetime.datetime.strptime("01/01/2011", "%d/%m/%Y")
     end = datetime.datetime.strptime("01/12/2015", "%d/%m/%Y")
     date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
     days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
