@@ -7,7 +7,7 @@ from pathlib import Path
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis_debug_weather4"),
+    main(output_dir=Path("E:/thesis_debug_weather5"),
          cedara_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
          delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"))
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
@@ -37,12 +37,14 @@ def main(
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
-            # ["QN", "ANSCOMBE", "LOG"],
+            ["QN", "ANSCOMBE", "LOG"],
             ["HUMIDITY", "STDS"],
+            ["RAINFALL", "STDS"],
             ["TEMPERATURE", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "TEMPERATUREAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
+            ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
 
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
@@ -56,31 +58,32 @@ def main(
             slug = "_".join(steps)
 
             for i_day in [7]:
-                for a_day in [7]:
-                    for w_day in [7*30, 7*20, 7*10, 7*5, 7*1]:
+                for a_day in [5, 4, 3, 2, 1]:
+                    for w_day in [0]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:
-                                # main_experiment.main(
-                                #     output_dir=output_dir
-                                #     / "main_experiment"
-                                #     / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "2To2",
-                                #     dataset_folder=delmas_dir,
-                                #     preprocessing_steps=steps,
-                                #     n_imputed_days=i_day,
-                                #     n_activity_days=a_day,
-                                #     n_weather_days=w_day,
-                                #     cv=cv,
-                                #     classifiers=["rbf"],
-                                #     class_unhealthy_label=["2To2"],
-                                #     study_id="delmas",
-                                #     add_seasons_to_features=add_seasons_to_features,
-                                #     export_fig_as_pdf=True,
-                                #     plot_2d_space=True,
-                                #     weather_file=Path(
-                                #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json"),
-                                # )
-                                #
+                                main_experiment.main(
+                                    output_dir=output_dir
+                                    / "main_experiment"
+                                    / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                    / "2To2",
+                                    dataset_folder=delmas_dir,
+                                    preprocessing_steps=steps,
+                                    n_imputed_days=i_day,
+                                    n_activity_days=a_day,
+                                    n_weather_days=w_day,
+                                    cv=cv,
+                                    classifiers=["rbf", "linear"],
+                                    class_unhealthy_label=["2To2"],
+                                    study_id="delmas",
+                                    add_seasons_to_features=add_seasons_to_features,
+                                    export_fig_as_pdf=True,
+                                    plot_2d_space=True,
+                                    weather_file=Path(
+                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json"),
+                                )
+                                continue
+
                                 # # main_experiment.main(
                                 # #     output_dir=output_dir
                                 # #     / "main_experiment"
@@ -186,27 +189,27 @@ def main(
                                 #     export_fig_as_pdf=True
                                 # )
 
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To2",
-                                    dataset_folder=cedara_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    class_unhealthy_label=["2To2"],
-                                    n_weather_days=w_day,
-                                    cv=cv,
-                                    classifiers=["linear", "rbf"],
-                                    study_id="cedara",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    plot_2d_space=True,
-                                    export_fig_as_pdf=True,
-                                    weather_file=Path(
-                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/cedara_weather_raw.json"),
-                                )
-                                continue
+                                # main_experiment.main(
+                                #     output_dir=output_dir
+                                #     / "main_experiment"
+                                #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
+                                #     / "2To2",
+                                #     dataset_folder=cedara_dir,
+                                #     preprocessing_steps=steps,
+                                #     n_imputed_days=i_day,
+                                #     n_activity_days=a_day,
+                                #     class_unhealthy_label=["2To2"],
+                                #     n_weather_days=w_day,
+                                #     cv=cv,
+                                #     classifiers=["linear", "rbf"],
+                                #     study_id="cedara",
+                                #     add_seasons_to_features=add_seasons_to_features,
+                                #     plot_2d_space=True,
+                                #     export_fig_as_pdf=True,
+                                #     weather_file=Path(
+                                #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/cedara_weather_raw.json"),
+                                # )
+                                # continue
 
                                 # main_experiment.main(
                                 #     output_dir=output_dir

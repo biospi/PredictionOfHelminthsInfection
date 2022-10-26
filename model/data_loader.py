@@ -240,7 +240,7 @@ def parse_param_from_filename(file):
     return days, farm_id, option, sampling
 
 
-def plot_samples_distribution(out_dir, samples_, filename, grid_enabled=False):
+def plot_samples_distribution(out_dir, samples_, filename, grid_enabled=True):
     out_dir.mkdir(parents=True, exist_ok=True)
     sample_data = samples_.copy()
 

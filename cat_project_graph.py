@@ -1,4 +1,6 @@
 from pathlib import Path, PurePath
+
+import matplotlib
 import pandas as pd
 import json
 import numpy as np
@@ -8,6 +10,7 @@ import typer
 from sklearn.metrics import roc_curve, auc
 from tqdm import tqdm
 import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 DEFAULT_PLOTLY_COLORS = [
     "rgb(31, 119, 180)",
@@ -57,8 +60,10 @@ def main(
     df = pd.DataFrame(data)
 
     thresh_list = []
-    median_auc_list = []
-    auc_list = []
+    median_auc_test_list = []
+    median_auc_train_list = []
+    auc_test_list = []
+    auc_train_list = []
     n_samples = []
     window_size_list = []
     p_steps_list = []
@@ -81,36 +86,54 @@ def main(
 
         clf_res = results[list(results.keys())[0]]
         aucs = []
-        all_y = []
-        all_probs = []
+        aucs_train = []
+        all_y_test = []
+        all_probs_test = []
+        all_y_train = []
+        all_probs_train = []
         for item in clf_res:
             if "auc" not in item:
                 continue
             # auc = item["auc"]
             # aucs.append(auc)
 
-            all_y.extend(item["y_test"])
-            all_probs.extend(np.array(item["y_pred_proba_test"])[:, 1])
+            all_y_test.extend(item["y_test"])
+            all_probs_test.extend(np.array(item["y_pred_proba_test"])[:, 1])
+
+            all_y_train.extend(item["y_train"])
+            all_probs_train.extend(np.array(item["y_pred_proba_train"])[:, 1])
 
             training_shape = len(item["ids_train"])
             testing_shape = len(item["ids_test"])
 
-        all_y = np.array(all_y)
-        all_probs = np.array(all_probs)
-        fpr, tpr, thresholds = roc_curve(all_y, all_probs)
+        all_y_test = np.array(all_y_test)
+        all_probs_test = np.array(all_probs_test)
+        fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test)
         roc_auc = auc(fpr, tpr)
         aucs.append(roc_auc)
 
-        auc_list.append(aucs)
-        median_auc = np.median(aucs)
+        auc_test_list.append(aucs)
+        median_auc_test = np.median(aucs)
         thresh_list.append(thresh_float)
-        median_auc_list.append(median_auc)
+        median_auc_test_list.append(median_auc_test)
         n_samples.append(training_shape + testing_shape)
+
+        all_y_train = np.array(all_y_train)
+        all_probs_train = np.array(all_probs_train)
+        fpr, tpr, thresholds = roc_curve(all_y_train, all_probs_train)
+        roc_auc = auc(fpr, tpr)
+        aucs_train.append(roc_auc)
+
+        auc_train_list.append(aucs_train)
+        median_auc_train = np.median(aucs_train)
+        median_auc_train_list.append(median_auc_train)
 
     df_data = pd.DataFrame(
         {
-            "auc_list": auc_list,
-            "median_auc": median_auc_list,
+            "auc_test_list": auc_test_list,
+            "median_auc_test": median_auc_test_list,
+            "auc_train_list": auc_train_list,
+            "median_auc_train": median_auc_train_list,
             "thresh_list": thresh_list,
             "n_samples": n_samples,
             "p_steps_list": p_steps_list,
@@ -120,7 +143,7 @@ def main(
     )
 
     print(df_data)
-    fig, ax1 = plt.subplots(figsize=(7.20, 7.20))
+    fig, ax1 = plt.subplots(figsize=(10.80, 10.80))
     ax2 = ax1.twinx()
     dfs = [group for _, group in df_data.groupby(['p_steps_list'])]
 
@@ -133,27 +156,42 @@ def main(
         width=0.2
     )
 
+    colors = list(mcolors.CSS4_COLORS.keys())
+    print(colors)
+    cpt = 0
     for i, df in enumerate(dfs):
         dfs_ = [group for _, group in df.groupby(['window_size_list'])]
         for df_ in dfs_:
             # df_ = df_[df_['n_peaks'] <= 4]
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
-            if 'linear' in df_['p_steps_list'].tolist()[0]:
-                continue
+            # if 'linear' in df_['p_steps_list'].tolist()[0]:
+            #     continue
             print(df_['p_steps_list'].tolist()[0])
             #
-            # if len(df_["median_auc"]) != 4:
+            # if len(df_["median_auc_test"]) != 4:
             #     continue
             print(df_["n_samples"])
             ax1.plot(
                 df_["n_peaks"],
-                df_["median_auc"],
+                df_["median_auc_test"],
                 label=f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}",
-                marker="x"
+                marker="x",
+                color=colors[cpt]
             )
+
+            ax1.plot(
+                df_["n_peaks"],
+                df_["median_auc_train"],
+                #label=f"Train Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}",
+                marker=".",
+                linestyle='-.',
+                color=colors[cpt]
+            )
+            cpt +=1
+
     ax1.axhline(y=0.5, color='black', linestyle='--')
-    fig.suptitle("Evolution of AUC with N peak increase")
+    fig.suptitle("Evolution of AUC(train and test) with N peak increase")
     ax1.set_xlabel("Number of peaks")
     ax1.set_ylabel("Mean AUC")
     ax2.set_ylabel("Number of samples(high activity peak window)")

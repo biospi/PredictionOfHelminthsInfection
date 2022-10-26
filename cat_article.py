@@ -1,6 +1,6 @@
 import time
 from multiprocessing import Manager, Pool
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
@@ -8,7 +8,7 @@ from sklearn.metrics import (
     roc_curve,
 )
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 
 from model.data_loader import load_activity_data
 from model.svm import cross_validate_svm_fast
@@ -16,6 +16,8 @@ from utils._custom_split import LeaveNOut
 from utils._normalisation import QuotientNormalizer
 from pathlib import Path
 from sys import exit
+
+from utils.visualisation import plot_umap
 
 n_job = 7
 
@@ -28,10 +30,9 @@ def fold_worker(
     X_test = fold[0].iloc[:, :-1]
     y_test = fold[0]["label"]
     clf = SVC(kernel=kernel, probability=True)
-    # print("fitting...")
     clf.fit(X_train, y_train)
-    y_pred_test = clf.predict(X_test)
-    y_pred_train = clf.predict(X_train)
+    y_pred_test = clf.decision_function(X_test)
+    y_pred_train = clf.decision_function(X_train)
     all_y_test.extend(y_test)
     all_y_train.extend(y_train)
     all_y_pred_test.extend(y_pred_test)
@@ -50,9 +51,21 @@ def fold_worker(
     print("**************************************************************")
 
 
+meta_columns = [
+    "label",
+    "id",
+    "imputed_days",
+    "date",
+    "health",
+    "target",
+    "age",
+    "name",
+    "mobility_score",
+]
+
 if __name__ == "__main__":
     output_dir = Path("E:/Cats/debug")
-    path = "E:/Cats/build_permutations/1000__001__0_00100__060/dataset/training_sets/samples/samples.csv"
+    path = "E:/Cats/build_permutations/1000__001__0_00100__120/dataset/training_sets/samples/samples.csv"
     N_META = 9
     df = pd.read_csv(path, header=None)
     header = list(df.columns.values)
@@ -69,6 +82,10 @@ if __name__ == "__main__":
     df.columns = header
 
     df["target"] = df["health"]
+    # individual_to_ignore = ["'MrDudley'", "'Oliver_F'", "'Lucy'"]
+    # data_frame = df.loc[~df['name'].isin(individual_to_ignore)]
+    df["date"] = [x.replace("'", '') for x in df['date']]
+
     df = df[df.nunique(1) > 10]
     df = df.dropna(subset=df.columns[: -N_META], how="all")
     df.iloc[:, : -N_META] = df.iloc[:, : -N_META].clip(lower=0)
@@ -121,9 +138,13 @@ if __name__ == "__main__":
 
             all_y_test = np.array(all_y_test)
             all_y_pred_test = np.array(all_y_pred_test)
-            # all_y_pred_test = all_y_pred_test[:, 1]
+            if len(all_y_pred_test.shape) > 1:
+                all_y_pred_test = all_y_pred_test[:, 1]
+
             all_y_pred_train = np.array(all_y_pred_train)
-            # all_y_pred_train = all_y_pred_train[:, 1]
+            if len(all_y_pred_train.shape) > 1:
+                all_y_pred_train = all_y_pred_train[:, 1]
+
             fpr, tpr, _ = roc_curve(all_y_test, all_y_pred_test)
             roc_auc = auc(fpr, tpr)
             # print(all_y_test)
@@ -134,19 +155,15 @@ if __name__ == "__main__":
             # print(all_y_train)
             # print(all_y_pred_train)
             print(f"AUC TRAIN={roc_auc}")
+
+            plt.plot(all_y_train[0:1000])
+            plt.plot(all_y_pred_train[0:1000])
+            plt.show()
+
+    exit()
 ###############################################################################################################################
-    meta_columns = [
-        "label",
-        "id",
-        "imputed_days",
-        "date",
-        "health",
-        "target",
-        "age",
-        "name",
-        "mobility_score",
-    ]
-    individual_to_ignore = ["MrDudley", "Oliver_F", "Lucy"],
+
+    individual_to_ignore = ["MrDudley", "Oliver_F", "Lucy"]
 
     (data_frame, meta_data, meta_data_short, _, _, label_series, samples, seasons_features) = load_activity_data(
         output_dir,

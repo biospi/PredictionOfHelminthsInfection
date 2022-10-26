@@ -746,8 +746,8 @@ def fold_worker(
             pickle.dump(clf, f)
 
     # test healthy/unhealthy
-    y_pred = clf.predict(X_test)
-    y_pred_proba_test = clf.predict_proba(X_test)
+    y_pred_test = clf.predict(X_test)
+    y_pred_proba_test = clf.decision_function(X_test)
 
     # prep for roc curve
     alpha = 0.3
@@ -813,14 +813,14 @@ def fold_worker(
         )
         plot_learning_curves(clf, X, y, ifold, out_dir / "testing" / str(ifold))
 
-    accuracy = balanced_accuracy_score(y_test, y_pred)
-    precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred)
-    correct_predictions_test = (y_test == y_pred).astype(int)
-    incorrect_predictions_test = (y_test != y_pred).astype(int)
+    accuracy = balanced_accuracy_score(y_test, y_pred_test)
+    precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred_test)
+    correct_predictions_test = (y_test == y_pred_test).astype(int)
+    incorrect_predictions_test = (y_test != y_pred_test).astype(int)
 
     # data for training
     y_pred_train = clf.predict(X_train)
-    y_pred_proba_train = clf.predict_proba(X_train)
+    y_pred_proba_train = clf.decision_function(X_train)
     accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
     (
         precision_train,
@@ -845,7 +845,8 @@ def fold_worker(
         "class_unhealthy": int(class_unhealthy),
         "y_test": y_test.tolist(),
         "y_train": y_train.tolist(),
-        "y_pred_test": y_pred.tolist(),
+        "y_pred_test": y_pred_test.tolist(),
+        "y_pred_train": y_pred_train.tolist(),
         "y_pred_proba_test": y_pred_proba_test.tolist(),
         "y_pred_proba_train": y_pred_proba_train.tolist(),
         "ids_test": ids_test.tolist(),
@@ -892,11 +893,19 @@ def fold_worker(
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
-        y_pred_proba_test = clf.predict_proba(X_test)
-        fold_proba = {
-            "test_y_pred_proba_0": y_pred_proba_test[:, 0].tolist(),
-            "test_y_pred_proba_1": y_pred_proba_test[:, 1].tolist(),
-        }
+        y_pred_proba_test = clf.decision_function(X_test)
+        if len(np.array(y_pred_proba_test).shape) > 1:
+            test_y_pred_proba_0 = y_pred_proba_test[:, 0]
+            test_y_pred_proba_1 = y_pred_proba_test[:, 1]
+            fold_proba = {
+                "test_y_pred_proba_0": test_y_pred_proba_0.tolist(),
+                "test_y_pred_proba_1": test_y_pred_proba_1.tolist(),
+            }
+        else:
+            fold_proba = {
+                "test_y_pred_proba_0": y_pred_proba_test.tolist(),
+                "test_y_pred_proba_1": y_pred_proba_test.tolist(),
+            }
         fold_probas[label].append(fold_proba)
     print(f"process id={ifold}/{nfold} done!")
 
@@ -1079,20 +1088,39 @@ def cross_validate_svm_fast(
                 xdata = ax.lines[0].get_xdata()
                 ydata = ax.lines[0].get_ydata()
                 ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
-                #ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
+                ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
         if cv_name == "LeaveOneOut":
-            all_y = []
-            all_probs = []
+            all_y_test = []
+            all_probs_test = []
             for item in fold_results:
-                all_y.extend(item['y_test'])
-                all_probs.extend(item['y_pred_test'])
-            all_y = np.array(all_y)
-            all_probs = np.array(all_probs)
-            fpr, tpr, thresholds = roc_curve(all_y, all_probs)
-            roc_auc = auc(fpr, tpr)
-            print(roc_auc)
-            ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (AUC = %0.2f)' % (roc_auc))
+                all_y_test.extend(item['y_test'])
+                y_pred_proba_test = np.array(item['y_pred_proba_test'])
+                if len(y_pred_proba_test) > 1:
+                    y_pred_proba_test = y_pred_proba_test[:, 1]
+                all_probs_test.extend(y_pred_proba_test)
+            all_y_test = np.array(all_y_test)
+            all_probs_test = np.array(all_probs_test)
+            fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test)
+            roc_auc_test = auc(fpr, tpr)
+            print(f"LOO AUC TEST={roc_auc_test}")
+            ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (TEST AUC = %0.2f)' % (roc_auc_test))
+
+            all_y_train = []
+            all_probs_train = []
+            for item in fold_results:
+                all_y_train.extend(item['y_train'])
+                y_pred_proba_train = np.array(item['y_pred_proba_train'])
+                if len(y_pred_proba_train) > 1:
+                    y_pred_proba_train = y_pred_proba_train[:, 1]
+                all_probs_train.extend(y_pred_proba_train)
+            all_y_train = np.array(all_y_train)
+            all_probs_train = np.array(all_probs_train)
+            fpr, tpr, thresholds = roc_curve(all_y_train, all_probs_train)
+            roc_auc_train = auc(fpr, tpr)
+            print(f"LOO AUC TRAIN={roc_auc_train}")
+            ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (TRAIN AUC = %0.2f)' % (roc_auc_train))
+
             ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='k', label='Chance level', alpha=.8)
             ax_roc_merge.set_xlim([-0.05, 1.05])
             ax_roc_merge.set_ylim([-0.05, 1.05])
@@ -1107,7 +1135,7 @@ def cross_validate_svm_fast(
             tag = f"{type(clf).__name__}_{clf.kernel}"
             final_path = path / f"{tag}_roc_{steps}.png"
             print(final_path)
-            fig_roc.savefig(final_path)
+            # fig_roc.savefig(final_path)
 
             final_path = path / f"{tag}_roc_{steps}_merge.png"
             print(final_path)

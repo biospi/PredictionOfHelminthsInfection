@@ -136,7 +136,7 @@ IDS = [
 
 def cats():
     n_cmd = 0
-    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_qnf_final2"
+    output_dir = "/user/work/fo18103/cats_data/ml_build_permutations_qnf_final3"
 
     #files = [x.stem for x in list(Path("E:/Cats/build_permutations").glob("*"))]
     files = [

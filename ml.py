@@ -40,20 +40,22 @@ from utils.visualisation import (
     plot_time_lda,
     plot_groups,
     plot_umap,
-    plot_time_pls, plot_ml_report_final)
+    plot_time_pls,
+    plot_ml_report_final,
+)
 
 
 def format_time(time):
     if len(time) == 1:
-        return '00:00'
+        return "00:00"
     if len(time) == 3:
-        return "0%s:00" % time.split('00')[0]
-    if len(time) == 4 and time != '1000' and time != '2000':
-        return "%s:00" % time.split('00')[0]
-    if time == '1000':
-        return '10:00'
-    if time == '2000':
-        return '20:00'
+        return "0%s:00" % time.split("00")[0]
+    if len(time) == 4 and time != "1000" and time != "2000":
+        return "%s:00" % time.split("00")[0]
+    if time == "1000":
+        return "10:00"
+    if time == "2000":
+        return "20:00"
 
 
 def main(
@@ -78,7 +80,7 @@ def main(
     add_feature: List[str] = [],
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
-    n_weather_days:int = 7,
+    n_weather_days: int = 7,
     n_scales: int = 6,
     sub_sample_scales: int = 3,
     weather_file: Optional[Path] = Path("."),
@@ -105,7 +107,7 @@ def main(
     save_model: bool = False,
     resolution: float = None,
     plot_2d_space: bool = False,
-    export_fig_as_pdf:bool = False
+    export_fig_as_pdf: bool = False,
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -135,8 +137,8 @@ def main(
 
     # plot_ml_report_final(output_dir.parent.parent)
     # exit()
-    meta_columns = [x.replace("'", '') for x in meta_columns]
-    preprocessing_steps = [x.replace("'", '') for x in preprocessing_steps]
+    meta_columns = [x.replace("'", "") for x in meta_columns]
+    preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
     print(f"preprocessing_steps={preprocessing_steps}")
     print(f"output directory is {output_dir}")
@@ -152,7 +154,16 @@ def main(
     for file in files:
         # _, _, option, sampling = parse_param_from_filename(file)
         print(f"loading dataset file {file} ...")
-        (data_frame, meta_data, meta_data_short, _, _, label_series, samples, seasons_features) = load_activity_data(
+        (
+            data_frame,
+            meta_data,
+            meta_data_short,
+            _,
+            _,
+            label_series,
+            samples,
+            seasons_features,
+        ) = load_activity_data(
             output_dir,
             meta_columns,
             file,
@@ -165,7 +176,7 @@ def main(
             sampling=sampling,
             individual_to_keep=individual_to_keep,
             individual_to_ignore=individual_to_ignore,
-            resolution=resolution
+            resolution=resolution,
         )
 
         N_META = len(meta_columns)
@@ -191,46 +202,106 @@ def main(
                         except Exception as e:
                             print(e)
                             continue
-                        if 'weather' not in js['data']:
+                        if "weather" not in js["data"]:
                             continue
-                        for w in js['data']['weather']:
-                            date = w['date']
-                            date = pd.to_datetime(date, format='%Y-%m-%d').strftime("%d/%m/%Y")
-                            for h in w['hourly']:
-                                time = format_time(h['time'])
-                                humidity = int(h['humidity'])
-                                temp_c = int(h['tempC'])
-                                data.append({'datetime': f"{date}", 'humidity': humidity, 'temp_c': temp_c})
+                        for w in js["data"]["weather"]:
+                            date = w["date"]
+                            date = pd.to_datetime(date, format="%Y-%m-%d").strftime(
+                                "%d/%m/%Y"
+                            )
+                            for h in w["hourly"]:
+                                time = format_time(h["time"])
+                                humidity = int(h["humidity"])
+                                temp_c = int(h["tempC"])
+                                desc = h["weatherDesc"][0]["value"]
+                                data.append(
+                                    {
+                                        "datetime": f"{date}",
+                                        "humidity": humidity,
+                                        "temp_c": temp_c,
+                                        "desc": desc,
+                                    }
+                                )
 
                     df_weather = pd.DataFrame(data)
+                    mapping = {
+                        "Patchy rain possible": 1,
+                        "Patchy light rain": 1,
+                        "Patchy light rain with thunder": 1,
+                        "Light drizzle": 1,
+                        "Light rain": 1,
+                        "Light rain shower": 1,
+                        "Moderate rain at times": 2,
+                        "Moderate rain": 2,
+                        "Heavy rain at times": 2,
+                        "Moderate or heavy rain shower": 3,
+                        "Heavy rain": 3,
+                        "Moderate or heavy rain with thunder": 3,
+                        "Torrential rain shower": 3,
+                    }
+                    df_weather["desc"] = df_weather["desc"].replace(mapping)
+                    rain = []
+                    for item in df_weather["desc"]:
+                        if isinstance(item, str):
+                            rain.append(0)
+                            continue
+                        rain.append(item)
+                    df_weather["rainfall"] = rain
                 ##########################################
                 df_hum_list = []
                 df_temp_list = []
-                for j, d in tqdm(enumerate(data_frame['date'])):
+                df_rain_list = []
+                for j, d in tqdm(enumerate(data_frame["date"])):
                     d = pd.to_datetime(d) - timedelta(days=n_weather_days)
                     df_h = []
                     df_t = []
+                    df_rain = []
                     print(f"SAMPLE {j}/{data_frame.shape[0]}")
                     for n in range(n_weather_days):
                         d_ = d - timedelta(days=n)
                         d_ = d_.strftime("%d/%m/%Y")
-                        df_h_ = df_weather[df_weather['datetime'] == d_]['humidity'].values
+                        df_h_ = df_weather[df_weather["datetime"] == d_][
+                            "humidity"
+                        ].values
                         df_h.extend(df_h_)
-                        df_t_ = df_weather[df_weather['datetime'] == d_]['temp_c'].values
+                        df_t_ = df_weather[df_weather["datetime"] == d_][
+                            "temp_c"
+                        ].values
                         df_t.extend(df_t_)
+
+                        df_rain_ = df_weather[df_weather["datetime"] == d_][
+                            "rainfall"
+                        ].values
+                        df_rain.extend(df_rain_)
                     df_hum_list.append(df_h)
                     df_temp_list.append(df_t)
+                    df_rain_list.append(df_rain)
 
                 df_hum = pd.DataFrame(df_hum_list)
                 df_temp = pd.DataFrame(df_temp_list)
-                plotHeatmap(df_hum.values, output_dir, "Samples humidity", "humidity.html")
-                plotHeatmap(df_temp.values, output_dir, "Samples temperature", "temperature.html")
+                df_rainfall = pd.DataFrame(df_rain_list)
+                plotHeatmap(
+                    df_hum.values, output_dir, "Samples humidity", "humidity.html"
+                )
+                plotHeatmap(
+                    df_temp.values,
+                    output_dir,
+                    "Samples temperature",
+                    "temperature.html",
+                )
+                plotHeatmap(
+                    df_temp.values,
+                    output_dir,
+                    "Samples rainfall",
+                    "rainfall.html",
+                )
 
             df_norm, _, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
                 df_hum,
                 df_temp,
+                df_rainfall,
                 sfft_window,
                 dwt_window,
                 wavelet_f0,
@@ -246,7 +317,7 @@ def main(
                 keep_meta=True,
                 output_qn_graph=output_qn_graph,
                 sub_sample_scales=sub_sample_scales,
-                enable_qn_peak_filter=enable_qn_peak_filter
+                enable_qn_peak_filter=enable_qn_peak_filter,
             )
 
             # plot_zeros_distrib(
@@ -411,19 +482,26 @@ def main(
         step_slug = "_".join(preprocessing_steps)
 
         steps_ = []
-        if 'APPEND' in preprocessing_steps:
-            steps_.append(preprocessing_steps[0:preprocessing_steps.index('APPEND')])
-            steps_.append(preprocessing_steps[preprocessing_steps.index('APPEND') + 1:])
+        if "APPEND" in preprocessing_steps:
+            steps_.append(preprocessing_steps[0 : preprocessing_steps.index("APPEND")])
+            steps_.append(
+                preprocessing_steps[preprocessing_steps.index("APPEND") + 1 :]
+            )
         else:
             steps_ = [preprocessing_steps]
 
         df_processed_list = []
         for preprocessing_steps in steps_:
-            df_processed, df_processed_meta, time_freq_shape = apply_preprocessing_steps(
+            (
+                df_processed,
+                df_processed_meta,
+                time_freq_shape,
+            ) = apply_preprocessing_steps(
                 meta_columns,
                 n_activity_days,
                 df_hum,
                 df_temp,
+                df_rainfall,
                 sfft_window,
                 dwt_window,
                 wavelet_f0,
@@ -437,14 +515,14 @@ def main(
                 output_dim=data_frame.shape[0],
                 n_scales=n_scales,
                 sub_sample_scales=sub_sample_scales,
-                enable_qn_peak_filter=enable_qn_peak_filter
+                enable_qn_peak_filter=enable_qn_peak_filter,
             )
             df_processed_list.append(df_processed)
 
         df = pd.concat(df_processed_list, axis=1)
         df = df.loc[:, ~df.columns.duplicated()]
-        target = df.pop('target')
-        health = df.pop('health')
+        target = df.pop("target")
+        health = df.pop("health")
         df_processed = pd.concat([df, target, health], 1)
 
         # plot_umap(
@@ -472,16 +550,22 @@ def main(
         # )
 
         if len(add_feature) > 0:
-            df_meta = pd.DataFrame(meta_data, columns=meta_columns, index=df_processed.index)[add_feature]
-            df_data = df_processed[df_processed.columns[~df_processed.columns.isin(["target", "health"])]]
+            df_meta = pd.DataFrame(
+                meta_data, columns=meta_columns, index=df_processed.index
+            )[add_feature]
+            df_data = df_processed[
+                df_processed.columns[~df_processed.columns.isin(["target", "health"])]
+            ]
             df_ = pd.concat([df_data, df_meta], axis=1)
-            #df_ = pd.concat([df_meta], axis=1)
-            #df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
+            # df_ = pd.concat([df_meta], axis=1)
+            # df_ = pd.DataFrame(StandardScaler().fit_transform(df_))
             df_processed = pd.concat([df_, df_processed[["target", "health"]]], axis=1)
             step_slug = f"{step_slug}_{'_'.join(add_feature).upper()}_STDS"
 
         if add_seasons_to_features:
-            df_data = df_processed[df_processed.columns[~df_processed.columns.isin(["target", "health"])]]
+            df_data = df_processed[
+                df_processed.columns[~df_processed.columns.isin(["target", "health"])]
+            ]
             df_target = df_processed[["target", "health"]]
             df_processed = pd.concat([df_data, seasons_features, df_target], axis=1)
             step_slug = f"{step_slug}_SEASONS"
@@ -517,7 +601,7 @@ def main(
             individual_to_test=individual_to_test,
             plot_2d_space=plot_2d_space,
             export_fig_as_pdf=export_fig_as_pdf,
-            wheather_days=n_weather_days
+            wheather_days=n_weather_days,
         )
 
         # 2DCNN
@@ -547,7 +631,3 @@ def main(
 
 if __name__ == "__main__":
     typer.run(main)
-
-
-
-

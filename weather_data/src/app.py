@@ -93,7 +93,7 @@ def get_historical_weather_data(days_, out_file=None, city=None, farm_id=None):
     print(len(days_), days_)
     key = "3d109634f16f4f0ba27133341221410"
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
-    purge_file(out_file)
+    #purge_file(out_file)
     with open(out_file, "a") as outfile:
         for i, day in enumerate(days_): # 2076
             PARAMS = {

@@ -52,7 +52,6 @@ CSS_COLORS = {
     "LINEAR_QN_STD": "cyan",
     "QN": "blue",
     "STD": "blue",
-    "QN": "blue",
     "QN_STD": "navy",
     "QN_STD_CENTER_CWTMORL": "magenta",
     "QN_STD_CENTER_DWT": "indigo",
@@ -741,7 +740,12 @@ def plot_ml_report_final(output_dir):
                 imp_days = df_f_[df_f_["config"] == xd]["class1"].unique()
                 class0_list.append(class0)
                 class1_list.append(class1)
-                color = CSS_COLORS[c.replace("(", '').replace(")", '')]
+                try:
+                    color = CSS_COLORS[c.replace("(", '').replace(")", '')]
+                except Exception as e:
+                    print(e)
+                    color = "blue"
+
                 colors.append(color)
                 traces.append(
                     go.Bar(
@@ -797,13 +801,19 @@ def plot_ml_report_final(output_dir):
                 sec_axis.append(True)
 
             for c in np.unique(color_data):
+                color = "blue"
+                try:
+                    CSS_COLORS[c.replace("(", '').replace(")", '')]
+                except Exception as e:
+                    print(e)
+
                 traces.append(
                     go.Box(
                         y=yd,
                         name=c,
                         boxpoints="outliers",
-                        marker=dict(color=CSS_COLORS[c.replace("(", '').replace(")", '')], size=10),
-                        marker_color=CSS_COLORS[c.replace("(", '').replace(")", '')],
+                        marker=dict(color=color, size=10),
+                        marker_color=color,
                         showlegend = True,
                     )
                 )
@@ -1280,8 +1290,6 @@ def plot_roc_range(
         filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}_merge.pdf"
         print(filepath)
         fig_roc_merge.savefig(filepath)
-
-
     # filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}.png"
     # print(filepath)
     # fig.savefig(filepath)
