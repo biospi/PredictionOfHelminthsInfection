@@ -247,6 +247,11 @@ def main(
                             continue
                         rain.append(item)
                     df_weather["rainfall"] = rain
+
+                    # df_weather["d"] = pd.to_datetime(df_weather["datetime"])
+                    # df_weather = df_weather.sort_values('d')
+                    # plt.plot(df_weather["d"], df_weather["rainfall"])
+                    # plt.show()
                 ##########################################
                 df_hum_list = []
                 df_temp_list = []
@@ -290,7 +295,7 @@ def main(
                     "temperature.html",
                 )
                 plotHeatmap(
-                    df_temp.values,
+                    df_rainfall.values,
                     output_dir,
                     "Samples rainfall",
                     "rainfall.html",

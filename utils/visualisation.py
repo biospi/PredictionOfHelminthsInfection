@@ -2337,8 +2337,12 @@ def build_individual_animal_pred(
             dates = pd.to_datetime(s[f"sample_dates_{tt}"]).tolist()
             correct_predictions = s[f"correct_predictions_{tt}"]
             incorrect_predictions = s[f"incorrect_predictions_{tt}"]
-            y_pred_proba_1 = np.array(s[f"y_pred_proba_{tt}"])[:, 1]
-            y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])[:, 0]
+            if len(np.array(s[f"y_pred_proba_{tt}"]).shape) > 1:
+                y_pred_proba_1 = np.array(s[f"y_pred_proba_{tt}"])[:, 1]
+                y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])[:, 0]
+            else:
+                y_pred_proba_1 = np.array(s[f"y_pred_proba_{tt}"])
+                y_pred_proba_0 = np.array(s[f"y_pred_proba_{tt}"])
             ids_test = s[f"ids_{tt}"]
             meta_test = s[f"meta_{tt}"]
 

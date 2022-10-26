@@ -37,7 +37,6 @@ def main(
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
-            ["QN", "ANSCOMBE", "LOG"],
             ["HUMIDITY", "STDS"],
             ["RAINFALL", "STDS"],
             ["TEMPERATURE", "STDS"],
@@ -45,7 +44,7 @@ def main(
             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
-
+            ["QN", "ANSCOMBE", "LOG"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
@@ -58,8 +57,8 @@ def main(
             slug = "_".join(steps)
 
             for i_day in [7]:
-                for a_day in [5, 4, 3, 2, 1]:
-                    for w_day in [0]:
+                for a_day in [7, 6, 5, 4, 3, 2, 1]:
+                    for w_day in [7, 7*4, 7*4*3]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:
                                 main_experiment.main(
