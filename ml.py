@@ -135,7 +135,7 @@ def main(
         n_job: Number of threads to use for cross validation.
     """
 
-    # plot_ml_report_final(output_dir.parent.parent)
+    plot_ml_report_final(output_dir.parent.parent)
     # exit()
     meta_columns = [x.replace("'", "") for x in meta_columns]
     preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
@@ -248,10 +248,18 @@ def main(
                         rain.append(item)
                     df_weather["rainfall"] = rain
 
-                    # df_weather["d"] = pd.to_datetime(df_weather["datetime"])
-                    # df_weather = df_weather.sort_values('d')
-                    # plt.plot(df_weather["d"], df_weather["rainfall"])
-                    # plt.show()
+                    import matplotlib.pyplot as plt
+                    df_weather["d"] = pd.to_datetime(df_weather["datetime"])
+                    df_weather = df_weather.sort_values('d')
+
+                    for d in ["rainfall", "humidity", "temp_c"]:
+                        fig = plt.figure()
+                        plt.plot(df_weather["d"], df_weather[d])
+                        fig.suptitle(f'{d} data', fontsize=20)
+                        plt.xlabel('time', fontsize=18)
+                        plt.ylabel(f'{d}', fontsize=16)
+                        #fig.savefig('test.jpg')
+                        fig.show()
                 ##########################################
                 df_hum_list = []
                 df_temp_list = []

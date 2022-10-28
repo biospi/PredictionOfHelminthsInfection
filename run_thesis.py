@@ -7,7 +7,7 @@ from pathlib import Path
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis_debug_weather5"),
+    main(output_dir=Path("E:/thesis_debug_weather6"),
          cedara_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
          delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"))
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
@@ -57,7 +57,7 @@ def main(
             slug = "_".join(steps)
 
             for i_day in [7]:
-                for a_day in [7, 6, 5, 4, 3, 2, 1]:
+                for a_day in [5]:
                     for w_day in [7, 7*4, 7*4*3]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:

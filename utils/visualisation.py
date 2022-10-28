@@ -63,9 +63,11 @@ CSS_COLORS = {
 
     "HUMIDITY_STDS": "blue",
     "TEMPERATURE_STDS": "violet",
+    "RAINFALL_STDS": "deepskyblue",
     "QN_ANSCOMBE_LOG_HUMIDITYAPPEND_TEMPERATUREAPPEND_STDS": "purple",
     "QN_ANSCOMBE_LOG_HUMIDITYAPPEND_STDS": "teal",
-    "QN_ANSCOMBE_LOG_TEMPERATUREAPPEND_STDS": "crimson"
+    "QN_ANSCOMBE_LOG_TEMPERATUREAPPEND_STDS": "crimson",
+    "QN_ANSCOMBE_LOG_RAINFALLAPPEND_STDS": "steelblue"
 }
 
 
@@ -803,7 +805,7 @@ def plot_ml_report_final(output_dir):
             for c in np.unique(color_data):
                 color = "blue"
                 try:
-                    CSS_COLORS[c.replace("(", '').replace(")", '')]
+                    color = CSS_COLORS[c.replace("(", '').replace(")", '')]
                 except Exception as e:
                     print(e)
 
