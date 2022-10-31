@@ -894,18 +894,18 @@ def fold_worker(
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
         y_pred_proba_test = clf.decision_function(X_test)
-        if len(np.array(y_pred_proba_test).shape) > 1:
-            test_y_pred_proba_0 = y_pred_proba_test[:, 0]
-            test_y_pred_proba_1 = y_pred_proba_test[:, 1]
-            fold_proba = {
-                "test_y_pred_proba_0": test_y_pred_proba_0.tolist(),
-                "test_y_pred_proba_1": test_y_pred_proba_1.tolist(),
-            }
-        else:
-            fold_proba = {
-                "test_y_pred_proba_0": y_pred_proba_test.tolist(),
-                "test_y_pred_proba_1": y_pred_proba_test.tolist(),
-            }
+        # if len(np.array(y_pred_proba_test).shape) > 1:
+        #     test_y_pred_proba_0 = y_pred_proba_test[:, 0]
+        #     test_y_pred_proba_1 = y_pred_proba_test[:, 1]
+        #     fold_proba = {
+        #         "test_y_pred_proba_0": test_y_pred_proba_0.tolist(),
+        #         "test_y_pred_proba_1": test_y_pred_proba_1.tolist(),
+        #     }
+        # else:
+        fold_proba = {
+            "test_y_pred_proba_0": y_pred_proba_test.tolist(),
+            "test_y_pred_proba_1": y_pred_proba_test.tolist(),
+        }
         fold_probas[label].append(fold_proba)
     print(f"process id={ifold}/{nfold} done!")
 
@@ -1096,8 +1096,8 @@ def cross_validate_svm_fast(
             for item in fold_results:
                 all_y_test.extend(item['y_test'])
                 y_pred_proba_test = np.array(item['y_pred_proba_test'])
-                if len(y_pred_proba_test) > 1:
-                    y_pred_proba_test = y_pred_proba_test[:, 1]
+                # if len(y_pred_proba_test) > 1:
+                #     y_pred_proba_test = y_pred_proba_test[:, 1]
                 all_probs_test.extend(y_pred_proba_test)
             all_y_test = np.array(all_y_test)
             all_probs_test = np.array(all_probs_test)
@@ -1111,8 +1111,8 @@ def cross_validate_svm_fast(
             for item in fold_results:
                 all_y_train.extend(item['y_train'])
                 y_pred_proba_train = np.array(item['y_pred_proba_train'])
-                if len(y_pred_proba_train) > 1:
-                    y_pred_proba_train = y_pred_proba_train[:, 1]
+                # if len(y_pred_proba_train) > 1:
+                #     y_pred_proba_train = y_pred_proba_train[:, 1]
                 all_probs_train.extend(y_pred_proba_train)
             all_y_train = np.array(all_y_train)
             all_probs_train = np.array(all_probs_train)

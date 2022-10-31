@@ -138,12 +138,12 @@ if __name__ == "__main__":
 
             all_y_test = np.array(all_y_test)
             all_y_pred_test = np.array(all_y_pred_test)
-            if len(all_y_pred_test.shape) > 1:
-                all_y_pred_test = all_y_pred_test[:, 1]
+            # if len(all_y_pred_test.shape) > 1:
+            #     all_y_pred_test = all_y_pred_test[:, 1]
 
             all_y_pred_train = np.array(all_y_pred_train)
-            if len(all_y_pred_train.shape) > 1:
-                all_y_pred_train = all_y_pred_train[:, 1]
+            # if len(all_y_pred_train.shape) > 1:
+            #     all_y_pred_train = all_y_pred_train[:, 1]
 
             fpr, tpr, _ = roc_curve(all_y_test, all_y_pred_test)
             roc_auc = auc(fpr, tpr)
