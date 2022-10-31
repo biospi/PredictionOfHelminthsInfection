@@ -181,6 +181,7 @@ def main(
 
         N_META = len(meta_columns)
         df_hum = None
+        df_rainfall = None
         df_temp = None
         if pre_visu:
             # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")

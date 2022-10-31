@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations_qnf_ldebug",
+    out_parent: str = "E:/Cats/ml_build_permutations_qnf_ldebug2",
     dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
@@ -25,10 +25,10 @@ def main(
         ]:
             slug = "_".join(steps)
             print(slug)
-            folders = [x.stem for x in Path(dataset_parent).glob("*")]
+            folders = sorted([x.stem for x in Path(dataset_parent).glob("*")])
             print(folders)
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
-            folders = ["800__001__0_00100__120"]
+            #folders = ["800__001__0_00100__120"]
             #folders = ["800__001__0_00100__120"]
             # folders = [
             #     "800__001__0_00100__120",
