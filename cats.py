@@ -105,7 +105,7 @@ def main(
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=False,
-                        enable_qn_peak_filter=True,
+                        enable_qn_peak_filter=False,
                         pre_visu=False,
                         epoch=100,
                         batch_size=100,
