@@ -242,6 +242,7 @@ def main(
             None,
             None,
             None,
+            None,
             data_frame.copy(),
             output_dir,
             preprocessing_steps,
@@ -256,6 +257,7 @@ def main(
 
         data_frame_time_o, _, _ = apply_preprocessing_steps(
             meta_columns,
+            None,
             None,
             None,
             None,

@@ -32,6 +32,7 @@ def apply_preprocessing_steps(
     df_hum,
     df_temp,
     df_rainfall,
+    df_windspeed,
     sfft_window,
     dwt_window,
     wavelet_f0,
@@ -112,6 +113,17 @@ def apply_preprocessing_steps(
             df_meta = df.iloc[:, -N_META:]
             df_rainfall = df_rainfall.loc[df.index]
             df = pd.concat([df_activity, df_rainfall, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
+                df.shape[1] - N_META :
+            ].tolist()
+            df.columns = new_header
+
+        if step == "WINDSPEEDAPPEND":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_windspeed = df_windspeed.loc[df.index]
+            df = pd.concat([df_activity, df_windspeed, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
             ].tolist()
@@ -225,6 +237,17 @@ def apply_preprocessing_steps(
             df_meta = df.iloc[:, -N_META:]
             df_rainfall = df_rainfall.loc[df.index]
             df = pd.concat([df_rainfall, df_meta], axis=1)
+            new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
+                df.shape[1] - N_META :
+            ].tolist()
+            df.columns = new_header
+
+        if step == "WINDSPEED":
+            df_activity = df.copy().iloc[:, :-N_META]
+            df_activity.index = df.index  # need to keep original sample index!!!!
+            df_meta = df.iloc[:, -N_META:]
+            df_windspeed = df_windspeed.loc[df.index]
+            df = pd.concat([df_windspeed, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
             ].tolist()

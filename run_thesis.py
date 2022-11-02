@@ -7,7 +7,7 @@ from pathlib import Path
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis_debug_weather6"),
+    main(output_dir=Path("E:/thesis_debug_weather7"),
          cedara_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
          delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"))
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
@@ -37,6 +37,7 @@ def main(
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
+            ["WINDSPEED", "STDS"],
             ["HUMIDITY", "STDS"],
             ["RAINFALL", "STDS"],
             ["TEMPERATURE", "STDS"],
@@ -44,6 +45,7 @@ def main(
             ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
+            ["QN", "ANSCOMBE", "LOG", "WINDSPEEDAPPEND", "STDS"],
             ["QN", "ANSCOMBE", "LOG"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
@@ -79,7 +81,7 @@ def main(
                                     export_fig_as_pdf=True,
                                     plot_2d_space=True,
                                     weather_file=Path(
-                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json"),
+                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
                                 )
                                 continue
 

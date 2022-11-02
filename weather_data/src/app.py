@@ -1,4 +1,8 @@
+import codecs
+import csv
 import sys
+import urllib
+
 import tables
 from datetime import datetime
 import requests
@@ -13,6 +17,7 @@ import time
 import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 def purge_file(filename):
@@ -93,9 +98,9 @@ def get_historical_weather_data(days_, out_file=None, city=None, farm_id=None):
     print(len(days_), days_)
     key = "3d109634f16f4f0ba27133341221410"
     URL = "http://api.worldweatheronline.com/premium/v1/past-weather.ashx"
-    #purge_file(out_file)
+    # purge_file(out_file)
     with open(out_file, "a") as outfile:
-        for i, day in enumerate(days_): # 2076
+        for i, day in enumerate(days_):  # 2076
             PARAMS = {
                 "key": key,
                 "q": "%s,south+africa" % city,
@@ -253,17 +258,83 @@ def make_weather_calender(filepath, filename, title, start, end):
         fig.savefig(filepath)
 
 
+def create_weather_file(filepath, filepath2=None):
+    print(filepath)
+    df = pd.read_csv(filepath)
+
+    if filepath2 is not None:
+        df2 = pd.read_csv(filepath2).iloc[8760:, :]
+        df = pd.concat([df, df2])
+
+    # print(df)
+    dfs = []
+    for i in range(0, 24 * 365 * 10, 24):
+        start = i
+        end = i + 24
+        # print(start, end)
+        df_ = df.iloc[start:end, :][
+            ["datetime", "temp", "humidity", "precip", "windspeed"]
+        ]
+        if df_.shape[0] == 0:
+            break
+        if df_.shape[0] > 24:
+            raise ValueError("Thre should be 24 values in the dataframe!")
+        dfs.append(df_)
+    print(f"found {len(dfs)} days.")
+
+    data = []
+    for item in tqdm(dfs):
+        date = pd.to_datetime(
+            item["datetime"].values[0], format="%Y-%m-%dT%H:%M:%S"
+        ).strftime("%d/%m/%Y")
+
+        for index, row in item.iterrows():
+            d_ = {
+                "date": date,
+                "datetime": row["datetime"],
+                "humidity": row["humidity"],
+                "temp_c": row["temp"],
+                "precip": row["precip"],
+                "windspeed": row["windspeed"],
+            }
+            data.append(d_)
+
+    out_path = filepath.parent / f"{filepath.stem.replace(' ', '_')}.csv"
+    print(out_path)
+    df_data = pd.DataFrame(data)
+    df_data.to_csv(out_path, index=False)
+
+
 if __name__ == "__main__":
     print(sys.argv)
+
+    filepath = (
+        Path(os.path.dirname(os.path.dirname(__file__)))
+        / "delmas south africa 2011-01-01 to 2015-12-31.csv"
+    )
+
+    filepath2 = (
+        Path(os.path.dirname(os.path.dirname(__file__)))
+        / "delmas south africa 2015-01-01 to 2017-01-01.csv"
+    )
+
+    create_weather_file(filepath, filepath2)
+
+    filepath = (
+        Path(os.path.dirname(os.path.dirname(__file__)))
+        / "cedara south africa 2011-01-01 to 2015-12-31.csv"
+    )
+    create_weather_file(filepath)
+
     # make_weather_calender(Path("Delmas_weather.json"), "delmas_weather_data.csv", "Delmas Weather", "march 2015", "april 2016")
     # make_weather_calender(Path("Cedara_weather.json"), "cedara_weather_data.csv", "Cedara Weather", "june 2012", "july 2013")
     # create_weather_data_for_mrnn()
     # connect_to_sql_database()
 
-    start = datetime.datetime.strptime("01/01/2011", "%d/%m/%Y")
-    end = datetime.datetime.strptime("01/12/2015", "%d/%m/%Y")
-    date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
-    days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
+    # start = datetime.datetime.strptime("01/01/2011", "%d/%m/%Y")
+    # end = datetime.datetime.strptime("01/12/2015", "%d/%m/%Y")
+    # date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end - start).days)]
+    # days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
 
     # get_historical_weather_data(
     #     days_,
@@ -278,12 +349,12 @@ if __name__ == "__main__":
     # days_ = np.array([x.strftime("%Y-%m-%d") for x in date_generated])
 
     # get_humidity_date('delmas_weather_raw.json', 'delmas')
-    get_historical_weather_data(
-        days_,
-        out_file="cedara_weather_raw.json",
-        farm_id="cedara_70091100056",
-        city="Cedara"
-    )
-
-    # get_humidity_date('delmas_weather_raw.json', 'delmas')
-    get_humidity_date('cedara_weather_raw.json', 'cedara')
+    # get_historical_weather_data(
+    #     days_,
+    #     out_file="cedara_weather_raw.json",
+    #     farm_id="cedara_70091100056",
+    #     city="Cedara"
+    # )
+    #
+    # # get_humidity_date('delmas_weather_raw.json', 'delmas')
+    # get_humidity_date('cedara_weather_raw.json', 'cedara')

@@ -28,6 +28,7 @@ from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from sys import exit
+import matplotlib.pyplot as plt
 from datetime import timedelta
 from model.data_loader import load_activity_data
 from model.svm import process_ml
@@ -183,6 +184,7 @@ def main(
         df_hum = None
         df_rainfall = None
         df_temp = None
+        df_windspeed = None
         if pre_visu:
             # plotMeanGroups(n_scales, wavelet_f0, data_frame, label_series, N_META, output_dir + "/raw_before_qn/")
             #############################################################################################################
@@ -192,108 +194,66 @@ def main(
 
             if weather_file.is_file():
                 print(weather_file)
-                ##########################################get weather data
-                with open(weather_file) as f:
-                    lines = f.readlines()
+                df_weather = pd.read_csv(weather_file)
+                df_weather["d"] = pd.to_datetime(df_weather["datetime"])
+                df_weather = df_weather.sort_values('d')
 
-                    data = []
-                    for line in lines:
-                        try:
-                            js = json.loads(line)
-                        except Exception as e:
-                            print(e)
-                            continue
-                        if "weather" not in js["data"]:
-                            continue
-                        for w in js["data"]["weather"]:
-                            date = w["date"]
-                            date = pd.to_datetime(date, format="%Y-%m-%d").strftime(
-                                "%d/%m/%Y"
-                            )
-                            for h in w["hourly"]:
-                                time = format_time(h["time"])
-                                humidity = int(h["humidity"])
-                                temp_c = int(h["tempC"])
-                                desc = h["weatherDesc"][0]["value"]
-                                data.append(
-                                    {
-                                        "datetime": f"{date}",
-                                        "humidity": humidity,
-                                        "temp_c": temp_c,
-                                        "desc": desc,
-                                    }
-                                )
-
-                    df_weather = pd.DataFrame(data)
-                    mapping = {
-                        "Patchy rain possible": 1,
-                        "Patchy light rain": 1,
-                        "Patchy light rain with thunder": 1,
-                        "Light drizzle": 1,
-                        "Light rain": 1,
-                        "Light rain shower": 1,
-                        "Moderate rain at times": 2,
-                        "Moderate rain": 2,
-                        "Heavy rain at times": 2,
-                        "Moderate or heavy rain shower": 3,
-                        "Heavy rain": 3,
-                        "Moderate or heavy rain with thunder": 3,
-                        "Torrential rain shower": 3,
-                    }
-                    df_weather["desc"] = df_weather["desc"].replace(mapping)
-                    rain = []
-                    for item in df_weather["desc"]:
-                        if isinstance(item, str):
-                            rain.append(0)
-                            continue
-                        rain.append(item)
-                    df_weather["rainfall"] = rain
-
-                    import matplotlib.pyplot as plt
-                    df_weather["d"] = pd.to_datetime(df_weather["datetime"])
-                    df_weather = df_weather.sort_values('d')
-
-                    for d in ["rainfall", "humidity", "temp_c"]:
-                        fig = plt.figure()
-                        plt.plot(df_weather["d"], df_weather[d])
-                        fig.suptitle(f'{d} data', fontsize=20)
-                        plt.xlabel('time', fontsize=18)
-                        plt.ylabel(f'{d}', fontsize=16)
-                        #fig.savefig('test.jpg')
-                        fig.show()
+                for d in ["precip", "humidity", "temp_c", "windspeed"]:
+                    fig = plt.figure()
+                    plt.plot(df_weather["d"], df_weather[d])
+                    fig.suptitle(f'{d} data')
+                    plt.xlabel('Time')
+                    plt.ylabel(f'{d}')
+                    path = weather_file.parent / f"{weather_file.stem}_{d}.png"
+                    print(path)
+                    fig.tight_layout()
+                    fig.savefig(path)
                 ##########################################
                 df_hum_list = []
                 df_temp_list = []
                 df_rain_list = []
-                for j, d in tqdm(enumerate(data_frame["date"])):
+                df_windspeed_list = []
+                for j, d in tqdm(enumerate(data_frame["date"]), total=len(data_frame["date"])):
                     d = pd.to_datetime(d) - timedelta(days=n_weather_days)
                     df_h = []
                     df_t = []
                     df_rain = []
-                    print(f"SAMPLE {j}/{data_frame.shape[0]}")
+                    df_windspeed = []
+                    #print(f"SAMPLE {j}/{data_frame.shape[0]}")
                     for n in range(n_weather_days):
                         d_ = d - timedelta(days=n)
                         d_ = d_.strftime("%d/%m/%Y")
-                        df_h_ = df_weather[df_weather["datetime"] == d_][
+                        df_h_ = df_weather[df_weather["date"] == d_][
                             "humidity"
                         ].values
                         df_h.extend(df_h_)
-                        df_t_ = df_weather[df_weather["datetime"] == d_][
+                        df_t_ = df_weather[df_weather["date"] == d_][
                             "temp_c"
                         ].values
                         df_t.extend(df_t_)
 
-                        df_rain_ = df_weather[df_weather["datetime"] == d_][
-                            "rainfall"
+                        df_rain_ = df_weather[df_weather["date"] == d_][
+                            "precip"
                         ].values
                         df_rain.extend(df_rain_)
+
+                        df_wind_ = df_weather[df_weather["date"] == d_][
+                            "windspeed"
+                        ].values
+                        df_windspeed.extend(df_wind_)
+
+                        if len(df_h_) == 0:
+                            print(f"missing data for date {d_}")
+
                     df_hum_list.append(df_h)
                     df_temp_list.append(df_t)
                     df_rain_list.append(df_rain)
+                    df_windspeed_list.append(df_windspeed)
 
                 df_hum = pd.DataFrame(df_hum_list)
                 df_temp = pd.DataFrame(df_temp_list)
                 df_rainfall = pd.DataFrame(df_rain_list)
+                df_windspeed = pd.DataFrame(df_windspeed_list)
                 plotHeatmap(
                     df_hum.values, output_dir, "Samples humidity", "humidity.html"
                 )
@@ -309,6 +269,12 @@ def main(
                     "Samples rainfall",
                     "rainfall.html",
                 )
+                plotHeatmap(
+                    df_windspeed.values,
+                    output_dir,
+                    "Samples windspeed",
+                    "windspeed.html",
+                )
 
             df_norm, _, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
@@ -316,6 +282,7 @@ def main(
                 df_hum,
                 df_temp,
                 df_rainfall,
+                df_windspeed,
                 sfft_window,
                 dwt_window,
                 wavelet_f0,
@@ -516,6 +483,7 @@ def main(
                 df_hum,
                 df_temp,
                 df_rainfall,
+                df_windspeed,
                 sfft_window,
                 dwt_window,
                 wavelet_f0,
