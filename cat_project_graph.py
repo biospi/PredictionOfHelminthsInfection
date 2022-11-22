@@ -11,6 +11,7 @@ from sklearn.metrics import roc_curve, auc
 from tqdm import tqdm
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+from matplotlib.legend_handler import HandlerBase
 
 DEFAULT_PLOTLY_COLORS = [
     "rgb(31, 119, 180)",
@@ -25,6 +26,15 @@ DEFAULT_PLOTLY_COLORS = [
     "rgb(23, 190, 207)",
 ]
 
+class AnyObjectHandler(HandlerBase):
+    def create_artists(self, legend, orig_handle,
+                       x0, y0, width, height, fontsize, trans):
+        l1 = plt.Line2D([x0,y0+width], [0.7*height,0.7*height],
+                           linestyle=orig_handle[1], color=orig_handle[0])
+        l2 = plt.Line2D([x0,y0+width], [0.3*height,0.3*height],
+                           color=orig_handle[0])
+        return [l1, l2]
+
 
 def mean_confidence_interval(x):
     # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
@@ -36,8 +46,8 @@ def mean_confidence_interval(x):
 
 
 def local_run(
-    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final2"),
-    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final2"),
+    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final3"),
+    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final3"),
 ):
     main(input_dir, out_dir)
 
@@ -98,10 +108,10 @@ def main(
             # aucs.append(auc)
 
             all_y_test.extend(item["y_test"])
-            all_probs_test.extend(np.array(item["y_pred_proba_test"])[:, 1])
+            all_probs_test.extend(np.array(item["y_pred_proba_test"]))
 
             all_y_train.extend(item["y_train"])
-            all_probs_train.extend(np.array(item["y_pred_proba_train"])[:, 1])
+            all_probs_train.extend(np.array(item["y_pred_proba_train"]))
 
             training_shape = len(item["ids_train"])
             testing_shape = len(item["ids_test"])
@@ -159,6 +169,8 @@ def main(
     colors = list(mcolors.CSS4_COLORS.keys())
     print(colors)
     cpt = 0
+    colors_ = []
+    label_ = []
     for i, df in enumerate(dfs):
         dfs_ = [group for _, group in df.groupby(['window_size_list'])]
         for df_ in dfs_:
@@ -172,10 +184,11 @@ def main(
             # if len(df_["median_auc_test"]) != 4:
             #     continue
             print(df_["n_samples"])
+            label = f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}"
             ax1.plot(
                 df_["n_peaks"],
                 df_["median_auc_test"],
-                label=f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}",
+                label=label,
                 marker="x",
                 color=colors[cpt]
             )
@@ -189,15 +202,25 @@ def main(
                 color=colors[cpt]
             )
             cpt +=1
+            colors_.append(colors[cpt])
+            label_.append(label)
 
     ax1.axhline(y=0.5, color='black', linestyle='--')
-    fig.suptitle("Evolution of AUC(train and test) with N peak increase")
+    fig.suptitle("Evolution of AUC(training and testing) with N peak increase")
     ax1.set_xlabel("Number of peaks")
     ax1.set_ylabel("Mean AUC")
     ax2.set_ylabel("Number of samples(high activity peak window)")
     #plt.legend()
-    ax1.legend(loc="lower right").set_visible(True)
+    #ax1.legend(loc="lower right").set_visible(True)
     ax2.legend(loc="upper left").set_visible(True)
+
+    color_data = []
+    for item in colors_:
+        color_data.append((item, '--'))
+
+    ax1.legend(color_data, label_, loc="lower right",
+               handler_map={tuple: AnyObjectHandler()})
+
     fig.tight_layout()
     filename = f"auc_per_npeak.png"
     out_dir.mkdir(parents=True, exist_ok=True)
