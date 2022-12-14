@@ -408,7 +408,7 @@ def main(args):
     # return imputation_output_dir
 
 
-def start_mrnn(farmname, filepath, run_id=0, seq_len=1440, stride=1440, filter_training=False, iteration=1):
+def start_mrnn(farmname, filepath, run_id=0, seq_len=1440, stride=1440, filter_training=False, iteration=100):
 
     print("fitting fold data with mrnn...")
     path = Path(os.path.dirname(os.path.dirname(__file__))) / "mrnn"

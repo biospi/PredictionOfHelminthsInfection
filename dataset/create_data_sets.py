@@ -37,10 +37,24 @@ def local_run():
 
     main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
          data_dir=Path("F:/MRNN/imputed_data/23_missingrate_[0.0]_seql_1440_iteration_100_hw__n_325"),
-         out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
+         out_dir=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
          data_col="first_sensor_value_mrnn",
          n_days=7,
          remove_missing=False)
+
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/delmas/miss_rate_0000_iteration_1000_thresh_50_anscombe_False_n_top_traces_60"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain_a"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/cedara/miss_rate_0000_iteration_1000_thresh_50_anscombe_False_n_top_traces_60"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/datasetmrnn7_gain_a"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
 
     # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
     #      data_dir=Path("E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"),

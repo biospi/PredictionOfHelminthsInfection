@@ -87,9 +87,9 @@ def apply_preprocessing_steps(
         print("applying STEP->%s in [%s]..." % (step, step_slug.replace("_", "->")))
         if step == "TEMPERATUREAPPEND":
             df_activity = df.copy().iloc[:, :-N_META]
-            df_activity.index = df.index  # need to keep original sample index!!!!
+            #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_temp = df_temp.loc[df.index]
+            #df_temp = df_temp.reindex(df.index)
             df = pd.concat([df_activity, df_temp, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -98,9 +98,9 @@ def apply_preprocessing_steps(
 
         if step == "HUMIDITYAPPEND":
             df_activity = df.copy().iloc[:, :-N_META]
-            df_activity.index = df.index  # need to keep original sample index!!!!
+            #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_hum = df_hum.loc[df.index]
+            #df_hum = df_hum.reindex(df.index)
             df = pd.concat([df_activity, df_hum, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -109,9 +109,9 @@ def apply_preprocessing_steps(
 
         if step == "RAINFALLAPPEND":
             df_activity = df.copy().iloc[:, :-N_META]
-            df_activity.index = df.index  # need to keep original sample index!!!!
+            #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_rainfall = df_rainfall.loc[df.index]
+            #df_rainfall = df_rainfall.reindex(df.index)
             df = pd.concat([df_activity, df_rainfall, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -120,9 +120,9 @@ def apply_preprocessing_steps(
 
         if step == "WINDSPEEDAPPEND":
             df_activity = df.copy().iloc[:, :-N_META]
-            df_activity.index = df.index  # need to keep original sample index!!!!
+            #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_windspeed = df_windspeed.loc[df.index]
+            #df_windspeed = df_windspeed.reindex(df.index)
             df = pd.concat([df_activity, df_windspeed, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :

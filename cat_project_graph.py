@@ -12,6 +12,9 @@ from tqdm import tqdm
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from matplotlib.legend_handler import HandlerBase
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_score
+from sklearn.metrics import PrecisionRecallDisplay
 
 DEFAULT_PLOTLY_COLORS = [
     "rgb(31, 119, 180)",
@@ -86,17 +89,22 @@ def main(
         except Exception as e:
             print(e)
             continue
-        p_steps_list.append(row[5])
-        window_size_list.append(int(row[4].split("_")[-1]))
+        steps = row[5]
+        p_steps_list.append(steps)
+        windowsize = int(row[4].split("_")[-1])
+        window_size_list.append(windowsize)
         thresh = row[4].split("__")[-2]
         t_v = thresh.replace("_", ".")
         thresh_float = float(t_v)
-        n_peaks.append(int(row[4].split("__")[1]))
+        npeak = int(row[4].split("__")[1])
+        n_peaks.append(npeak)
         print(res_file_path)
 
         clf_res = results[list(results.keys())[0]]
-        aucs = []
+        aucs_test = []
         aucs_train = []
+        precision_test = []
+        precision_train = []
         all_y_test = []
         all_probs_test = []
         all_y_train = []
@@ -120,10 +128,23 @@ def main(
         all_probs_test = np.array(all_probs_test)
         fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test)
         roc_auc = auc(fpr, tpr)
-        aucs.append(roc_auc)
+        aucs_test.append(roc_auc)
 
-        auc_test_list.append(aucs)
-        median_auc_test = np.median(aucs)
+
+        display = PrecisionRecallDisplay.from_predictions(all_y_test, all_probs_test, name="LinearSVC")
+        title = f"Precision-Recall curve |\n ws={windowsize} npeak={npeak} psteps={steps}"
+        _ = display.ax_.set_title(title)
+        filename = f"pr_{windowsize}_{npeak}_{steps}.png"
+        path = out_dir / "pr_curve_test"
+        path.mkdir(parents=True, exist_ok=True)
+        filepath = path / filename
+        print(filepath)
+        display.figure_.savefig(filepath)
+        precision_test.append(display.average_precision)
+
+
+        auc_test_list.append(aucs_test)
+        median_auc_test = np.median(aucs_test)
         thresh_list.append(thresh_float)
         median_auc_test_list.append(median_auc_test)
         n_samples.append(training_shape + testing_shape)
@@ -133,6 +154,17 @@ def main(
         fpr, tpr, thresholds = roc_curve(all_y_train, all_probs_train)
         roc_auc = auc(fpr, tpr)
         aucs_train.append(roc_auc)
+
+        display = PrecisionRecallDisplay.from_predictions(all_y_train, all_probs_train, name="LinearSVC")
+        title = f"Precision-Recall curve |\n ws={windowsize} npeak={npeak} psteps={steps}"
+        _ = display.ax_.set_title(title)
+        filename = f"pr_{windowsize}_{npeak}_{steps}.png"
+        path = out_dir / "pr_curve_train"
+        path.mkdir(parents=True, exist_ok=True)
+        filepath = path / filename
+        print(filepath)
+        display.figure_.savefig(filepath)
+        precision_train.append(display.average_precision)
 
         auc_train_list.append(aucs_train)
         median_auc_train = np.median(aucs_train)
@@ -144,6 +176,7 @@ def main(
             "median_auc_test": median_auc_test_list,
             "auc_train_list": auc_train_list,
             "median_auc_train": median_auc_train_list,
+
             "thresh_list": thresh_list,
             "n_samples": n_samples,
             "p_steps_list": p_steps_list,
@@ -179,11 +212,16 @@ def main(
             #     continue
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
+            if 'cats_LeaveOneOut_-1_-1_STD_rbf' in df_['p_steps_list'].tolist()[0]:
+                continue
+
+            if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
+                continue
             print(df_['p_steps_list'].tolist()[0])
             #
             # if len(df_["median_auc_test"]) != 4:
             #     continue
-            print(df_["n_samples"])
+            #print(df_["n_samples"])
             label = f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}"
             ax1.plot(
                 df_["n_peaks"],

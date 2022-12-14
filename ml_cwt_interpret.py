@@ -23,7 +23,10 @@ def report_mannwhitney(array1, array2):
     U1, p = mannwhitneyu(list(array1), list(array2), method="exact")
     nx, ny = len(array1), len(array2)
     U2 = nx * ny - U1
-    print(f"U1={U1} U2={U2}")
+    print(U2, U1, p)
+    res = f"p={p:.3f}"
+    print(res)
+    return res
 
 
 def elemwise_cwt(X, preprocessing_steps, output_dir):
@@ -54,7 +57,7 @@ def datetime_range(start, end, delta):
         current += delta
 
 
-def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir):
+def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir, day_start, day_end):
     #print(date_list)
     dfs = []
     days = []
@@ -68,7 +71,7 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
         a = activity[start: end]
         imp_ = imp[start:end]
         date = date_list[start: end]
-        light = np.array(["night" if x.hour >= 7 and x.hour < 19 else "day" for x in date])
+        light = np.array(["day" if x.hour >= day_start and x.hour < day_end else "night" for x in date])
 
         day_imp = imp_[light == "day"]
         night_imp = imp_[light == "night"]
@@ -80,9 +83,9 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
         mean = [day_imp.mean(), night_imp.mean()]
         median = [np.median(day_imp), np.median(night_imp)]
 
-        days.append(day_imp.mean())
-        nights.append(night_imp.mean())
-        index = f'Day{i+1}'
+        days.append(np.median(day_imp))
+        nights.append(np.median(night_imp))
+        index = f'FTest day + {abs(i - n_activity_days)}'
         idxs.append(index)
         #dfs.append(df)
     df = pd.DataFrame({'Night': nights, 'Day': days}, index=idxs)
@@ -91,7 +94,7 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
     ax = fig_.gca()
     for j in range(len(ax.get_yticklabels())):
         ax.get_yticklabels()[j].set_weight("bold")
-    ax.set_xlabel('Mean of feature importance')
+    ax.set_xlabel('Median of feature importance')
     ax.legend(loc="upper right")
     # for j in range(n_activity_days*2):
     #     if j % 2 == 0:
@@ -111,7 +114,7 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
     df_ = pd.DataFrame({"Daytime": days, "Nighttime": nights})
     fig_box = df_.boxplot().get_figure()
     ax = fig_box.gca()
-    ax.set_title("Feature importance Day vs Night")
+    ax.set_title(f"Feature importance Day vs Night\n{report_mannwhitney(days, nights)}")
     ax.set_ylabel('Mean of feature importance')
     for i, d in enumerate(df_):
         y = df_[d]
@@ -124,8 +127,8 @@ def get_imp_stat(date_list, imp, activity, n_activity_days, X_train, output_dir)
     fig_box.tight_layout()
     fig_box.savefig(filepath)
 
-    light = np.array(["night" if x.hour>=7 and x.hour<19 else "day" for x in date_list])
-    light_ = np.array([0 if x.hour>=7 and x.hour<19 else 1 for x in date_list])
+    light = np.array(["day" if x.hour>=day_start and x.hour<day_end else "night" for x in date_list])
+    light_ = np.array([1 if x.hour>=day_start and x.hour<day_end else 0 for x in date_list])
     fig_, ax_ = plt.subplots(figsize=(8, 8))
     filename = f"{n_activity_days}_period_{X_train.shape[1]}.png"
     filepath = output_dir / filename
@@ -190,6 +193,8 @@ def main(
         resolution: float = None,
         plot_high_dimension_db: bool = False,
         p: bool = typer.Option(False, "--p"),
+        day_start = 9,
+        day_end = 17,
 ):
     """This script builds the graphs for cwt interpretation\n
     Args:\n
@@ -243,6 +248,7 @@ def main(
             None,
             None,
             None,
+            None,
             data_frame.copy(),
             output_dir,
             preprocessing_steps,
@@ -265,6 +271,7 @@ def main(
             None,
             None,
             None,
+            None,
             data_frame.copy(),
             output_dir,
             ["QN", "ANSCOMBE", "LOG"],
@@ -276,6 +283,8 @@ def main(
             keep_meta=False,
         )
 
+        base = datetime(day=1, month=1, year=2022, hour=0, minute=0, second=0)
+        xaxis = [base - timedelta(minutes=x) for x in range(1440*n_activity_days)]
 
         # for n_activity_days in range(1, n_activity_days):
         print(n_activity_days)
@@ -438,11 +447,11 @@ def main(
         mean_time_o = np.mean(X_train_o, axis=0)
 
         date_list = [
-            datetime(2016, 9, 1, 12) + timedelta(minutes=1 * x)
+            datetime(2016, 9, 1, 0) + timedelta(minutes=1 * x)
             for x in range(0, len(mean_time))
         ]
 
-        get_imp_stat(date_list, imp, mean_time_o, n_activity_days, X_train, output_dir)
+        get_imp_stat(date_list, imp, mean_time_o, n_activity_days, X_train, output_dir, day_start, day_end)
 
         fig, ax = plt.subplots(figsize=(16.80, 7.20))
         ax2 = ax.twinx()
@@ -463,6 +472,11 @@ def main(
             label=f"feature importance rolling avg ({roll_avg} points)",
             alpha=0.9,
         )
+
+        for item in date_list:
+            if (item.hour == day_start and item.minute == 0) or (item.hour == day_end and item.minute == 0):
+                ax.axvline(item, color='r', ls='--')
+        #ax2.axvline(date_list[720], color='r', ls='--')
 
         ax.legend(loc="upper left")
         ax2.legend(loc="upper right")
@@ -930,49 +944,58 @@ if __name__ == "__main__":
     # typer.run(main)
 
     for t in ["dwt"]:
-        for j in [5]:
-            main(
-                Path(f"E:/preprint/thesis/interpret/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__A"),
-                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False
-            )
+        for j in [1, 2, 3, 4, 5, 6, 7]:
+            for d in [[6, 18], [9, 17], [10, 16]]:
+                main(
+                    Path(f"E:/preprint/thesis/interpret2/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__A_{d[0]}_{d[1]}"),
+                    Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    day_start=d[0],
+                    day_end=d[1]
+                )
 
-            main(
-                Path(f"E:/preprint/thesis/interpret/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__B"),
-                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False
-            )
-            break
-            # main(
-            #     Path(f"E:/preprint/thesis/interpret/debug/cedara_{t}_explain_{j}_datasetmrnn7_23__"),
-            #     Path("E:/thesis/datasets/delmas/datasetmrnn7_23"),
-            #     preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
-            #     p=False,
-            #     n_activity_days=j,
-            #     transform=t,
-            #     enable_graph_out=False,
-            #     random_forest=False
-            # )
+                main(
+                    Path(f"E:/preprint/thesis/interpret2/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__B_{d[0]}_{d[1]}"),
+                    Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    day_start=d[0],
+                    day_end=d[1]
+                )
+                main(
+                    Path(f"E:/preprint/thesis/interpret2/debug/cedara_{t}_explain_{j}_datasetmrnn7_23__A_{d[0]}_{d[1]}"),
+                       Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    day_start=d[0],
+                    day_end=d[1]
+                )
 
-            # main(
-            #     Path(f"E:/Data2/debug_/{t}_explain_{j}/without_resampling"),
-            #     Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day"),
-            #     p=False,
-            #     n_activity_days=j,
-            #     transform=t,
-            #     resolution=None,
-            #     enable_graph_out=True
-            # )
+                main(
+                    Path(f"E:/preprint/thesis/interpret2/debug/cedara_{t}_explain_{j}_datasetmrnn7_23__B_{d[0]}_{d[1]}"),
+                    Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    day_start=d[0],
+                    day_end=d[1]
+                )
 
         # main(
         #     Path(f"E:/Data2/debug/{t}_cat_explain_2"),

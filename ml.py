@@ -455,11 +455,6 @@ def main(
             # )
             ################################################################################################################
 
-        sample_dates = pd.to_datetime(
-            data_frame["date"], format="%d/%m/%Y"
-        ).values.astype(float)
-        animal_ids = data_frame["id"].astype(str).tolist()
-
         step_slug = "_".join(preprocessing_steps)
 
         steps_ = []
@@ -471,6 +466,10 @@ def main(
         else:
             steps_ = [preprocessing_steps]
 
+        sample_dates = pd.to_datetime(
+            data_frame["date"], format="%d/%m/%Y"
+        ).values.astype(float)
+        animal_ids = data_frame["id"].astype(str).tolist()
         df_processed_list = []
         for preprocessing_steps in steps_:
             (
@@ -551,6 +550,11 @@ def main(
             df_target = df_processed[["target", "health"]]
             df_processed = pd.concat([df_data, seasons_features, df_target], axis=1)
             step_slug = f"{step_slug}_SEASONS"
+
+        # sample_dates = pd.to_datetime(
+        #     df_processed_meta["date"], format="%d/%m/%Y"
+        # ).values.astype(float)
+        # animal_ids = df_processed_meta["id"].astype(str).tolist()
 
         process_ml(
             classifiers,

@@ -64,8 +64,8 @@ meta_columns = [
 ]
 
 if __name__ == "__main__":
-    output_dir = Path("E:/Cats/debug")
-    path = "E:/Cats/build_permutations/1000__001__0_00100__120/dataset/training_sets/samples/samples.csv"
+    output_dir = Path("E:/Cats/debug2")
+    path = "E:/Cats/build_permutations_debug/no_windows_mins/dataset/training_sets/full/activity.csv"
     N_META = 9
     df = pd.read_csv(path, header=None)
     header = list(df.columns.values)
@@ -90,80 +90,81 @@ if __name__ == "__main__":
     df = df.dropna(subset=df.columns[: -N_META], how="all")
     df.iloc[:, : -N_META] = df.iloc[:, : -N_META].clip(lower=0)
     df.iloc[:, :-N_META] = QuotientNormalizer(
-        out_dir=output_dir, output_graph=True, enable_qn_peak_filter=True
+        out_dir=output_dir, output_graph=True, enable_qn_peak_filter=False
     ).transform(df.iloc[:, :-N_META].values)
 
-    df.iloc[:, :-N_META] = StandardScaler(with_mean=True, with_std=True).fit_transform(df.iloc[:, :-N_META].values)
+    #df.iloc[:, :-N_META] = StandardScaler(with_mean=True, with_std=True).fit_transform(df.iloc[:, :-N_META].values)
 
     folds = []
-    for cat in df["id"].unique():
-        df_test = df[df["id"] == cat].iloc[:, :-8]
-        df_train = df[df["id"] != cat].iloc[:, :-8]
-        folds.append([df_test, df_train, df[df["id"] == cat]["name"].values[0]])
+    # for cat in df["id"].unique():
+    #     df_test = df[df["id"] == cat].iloc[:, :-8]
+    #     df_train = df[df["id"] != cat].iloc[:, :-8]
+    #     folds.append([df_test, df_train, df[df["id"] == cat]["name"].values[0]])
+    #
+    # for kernel in ["linear"]:
+    #     print("-------------------------------------------------------------------------------------------")
+    #     print(f"                                       {kernel}                                           ")
+    #     print("-------------------------------------------------------------------------------------------")
+    #     with Manager() as manager:
+    #         pool = Pool(processes=n_job)
+    #         all_y_test = manager.list()
+    #         all_y_train = manager.list()
+    #         all_y_pred_test = manager.list()
+    #         all_y_pred_train = manager.list()
+    #         start = time.time()
+    #         for i, fold in enumerate(folds):
+    #             pool.apply_async(
+    #                 fold_worker,
+    #                 (
+    #                     kernel,
+    #                     i,
+    #                     len(folds),
+    #                     fold,
+    #                     all_y_test,
+    #                     all_y_train,
+    #                     all_y_pred_test,
+    #                     all_y_pred_train,
+    #                 ),
+    #             )
+    #         pool.close()
+    #         pool.join()
+    #
+    #         all_y_test = list(all_y_test)
+    #         all_y_train = list(all_y_train)
+    #         all_y_pred_test = list(all_y_pred_test)
+    #         all_y_pred_train = list(all_y_pred_train)
+    #         end = time.time()
+    #         print("total time (s)= " + str(end - start))
+    #
+    #         all_y_test = np.array(all_y_test)
+    #         all_y_pred_test = np.array(all_y_pred_test)
+    #         # if len(all_y_pred_test.shape) > 1:
+    #         #     all_y_pred_test = all_y_pred_test[:, 1]
+    #
+    #         all_y_pred_train = np.array(all_y_pred_train)
+    #         # if len(all_y_pred_train.shape) > 1:
+    #         #     all_y_pred_train = all_y_pred_train[:, 1]
+    #
+    #         fpr, tpr, _ = roc_curve(all_y_test, all_y_pred_test)
+    #         roc_auc = auc(fpr, tpr)
+    #         # print(all_y_test)
+    #         # print(all_y_pred_test)
+    #         print(f"AUC TEST={roc_auc}")
+    #         fpr, tpr, _ = roc_curve(all_y_train, all_y_pred_train)
+    #         roc_auc = auc(fpr, tpr)
+    #         # print(all_y_train)
+    #         # print(all_y_pred_train)
+    #         print(f"AUC TRAIN={roc_auc}")
+    #
+    #         plt.plot(all_y_train[0:1000])
+    #         plt.plot(all_y_pred_train[0:1000])
+    #         plt.show()
 
-    for kernel in ["linear"]:
-        print("-------------------------------------------------------------------------------------------")
-        print(f"                                       {kernel}                                           ")
-        print("-------------------------------------------------------------------------------------------")
-        with Manager() as manager:
-            pool = Pool(processes=n_job)
-            all_y_test = manager.list()
-            all_y_train = manager.list()
-            all_y_pred_test = manager.list()
-            all_y_pred_train = manager.list()
-            start = time.time()
-            for i, fold in enumerate(folds):
-                pool.apply_async(
-                    fold_worker,
-                    (
-                        kernel,
-                        i,
-                        len(folds),
-                        fold,
-                        all_y_test,
-                        all_y_train,
-                        all_y_pred_test,
-                        all_y_pred_train,
-                    ),
-                )
-            pool.close()
-            pool.join()
-
-            all_y_test = list(all_y_test)
-            all_y_train = list(all_y_train)
-            all_y_pred_test = list(all_y_pred_test)
-            all_y_pred_train = list(all_y_pred_train)
-            end = time.time()
-            print("total time (s)= " + str(end - start))
-
-            all_y_test = np.array(all_y_test)
-            all_y_pred_test = np.array(all_y_pred_test)
-            # if len(all_y_pred_test.shape) > 1:
-            #     all_y_pred_test = all_y_pred_test[:, 1]
-
-            all_y_pred_train = np.array(all_y_pred_train)
-            # if len(all_y_pred_train.shape) > 1:
-            #     all_y_pred_train = all_y_pred_train[:, 1]
-
-            fpr, tpr, _ = roc_curve(all_y_test, all_y_pred_test)
-            roc_auc = auc(fpr, tpr)
-            # print(all_y_test)
-            # print(all_y_pred_test)
-            print(f"AUC TEST={roc_auc}")
-            fpr, tpr, _ = roc_curve(all_y_train, all_y_pred_train)
-            roc_auc = auc(fpr, tpr)
-            # print(all_y_train)
-            # print(all_y_pred_train)
-            print(f"AUC TRAIN={roc_auc}")
-
-            plt.plot(all_y_train[0:1000])
-            plt.plot(all_y_pred_train[0:1000])
-            plt.show()
-
-    exit()
+    #exit()
 ###############################################################################################################################
 
     individual_to_ignore = ["MrDudley", "Oliver_F", "Lucy"]
+    individual_to_ignore = []
 
     (data_frame, meta_data, meta_data_short, _, _, label_series, samples, seasons_features) = load_activity_data(
         output_dir,
@@ -217,7 +218,7 @@ if __name__ == "__main__":
         False,
         ["linear"],
         output_dir,
-        ["QN", "STD"],
+        ["QN"],
         "LeaveOneOut",
         -1,
         label_series,

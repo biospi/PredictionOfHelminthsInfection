@@ -56,7 +56,7 @@ def main(
             #     "6000__004__0_00100__120",
             # ]
 
-            #folders = ["1000__003__0_00100__120"]
+            folders = ["1000__003__0_00100__030"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -109,7 +109,7 @@ def main(
                         pre_visu=False,
                         epoch=100,
                         batch_size=100,
-                        plot_2d_space=True,
+                        plot_2d_space=False,
                     )
 
                 # main_pipeline.main(

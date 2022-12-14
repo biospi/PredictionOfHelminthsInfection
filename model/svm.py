@@ -672,7 +672,8 @@ def fold_worker(
     ifold,
     augment_training,
     nfold,
-    export_fig_as_pdf
+    export_fig_as_pdf,
+    plot_2d_space
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -763,7 +764,7 @@ def fold_worker(
         alpha=alpha,
         lw=lw,
         ax=None,
-        c="tab:blue",
+        c="tab:blue"
     )
     axis_test.append(viz_roc_test)
 
@@ -798,7 +799,7 @@ def fold_worker(
     print("auc train=", auc_value_train)
     aucs_roc_train.append(auc_value_train)
 
-    if ifold == 0:
+    if plot_2d_space and ifold == 0:
         plot_high_dimension_db(
             out_dir / "testing" / str(ifold),
             np.concatenate((X_train, X_test), axis=0),
@@ -1035,7 +1036,8 @@ def cross_validate_svm_fast(
                         ifold,
                         augment_training,
                         cross_validation_method.get_n_splits(),
-                        export_fig_as_pdf
+                        export_fig_as_pdf,
+                        plot_2d_space
                     ),
                 )
             pool.close()
@@ -1101,7 +1103,7 @@ def cross_validate_svm_fast(
                 all_probs_test.extend(y_pred_proba_test)
             all_y_test = np.array(all_y_test)
             all_probs_test = np.array(all_probs_test)
-            fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test)
+            fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test.astype(int))
             roc_auc_test = auc(fpr, tpr)
             print(f"LOO AUC TEST={roc_auc_test}")
             ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (TEST AUC = %0.2f)' % (roc_auc_test))
@@ -1469,7 +1471,7 @@ def process_clf(
         print(filename)
         df.to_csv(filename)
 
-        if i == 0:
+        if plot_2d_space and i == 0:
             plot_high_dimension_db(
                 output_dir / "testing",
                 np.concatenate((X_train, X_test), axis=0),
