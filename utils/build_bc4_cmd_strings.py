@@ -28,7 +28,7 @@ def main(
     sub_sample_scales=3,
     batch_size=10,
     epoch=100,
-    enable_qn_peak_filter=True,
+    enable_qn_peak_filter=False,
 ):
     cpt = 0
     for steps in steps_list:
@@ -211,35 +211,34 @@ def cats():
                 dataset_folder = f"/user/work/fo18103/cats_data/build_permutations/{t}/dataset/training_sets/samples"
                 # for j in range(0, len(IDS), 5):
                 #     print(np.unique(IDS[:j]+["MrDudley", "Oliver_F", "Lucy"]))
-                for qn_filter in [True]:
-                    n_cmd += main(
-                        cv_list=[cv],
-                        output_dir=f"{output_dir}/{t}",
-                        dataset_folder=dataset_folder,
-                        a_day=-1,
-                        class_healthy_label_list=["0.0"],
-                        class_unhealthy_label_list=["1.0"],
-                        classifiers_list=[cl],
-                        study_id="cats",
-                        batch_size=20,
-                        epoch=100,
-                        # individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
-                        individual_to_test=[],
-                        meta_columns=[
-                            "label",
-                            "id",
-                            "imputed_days",
-                            "date",
-                            "health",
-                            "target",
-                            "age",
-                            "name",
-                            "mobility_score",
-                        ],
-                        steps_list=[["QN"], ["STD"], ["QN", "STD"]],
-                        individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-                        enable_qn_peak_filter=qn_filter,
-                    )
+                n_cmd += main(
+                    cv_list=[cv],
+                    output_dir=f"{output_dir}/{t}",
+                    dataset_folder=dataset_folder,
+                    a_day=-1,
+                    class_healthy_label_list=["0.0"],
+                    class_unhealthy_label_list=["1.0"],
+                    classifiers_list=[cl],
+                    study_id="cats",
+                    batch_size=20,
+                    epoch=100,
+                    # individual_to_test=[603, 627, 77, 651, 607, 661, 621, 609, 622, 658],
+                    individual_to_test=[],
+                    meta_columns=[
+                        "label",
+                        "id",
+                        "imputed_days",
+                        "date",
+                        "health",
+                        "target",
+                        "age",
+                        "name",
+                        "mobility_score",
+                    ],
+                    steps_list=[["QN"], ["STD"], ["QN", "STD"]],
+                    individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+                    enable_qn_peak_filter=False,
+                )
     print(f"total cmd number is {n_cmd}")
     print(FINAL_STR)
     print(f"total cmd number is {n_cmd}")
