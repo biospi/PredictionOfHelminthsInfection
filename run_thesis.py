@@ -100,8 +100,8 @@ def main(
             # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "WINDSPEEDAPPEND", "STDS"],
-            ["QN", "ANSCOMBE", "LOG"],
-            ["QN", "ANSCOMBE", "LOG", "STDS"],
+            ["QN", "ANSCOMBE", "LOG"]
+            #["QN", "ANSCOMBE", "LOG", "STDS"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
@@ -138,28 +138,28 @@ def main(
                                 #     weather_file=Path(
                                 #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
                                 # )
-                                main_experiment.main(
-                                    output_dir=output_dir
-                                    / "main_experiment"
-                                    / f"cedara_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
-                                    / "2To2",
-                                    dataset_folder=cedara_dir,
-                                    preprocessing_steps=steps,
-                                    n_imputed_days=i_day,
-                                    n_activity_days=a_day,
-                                    n_weather_days=w_day,
-                                    class_unhealthy_label=["2To2"],
-                                    cv=cv,
-                                    classifiers=["linear", "rbf"],
-                                    study_id="cedara",
-                                    add_seasons_to_features=add_seasons_to_features,
-                                    plot_2d_space=False,
-                                    pre_visu=False,
-                                    export_fig_as_pdf=True,
-                                    weather_file=Path(
-                                        "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"),
-                                )
-                                continue
+                                # main_experiment.main(
+                                #     output_dir=output_dir
+                                #     / "main_experiment"
+                                #     / f"cedara_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                #     / "2To2",
+                                #     dataset_folder=cedara_dir,
+                                #     preprocessing_steps=steps,
+                                #     n_imputed_days=i_day,
+                                #     n_activity_days=a_day,
+                                #     n_weather_days=w_day,
+                                #     class_unhealthy_label=["2To2"],
+                                #     cv=cv,
+                                #     classifiers=["linear", "rbf"],
+                                #     study_id="cedara",
+                                #     add_seasons_to_features=add_seasons_to_features,
+                                #     plot_2d_space=False,
+                                #     pre_visu=False,
+                                #     export_fig_as_pdf=True,
+                                #     weather_file=Path(
+                                #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"),
+                                # )
+                                # continue
 
                                 # # main_experiment.main(
                                 # #     output_dir=output_dir
@@ -229,23 +229,24 @@ def main(
                                 #     export_fig_as_pdf=True
                                 # )
                                 #
-                                # main_experiment.main(
-                                #     output_dir=output_dir
-                                #     / "main_experiment"
-                                #     / f"cedara_{cv}_{i_day}_{a_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "2To1",
-                                #     dataset_folder=cedara_dir,
-                                #     preprocessing_steps=steps,
-                                #     n_imputed_days=i_day,
-                                #     n_activity_days=a_day,
-                                #     class_unhealthy_label=["2To1"],
-                                #     cv=cv,
-                                #     classifiers=["linear", "rbf"],
-                                #     study_id="cedara",
-                                #     add_seasons_to_features=add_seasons_to_features,
-                                #     plot_2d_space=True,
-                                #     export_fig_as_pdf=True
-                                # )
+                                main_experiment.main(
+                                    output_dir=output_dir
+                                    / "main_experiment"
+                                    / f"cedara_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                    / "2To1",
+                                    dataset_folder=cedara_dir,
+                                    preprocessing_steps=steps,
+                                    n_imputed_days=i_day,
+                                    n_activity_days=a_day,
+                                    class_unhealthy_label=["2To1"],
+                                    cv=cv,
+                                    classifiers=["linear", "rbf"],
+                                    study_id="cedara",
+                                    add_seasons_to_features=add_seasons_to_features,
+                                    plot_2d_space=False,
+                                    export_fig_as_pdf=True,
+                                    pre_visu=False
+                                )
                                 #
                                 #
                                 # main_experiment.main(

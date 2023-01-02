@@ -212,11 +212,11 @@ def main(
             #     continue
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
-            if 'cats_LeaveOneOut_-1_-1_STD_rbf' in df_['p_steps_list'].tolist()[0]:
-                continue
-
-            if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
-                continue
+            # if 'cats_LeaveOneOut_-1_-1_STD_rbf' in df_['p_steps_list'].tolist()[0]:
+            #     continue
+            #
+            # if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
+            #     continue
             print(df_['p_steps_list'].tolist()[0])
             #
             # if len(df_["median_auc_test"]) != 4:
