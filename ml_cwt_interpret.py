@@ -63,37 +63,49 @@ def get_imp_stat_cat(
     activity,
     X_train,
     output_dir,
+    n_peaks=1
 ):
     # print(date_list)
+    HALF_PEAKLENGHT = 120
     days_median = []
     nights_median = []
     days_std = []
     nights_std = []
     all_days = []
     all_nights = []
+    idxs = []
 
-    imp_ = imp
-    mask = np.array([0 if x < len(activity)/2 else 1 for x in range(len(activity))])
+    for i in range(n_peaks):
+        start = i * HALF_PEAKLENGHT
+        end = start + HALF_PEAKLENGHT
+        a = activity[start:end]
 
-    light = np.zeros(mask.shape).astype(str)
-    light[mask == 0] = "before"
-    light[mask == 1] = "after"
+        imp_ = imp[start:end]
+        date = date_list[start:end]
 
-    day_imp = imp_[light == "before"]
-    night_imp = imp_[light == "after"]
-    all_days.extend(day_imp)
-    all_nights.extend(night_imp)
-    # report_mannwhitney(day_imp, night_imp)
+        mask = np.array([0 if x < len(a)/2 else 1 for x in range(len(a))])
 
-    std = [day_imp.std(), night_imp.std()]
-    mean = [day_imp.mean(), night_imp.mean()]
-    median = [np.median(day_imp), np.median(night_imp)]
+        light = np.zeros(mask.shape).astype(str)
+        light[mask == 0] = "before"
+        light[mask == 1] = "after"
 
-    days_median.append(np.median(day_imp))
-    nights_median.append(np.median(night_imp))
+        day_imp = imp_[light == "before"]
+        night_imp = imp_[light == "after"]
+        all_days.extend(day_imp)
+        all_nights.extend(night_imp)
+        # report_mannwhitney(day_imp, night_imp)
 
-    days_std.append(np.std(day_imp))
-    nights_std.append(np.std(night_imp))
+        std = [day_imp.std(), night_imp.std()]
+        mean = [day_imp.mean(), night_imp.mean()]
+        median = [np.median(day_imp), np.median(night_imp)]
+
+        days_median.append(np.median(day_imp))
+        nights_median.append(np.median(night_imp))
+
+        days_std.append(np.std(day_imp))
+        nights_std.append(np.std(night_imp))
+        index = f"Peak {i}"
+        idxs.append(index)
 
     # dfs.append(df)
     df = pd.DataFrame(
@@ -102,7 +114,8 @@ def get_imp_stat_cat(
             "after peak median": days_median,
             "before peak std": nights_std,
             "after peak std": days_std,
-        }
+        },
+        index=idxs,
     )
     # df = pd.concat(dfs)
     fig_ = df.plot.barh(
@@ -146,7 +159,15 @@ def get_imp_stat_cat(
     fig_box.tight_layout()
     fig_box.savefig(filepath)
 
-    mask = np.array([0 if x < len(activity)/2 else 1 for x in range(len(activity))])
+    mask = np.array([1 for _ in range(len(activity))])
+    cpt = 0
+    for n, v in enumerate(mask):
+        if cpt < HALF_PEAKLENGHT:
+            mask[n] = 0
+        if cpt > HALF_PEAKLENGHT*2:
+            cpt = 0
+        cpt+=1
+
 
     light = np.zeros(mask.shape).astype(str)
     light[mask == 0] = "before"
@@ -246,7 +267,7 @@ def get_imp_stat(
     )
     # df = pd.concat(dfs)
     fig_ = df.plot.barh(
-        rot=0, title="Feature importance for each day", figsize=(6, 6)
+        rot=0, title="Feature importance for each day"
     ).get_figure()
     ax = fig_.gca()
     for j in range(len(ax.get_yticklabels())):
@@ -345,7 +366,7 @@ def main(
         "target",
     ],
     meta_col_str: List[str] = ["health", "label", "date"],
-    roll_avg: int = 60,
+    r_avg: int = 60,
     prct: int = 90,
     _size: int = 2,
     transform: str = "cwt",
@@ -362,6 +383,7 @@ def main(
     sunset_min=17,
     sunrise_min=9,
     sunset_max=17,
+    n_peaks=1
 ):
     """This script builds the graphs for cwt interpretation\n
     Args:\n
@@ -461,13 +483,13 @@ def main(
         data_frame = data_frame.loc[data_frame["health"].isin([0, 1])]
 
         X_train_o, y_train_o = (
-            data_frame_time_o.iloc[:, :-2].values,
+            data_frame_time_o.iloc[:, :-2].iloc[:, ::-1].values,
             data_frame_time_o["health"].values,
         )
 
         if n_activity_days > 0:
             X_train, y_train = (
-                data_frame_time.iloc[:, :-2].values,
+                data_frame_time.iloc[:, :-2].iloc[:, ::-1].values,
                 data_frame_time["health"].values,
             )
         else:
@@ -652,7 +674,8 @@ def main(
                 imp,
                 mean_time_o,
                 X_train,
-                output_dir
+                output_dir,
+                n_peaks=n_peaks
             )
 
         fig, ax = plt.subplots(figsize=(16.80, 7.20))
@@ -670,20 +693,31 @@ def main(
         # ax2.plot(date_list, intercept, color="purple", label="intercept", alpha=0.3)
 
         df_imp = pd.DataFrame(imp, columns=["imp"])
-        rollavg = df_imp.imp.rolling(roll_avg).mean()
+        roll_avg = df_imp.imp.rolling(r_avg).mean()
+        n_b = len(roll_avg)
+        roll_avg = roll_avg.dropna()
+        n_a = len(roll_avg)
+        pad = int(np.ceil((n_b - n_a)/2))
+        roll_avg = [np.nan]*pad + roll_avg.to_list() + [np.nan]*pad
+        roll_avg = np.array(roll_avg[0:len(date_list)])
         ax2.plot(
             date_list,
-            rollavg,
+            roll_avg,
             color="black",
-            label=f"feature importance rolling avg ({roll_avg} points)",
+            label=f"feature importance rolling avg ({r_avg} points)",
             alpha=0.9,
         )
 
         if farmname != 'cats':
+            # ax.axvline(sunrise_max, color="r", ls="--")
+            # ax.axvline(sunset_min, color="r", ls="--")
+            #
+            # ax.axvline(sunrise_min, color="b", ls="--")
+            # ax.axvline(sunset_max, color="b", ls="--")
             for item in date_list:
                 if (
                     item.hour == sunrise_max.hour and item.minute == sunrise_max.minute
-                ) or (item.hour == sunset_min.hour and item.minute == sunrise_max.minute):
+                ) or (item.hour == sunset_min.hour and item.minute == sunset_min.minute):
                     ax.axvline(item, color="r", ls="--")
 
                 if (item.hour == sunrise_min.hour and item.minute == sunrise_min.minute) or (
@@ -691,11 +725,17 @@ def main(
                 ):
                     ax.axvline(item, color="b", ls="--")
             # ax2.axvline(date_list[720], color='r', ls='--')
+        else:
+            for item in date_list:
+                if item % 240 == 0:
+                    if item == 0:
+                        continue
+                    ax.axvline(item, color="r", ls="--")
 
         ax.legend(loc="upper left")
         ax2.legend(loc="upper right")
         ax.set_title(
-            f"Feature importance {type(clf).__name__} days={n_activity_days} \n sunrise(max:{sunrise_max},min:{sunrise_min}) sunset(max:{sunset_max},min:{sunset_min})"
+            f"Feature importance {type(clf).__name__} w={n_activity_days} \n daytime(max:{sunrise_max},min:{sunset_min}) nightime(max:{sunset_max},min:{sunrise_min})"
         )
         ax.set_xlabel("Time")
         ax.set_ylabel("Activity")
@@ -705,11 +745,11 @@ def main(
         print(filepath)
 
         if farmname != 'cats':
-            T = 60 * 4
-            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
-            ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H %p"))
-            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
+            T = 60 * 1
+            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H:%M %p"))
+            #ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H:%M %p"))
+            #ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             fig.autofmt_xdate()
         fig.savefig(filepath)
 
@@ -791,9 +831,9 @@ def main(
         # ax.plot(imp*mean, label="mean activity of all samples * feature importance")
         ax2.plot(imp, color="red", label="feature importance", alpha=0.3)
         df_imp = pd.DataFrame(imp, columns=["imp"])
-        rollavg = df_imp.imp.rolling(1000).mean()
+        roll_avg = df_imp.imp.rolling(1000).mean()
         ax2.plot(
-            rollavg,
+            roll_avg,
             color="black",
             label=f"feature importance rolling avg ({1000} points)",
             alpha=0.9,
@@ -1195,7 +1235,7 @@ def main(
         #     plot_progression(output_dir, n_activity_days)
 
 
-def find_minmax_sun(weather_data_file=None, farmname=None):
+def find_minmax_sun(weather_data_file=None, farmname=None, daytime_prct=.5):
     sunrise_list = []
     sunset_list = []
     with open(weather_data_file) as f:
@@ -1211,12 +1251,34 @@ def find_minmax_sun(weather_data_file=None, farmname=None):
             except Exception as e:
                 pass
 
+    daytime_range = pd.date_range(start=np.max(sunrise_list), end=np.min(sunset_list), freq="H")
+    idx = int(len(daytime_range)/2)
+    mid_day = pd.to_datetime(daytime_range.values[idx])
+    percent = int(len(daytime_range) / 2 * daytime_prct)
+    daytime_min = pd.to_datetime(daytime_range.values[idx-percent])
+    daytime_max = pd.to_datetime(daytime_range.values[idx+percent])
+
+    nighttime_range = pd.date_range(start=np.max(sunset_list), end=np.min(sunrise_list).replace(day=np.min(sunrise_list).day+1), freq="H")
+    idx = int(len(nighttime_range)/2)
+    mid_night = pd.to_datetime(nighttime_range.values[idx])
+    percent = int(len(nighttime_range) / 2 * daytime_prct)
+    nighttime_min = pd.to_datetime(nighttime_range.values[idx-percent])
+    nighttime_max = pd.to_datetime(nighttime_range.values[idx+percent])
+
     sun_data = {
         "sunrise_max": np.max(sunrise_list).time(),
         "sunrise_min": np.min(sunrise_list).time(),
         "sunset_max": np.max(sunset_list).time(),
         "sunset_min": np.min(sunset_list).time(),
+        "mid_day": mid_day.time(),
+        "daytime_min": daytime_min.time(),
+        "daytime_max": daytime_max.time(),
+        "mid_night": mid_night.time(),
+        "night_time_min": nighttime_min.time(),
+        "night_time_max": nighttime_max.time()
     }
+    print(sun_data)
+
     df = pd.DataFrame([sun_data])
     print(df)
     filename = f"{farmname}_sun_data.csv"
@@ -1227,149 +1289,158 @@ def find_minmax_sun(weather_data_file=None, farmname=None):
 
 if __name__ == "__main__":
     # typer.run(main)
-    main(
-        Path(
-            f"E:/preprint/thesis/interpret2/debug/cats_A"
-        ),
-        Path("E:/Cats/build_permutations/1000__004__0_00100__030/dataset/training_sets/samples"),
-        preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
-        p=False,
-        transform="dwt",
-        enable_graph_out=False,
-        random_forest=False,
-        farmname='cats',
-        meta_columns=[
-            "label",
-            "id",
-            "imputed_days",
-            "date",
-            "health",
-            "target",
-            "age",
-            "name",
-            "mobility_score",
-        ],
-        individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-        n_imputed_days=-1,
-        n_activity_days=-1,
-        class_healthy_label=["0.0"],
-        class_unhealthy_label=["1.0"],
-        roll_avg = 10,
-    )
+    #
+    # for n_peak in [1, 2, 3, 4, 5, 6]:
+    #     main(
+    #         Path(
+    #             f"E:/preprint/thesis/interpret2/debug/cats_{n_peak}_A"
+    #         ),
+    #         Path(f"E:/Cats/build_permutations/1000__00{n_peak}__0_00100__120/dataset/training_sets/samples"),
+    #         preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+    #         p=False,
+    #         transform="dwt",
+    #         enable_graph_out=False,
+    #         random_forest=False,
+    #         farmname='cats',
+    #         meta_columns=[
+    #             "label",
+    #             "id",
+    #             "imputed_days",
+    #             "date",
+    #             "health",
+    #             "target",
+    #             "age",
+    #             "name",
+    #             "mobility_score",
+    #         ],
+    #         individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+    #         n_imputed_days=-1,
+    #         n_activity_days=-1,
+    #         class_healthy_label=["0.0"],
+    #         class_unhealthy_label=["1.0"],
+    #         r_avg = 30,
+    #         n_peaks=n_peak
+    #     )
+    #
+    #     main(
+    #         Path(
+    #             f"E:/preprint/thesis/interpret2/debug/cats_{n_peak}_B"
+    #         ),
+    #         Path(f"E:/Cats/build_permutations/1000__00{n_peak}__0_00100__120/dataset/training_sets/samples"),
+    #         preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+    #         p=False,
+    #         transform="dwt",
+    #         enable_graph_out=False,
+    #         random_forest=False,
+    #         farmname='cats',
+    #         meta_columns=[
+    #             "label",
+    #             "id",
+    #             "imputed_days",
+    #             "date",
+    #             "health",
+    #             "target",
+    #             "age",
+    #             "name",
+    #             "mobility_score",
+    #         ],
+    #         individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
+    #         n_imputed_days=-1,
+    #         n_activity_days=-1,
+    #         class_healthy_label=["0.0"],
+    #         class_unhealthy_label=["1.0"],
+    #         r_avg=30,
+    #         n_peaks=n_peak
+    #     )
+    #
+    # exit()
 
-    main(
-        Path(
-            f"E:/preprint/thesis/interpret2/debug/cats_B"
-        ),
-        Path("E:/Cats/build_permutations/1000__004__0_00100__030/dataset/training_sets/samples"),
-        preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
-        p=False,
-        transform="dwt",
-        enable_graph_out=False,
-        random_forest=False,
-        farmname='cats',
-        meta_columns=[
-            "label",
-            "id",
-            "imputed_days",
-            "date",
-            "health",
-            "target",
-            "age",
-            "name",
-            "mobility_score",
-        ],
-        individual_to_ignore=["MrDudley", "Oliver_F", "Lucy"],
-        n_imputed_days=-1,
-        n_activity_days=-1,
-        class_healthy_label=["0.0"],
-        class_unhealthy_label=["1.0"],
-        roll_avg=10,
-    )
+    for daytime_prct in [0.6, 0.7, 0.8]:
+        sun_data_delmas = find_minmax_sun(
+            farmname="delmas",
+            weather_data_file="C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json",
+            daytime_prct=daytime_prct
+        )
+        sun_data_cedara = find_minmax_sun(
+            farmname="cedara",
+            weather_data_file="C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/cedara_weather_raw.json",
+            daytime_prct=daytime_prct
+        )
 
-    exit()
+        for t in ["dwt"]:
+            for j in [1, 2, 3, 4, 5, 6, 7]:
+                main(
+                    Path(
+                        f"E:/preprint/thesis/interpret3/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__A"
+                    ),
+                    Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    sunrise_max=sun_data_cedara["daytime_min"],
+                    sunrise_min=sun_data_cedara["night_time_max"],
+                    sunset_min=sun_data_cedara["daytime_max"],
+                    sunset_max=sun_data_cedara["night_time_min"],
+                    farmname='cedara'
+                )
 
-    sun_data_delmas = find_minmax_sun(
-        farmname="delmas",
-        weather_data_file="C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/delmas_weather_raw.json",
-    )
-    sun_data_cedara = find_minmax_sun(
-        farmname="cedara",
-        weather_data_file="C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/src/cedara_weather_raw.json",
-    )
+                main(
+                    Path(
+                        f"E:/preprint/thesis/interpret3/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__B"
+                    ),
+                    Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    sunrise_max=sun_data_cedara["daytime_min"],
+                    sunrise_min=sun_data_cedara["night_time_max"],
+                    sunset_min=sun_data_cedara["daytime_max"],
+                    sunset_max=sun_data_cedara["night_time_min"],
+                    farmname='cedara'
+                )
 
-    for t in ["dwt"]:
-        for j in [7, 6, 5, 4, 3, 2, 1]:
-            main(
-                Path(
-                    f"E:/preprint/thesis/interpret2/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__A"
-                ),
-                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False,
-                sunrise_max=sun_data_delmas["sunrise_max"],
-                sunrise_min=sun_data_delmas["sunrise_min"],
-                sunset_min=sun_data_delmas["sunset_min"],
-                sunset_max=sun_data_delmas["sunset_max"],
-                farmname='delmas'
-            )
+                main(
+                    Path(
+                        f"E:/preprint/thesis/interpret3/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__A"
+                    ),
+                    Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    sunrise_max=sun_data_delmas["daytime_min"],
+                    sunrise_min=sun_data_delmas["night_time_max"],
+                    sunset_min=sun_data_delmas["daytime_max"],
+                    sunset_max=sun_data_delmas["night_time_min"],
+                    farmname='delmas'
+                )
 
-            main(
-                Path(
-                    f"E:/preprint/thesis/interpret2/debug/delmas_{t}_explain_{j}_datasetmrnn7_17__B"
-                ),
-                Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False,
-                sunrise_max=sun_data_delmas["sunrise_max"],
-                sunrise_min=sun_data_delmas["sunrise_min"],
-                sunset_min=sun_data_delmas["sunset_min"],
-                sunset_max=sun_data_delmas["sunset_max"],
-                farmname='delmas'
-            )
-            main(
-                Path(
-                    f"E:/preprint/thesis/interpret2/debug/cedara_{t}_explain_{j}_datasetmrnn7_23__A"
-                ),
-                Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False,
-                sunrise_max=sun_data_delmas["sunrise_max"],
-                sunrise_min=sun_data_delmas["sunrise_min"],
-                sunset_min=sun_data_delmas["sunset_min"],
-                sunset_max=sun_data_delmas["sunset_max"],
-                farmname='cedara'
-            )
+                main(
+                    Path(
+                        f"E:/preprint/thesis/interpret3/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__B"
+                    ),
+                    Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+                    preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
+                    p=False,
+                    n_activity_days=j,
+                    transform=t,
+                    enable_graph_out=False,
+                    random_forest=False,
+                    sunrise_max=sun_data_delmas["daytime_min"],
+                    sunrise_min=sun_data_delmas["night_time_max"],
+                    sunset_min=sun_data_delmas["daytime_max"],
+                    sunset_max=sun_data_delmas["night_time_min"],
+                    farmname='delmas'
+                )
 
-            main(
-                Path(
-                    f"E:/preprint/thesis/interpret2/debug/cedara_{t}_explain_{j}_datasetmrnn7_23__B"
-                ),
-                Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
-                preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
-                p=False,
-                n_activity_days=j,
-                transform=t,
-                enable_graph_out=False,
-                random_forest=False,
-                sunrise_max=sun_data_delmas["sunrise_max"],
-                sunrise_min=sun_data_delmas["sunrise_min"],
-                sunset_min=sun_data_delmas["sunset_min"],
-                sunset_max=sun_data_delmas["sunset_max"],
-                farmname='cedara'
-            )
 
         # main(
         #     Path(f"E:/Data2/debug/{t}_cat_explain_2"),

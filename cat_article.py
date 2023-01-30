@@ -12,7 +12,7 @@ from sklearn.svm import SVC, LinearSVC
 
 from model.data_loader import load_activity_data
 from model.svm import cross_validate_svm_fast
-from utils._custom_split import LeaveNOut
+from utils._custom_split import LeaveNOut, BootstrapCustom_
 from utils._normalisation import QuotientNormalizer
 from pathlib import Path
 from sys import exit
@@ -89,9 +89,9 @@ if __name__ == "__main__":
     df = df[df.nunique(1) > 10]
     df = df.dropna(subset=df.columns[: -N_META], how="all")
     df.iloc[:, : -N_META] = df.iloc[:, : -N_META].clip(lower=0)
-    df.iloc[:, :-N_META] = QuotientNormalizer(
-        out_dir=output_dir, output_graph=True, enable_qn_peak_filter=False
-    ).transform(df.iloc[:, :-N_META].values)
+    # df.iloc[:, :-N_META] = QuotientNormalizer(
+    #     out_dir=output_dir, output_graph=True, enable_qn_peak_filter=False
+    # ).transform(df.iloc[:, :-N_META].values)
 
     #df.iloc[:, :-N_META] = StandardScaler(with_mean=True, with_std=True).fit_transform(df.iloc[:, :-N_META].values)
 
@@ -185,17 +185,20 @@ if __name__ == "__main__":
     #df.iloc[:, : -N_META] = df.iloc[:, : -N_META].clip(lower=0)
     #df.iloc[:, : -N_META] = df.iloc[:, : -N_META].astype(float).interpolate(axis=1, limit_direction="both")
     data_frame["health"] = data_frame["target"]
-    data_frame.iloc[:, :-N_META] = QuotientNormalizer(
-        out_dir=output_dir, output_graph=True, enable_qn_peak_filter=True
-    ).transform(data_frame.iloc[:, :-N_META].values)
+    # data_frame.iloc[:, :-N_META] = QuotientNormalizer(
+    #     out_dir=output_dir, output_graph=True, enable_qn_peak_filter=True
+    # ).transform(data_frame.iloc[:, :-N_META].values)
 
     data_frame.iloc[:, :-N_META] = StandardScaler(with_mean=True, with_std=True).fit_transform(data_frame.iloc[:, :-N_META].values)
 
     sample_idxs = data_frame.index.tolist()
     animal_ids = data_frame["id"].astype(str).tolist()
-    cross_validation_method = LeaveNOut(
-        animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1, individual_to_test=[]
-    )
+
+    # cross_validation_method = LeaveNOut(
+    #     animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1, individual_to_test=[]
+    # )
+
+    cross_validation_method = BootstrapCustom_(animal_ids, sample_idxs, n_iterations=len(animal_ids)*3, verbose=True)
 
     y_col = "target"
     ids = data_frame["id"].values
@@ -219,7 +222,7 @@ if __name__ == "__main__":
         ["linear"],
         output_dir,
         ["QN"],
-        "LeaveOneOut",
+        "Bootstrap",
         -1,
         label_series,
         cross_validation_method,

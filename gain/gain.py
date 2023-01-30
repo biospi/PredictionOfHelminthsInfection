@@ -31,7 +31,7 @@ from pathlib import Path
 
 
 def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
-         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND):
+         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days):
     '''Impute missing values in data_x
 
   Args:
@@ -217,8 +217,8 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
 
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        filename = output_dir + "/" + "imputed_gain_%d.html" % i
-        if (i % 100 == 0) | (i <= 1) | (i == range_iter[-1]):
+        filename = output_dir + "/" + "imputed_gain.html"
+        if i % 100 == 0:
             print(filename)
             fig.write_html(filename)
 
@@ -231,29 +231,31 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         df_.columns = header
         dfs_transponder = [g for _, g in df_.groupby(['id'])]
 
-        # for i in range(len(dfs_transponder)):
-        #   df_t_i = dfs_transponder[i].iloc[:, :-N_TRANSPOND - 2]
-        #   valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
-        #   # if valid <= 0:
-        #   #     continue
-        #   id = int(dfs_transponder[i]["id"].values[0])
-        #
-        #   _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
-        #                                                  days_in_col=df_t_i.shape[0])
-        #   fig = go.Figure(data=go.Heatmap(
-        #     z=df_t_i.values,
-        #     x=xaxix_label,
-        #     y=yaxis_label,
-        #     colorscale='Viridis'))
-        #   fig.update_xaxes(tickformat="%H:%M")
-        #   fig.update_yaxes(tickformat="%d %b %Y")
-        #   fig.update_layout(
-        #     title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
-        #     xaxis_title="Time (1 min bins)",
-        #     yaxis_title="Days")
-        #   filename = out + "/" + "%d_imputed_reshaped_%d_%d_%d.html" % (id, thresh, i, valid)
-        #   print(filename)
-        #   fig.write_html(filename)
+        for k in range(len(dfs_transponder)):
+          df_t_i = dfs_transponder[k].iloc[:, :-N_TRANSPOND - 2]
+          valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
+          # if valid <= 0:
+          #     continue
+          id = int(dfs_transponder[k]["id"].values[0])
+
+          _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+                                                         days_in_col=df_t_i.shape[0])
+          fig = go.Figure(data=go.Heatmap(
+            z=df_t_i.values,
+            x=xaxix_label,
+            #y=yaxis_label,
+            y=np.arange(0, df_t_i.shape[1]),
+            colorscale='Viridis'))
+          fig.update_xaxes(tickformat="%H:%M")
+          # fig.update_yaxes(tickformat="%d %b %Y")
+          fig.update_layout(
+            title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+            xaxis_title="Time (1 min bins)",
+            yaxis_title="Samples")
+          filename = out / f"{id}_imputed_reshaped_{thresh}_{k}_{valid}_iter_{i}.html"
+          if i % 100 == 0:
+              print(filename)
+              fig.write_html(filename)
 
         '''
 
@@ -270,7 +272,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         if RESHAPE:
             imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
                                                         shape_o, rm_row_idx, imputed_data, N_TRANSPOND,
-                                                        add_t_col=ADD_TRANSP_COL)
+                                                        add_t_col=ADD_TRANSP_COL, days=days)
         else:
             imputed_data_restored = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
 
@@ -284,7 +286,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             rmse_gain.append(rmse_g)
             rmse_li.append(rmse_l)
 
-            rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l}
+            rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l, "training_shape": data_x.shape}
             with open(outpath / f'rmse_{i}.json', 'w') as f:
                 json.dump(rmse_info, f)
 
@@ -292,7 +294,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     epochs = list(range(iterations))
     plt.clf()
     plt.cla()
-    fig, ax = plt.subplots(figsize=(12.80, 7.20))
+    fig, ax = plt.subplots()
     plt.plot(epochs, G_loss_list, label="generator loss")
     plt.plot(epochs, D_loss_list, label="discriminator loss")
     plt.legend()
@@ -304,7 +306,7 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
     if miss_rate > 0:
         plt.clf()
         plt.cla()
-        fig, ax = plt.subplots(figsize=(12.80, 7.20))
+        fig, ax = plt.subplots()
         ax.set_ylabel('RMSE')
         ax.set_xlabel('iteration')
         plt.plot(rmse_iter, rmse_gain, label="RMSE GAIN", alpha=1)

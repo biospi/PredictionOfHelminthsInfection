@@ -646,6 +646,7 @@ def plot_ml_report_final(output_dir):
         print("no reports available.")
         return
     df = pd.concat(dfs, axis=0)
+    df = df[df['classifier_details'] == 'SVC_rbf_results']
     df["health_tags"] = df["class_0_label"] + df["class_1_label"]
     df["color"] = [x.split(">")[-3] for x in df["config"].values]
     # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
@@ -721,7 +722,7 @@ def plot_ml_report_final(output_dir):
             filepath = output_dir / f"ML_performance_final_{farm}.html"
             print(filepath)
             fig.write_html(str(filepath))
-            filepath = output_dir / f"ML_performance_final_auc_{farm}.html"
+            filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
             print(filepath)
             # fig_auc_only.write_html(str(filepath))
             # fig.show()
@@ -2260,10 +2261,13 @@ def plot_fold_details(
     df_test = df[["accuracy_test", "accuracy_train", "ids_test"]]
     df_test = df_test.sort_values(by="accuracy_test")
     df_test.index = df["ids_test"]
+    w = 0.8 * len(fold_results)
+    if w > 65:
+        w = 65
     ax = df_test.plot.bar(
         rot=90,
         log=False,
-        figsize=(0.8 * len(fold_results), 7.20),
+        figsize=(w, 7.20),
         title=f"Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.2f} mean_acc_test={mean_acc:.2f}",
     )
     ax.axhline(y=0.5, color='r', linestyle='--')

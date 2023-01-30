@@ -28,14 +28,14 @@ from sklearn.svm import SVC
 # from utils._custom_split import StratifiedLeaveTwoOut
 from classifier.src.CNN import cross_validate_cnnnd
 from cnn.transformer import cross_validate_transformer
-from utils._custom_split import LeaveNOut
+from utils._custom_split import LeaveNOut, BootstrapCustom_
 from utils.visualisation import (
     plot_roc_range,
     build_proba_hist,
     build_individual_animal_pred,
     build_report,
     plot_ml_report_final,
-    plot_high_dimension_db, plot_learning_curves, plot_fold_details)
+    plot_high_dimension_db, plot_learning_curves, plot_fold_details, mean_confidence_interval)
 
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
@@ -405,6 +405,10 @@ def process_ml(
                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/Data/delmas_activity_data_weather.csv"
             ),
         )
+
+    if cv == "Bootstrap":
+        cross_validation_method = BootstrapCustom_(animal_ids, n_iterations=len(animal_ids) * 10,
+                                                   verbose=False)
 
     # if cv == "LeaveOneOut":
     #     cross_validation_method = LeaveOneOut()
@@ -816,6 +820,12 @@ def fold_worker(
 
     accuracy = balanced_accuracy_score(y_test, y_pred_test)
     precision, recall, fscore, support = precision_recall_fscore_support(y_test, y_pred_test)
+    if len(precision) == 1:
+        precision = np.append(precision, precision[0])
+        recall = np.append(recall, recall[0])
+        fscore = np.append(fscore, fscore[0])
+        support = np.append(support, support[0])
+
     correct_predictions_test = (y_test == y_pred_test).astype(int)
     incorrect_predictions_test = (y_test != y_pred_test).astype(int)
 
@@ -1002,7 +1012,7 @@ def cross_validate_svm_fast(
             for ifold, (train_index, test_index) in enumerate(
                 cross_validation_method.split(X, y)
             ):
-                info = {} #
+                info = {}
                 pool.apply_async(
                     fold_worker,
                     (
@@ -1092,6 +1102,105 @@ def cross_validate_svm_fast(
                 ax_roc[0].plot(xdata, ydata, color="tab:blue", alpha=0.3, linewidth=1)
                 ax_roc_merge.plot(xdata, ydata, color="tab:purple", alpha=0.3, linewidth=1)
 
+        if cv_name == "Bootstrap":
+            tprs_test, fpr_test = [], []
+            tprs_train, fpr_train = [], []
+            aucs_train, aucs_test = [], []
+            for k in range(0, len(fold_results), len(ids)):
+                start = k
+                end = k + len(ids)
+                print(start, end)
+                all_y_test = []
+                all_probs_test = []
+                for item in fold_results[start: end]:
+                    all_y_test.extend(item['y_test'])
+                    y_pred_proba_test = np.array(item['y_pred_proba_test'])
+                    all_probs_test.extend(y_pred_proba_test)
+                all_y_test = np.array(all_y_test)
+                all_probs_test = np.array(all_probs_test)
+                fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test.astype(int))
+                tprs_test.append(tpr)
+                fpr_test.append(fpr)
+                roc_auc_test = auc(fpr, tpr)
+                aucs_test.append(roc_auc_test)
+                print(f"LOO AUC TEST={roc_auc_test}")
+                ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, color="tab:blue", label=None)
+
+                all_y_train = []
+                all_probs_train = []
+                for item in fold_results[start: end]:
+                    all_y_train.extend(item['y_train'])
+                    y_pred_proba_train = np.array(item['y_pred_proba_train'])
+                    # if len(y_pred_proba_train) > 1:
+                    #     y_pred_proba_train = y_pred_proba_train[:, 1]
+                    all_probs_train.extend(y_pred_proba_train)
+                all_y_train = np.array(all_y_train)
+                all_probs_train = np.array(all_probs_train)
+                fpr, tpr, thresholds = roc_curve(all_y_train, all_probs_train)
+                tprs_train.append(tpr)
+                fpr_train.append(fpr)
+                roc_auc_train = auc(fpr, tpr)
+                aucs_train.append(roc_auc_train)
+                print(f"LOO AUC TRAIN={roc_auc_train}")
+                ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, color="tab:purple", label=None)
+            #cli
+            mean_tpr_test = np.mean(tprs_test, axis=0)
+            mean_fpr_test = np.mean(fpr_test, axis=0)
+            mean_tpr_test[-1] = 1.0
+            #mean_auc_test = auc(mean_fpr_test, mean_tpr_test)
+            # std_auc = np.std(aucs)
+            lo, hi = mean_confidence_interval(aucs_test)
+
+            label = f"Mean ROC Test (Median AUC = {np.median(aucs_test):.2f}, 95% CI [{lo:.4f}, {hi:.4f}] )"
+            # if len(aucs_test) <= 2:
+            #     label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_test)
+            ax_roc_merge.plot(mean_fpr_test, mean_tpr_test, label=label, lw=2, alpha=1, color="black")
+
+            mean_tpr_train = np.mean(tprs_train, axis=0)
+            mean_fpr_train = np.mean(fpr_train, axis=0)
+
+            mean_tpr_train[-1] = 1.0
+            #mean_auc_train = auc(mean_fpr_train, mean_tpr_train)
+            # std_auc = np.std(aucs)
+            lo, hi = mean_confidence_interval(aucs_train)
+
+            label = f"Mean ROC Training (Median AUC = {np.median(aucs_train):.2f}, 95% CI [{lo:.4f}, {hi:.4f}] )"
+            # if len(aucs_train) <= 2:
+            #     label = r"Mean ROC (Median AUC = %0.2f)" % np.median(aucs_train)
+            ax_roc_merge.plot(
+                mean_fpr_train, mean_tpr_train, label=label, lw=2, alpha=1, color="red"
+            )
+
+            ax_roc_merge.plot([0, 1], [0, 1], linestyle='--', lw=2, color='orange', label='Chance', alpha=1)
+            ax_roc_merge.set_xlim([-0.05, 1.05])
+            ax_roc_merge.set_ylim([-0.05, 1.05])
+            ax_roc_merge.set_xlabel('False Positive Rate')
+            ax_roc_merge.set_ylabel('True Positive Rate')
+            ax_roc_merge.set_title('Receiver operating characteristic')
+            ax_roc_merge.legend(loc="lower right")
+            ax_roc_merge.grid()
+            fig_roc.tight_layout()
+            path = out_dir / "roc_curve" / cv_name
+            path.mkdir(parents=True, exist_ok=True)
+            tag = f"{type(clf).__name__}_{clf.kernel}"
+            final_path = path / f"{tag}_roc_{steps}.png"
+            print(final_path)
+            # fig_roc.savefig(final_path)
+
+            final_path = path / f"{tag}_roc_{steps}_merge.png"
+            print(final_path)
+            fig_roc_merge.savefig(final_path)
+
+            if export_fig_as_pdf:
+                final_path = path / f"{tag}_roc_{steps}.pdf"
+                print(final_path)
+                fig_roc.savefig(final_path)
+
+                final_path = path / f"{tag}_roc_{steps}_merge.pdf"
+                print(final_path)
+                fig_roc_merge.savefig(final_path)
+
+
         if cv_name == "LeaveOneOut":
             all_y_test = []
             all_probs_test = []
@@ -1152,7 +1261,7 @@ def cross_validate_svm_fast(
                 print(final_path)
                 fig_roc_merge.savefig(final_path)
 
-        else:
+        if cv_name not in ["LeaveOneOut", "Bootstrap"]:
             mean_auc = plot_roc_range(
                 ax_roc_merge,
                 ax_roc,

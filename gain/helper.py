@@ -135,68 +135,91 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     '''
 
     ori_data_ = ori_data.copy()
-    # data_m[ori_data_ == np.log(anscombe(0))] = np.nan #if any zeros in raw data flag as to be masked out
-    # data_m[ori_data_ == 0] = np.nan
-    # data_m[imputed_data_li == 0] = 1
-    # data_m[imputed_data_li.astype(int) == 0] = np.nan
-    # data_m[imputed_data_li.astype(int) == np.log(anscombe(0))] = np.nan
-
-    # ori_data_norm, norm_parameters = normalization(ori_data)
-    # imputed_data_norm, _ = normalization(imputed_data.copy(), norm_parameters)
-    # imputed_data_li_norm, _ = normalization(imputed_data_li.copy(), norm_parameters)
-
-    # ori_data_norm[np.isnan(ori_data_norm)] = 0 #if any nan in raw data flag as to be masked out
-    # data_m[ori_data_norm == 0] = 1
+    # # data_m[ori_data_ == np.log(anscombe(0))] = np.nan #if any zeros in raw data flag as to be masked out
+    # # data_m[ori_data_ == 0] = np.nan
+    # # data_m[imputed_data_li == 0] = 1
+    # # data_m[imputed_data_li.astype(int) == 0] = np.nan
+    # # data_m[imputed_data_li.astype(int) == np.log(anscombe(0))] = np.nan
+    #
+    # # ori_data_norm, norm_parameters = normalization(ori_data)
+    # # imputed_data_norm, _ = normalization(imputed_data.copy(), norm_parameters)
+    # # imputed_data_li_norm, _ = normalization(imputed_data_li.copy(), norm_parameters)
+    #
+    # # ori_data_norm[np.isnan(ori_data_norm)] = 0 #if any nan in raw data flag as to be masked out
+    # # data_m[ori_data_norm == 0] = 1
+    #
+    # # Only for missing values
+    # # original_masked_norm = (1 - data_m) * ori_data_norm
+    # # imputed_gain_masked_norm = (1 - data_m) * imputed_data_norm
+    # # imputed_li_masked_norm = (1 - data_m) * imputed_data_li_norm
+    #
+    # # mask = (ori_data_ > np.log(anscombe(0))).astype(float)
+    # # mask[mask == 0] = np.nan
+    #
+    # # use non normalized value for histograms
+    # original_masked_ = ori_data_.copy()
+    # original_masked_[data_m != 1] = np.nan
+    #
+    # imputed_gain_masked_ = imputed_data.copy()
+    # imputed_gain_masked_[data_m != 1] = np.nan
+    #
+    # imputed_li_masked_ = imputed_data_li.copy()
+    # imputed_li_masked_[data_m != 1] = np.nan
+    #
+    # # export_point_of_interest_hist(original_masked_, imputed_gain_masked_, imputed_li_masked_, output_dir, i)
+    #
+    # # if original_masked[(imputed_gain_masked == 0) & (original_masked > 0)].size > 0:
+    # #   warnings.warn("erroneous point! nan or zeros in gain results")
+    # #   original_masked[(imputed_gain_masked == 0) & (original_masked > 0)] = 0
+    # #
+    # # if original_masked[(original_masked == 0) & (imputed_gain_masked > 0)].size > 0:
+    # #   raise ValueError("erroneous point!")
+    #
+    # # only works if normalisation does not returns 0 values
+    # # a = original_masked[original_masked > 0].size
+    # # b = imputed_gain_masked[imputed_gain_masked > 0].size
+    # # if a != b:
+    # #     print(a, b)
+    # #     raise ValueError("should have same number of point for rmse calculation!")
+    #
+    # diff_gain = original_masked_ - imputed_gain_masked_
+    # nominator_gain = np.nansum(diff_gain ** 2)
+    # denominator_gain = np.nansum(data_m)
+    # # print("nominator gain=", nominator_gain)
+    # # print("denominator gain=", denominator_gain)
+    # rmse_gain = np.sqrt(nominator_gain / float(denominator_gain))
+    #
+    # diff_li = original_masked_ - imputed_li_masked_
+    # nominator_li = np.nansum(diff_li ** 2)
+    # denominator_li = np.nansum(data_m)
+    # # print("nominator li=", nominator_li)
+    # # print("denominator li=", denominator_li)
+    # rmse_li = np.sqrt(nominator_li / float(denominator_li))
+    #
+    # return rmse_gain, rmse_li
 
     # Only for missing values
-    # original_masked_norm = (1 - data_m) * ori_data_norm
-    # imputed_gain_masked_norm = (1 - data_m) * imputed_data_norm
-    # imputed_li_masked_norm = (1 - data_m) * imputed_data_li_norm
+    ori_data_[np.isnan(ori_data_)] = 0
+    data_m[np.isnan(data_m)] = 0
+    imputed_data[np.isnan(imputed_data)] = 0
+    imputed_data_li[np.isnan(imputed_data_li)] = 0
 
-    # mask = (ori_data_ > np.log(anscombe(0))).astype(float)
-    # mask[mask == 0] = np.nan
+    ori_data_ = ori_data_[:, :]
+    imputed_data = imputed_data[:ori_data_.shape[0], :]
+    data_m = data_m[:ori_data_.shape[0], :]
+    imputed_data_li = imputed_data_li[:ori_data_.shape[0], :]
 
-    # use non normalized value for histograms
-    original_masked_ = ori_data_.copy()
-    original_masked_[data_m != 1] = np.nan
+    nominator = np.nansum(((1 - data_m) * ori_data_ - (1 - data_m) * imputed_data) ** 2)
+    denominator = np.nansum(1 - data_m)
 
-    imputed_gain_masked_ = imputed_data.copy()
-    imputed_gain_masked_[data_m != 1] = np.nan
+    rmse = np.sqrt(nominator / float(denominator))
 
-    imputed_li_masked_ = imputed_data_li.copy()
-    imputed_li_masked_[data_m != 1] = np.nan
+    nominator = np.nansum(((1 - data_m) * ori_data_ - (1 - data_m) * imputed_data_li) ** 2)
+    denominator = np.nansum(1 - data_m)
 
-    # export_point_of_interest_hist(original_masked_, imputed_gain_masked_, imputed_li_masked_, output_dir, i)
+    rmse_li = np.sqrt(nominator / float(denominator))
 
-    # if original_masked[(imputed_gain_masked == 0) & (original_masked > 0)].size > 0:
-    #   warnings.warn("erroneous point! nan or zeros in gain results")
-    #   original_masked[(imputed_gain_masked == 0) & (original_masked > 0)] = 0
-    #
-    # if original_masked[(original_masked == 0) & (imputed_gain_masked > 0)].size > 0:
-    #   raise ValueError("erroneous point!")
-
-    # only works if normalisation does not returns 0 values
-    # a = original_masked[original_masked > 0].size
-    # b = imputed_gain_masked[imputed_gain_masked > 0].size
-    # if a != b:
-    #     print(a, b)
-    #     raise ValueError("should have same number of point for rmse calculation!")
-
-    diff_gain = original_masked_ - imputed_gain_masked_
-    nominator_gain = np.nansum(diff_gain ** 2)
-    denominator_gain = np.nansum(data_m)
-    # print("nominator gain=", nominator_gain)
-    # print("denominator gain=", denominator_gain)
-    rmse_gain = np.sqrt(nominator_gain / float(denominator_gain))
-
-    diff_li = original_masked_ - imputed_li_masked_
-    nominator_li = np.nansum(diff_li ** 2)
-    denominator_li = np.nansum(data_m)
-    # print("nominator li=", nominator_li)
-    # print("denominator li=", denominator_li)
-    rmse_li = np.sqrt(nominator_li / float(denominator_li))
-
-    return rmse_gain, rmse_li
+    return rmse, rmse_li
 
 
 def xavier_init(size):
@@ -343,7 +366,23 @@ def restore_matrix_ranjeet(imputed, n_transpond):
     return hstack
 
 
-def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, n_transponder, add_t_col=False, c=1,
+def split_array(arr, days):
+    splits = []
+    dim = 1440*days
+    for i in np.arange(0, arr.shape[0], dim):
+        start = i
+        end = i + dim
+        window = arr[start:end]
+        if window.shape[0] != dim:
+            window_ = np.zeros((dim,))
+            window_[:] = window[-1] #use the last value in the split for padding
+            window_[0:window.shape[0]] = window
+            window = window_
+        splits.append(window)
+    return splits
+
+
+def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, n_transponder, add_t_col=False, days=1,
                         thresh=None):
     print("reshape_matrix_andy...", activity_matrix.shape)
 
@@ -354,9 +393,13 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
         id = ids[i]
         transp = activity_matrix[:, i]
         transp_ss = ss_data[:, i]
-        s = np.array_split(transp, activity_matrix.shape[0] / 1440 / c, axis=0)
-        s_ss = np.array_split(transp_ss, activity_matrix.shape[0] / 1440 / c, axis=0)
-        s_d = np.array_split(timestamp, activity_matrix.shape[0] / 1440 / c, axis=0)
+        # s = np.array_split(transp, activity_matrix.shape[0] / 1440 / days, axis=0)
+        # s_ss = np.array_split(transp_ss, activity_matrix.shape[0] / 1440 / days, axis=0)
+        # s_d = np.array_split(timestamp, activity_matrix.shape[0] / 1440 / days, axis=0)
+
+        s = split_array(transp, days)
+        s_ss = split_array(transp_ss, days)
+        s_d = split_array(timestamp.values, days)
 
         if add_t_col:
             d = []
@@ -364,6 +407,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
             for ii, x in enumerate(s):
                 x_ = x.flatten().tolist()
                 x_d = x_ + [s_d[ii].tolist()[0]] + [id]
+                print(ii)
                 d.append(np.array(x_d))
                 d_ss.append(np.array(s_ss[ii].tolist() + [id]))
         else:
@@ -438,15 +482,16 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
     filtered_row_ss = []
     for i in range(input.shape[0]):
         row = input[i, :]
-        middle_time = int(len(row[:-n_transponder - 1 - 1]) / 2)  # epoch and id
-        window = row[middle_time - 60 * n_h: middle_time + 60 * n_h]
+        # middle_time = int(len(row[:-n_transponder - 1 - 1]) / 2)  # epoch and id
+        # window = row[middle_time - 60 * n_h: middle_time + 60 * n_h]
+        window = row
         # positive_count = window[window > 0].shape[0]
         positive_count = np.nansum(window)
         nan_count = np.sum(np.isnan(row).astype(int))
         ratio = nan_count / row.shape[0]
 
-        # if ratio > float(thresh_nan / 100):
-        #     continue
+        if ratio > float(thresh_nan / 100):
+            continue
         if positive_count < thresh_pos:
             continue
         #print(positive_count)
@@ -459,7 +504,7 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
 
 
 def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
-                        n_transpond, add_t_col=None):
+                        n_transpond, days = 1, add_t_col=None):
     if thresh >= 0:
         imputed = add_nan_rows(shape_o, imputed, row_idx)
 
@@ -507,7 +552,7 @@ def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out
     #     fig.write_html(filename)
 
     if add_t_col:
-        imputed = imputed[:, 0:1440]  # -1 for date col
+        imputed = imputed[:, 0:1440*days]  # -1 for date col
     split = np.array_split(imputed, n_transpond, axis=0)
     matrix = []
     for s in split:

@@ -1,3 +1,4 @@
+import random
 import warnings
 
 import numpy as np
@@ -17,6 +18,9 @@ from sys import exit
 from sklearn.model_selection import LeavePOut
 import itertools
 from pathlib import Path
+
+from sklearn.utils import resample
+
 from model.data_loader import load_activity_data
 
 # from mrnn.main_mrnn import start_mrnn
@@ -26,6 +30,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from sklearn import cross_decomposition
 
 np.random.seed(0)
 
@@ -330,6 +335,86 @@ class LeaveNOut:
         )
         for n in range(len(training_idx)):
             yield np.array(training_idx[n]), np.array(testing_idx[n])
+
+
+class BootstrapCustom_:
+    def __init__(
+        self,
+        animal_ids,
+        n_iterations = 100,
+        random_state=0,
+        n_bootstraps=3,
+        stratified=False,
+        verbose=False,
+        individual_to_test=None
+    ):
+        self.n_iterations = n_iterations
+        self.random_state = random_state
+        self.n_bootstraps = n_bootstraps
+        self.nfold = 0
+        self.verbose = verbose
+        self.stratified = stratified
+        self.animal_ids = np.array(animal_ids).flatten()
+        self.info_list = []
+
+    def get_n_splits(self):
+        return self.nfold
+
+    def get_fold_info(self, i):
+        return self.info_list[i]
+
+    def split(self, X, y, group=None):
+
+        train_list = []
+        test_list = []
+        for i in range(self.n_iterations):
+            n_size = len(np.unique(self.animal_ids)) - 1
+            train = resample(np.unique(self.animal_ids), n_samples=n_size, random_state=self.random_state)  # Sampling with replacement..whichever is not used in training data will be used in test data
+            train_list.append(train)
+            test = np.array([x for x in np.unique(self.animal_ids) if
+                             x.tolist() not in train.tolist()])  # picking rest of the data not considered in training sample
+            test = [random.choice(test)]
+            test_list.append(test)
+
+        df = pd.DataFrame(
+            np.hstack(
+                (
+                    y.reshape(y.size, 1),
+                    self.animal_ids.reshape(self.animal_ids.size, 1)
+                )
+            )
+        )
+
+        # df.to_csv("F:/Data2/test.csv")
+        # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
+        # df = df.apply(pd.to_numeric, downcast="integer")
+        df.columns = ["target", "animal_id"]
+        df["sample_idx"] = df.index
+        # if self.individual_to_test is not None and len(self.individual_to_test) > 0:
+        #     df = df.loc[df['animal_id'].isin(self.individual_to_test)]
+        ##df.index = df["sample_idx"]
+
+        training_idx = []
+        testing_idx = []
+
+        for itrain_index, itest_index in zip(train_list, test_list):
+            train_index = df[df["animal_id"].isin(itrain_index)]["sample_idx"].values.astype(int)
+            test_index = df[df["animal_id"].isin(itest_index)]["sample_idx"].values.astype(int)
+            if self.verbose:
+                print("TRAIN:", train_index, "TEST:", test_index, "TEST_ID:", df[df["animal_id"].isin(itest_index)]["animal_id"].values)
+            training_idx.append(train_index)
+            testing_idx.append(test_index)
+
+        self.nfold = len(training_idx)
+        print(
+            "Bootstrap could build %d unique folds. stratification=%s"
+            % (self.nfold, self.stratified)
+        )
+
+        for train_index, test_index in zip(training_idx, testing_idx):
+            if self.verbose:
+                print("TRAIN:", train_index, "TEST:", test_index, "TEST_ID:", df[df["sample_idx"].isin(test_index)]["animal_id"].values)
+            yield train_index, test_index
 
 
 if __name__ == "__main__":
@@ -701,6 +786,8 @@ if __name__ == "__main__":
         219,
         220,
     ]
+
+    cross_validation_method = BootstrapCustom_(animal_ids, sample_idxs, verbose=True)
 
     print("DATASET:")
     dataset = pd.DataFrame(

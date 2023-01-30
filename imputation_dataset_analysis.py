@@ -33,12 +33,35 @@ def process(df_raw_, df_gain_, df_mrnn):
     X_raw = X_raw.fillna(0)
     X_li = X_li.fillna(0)
 
-    rmse = mean_squared_error(X_raw, X_mrnn, sample_weight=sample_weight, squared=False)
-    print(f"raw vs mrnn rmse= {rmse}")
-    rmse = mean_squared_error(X_raw, X_gain, sample_weight=sample_weight, squared=False)
-    print(f"raw vs gain rmse= {rmse}")
-    rmse = mean_squared_error(X_raw, X_li, sample_weight=sample_weight, squared=False)
-    print(f"raw vs li rmse= {rmse}")
+    rmse_mrnn_list = []
+    rmse_gain_list = []
+    rmse_li_list = []
+    for i in range(X_raw.shape[0]):
+        rmse_mrnn = mean_squared_error(X_raw.iloc[i,:], X_mrnn.iloc[i,:], sample_weight=sample_weight[i,:], squared=False)
+        rmse_mrnn_list.append(rmse_mrnn)
+        print(f"raw vs mrnn rmse= {rmse_mrnn}")
+        rmse_gain = mean_squared_error(X_raw.iloc[i,:], X_gain.iloc[i,:], sample_weight=sample_weight[i,:], squared=False)
+        rmse_gain_list.append(rmse_gain)
+        print(f"raw vs gain rmse= {rmse}")
+        rmse_li = mean_squared_error(X_raw.iloc[i,:], X_li.iloc[i,:], sample_weight=sample_weight[i,:], squared=False)
+        rmse_li_list.append(rmse_li)
+        print(f"raw vs li rmse= {rmse_li}")
+
+    df = pd.DataFrame()
+    df["RAW vs MRNN"] = rmse_mrnn_list
+    df["RAW vs GAIN"] = rmse_gain_list
+    df["RAW vs LI"] = rmse_li_list
+    print(df)
+    fig_ = df.boxplot(column=['RAW vs MRNN', 'RAW vs GAIN', 'RAW vs LI']).get_figure()
+    ax = fig_.gca()
+    ax.set_title("RMSE comparison for each ML samples")
+    ax.set_ylabel("RMSE")
+    ax.set_xlabel("Imputation")
+    filename = f"RMSE_comparison_ml_samples.png"
+    filepath = filename
+    print(filepath)
+    fig_.tight_layout()
+    fig_.savefig(filepath)
 
 
 def find_samples(df, date, id, label):

@@ -7,7 +7,7 @@ from pathlib import Path
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis_debug_article"),
+    main(output_dir=Path("E:/thesis"),
          cedara_dir=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
          delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"))
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))

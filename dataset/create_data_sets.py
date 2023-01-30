@@ -42,6 +42,14 @@ def local_run():
          n_days=7,
          remove_missing=False)
 
+    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+         data_dir=Path("F:/MRNN/imputed_data/17_missingrate_[0.0]_seql_1440_iteration_100_hw__n_299"),
+         out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn21_17"),
+         data_col="first_sensor_value_mrnn",
+         n_days=21,
+         remove_missing=False)
+
+
     # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
     #      data_dir=Path("E:/thesis/gain/delmas/miss_rate_0000_iteration_1000_thresh_50_anscombe_False_n_top_traces_60"),
     #      out_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain_a"),

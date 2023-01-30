@@ -137,7 +137,7 @@ def main(
     """
 
     plot_ml_report_final(output_dir.parent.parent)
-    # exit()
+    exit()
     meta_columns = [x.replace("'", "") for x in meta_columns]
     preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
