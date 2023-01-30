@@ -709,7 +709,7 @@ if __name__ == '__main__':
     #local_run()
 
     #biospi
-    local_run(input_dir="/mnt/storage/scratch/axel/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
+    local_run(input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
               run_exp=True)
 
     #local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas", run_exp=True)
