@@ -407,7 +407,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
             for ii, x in enumerate(s):
                 x_ = x.flatten().tolist()
                 x_d = x_ + [s_d[ii].tolist()[0]] + [id]
-                print(ii)
+                # print(ii)
                 d.append(np.array(x_d))
                 d_ss.append(np.array(s_ss[ii].tolist() + [id]))
         else:
@@ -432,7 +432,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
 
     if thresh >= 0:
         filtered_row, filtered_row_ss, valid_idx = remove_rows(THRESH_NAN_R, vstack_ss, vstack, thresh, n_transponder)
-        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh) #for visualisation
+        t_idx = get_transp_idx(activity_matrix, THRESH_NAN_R, thresh, days) #for visualisation
     else:
         filtered_row = vstack
         filtered_row_ss = vstack_ss
@@ -441,13 +441,14 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
     return filtered_row, filtered_row_ss, valid_idx, shape_o, t_idx, vstack, vstack_ss
 
 
-def get_transp_idx(matrix, THRESH_NAN_R, thresh):
+def get_transp_idx(matrix, THRESH_NAN_R, thresh, days):
     print("reshape_matrix_andy...", matrix.shape)
 
     t_idx = []
     for i in range(matrix.shape[1]):
         transp = matrix[:, i]
-        s = np.array_split(transp, matrix.shape[0] / 1440, axis=0)
+        #s = np.array_split(transp, matrix.shape[0] / 1440, axis=0)
+        s = split_array(transp, days)
         d = []
         for ii, x in enumerate(s):
             pos_count = x[x > 0].shape[0]
@@ -460,8 +461,11 @@ def get_transp_idx(matrix, THRESH_NAN_R, thresh):
                 continue
             d.append(x)
 
-        vstack_transp = np.vstack(d)
-        t_idx.append(vstack_transp.shape[0])
+        if len(d) > 0:
+            vstack_transp = np.vstack(d)
+            t_idx.append(vstack_transp.shape[0])
+        else:
+            print("error while building idxs for visualisation!")
 
     return t_idx
 

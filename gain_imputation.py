@@ -616,6 +616,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
 
 
 def start(args):
+    print(args)
     data_x_o, ori_data_x, ids, timestamp, date_str, ss_data = load_farm_data(args.data_dir, args.n_job,
                                                                              args.n_top_traces,
                                                                              enable_anscombe=args.enable_anscombe,
@@ -683,7 +684,7 @@ def arg_run(data_dir=None, output_dir=None, thresh_daytime=100, thresh_nan_ratio
         help='missing data probability',
         default=miss_rate,
         type=float)
-    parser.add_argument('--n_job', type=int, default=6, help='Number of thread to use.')
+    parser.add_argument('--n_job', type=int, default=8, help='Number of thread to use.')
     parser.add_argument('--window_size', type=int, default=window_size, help='Sample window size')
     parser.add_argument('--n_top_traces', type=int, default=n_top_traces,
                         help='select n traces with highest entropy (<= 0 number to select all traces)')
@@ -713,6 +714,7 @@ if __name__ == '__main__':
               run_exp=True)
 
     #local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas", run_exp=True)
+
     #local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara", run_exp=True)
 
 
