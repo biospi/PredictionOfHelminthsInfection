@@ -7,9 +7,13 @@ from pathlib import Path
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis"),
-         cedara_dir=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
-         delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"))
+    main(output_dir=Path("E:/thesis_final"),
+         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+         cedara_dir_gain=Path("E:/thesis/datasets/cedara/datasetmrnn7_gain"),
+         cedara_dir_li=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
+         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
+         delmas_dir_gain=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain"),
+         delmas_dir_li=Path("E:/thesis/datasets/delmas/dataset_li_7_17"))
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
     # main(output_dir=Path("E:/thesis_debug_mrnn20/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_20"))
@@ -23,8 +27,12 @@ def main(
     exp_cross_farm: bool = False,
     weather_exp: bool = False,
     output_dir: Path = Path("E:/thesis"),
-    delmas_dir: Path = Path("E:/thesis/datasets/delmas/datasetmrnn7_19"),
-    cedara_dir: Path = Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+    delmas_dir_mrnn: Path = None,
+    delmas_dir_gain: Path = None,
+    delmas_dir_li: Path = None,
+    cedara_dir_mrnn: Path = None,
+    cedara_dir_gain: Path = None,
+    cedara_dir_li: Path = None
 ):
     """Thesis script runs all key experiments for data exploration chapter
     Args:\n
@@ -70,7 +78,7 @@ def main(
                             / "main_experiment"
                             / f"cedara_{cv}_{0}_{0}_{w_day}_{slug}_season_{add_seasons_to_features}"
                             / "2To2",
-                            dataset_folder=cedara_dir,
+                            dataset_folder=cedara_dir_mrnn,
                             preprocessing_steps=steps,
                             n_imputed_days=0,
                             n_activity_days=0,
@@ -92,6 +100,10 @@ def main(
         print("experiment 1: main pipeline")
 
         steps_list = [
+            [],
+            ["QN"],
+            ["QN", "ANSCOMBE"],
+            ["QN", "ANSCOMBE", "LOG"]
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
@@ -100,7 +112,7 @@ def main(
             # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "WINDSPEEDAPPEND", "STDS"],
-            ["QN", "ANSCOMBE", "LOG"]
+            #["QN", "ANSCOMBE", "LOG"]
             #["QN", "ANSCOMBE", "LOG", "STDS"],
             #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
@@ -113,31 +125,53 @@ def main(
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [7]:
-                for a_day in [3, 5, 7]:
+            for i_day in [1, 2, 3, 4, 5, 6, 7]:
+                for a_day in [1, 2, 3, 4, 5, 6, 7]:
                     for w_day in [7]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:
-                                # main_experiment.main(
-                                #     output_dir=output_dir
-                                #     / "main_experiment"
-                                #     / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
-                                #     / "2To2",
-                                #     dataset_folder=delmas_dir,
-                                #     preprocessing_steps=steps,
-                                #     n_imputed_days=i_day,
-                                #     n_activity_days=a_day,
-                                #     n_weather_days=w_day,
-                                #     cv=cv,
-                                #     classifiers=["rbf", "linear"],
-                                #     class_unhealthy_label=["2To2"],
-                                #     study_id="delmas",
-                                #     add_seasons_to_features=add_seasons_to_features,
-                                #     export_fig_as_pdf=True,
-                                #     plot_2d_space=True,
-                                #     weather_file=Path(
-                                #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
-                                # )
+                                for datset in [delmas_dir_li, delmas_dir_mrnn]:
+                                    main_experiment.main(
+                                        output_dir=output_dir
+                                        / "main_experiment"
+                                        / f"delmas_{datset.stem}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                        / "2To2",
+                                        dataset_folder=datset,
+                                        preprocessing_steps=steps,
+                                        n_imputed_days=i_day,
+                                        n_activity_days=a_day,
+                                        n_weather_days=w_day,
+                                        cv=cv,
+                                        classifiers=["rbf"],
+                                        class_unhealthy_label=["2To2"],
+                                        study_id="delmas",
+                                        add_seasons_to_features=add_seasons_to_features,
+                                        export_fig_as_pdf=False,
+                                        plot_2d_space=True,
+                                        weather_file=Path(
+                                            "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
+                                    )
+                                # for datset in [cedara_dir_gain, cedara_dir_li, cedara_dir_mrnn]:
+                                #     main_experiment.main(
+                                #         output_dir=output_dir
+                                #         / "main_experiment"
+                                #         / f"cedara_{datset.stem}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                #         / "2To2",
+                                #         dataset_folder=datset,
+                                #         preprocessing_steps=steps,
+                                #         n_imputed_days=i_day,
+                                #         n_activity_days=a_day,
+                                #         n_weather_days=w_day,
+                                #         cv=cv,
+                                #         classifiers=["rbf"],
+                                #         class_unhealthy_label=["2To2"],
+                                #         study_id="cedara",
+                                #         add_seasons_to_features=add_seasons_to_features,
+                                #         export_fig_as_pdf=False,
+                                #         plot_2d_space=True,
+                                #         weather_file=Path(
+                                #             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"),
+                                #     )
                                 # main_experiment.main(
                                 #     output_dir=output_dir
                                 #     / "main_experiment"
@@ -234,7 +268,7 @@ def main(
                                     / "main_experiment"
                                     / f"cedara_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
                                     / "2To1",
-                                    dataset_folder=cedara_dir,
+                                    dataset_folder=cedara_dir_mrnn,
                                     preprocessing_steps=steps,
                                     n_imputed_days=i_day,
                                     n_activity_days=a_day,
@@ -392,7 +426,7 @@ def main(
         n_a = 6
         temporal_validation.main(
             output_dir=output_dir / "temporal_validation" / f"delmas_{i}_{n_a}" / "2To2",
-            dataset_folder=delmas_dir,
+            dataset_folder=delmas_dir_mrnn,
             n_imputed_days=i,
             n_activity_days=n_a,
             export_fig_as_pdf=True
@@ -416,8 +450,8 @@ def main(
         for imp_d in [7]:
             for a_act_day in [6]:
                 cross_farm_validation.main(
-                    farm1_path=delmas_dir,
-                    farm2_path=cedara_dir,
+                    farm1_path=delmas_dir_mrnn,
+                    farm2_path=cedara_dir_mrnn,
                     output_dir=output_dir / "cross_farm" / f"{imp_d}_{a_act_day}" / "2To2",
                     n_imputed_days=imp_d,
                     n_activity_days=a_act_day,

@@ -1476,9 +1476,9 @@ def plot_2D_decision_boundaries_(X, y, X_test, title, clf, folder=None, options=
 #                x_2 <- list()
 #                y_2 <- list()
 #                z_2 <- list()
-#                for(var in g){
+#                for(var.py in g){
 #                    if(!(x[i] %in% x_test) & !(y[i] %in% y_test)){
-#                        if (var == 1){
+#                        if (var.py == 1){
 #                            x_1 <- append(x_1, x[i])
 #                            y_1 <- append(y_1, y[i])
 #                            z_1 <- append(z_1, z[i])

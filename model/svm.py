@@ -958,24 +958,27 @@ def cross_validate_svm_fast(
     """
     if plot_2d_space:
         for kernel in svc_kernel:
-            clf = SVC(kernel=kernel, probability=True)
-            X_ = X[np.isin(y_h, [0, 1])]
-            y_ = y_h[np.isin(y_h, [0, 1])]
-            meta_ = meta_data_short[np.isin(y_h, [0, 1])]
-            clf.fit(X_, y_)
-            plot_high_dimension_db(
-                out_dir / "training",
-                X_,
-                y_,
-                None,
-                meta_,
-                clf,
-                days,
-                steps,
-                0,
-                export_fig_as_pdf
-            )
-            plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+            try:
+                clf = SVC(kernel=kernel, probability=True)
+                X_ = X[np.isin(y_h, [0, 1])]
+                y_ = y_h[np.isin(y_h, [0, 1])]
+                meta_ = meta_data_short[np.isin(y_h, [0, 1])]
+                clf.fit(X_, y_)
+                plot_high_dimension_db(
+                    out_dir / "training",
+                    X_,
+                    y_,
+                    None,
+                    meta_,
+                    clf,
+                    days,
+                    steps,
+                    0,
+                    export_fig_as_pdf
+                )
+                plot_learning_curves(clf, X_, y_, 0, out_dir / "training")
+            except Exception as e:
+                print(e)
 
     scores, scores_proba = {}, {}
 

@@ -42,7 +42,7 @@ import plotly.graph_objects as go
 from sys import exit
 from tqdm import tqdm
 from pathlib import Path
-
+from var import *
 
 def entropy_(to_resample):
     e = 0
@@ -209,7 +209,8 @@ def export_imputed_data(out, data_m_x, ori_data_x, idata, ildata, timestamp, dat
 def load_farm_data(fname, n_job, n_top_traces=0, enable_anscombe=False, enable_log_anscombe=False,
                    enable_remove_zeros=False, window=False):
     print("load_farm_data...")
-    files = glob.glob(fname + "/*.csv")
+    transponders_to_keep = transponders[0: n_top_traces]
+    files = [x for x in Path(fname).glob("*.csv")]
     if len(files) == 0:
         raise IOError("missing activity files .csv!")
     files = [file.replace("\\", '/') for file in files]  # prevent Unix issues
@@ -710,10 +711,10 @@ if __name__ == '__main__':
     #local_run()
 
     #biospi
-    local_run(input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
-              run_exp=True)
+    # local_run(input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
+    #           run_exp=True)
 
-    #local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas", run_exp=True)
+    local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas", run_exp=True)
 
     #local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara", run_exp=True)
 
