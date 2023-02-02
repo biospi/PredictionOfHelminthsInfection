@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 from gain.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
     linear_interpolation_v, build_formated_axis
-from gain.helper import xavier_init, restore_matrix_andy, restore_matrix_ranjeet
+from gain.helper import xavier_init, restore_matrix_v1, restore_matrix_v2
 from gain.helper import binary_sampler, uniform_sampler, sample_batch_index
 
 import warnings
@@ -28,10 +28,11 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import pandas as pd
 from pathlib import Path
+from multiprocessing import Manager, Pool
 
 
 def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
-         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days):
+         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days, n_job):
     '''Impute missing values in data_x
 
   Args:
@@ -231,31 +232,42 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         df_.columns = header
         dfs_transponder = [g for _, g in df_.groupby(['id'])]
 
-        for k in range(len(dfs_transponder)):
-          df_t_i = dfs_transponder[k].iloc[:, :-N_TRANSPOND - 2]
-          valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
-          # if valid <= 0:
-          #     continue
-          id = int(dfs_transponder[k]["id"].values[0])
+        if it in [range_iter[0], range_iter[-1]]:#only export heatmaps for first and last iteartion
+            pool = Pool(processes=n_job)
+            for k in range(len(dfs_transponder)):
+                pool.apply_async(worker_export_heatmap, (k, len(dfs_transponder), dfs_transponder[k],
+                                                         N_TRANSPOND, start_timestamp, xaxix_label, thresh,
+                                                         out, it))
+            pool.close()
+            pool.join()
+            pool.terminate()
 
-          _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
-                                                         days_in_col=df_t_i.shape[0])
-          fig = go.Figure(data=go.Heatmap(
-            z=df_t_i.values,
-            x=xaxix_label,
-            #y=yaxis_label,
-            y=np.arange(0, df_t_i.shape[1]),
-            colorscale='Viridis'))
-          fig.update_xaxes(tickformat="%H:%M")
-          # fig.update_yaxes(tickformat="%d %b %Y")
-          fig.update_layout(
-            title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
-            xaxis_title="Time (1 min bins)",
-            yaxis_title="Samples")
-          filename = out / f"{id}_imputed_reshaped_{thresh}_{k}_{valid}_iter_{i}.html"
-          if i % 100 == 0:
-              print(filename)
-              fig.write_html(filename)
+
+        # for k in range(len(dfs_transponder)):
+        #   df_t_i = dfs_transponder[k].iloc[:, :-N_TRANSPOND - 2]
+        #   valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
+        #   # if valid <= 0:
+        #   #     continue
+        #   id = int(dfs_transponder[k]["id"].values[0])
+        #
+        #   _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+        #                                                  days_in_col=df_t_i.shape[0])
+        #   fig = go.Figure(data=go.Heatmap(
+        #     z=df_t_i.values,
+        #     x=xaxix_label,
+        #     #y=yaxis_label,
+        #     y=np.arange(0, df_t_i.shape[1]),
+        #     colorscale='Viridis'))
+        #   fig.update_xaxes(tickformat="%H:%M")
+        #   # fig.update_yaxes(tickformat="%d %b %Y")
+        #   fig.update_layout(
+        #     title="imputed %d thresh=%d iteration=%d" % (id, thresh, i),
+        #     xaxis_title="Time (1 min bins)",
+        #     yaxis_title="Samples")
+        #   filename = out / f"{id}_imputed_reshaped_{thresh}_{k}_{valid}_iter_{i}.html"
+        #   if i in [0, 99]:
+        #       print(filename)
+        #       fig.write_html(filename)
 
         '''
 
@@ -270,15 +282,15 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             raise ValueError("Error while imputing data, all value NaN!")
 
         if RESHAPE:
-            imputed_data_restored = restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
-                                                        shape_o, rm_row_idx, imputed_data, N_TRANSPOND,
-                                                        add_t_col=ADD_TRANSP_COL, days=days)
+            imputed_data_restored = restore_matrix_v1(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
+                                                      shape_o, rm_row_idx, imputed_data, N_TRANSPOND,
+                                                      add_t_col=ADD_TRANSP_COL, days=days)
         else:
-            imputed_data_restored = restore_matrix_ranjeet(imputed_data, N_TRANSPOND)
+            imputed_data_restored = restore_matrix_v2(imputed_data, N_TRANSPOND)
 
         if miss_rate > 0:
             # rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data.copy(), imputed_data_x_li.copy(), data_m_x, output_dir, i)
-            rmse_g, rmse_l = rmse_loss(data_x_o.copy(), imputed_data_restored.copy(), imputed_data_x_li.copy(),
+            rmse_g, rmse_l = rmse_loss(data_x, data_x_o.copy(), imputed_data_restored.copy(), imputed_data_x_li.copy(),
                                        data_m_x, output_dir, i)
 
             print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
@@ -319,3 +331,29 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
         plt.savefig(filename)
 
     return imputed_data_restored, rmse_iter, rm_row_idx
+
+
+def worker_export_heatmap(i, tot, transponder, N_TRANSPOND, start_timestamp, xaxix_label, thresh, out, it):
+    df_t_i = transponder.iloc[:, :-N_TRANSPOND - 2]
+    valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
+    # if valid <= 0:
+    #     continue
+    id = int(transponder["id"].values[0])
+    print(f"exporting {id} imputed heatmaps {i}/{tot}...")
+    _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
+                                         days_in_col=df_t_i.shape[0])
+    fig = go.Figure(data=go.Heatmap(
+        z=df_t_i.values,
+        x=xaxix_label,
+        # y=yaxis_label,
+        y=np.arange(0, df_t_i.shape[1]),
+        colorscale='Viridis'))
+    fig.update_xaxes(tickformat="%H:%M")
+    # fig.update_yaxes(tickformat="%d %b %Y")
+    fig.update_layout(
+        title="imputed %d thresh=%d iteration=%d" % (id, thresh, it),
+        xaxis_title="Time (1 min bins)",
+        yaxis_title="Samples")
+    filename = out / f"{id}_imputed_reshaped_{thresh}_{i}_{valid}_iter_{it}.html"
+    print(filename)
+    fig.write_html(filename)

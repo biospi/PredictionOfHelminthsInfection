@@ -259,7 +259,7 @@ def main(transponders, farm, n_top, n_bottom, data_folder, resolution="7D"):
 
     ncol = 1
     nrow = len(files)
-    fig, axes = plt.subplots(nrow, ncol, constrained_layout=True, sharex=True, figsize=(6.2, 10.0))
+    fig, axes = plt.subplots(nrow, ncol, constrained_layout=True, sharex=True, figsize=(6.2, 5.0))
 
     for i, file in enumerate(files):
         print(f"{i}/{len(files)}...")
@@ -290,10 +290,11 @@ def main(transponders, farm, n_top, n_bottom, data_folder, resolution="7D"):
 
 
 if __name__ == "__main__":
-    main(transponders_delmas, "Delmas", 5, None, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
-    main(transponders_delmas, "Delmas", 5, 5, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
-    main(transponders_cedara, "Cedara", 5, None, 'E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed')
-    main(transponders_cedara, "Cedara", 5, 5, 'E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed')
+    n_top = 3
+    main(transponders_delmas, "Delmas", n_top, None, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
+    main(transponders_delmas, "Delmas", n_top, n_top, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
+    main(transponders_cedara, "Cedara", n_top, None, 'E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed')
+    main(transponders_cedara, "Cedara", n_top, n_top, 'E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed')
 
 
 

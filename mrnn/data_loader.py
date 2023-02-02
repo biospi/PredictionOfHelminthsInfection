@@ -104,14 +104,14 @@ def data_loader (file_name, seq_len, missing_rate, start_i, end_i, has_weather, 
   data_o = data.copy()
 
 
-  data_mask = data.copy()
-  data_mask = data_mask.fillna(0)
-  for i, col in enumerate(data.columns):
-    data[col] = data[col].sample(frac=1-missing_rate, random_state=i)
-    data_mask[col] = data_mask[col].sample(frac=1 - missing_rate, random_state=i)
-
-  data_mask = np.isnan(data_mask).astype(int).values
-  data_mask[np.isnan(data_o)] = 0
+  # data_mask = data.copy()
+  # data_mask = data_mask.fillna(0)
+  # for i, col in enumerate(data.columns):
+  #   data[col] = data[col].sample(frac=1-missing_rate, random_state=i)
+  #   data_mask[col] = data_mask[col].sample(frac=1 - missing_rate, random_state=i)
+  #
+  # data_mask = np.isnan(data_mask).astype(int).values
+  # data_mask[np.isnan(data_o)] = 0
 
   features = data.columns.values
   data = data.values
@@ -187,5 +187,5 @@ def data_loader (file_name, seq_len, missing_rate, start_i, end_i, has_weather, 
   x_mean = np.nanmean(x_, axis=(0))
   x_median = np.nanmedian(x_, axis=(0))
 
-  return x, m, t, ori_x, data_o, features, norm_parameters, w_str, data_mask, timestamp, date_str
+  return x, m, t, ori_x, data_o, features, norm_parameters, w_str, timestamp, date_str
    

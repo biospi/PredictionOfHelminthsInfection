@@ -102,7 +102,6 @@ def main(args):
         features,
         norm_parameters,
         weather_str,
-        data_mask,
         timestamp,
         date_str,
     ) = data_loader(

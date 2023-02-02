@@ -27,6 +27,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 from scipy import interpolate
 import plotly.graph_objects as go
+from sklearn.metrics import mean_squared_error
 
 
 def normalization(data, parameters=None):
@@ -122,10 +123,11 @@ def rounding(imputed_data, data_x):
     return rounded_data
 
 
-def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
+def rmse_loss(data_x, ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     '''Compute RMSE loss between ori_data and imputed_data
 
     Args:
+      - data_x: data with added missingness
       - ori_data: original data without missing values
       - imputed_data: imputed data
       - data_m: indicator matrix for missingness
@@ -135,6 +137,11 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     '''
 
     ori_data_ = ori_data.copy()
+    # Only for missing values
+    # nominator = np.nansum(((1 - data_m) * ori_data - (1 - data_m) * imputed_data) ** 2)
+    # denominator = np.nansum(1 - data_m)
+    # rmse = np.sqrt(nominator / float(denominator))
+
     # # data_m[ori_data_ == np.log(anscombe(0))] = np.nan #if any zeros in raw data flag as to be masked out
     # # data_m[ori_data_ == 0] = np.nan
     # # data_m[imputed_data_li == 0] = 1
@@ -201,6 +208,8 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     # Only for missing values
     ori_data_[np.isnan(ori_data_)] = 0
     data_m[np.isnan(data_m)] = 0
+    #data_m[ori_data_ <= np.log(anscombe(0, 0))] = 0 #only compare positive count values
+
     imputed_data[np.isnan(imputed_data)] = 0
     imputed_data_li[np.isnan(imputed_data_li)] = 0
 
@@ -218,6 +227,9 @@ def rmse_loss(ori_data, imputed_data, imputed_data_li, data_m, output_dir, i):
     denominator = np.nansum(1 - data_m)
 
     rmse_li = np.sqrt(nominator / float(denominator))
+
+    # rmse = mean_squared_error(ori_data_, imputed_data, squared=True)
+    # rmse_li = mean_squared_error(ori_data_, imputed_data_li, squared=True)
 
     return rmse, rmse_li
 
@@ -339,7 +351,7 @@ def linear_interpolation_h(input_activity):
     return input_activity
 
 
-def reshape_matrix_ranjeet(matrix):
+def reshape_matrix_v2(matrix):
     print(matrix.shape)
     transp_block = []
     for i in range(matrix.shape[1]):
@@ -352,7 +364,7 @@ def reshape_matrix_ranjeet(matrix):
     return hstack
 
 
-def restore_matrix_ranjeet(imputed, n_transpond):
+def restore_matrix_v2(imputed, n_transpond):
     split = np.array_split(imputed, n_transpond, axis=1)
     matrix = []
     for s in split:
@@ -382,9 +394,9 @@ def split_array(arr, days):
     return splits
 
 
-def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, n_transponder, add_t_col=False, days=1,
-                        thresh=None):
-    print("reshape_matrix_andy...", activity_matrix.shape)
+def reshape_matrix_v1(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, n_transponder, add_t_col=False, days=1,
+                      thresh=None):
+    print("reshape_matrix_v1...", activity_matrix.shape)
 
     transp_block = []
     transp_block_ss = []
@@ -408,8 +420,8 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
                 x_ = x.flatten().tolist()
                 x_d = x_ + [s_d[ii].tolist()[0]] + [id]
                 # print(ii)
-                d.append(np.array(x_d))
-                d_ss.append(np.array(s_ss[ii].tolist() + [id]))
+                d.append(np.array(x_d, dtype=float))
+                d_ss.append(np.array(s_ss[ii].tolist() + [id], dtype=float))
         else:
             d = [x.flatten() for x in s]
             d_ss = [x.flatten() for x in s_ss]
@@ -442,7 +454,7 @@ def reshape_matrix_andy(ids, THRESH_NAN_R, ss_data, activity_matrix, timestamp, 
 
 
 def get_transp_idx(matrix, THRESH_NAN_R, thresh, days):
-    print("reshape_matrix_andy...", matrix.shape)
+    print("reshape_matrix_v1...", matrix.shape)
 
     t_idx = []
     for i in range(matrix.shape[1]):
@@ -507,8 +519,8 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
     return filtered_row, filtered_row_ss, idx
 
 
-def restore_matrix_andy(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
-                        n_transpond, days = 1, add_t_col=None):
+def restore_matrix_v1(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
+                      n_transpond, days = 1, add_t_col=None):
     if thresh >= 0:
         imputed = add_nan_rows(shape_o, imputed, row_idx)
 
