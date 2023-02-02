@@ -249,7 +249,7 @@ def worker_export_heatmaps(
     filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}_filtered.html"
     # if i % 100 == 0:
     print(filename)
-    fig.write_html(filename)
+    fig.write_html(str(filename))
 
     d_t_na_li = d_t.interpolate(method="linear", limit_direction="both", axis=1)
     fig = go.Figure(
@@ -270,7 +270,7 @@ def worker_export_heatmaps(
     filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}_li.html"
     # if i % 100 == 0:
     print(filename)
-    fig.write_html(filename)
+    fig.write_html(str(filename))
     return xaxix_label, yaxis_label
 
 
@@ -894,6 +894,7 @@ def local_run(
     run_exp=False,
     n_top_traces=20,
     n_job=6,
+    interation=20
 ):
     thresh_daytime = 100
     thresh_nan_ratio = 80
@@ -911,6 +912,7 @@ def local_run(
                     n_top_traces=n_top_traces,
                     window_size=day,
                     n_job=n_job,
+                    interation=interation
                 )
     else:
         arg_run(
@@ -921,6 +923,7 @@ def local_run(
             miss_rate=0,
             n_top_traces=17,
             n_job=n_job,
+            interation=interation
         )
 
     # for miss_rate in np.arange(0.1, 0.99, 0.05):
@@ -1002,6 +1005,7 @@ if __name__ == "__main__":
         run_exp=True,
         n_top_traces=20,
         n_job=int(os.cpu_count() / 2),
+        interation=100
     )
 
     # local_run(
@@ -1009,7 +1013,8 @@ if __name__ == "__main__":
     #     output_dir="E:/thesis/gain/delmas",
     #     run_exp=True,
     #     n_top_traces=20,
-    #     n_job=int(os.cpu_count() / 2),
+    #     n_job=7,
+    #     interation=100
     # )
 
     # local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara", run_exp=True)
