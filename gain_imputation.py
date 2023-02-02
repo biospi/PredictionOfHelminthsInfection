@@ -1004,7 +1004,7 @@ if __name__ == "__main__":
         output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
         run_exp=True,
         n_top_traces=20,
-        n_job=25,
+        n_job=20,
         interation=100
     )
 
