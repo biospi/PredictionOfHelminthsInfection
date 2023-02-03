@@ -220,6 +220,7 @@ def worker_export_heatmaps(
     first_timestamp,
     THRESH_DT,
     out,
+    miss_rate
 ):
     d_t = transponder.iloc[:, : -n_top_traces - 2]
     xaxix_label, yaxis_label = build_formated_axis(
@@ -269,8 +270,9 @@ def worker_export_heatmaps(
     )
     filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}_li.html"
     # if i % 100 == 0:
-    print(filename)
-    fig.write_html(str(filename))
+    if miss_rate == 0:
+        print(filename)
+        fig.write_html(str(filename))
     return xaxix_label, yaxis_label
 
 
@@ -692,26 +694,26 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     df_ss.columns = header
     dfs_ss = [g for _, g in df_ss.groupby(["id"])]
 
-    if miss_rate == 0:
-        pool = Pool(processes=args.n_job)
-        for i in range(len(dfs_transponder)):
-            result = pool.apply_async(
-                worker_export_heatmaps,
-                (
-                    i,
-                    len(dfs_transponder),
-                    dfs_transponder[i],
-                    n_top_traces,
-                    N_TRANSPOND,
-                    ss_reshaped[:, : -N_TRANSPOND - 1],
-                    dfs_ss[i].iloc[:, : -n_top_traces - 2],
-                    timestamp[0],
-                    THRESH_DT,
-                    out,
-                ),
-            )
+    pool = Pool(processes=args.n_job)
+    for i in range(len(dfs_transponder)):
+        result = pool.apply_async(
+            worker_export_heatmaps,
+            (
+                i,
+                len(dfs_transponder),
+                dfs_transponder[i],
+                n_top_traces,
+                N_TRANSPOND,
+                ss_reshaped[:, : -N_TRANSPOND - 1],
+                dfs_ss[i].iloc[:, : -n_top_traces - 2],
+                timestamp[0],
+                THRESH_DT,
+                out,
+                miss_rate
+            ),
+        )
 
-            xaxix_label, yaxis_label = result.get()[0], result.get()[1]
+        xaxix_label, yaxis_label = result.get()[0], result.get()[1]
         pool.close()
         pool.join()
         pool.terminate()
