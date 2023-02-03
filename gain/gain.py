@@ -10,6 +10,8 @@ Contact: jsyoon0823@gmail.com
 # import tensorflow as tf
 ##IF USING TF 2 use following import to still use TF < 2.0 Functionalities
 import json
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import tensorflow.compat.v1 as tf
 
