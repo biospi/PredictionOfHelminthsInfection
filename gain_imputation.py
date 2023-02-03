@@ -713,10 +713,10 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
             ),
         )
 
-        xaxix_label, yaxis_label = result.get()[0], result.get()[1]
-        pool.close()
-        pool.join()
-        pool.terminate()
+    xaxix_label, yaxis_label = result.get()[0], result.get()[1]
+    pool.close()
+    pool.join()
+    pool.terminate()
 
     # for i in range(len(dfs_transponder)):
     #     d_t = dfs_transponder[i].iloc[:, :-n_top_traces - 2]
