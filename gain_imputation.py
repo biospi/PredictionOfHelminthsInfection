@@ -7,18 +7,10 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
-import datetime
-import glob
-import math
 import os
 from multiprocessing import Pool
-import pandas as pd
 
 import numpy as np
-
-from gain.data_loader import data_loader
-from gain.model_utils import imputation_performance
-from gain.mrnn import mrnn
 
 np.random.seed(0)  # for reproducability
 
@@ -28,29 +20,20 @@ from gain.helper import (
     linear_interpolation_v,
     reshape_matrix_v1,
     reshape_matrix_v2,
-    restore_matrix_v1,
     build_formated_axis,
-    linear_interpolation_h,
 )
-from gain.helper import rmse_loss
 from utils.Utils import create_rec_dir, inverse_anscombe
-import matplotlib.pyplot as plt
-import matplotlib
 
 # matplotlib.use('Qt5Agg')
 import matplotlib as mpl
 
 mpl.rcParams["agg.path.chunksize"] = 100000000000
-import matplotlib.dates as mdates
 import datetime as dt
 import scipy.stats
 from utils.Utils import anscombe
 import plotly.express as px
-import json
 import plotly.graph_objects as go
-from sys import exit
 from tqdm import tqdm
-from pathlib import Path
 from var import *
 
 
@@ -1005,21 +988,22 @@ if __name__ == "__main__":
     # local_run()
 
     # biospi
-    local_run(
-        input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
-        output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
-        run_exp=True,
-        n_top_traces=20,
-        n_job=20,
-        interation=100
-    )
+    for n_top_traces in [20, 30, 40, 50]:
+        local_run(
+            input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
+            output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
+            run_exp=True,
+            n_top_traces=n_top_traces,
+            n_job=20,
+            interation=100
+        )
 
     # local_run(
     #     input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
     #     output_dir="E:/thesis/gain/delmas",
     #     run_exp=True,
     #     n_top_traces=20,
-    #     n_job=7,
+    #     n_job=os.cpu_count()-2,
     #     interation=100
     # )
 

@@ -9,7 +9,6 @@ Contact: jsyoon0823@gmail.com
 # Necessary packages
 # import tensorflow as tf
 ##IF USING TF 2 use following import to still use TF < 2.0 Functionalities
-import json
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -20,8 +19,7 @@ tf.disable_v2_behavior()
 import numpy as np
 from tqdm import tqdm
 
-from gain.helper import normalization, renormalization, rounding, rmse_loss, rmse_loss_, \
-    linear_interpolation_v, build_formated_axis
+from gain.helper import normalization, renormalization, rmse_loss, build_formated_axis
 from gain.helper import xavier_init, restore_matrix_v1, restore_matrix_v2
 from gain.helper import binary_sampler, uniform_sampler, sample_batch_index
 
@@ -30,7 +28,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import pandas as pd
 from pathlib import Path
-from multiprocessing import Manager, Pool
+from multiprocessing import Pool
 
 
 def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
@@ -300,10 +298,12 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             rmse_gain.append(rmse_g)
             rmse_li.append(rmse_l)
 
-            rmse_info = {"rmse": rmse_g, "rmse_li": rmse_l, "training_shape": data_x.shape}
-            with open(outpath / f'rmse_{i}.json', 'w') as f:
-                json.dump(rmse_info, f)
-
+            rmse_info = {"rmse": [rmse_g], "rmse_li": [rmse_l], "training_shape": [data_x.shape], "i": [i],
+                         "g_loss":[G_loss_curr], "d_loss": [D_loss_curr]}
+            df_info = pd.DataFrame(rmse_info)
+            filepath = outpath / f'rmse_{i}.csv'
+            print(filepath)
+            df_info.to_csv(filepath, index=False)
         i += 1
     epochs = list(range(iterations))
     plt.clf()
