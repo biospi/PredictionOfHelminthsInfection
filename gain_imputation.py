@@ -999,23 +999,23 @@ if __name__ == "__main__":
     # local_run()
 
     # biospi
-    # local_run(
-    #     input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
-    #     output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
-    #     run_exp=True,
-    #     n_top_traces=20,
-    #     n_job=20,
-    #     interation=100
-    # )
-
     local_run(
-        input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
-        output_dir="E:/thesis/gain/delmas",
+        input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
+        output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
         run_exp=True,
         n_top_traces=20,
-        n_job=7,
+        n_job=20,
         interation=100
     )
+
+    # local_run(
+    #     input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
+    #     output_dir="E:/thesis/gain/delmas",
+    #     run_exp=True,
+    #     n_top_traces=20,
+    #     n_job=7,
+    #     interation=100
+    # )
 
     # local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara", run_exp=True)
 
