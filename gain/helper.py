@@ -218,13 +218,20 @@ def rmse_loss(data_x, ori_data, imputed_data, imputed_data_li, data_m, output_di
     data_m = data_m[:ori_data_.shape[0], :]
     imputed_data_li = imputed_data_li[:ori_data_.shape[0], :]
 
-    nominator = np.nansum(((1 - data_m) * ori_data_ - (1 - data_m) * imputed_data) ** 2)
-    denominator = np.nansum(1 - data_m)
+    # remove empty time slot (no transponder data)
+    mask = ori_data_.any(axis=1)
+    x_rmse = ori_data_[mask]
+    m_rmse = data_m[mask]
+    imputed_x_rmse = imputed_data[mask]
+    imputed_li_x_rmse = imputed_data_li[mask]
+
+    nominator = np.nansum(((1 - m_rmse) * x_rmse - (1 - m_rmse) * imputed_x_rmse) ** 2)
+    denominator = np.nansum(1 - m_rmse)
 
     rmse = np.sqrt(nominator / float(denominator))
 
-    nominator = np.nansum(((1 - data_m) * ori_data_ - (1 - data_m) * imputed_data_li) ** 2)
-    denominator = np.nansum(1 - data_m)
+    nominator = np.nansum(((1 - m_rmse) * x_rmse - (1 - m_rmse) * imputed_li_x_rmse) ** 2)
+    denominator = np.nansum(1 - m_rmse)
 
     rmse_li = np.sqrt(nominator / float(denominator))
 
