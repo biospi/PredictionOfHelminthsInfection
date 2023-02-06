@@ -2,6 +2,12 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import plotly.graph_objects as go
+import numpy as np
+from plotly.subplots import make_subplots
+
+from utils.Utils import anscombe
+
 #list of transponders sorted by entropy
 
 # transponders_delmas = [
@@ -302,11 +308,12 @@ def main(transponders, farm, n_top, n_bottom, data_folder, resolution="7D"):
     ncol = 1
     nrow = len(files)
     fig, axes = plt.subplots(nrow, ncol, constrained_layout=True, sharex=True, figsize=(6.2, 5.0))
-
+    all_transponders = []
     for i, file in enumerate(files):
         print(f"{i}/{len(files)}...")
         df = pd.read_csv(file)
         df["index"] = pd.to_datetime(df["date_str"], format="%Y-%m-%dT%H:%M")
+        all_transponders.append(df)
         df = df.resample(resolution, on="index").mean()
         ax = axes[i]
         df[f"first_sensor_value {file.stem}"] = df['first_sensor_value']
@@ -331,38 +338,43 @@ def main(transponders, farm, n_top, n_bottom, data_folder, resolution="7D"):
     fig.savefig(str(file_path))
     plt.show()
 
-    fig, axes = plt.subplots(nrow, ncol, constrained_layout=True, sharex=True, figsize=(6.2, 5.0))
+
+def show_sorted_transponders(transponders, farm, data_folder):
+    data_folder = Path(data_folder)
+    files = [data_folder / f"{x}.csv" for x in transponders]
+    df_all = pd.DataFrame()
+
     for i, file in enumerate(files):
         print(f"{i}/{len(files)}...")
         df = pd.read_csv(file)
-        df["index"] = pd.to_datetime(df["date_str"], format="%Y-%m-%dT%H:%M")
-        df = df.resample('T', on="index").first()
-        ax = axes[i]
-        df[f"first_sensor_value {file.stem}"] = df['first_sensor_value']
-        #df = df.iloc[182907: 182907 + 10, :]
-        df.plot.bar(y=f"first_sensor_value {file.stem}", rot=-80, ax=ax)
-        ax.set_xlabel(f"Time (1 min bin)")
-        ax.set_ylabel("Activity count")
-        ax.set_xticklabels(df.index.format())
-        interval = 7
-        # if "cedara" in farm.lower():
-        #     interval = 3
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=interval))
-        #ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-        # ax.xaxis.set_minor_formatter(mdates.DateFormatter("%Y/%m/%d"))
-    fig.suptitle(f'Top {n_top}/{tot} transponders sorted by entropy (top to bottom) for {farm}')
-    if n_bottom is not None:
-        fig.suptitle(f'Bottom {n_top}/{tot} transponders sorted by entropy (top to bottom) for {farm}')
-    fig.tight_layout()
-    file_path = data_folder / f"{farm}_top_transponders_minute.png".lower()
-    if n_bottom is not None:
-        file_path = data_folder / f"{farm}_bottom_transponders_minute.png".lower()
-    print(file_path)
-    fig.savefig(str(file_path))
-    plt.show()
+        df_all[file.stem] = df["first_sensor_value"]
+        xaxix_label = pd.to_datetime(df["date_str"], format="%Y-%m-%dT%H:%M")
+
+    stride = 1440*7
+    for i in range(0, df_all.shape[0], stride):
+        start = i
+        end = start + stride
+        df_all_ = df_all.iloc[start:end, :]
+        xaxix_label_ = xaxix_label[start:end]
+        fig = go.Figure(data=go.Heatmap(
+            z=np.log(anscombe(df_all_.values.T)),
+            x=xaxix_label_,
+            y=df_all_.columns,
+            colorscale='Viridis'))
+
+        fig.update_layout(
+            title='Transponders sorted by entropy', xaxis_title="Time (1 min bins)", yaxis_title="Transponders")
+
+        filename = f"{i}_{farm}_sorted_by_entropy.html"
+        out_dir = data_folder / filename
+        # data_folder.mkdir(parents=True, exist_ok=True)
+        print(out_dir)
+        fig.write_html(out_dir)
 
 
 if __name__ == "__main__":
+    show_sorted_transponders(transponders_delmas, "Delmas", 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
+    show_sorted_transponders(transponders_cedara, "Cedara", 'E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed')
     n_top = 3
     main(transponders_delmas, "Delmas", n_top, None, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')
     main(transponders_delmas, "Delmas", n_top, n_top, 'E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed')

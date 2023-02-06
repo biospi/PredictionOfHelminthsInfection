@@ -809,6 +809,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     # fig.write_html(filename)
 
     imputed_data_x, rmse_iter, rm_row_idx = gain(
+        n_top_traces,
         xaxix_label,
         timestamp[0],
         miss_rate,

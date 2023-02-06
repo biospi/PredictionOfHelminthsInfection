@@ -57,7 +57,7 @@ def process(df_raw_, df_gain_, df_mrnn):
     ax.set_title("RMSE comparison for each ML samples")
     ax.set_ylabel("RMSE")
     ax.set_xlabel("Imputation")
-    filename = f"RMSE_comparison_ml_samples.png"
+    filename = f"../RMSE_comparison_ml_samples.png"
     filepath = filename
     print(filepath)
     fig_.tight_layout()

@@ -31,7 +31,7 @@ from pathlib import Path
 from multiprocessing import Pool
 
 
-def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
+def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
          imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days, n_job):
     '''Impute missing values in data_x
 
@@ -299,7 +299,9 @@ def gain(xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, outpu
             rmse_li.append(rmse_l)
 
             rmse_info = {"rmse": [rmse_g], "rmse_li": [rmse_l], "training_shape": [data_x.shape], "i": [i],
-                         "g_loss":[G_loss_curr], "d_loss": [D_loss_curr]}
+                         "g_loss": [G_loss_curr], "d_loss": [D_loss_curr], "missing_rate": miss_rate,
+                         "seq_len": days, "n_top_traces": n_top_traces
+                         }
             df_info = pd.DataFrame(rmse_info)
             filepath = outpath / f'rmse_{i}.csv'
             print(filepath)
