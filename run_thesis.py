@@ -88,8 +88,8 @@ def main(
                             classifiers=["linear", "rbf"],
                             study_id="cedara",
                             add_seasons_to_features=add_seasons_to_features,
-                            plot_2d_space=True,
-                            export_fig_as_pdf=True,
+                            plot_2d_space=False,
+                            export_fig_as_pdf=False,
                             pre_visu=False,
                             weather_file=Path(
                                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"),
@@ -125,16 +125,16 @@ def main(
         for steps in steps_list:
             slug = "_".join(steps)
 
-            for i_day in [1, 2, 3, 4, 5, 6, 7]:
-                for a_day in [1, 2, 3, 4, 5, 6, 7]:
+            for i_day in [1, 3, 5, 7]:
+                for a_day in [1, 3, 4, 5, 6, 7]:
                     for w_day in [7]:
                         for cv in ['RepeatedKFold']:
                             for add_seasons_to_features in [False]:
-                                for datset in [delmas_dir_li, delmas_dir_mrnn]:
+                                for datset in [delmas_dir_mrnn]:
                                     main_experiment.main(
                                         output_dir=output_dir
                                         / "main_experiment"
-                                        / f"delmas_{datset.stem}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                        / f"{datset.stem}_delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
                                         / "2To2",
                                         dataset_folder=datset,
                                         preprocessing_steps=steps,
@@ -147,7 +147,8 @@ def main(
                                         study_id="delmas",
                                         add_seasons_to_features=add_seasons_to_features,
                                         export_fig_as_pdf=False,
-                                        plot_2d_space=True,
+                                        plot_2d_space=False,
+                                        pre_visu=False,
                                         weather_file=Path(
                                             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
                                     )

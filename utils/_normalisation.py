@@ -57,6 +57,8 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 "STEP 0 | Samples",
                 "0_X_samples.html",
                 y_log=True,
+                xaxis_title="Time (in minutes)",
+                yaxis_title="Samples"
             )
         )
 
@@ -70,6 +72,8 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 out_dir_,
                 "STEP 1 | find pointwise median sample [median of col1, .... median of col n]",
                 "1_median_array.html",
+                xaxis_title = "Time (in minutes)",
+                yaxis_title = "Median (of samples features)"
             )
         )
     # cwt_power(median_array, out_dir, step_slug="HERD", avg=np.average(median_array))
@@ -89,10 +93,12 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 zmax,
                 np.array(X_median).copy(),
                 out_dir_,
-                "STEP 2 | divide each sample by median array "
+                "STEP 2 | divide each sample by median array\n "
                 "keep div by 0 as NaN, set 0 to NaN",
                 "2_X_median.html",
                 y_log=True,
+                xaxis_title="Time (in minutes)",
+                yaxis_title="Samples"
             )
         )
 
@@ -112,11 +118,13 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 [within_median],
                 out_dir_,
                 "STEP 3 | Within each sample (rows from step2) store the median"
-                " value of the sample, which will produce an array of median "
+                " value of the sample,\n which will produce an array of median "
                 "values (1 per samples)",
                 "3_within_median.html",
                 x_axis_count=True,
                 y_log=False,
+                xaxis_title="Time (in minutes)",
+                yaxis_title="Samples"
             )
         )
 
@@ -135,10 +143,12 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 np.array(qnorm_samples).copy(),
                 out_dir_,
                 "STEP 4 | Use the array of medians"
-                " to scale(divide) each original sample,"
+                " to scale(divide) each original sample,\n"
                 " which will give all quotient normalized samples.",
                 "4_qnorm_sample.html",
                 y_log=True,
+                xaxis_title="Time (in minutes)",
+                yaxis_title="Samples"
             )
         )
 
@@ -152,10 +162,12 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 zmax,
                 diff,
                 out_dir_,
-                "STEP 5 | Substract step 4 (quotient normalised samples)"
+                "STEP 5 | Substract step 4 (quotient normalised samples)\n"
                 " from step 1 (median array)",
                 "5_diff.html",
                 y_log=False,
+                xaxis_title="Time (in minutes)",
+                yaxis_title="Samples"
             )
         )
 
@@ -342,7 +354,8 @@ def plot_all(
 
 
 def plotLine(
-    X, out_dir="", title="title", filename="file.html", x_axis_count=False, y_log=False
+    X, out_dir="", title="title", filename="file.html", x_axis_count=False, y_log=False,
+    xaxis_title=None, yaxis_title=None
 ):
     # fig = make_subplots(rows=len(transponders), cols=1)
     fig = make_subplots(rows=1, cols=1)
@@ -358,7 +371,7 @@ def plotLine(
             y=sample_log if y_log else sample,
         )
         fig.append_trace(trace, row=1, col=1)
-    fig.update_layout(title_text=title)
+    fig.update_layout(title_text=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)
@@ -375,7 +388,8 @@ def get_time_ticks(nticks):
 
 
 def plotHeatmap(
-    zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False
+    zmin, zmax, X, out_dir="", title="Heatmap", filename="heatmap.html", y_log=False,
+xaxis_title=None, yaxis_title=None
 ):
     # fig = make_subplots(rows=len(transponders), cols=1)
     # ticks = get_time_ticks(X.shape[1])
@@ -401,7 +415,7 @@ def plotHeatmap(
             colorscale="Viridis",
         )
     fig.add_trace(trace, row=1, col=1)
-    fig.update_layout(title_text=title)
+    fig.update_layout(title_text=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir / filename.replace("=", "_").lower()
     print(file_path)

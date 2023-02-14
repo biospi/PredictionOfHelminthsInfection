@@ -41,6 +41,7 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import pathlib
 from pathlib import Path
+import plotly.express as px
 from classifier.src.herd_map import create_herd_map
 
 sql_db = None
@@ -221,7 +222,7 @@ def create_and_connect_to_sql_db(db_name):
     print("CREATE DATABASE %s..." % db_name)
     # Create a connection object
     db_server_name = "localhost"
-    db_user = "axel"
+    db_user = "root"
     db_password = "Mojjo@2015"
     char_set = "utf8mb4"
     cusror_type = pymysql.cursors.DictCursor
@@ -470,20 +471,21 @@ def format_farm_id(farm_id):
     return farm_id
 
 
-def init_database(farm_id):
+def init_database(farm_id, database_type="h5"):
     print(sys.argv)
 
-    print("store data in sql database...")
-    create_sql_table("%s_resolution_min" % farm_id)
-    create_sql_table_("%s_resolution_5min" % farm_id)
-    create_sql_table_("%s_resolution_10min" % farm_id)
-    create_sql_table_("%s_resolution_month" % farm_id)
-    create_sql_table_("%s_resolution_week" % farm_id)
-    create_sql_table_("%s_resolution_day" % farm_id)
-    create_sql_table_("%s_resolution_hour" % farm_id)
-    return None, None, None, None, None, None, None
+    if database_type == "sql":
+        print("store data in sql database...")
+        create_sql_table("%s_resolution_min" % farm_id)
+        create_sql_table_("%s_resolution_5min" % farm_id)
+        create_sql_table_("%s_resolution_10min" % farm_id)
+        create_sql_table_("%s_resolution_month" % farm_id)
+        create_sql_table_("%s_resolution_week" % farm_id)
+        create_sql_table_("%s_resolution_day" % farm_id)
+        create_sql_table_("%s_resolution_hour" % farm_id)
+        return None, None, None, None, None, None, None
 
-    if sys.argv[1] == "h5":
+    if database_type == "h5":
         print("store data in h5 database...")
         # init new .h5 file for receiving sorted data
         FILTERS = tables.Filters(complib="blosc", complevel=9)
@@ -971,16 +973,33 @@ def process_raw_h5files(path, njob=None):
     data = h5_raw.root.table
     list_raw = []
     print("loading data...")
+    cpt_total = 0
+    cpt_negative = 0
+    cpt_above_bio = 0
+    all_data_point = []
     for idx, x in enumerate(data):  # need idx for data iteration?
         farm_id = x["control_station"]
         if "cedara" in str(path) and farm_id != 70091100056:  # todo remove
+            continue
+
+        if farm_id != 70101200027:
+            continue
+
+        if datetime.fromtimestamp(x["timestamp"]).year < 2016:
             continue
         # if x['serial_number'] not in [40121100797]:
         #     continue
         # if len(str(x['serial_number'])) != len("70091100056"): #todo remove
         #     continue
+        if x['first_sensor_value'] < 0:
+            cpt_negative += 1
+        if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO:
+            cpt_above_bio += 1
+
+        all_data_point.append(x['first_sensor_value'])
         if x['first_sensor_value'] > MAX_ACTIVITY_COUNT_BIO or x['first_sensor_value'] < 0:
             continue
+
         value = (
             x["timestamp"],
             farm_id,
@@ -997,7 +1016,22 @@ def process_raw_h5files(path, njob=None):
         list_raw.append(value)
         # if idx > 100000:  # todo remove
         #     break
-    # group records by farm id/control_station
+    print(f"cpt_negative={cpt_negative} cpt_above_bio={cpt_above_bio}")
+    # records = np.array(all_data_point)
+    # df = pd.DataFrame()
+    # df["counts"] = records
+    # df = df[df["counts"] > 0]
+    # df = df[df["counts"] < np.exp(10)]
+    # df["activity counts (logged)"] = np.log(df["counts"])
+    # df = df.astype(np.float16)
+    # fig = px.histogram(df, x="activity counts (logged)", title="Histogram of positive raw activity counts", nbins=1000)
+    # fig.add_vline(x=np.log(MAX_ACTIVITY_COUNT_BIO), line_dash='dash', line_color='firebrick')
+    # #fig.show()
+    # filepath = f"{Path(path).stem}.html"
+    # print(filepath)
+    # fig.write_html(filepath)
+
+    #group records by farm id/control_station
     groups = defaultdict(list)
     for i, obj in enumerate(list_raw):
         groups[obj[1]].append(obj)
@@ -1695,11 +1729,11 @@ def export_rawdata_to_csv(df, farm_id):
     print(filename_path)
 
 
-def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, thresh=1000):
+def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, database_type="sql", thresh=1000):
 
     start_time = time.time()
     farm_id = format_farm_id(farm_id)
-    init_database(farm_id)
+    table_min, table_5min, table_10min, table_h, table_d, table_w, table_m = init_database(farm_id)
     print("process data for farm %s." % farm_id)
 
     # group records by animal id/serial number
@@ -1727,41 +1761,41 @@ def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, thresh=1000):
             # pool.apply_async(process, (farm_id, animal_records, zero_to_nan_threh, interpolation_thesh,),
             # callback=save_result_10min)
 
-            # pool.apply_async(
-            #     process,
-            #     (
-            #         animal_records,
-            #         threshold_gap,
-            #         None,
-            #         idx,
-            #         len(animal_list_grouped_by_serialn),
-            #     ),
-            #     callback=save_result_1min,
-            # )
+            pool.apply_async(
+                process,
+                (
+                    animal_records,
+                    threshold_gap,
+                    None,
+                    idx,
+                    len(animal_list_grouped_by_serialn),
+                ),
+                callback=save_result_1min,
+            )
 
-            # pool.apply_async(
-            #     process,
-            #     (
-            #         animal_records,
-            #         threshold_gap,
-            #         "5min",
-            #         idx,
-            #         len(animal_list_grouped_by_serialn),
-            #     ),
-            #     callback=save_result_5min,
-            # )
+            pool.apply_async(
+                process,
+                (
+                    animal_records,
+                    threshold_gap,
+                    "5min",
+                    idx,
+                    len(animal_list_grouped_by_serialn),
+                ),
+                callback=save_result_5min,
+            )
 
-            # pool.apply_async(
-            #     process,
-            #     (
-            #         animal_records,
-            #         threshold_gap,
-            #         "10min",
-            #         idx,
-            #         len(animal_list_grouped_by_serialn),
-            #     ),
-            #     callback=save_result_10min,
-            # )
+            pool.apply_async(
+                process,
+                (
+                    animal_records,
+                    threshold_gap,
+                    "10min",
+                    idx,
+                    len(animal_list_grouped_by_serialn),
+                ),
+                callback=save_result_10min,
+            )
 
             pool.apply_async(
                 process,
@@ -1813,12 +1847,12 @@ def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, thresh=1000):
 
         pool.close()
         pool.join()
-        # for item in async_results_1min:
-        #     data_resampled_min.extend(item[0])
-        # for item in async_results_5min:
-        #     data_resampled_5min.extend(item[0])
-        # for item in async_results_10min:
-        #     data_resampled_10min.extend(item[0])
+        for item in async_results_1min:
+            data_resampled_min.extend(item[0])
+        for item in async_results_5min:
+            data_resampled_5min.extend(item[0])
+        for item in async_results_10min:
+            data_resampled_10min.extend(item[0])
         print("saving pool results...")
         for item in async_results_day:
             data_resampled_day.extend(item[0])
@@ -1865,49 +1899,50 @@ def process_raw_file(farm_id, data, threshold_gap=-1, njob=None, thresh=1000):
 
     histogram_array_nan_dur = []
 
-    print("saving data to db...")
-    # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
-    # exit(0)
+    if database_type == "sql":
+        print("saving data to db...")
+        # create_herd_map(farm_id, None, np.array(pd.DataFrame(activity_data).values.tolist()), animals_id, None, fontsize=50)
+        # exit(0)
 
-    data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
-    insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
+        data_resampled_month.extend(create_mean_median_animal(data_resampled_month))
+        insert_m_record_to_sql_table_("%s_resolution_month" % farm_id, data_resampled_month)
 
-    data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
-    insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
+        data_resampled_week.extend(create_mean_median_animal(data_resampled_week))
+        insert_m_record_to_sql_table_("%s_resolution_week" % farm_id, data_resampled_week)
 
-    data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
-    insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
+        data_resampled_day.extend(create_mean_median_animal(data_resampled_day))
+        insert_m_record_to_sql_table_("%s_resolution_day" % farm_id, data_resampled_day)
 
-    data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
-    insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
+        data_resampled_hour.extend(create_mean_median_animal(data_resampled_hour))
+        insert_m_record_to_sql_table_("%s_resolution_hour" % farm_id, data_resampled_hour)
 
-    # data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
-    # insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
-    #
-    # data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
-    # insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
+        data_resampled_10min.extend(create_mean_median_animal(data_resampled_10min))
+        insert_m_record_to_sql_table_("%s_resolution_10min" % farm_id, data_resampled_10min)
 
-    # data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
-    # insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
+        data_resampled_5min.extend(create_mean_median_animal(data_resampled_5min))
+        insert_m_record_to_sql_table_("%s_resolution_5min" % farm_id, data_resampled_5min)
 
-    create_indexes(farm_id)
-    sql_db_flush()
+        data_resampled_min.extend(create_mean_median_animal_(data_resampled_min))
+        insert_m_record_to_sql_table("%s_resolution_min" % farm_id, data_resampled_min)
 
-    # if sys.argv[1] == 'h5':
-    #     table_m.append(data_resampled_month)
-    #     table_w.append(data_resampled_week)
-    #     table_d.append(data_resampled_day)
-    #     table_h.append(data_resampled_hour)
-    #     table_min.append(data_resampled_min)
-    #     table_10min.append(data_resampled_min)
-    #     table_5min.append(data_resampled_min)
-    #     table_m.flush()
-    #     table_w.flush()
-    #     table_d.flush()
-    #     table_h.flush()
-    #     table_min.flush()
-    #     table_10min.flush()
-    #     table_5min.flush()
+        create_indexes(farm_id)
+        sql_db_flush()
+
+    if database_type == 'h5':
+        table_m.append(data_resampled_month)
+        table_w.append(data_resampled_week)
+        table_d.append(data_resampled_day)
+        table_h.append(data_resampled_hour)
+        table_min.append(data_resampled_min)
+        table_10min.append(data_resampled_min)
+        table_5min.append(data_resampled_min)
+        table_m.flush()
+        table_w.flush()
+        table_d.flush()
+        table_h.flush()
+        table_min.flush()
+        table_10min.flush()
+        table_5min.flush()
 
     print(
         len(data_resampled_5min),
@@ -2336,7 +2371,7 @@ def main(
         ..., exists=True, file_okay=True, dir_okay=False, resolve_path=True
     ),
     db_name: str = "sb",
-    create_db: bool = True,
+    create_db: bool = False,
     n_job: int = 2,
 ):
     """This script create a SQL database which will hold the activity data of the farm in multiple sampling resolution
@@ -2352,19 +2387,31 @@ def main(
 
 
 if __name__ == "__main__":
+    main(
+        "E:/SouthAfrica/Tracking Data/raw_data.h5",
+        "south_africa_activity",
+        create_db=True
+    )
+
     # main(
     #     "E:\SouthAfrica\Tracking Data\\Delmas\\raw_data_delmas_debug.h5",
     #     "south_africa",
     # )
-    main(
-        "F:\\Data2\\h5\\cedara.h5",
-        "south_africa_cedara_test",
-    )
+
+    # main(
+    #     "E:\SouthAfrica\Tracking Data\Cedara\\raw_data_cedara_debug.h5",
+    #     "south_africa",
+    # )
+
+    # main(
+    #     "F:\\Data2\\h5\\cedara.h5",
+    #     "south_africa_cedara_test",
+    # )
 
     # typer.run(main)
 
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Delmas", "raw_data_delmas.h5")
-    # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "bothaville.h5")
+    # # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Bothaville", "bothaville.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Cedara", "raw_data_cedara_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\Eenzaamheid", "raw_data_eenzaamheid_debug.h5")
     # generate_raw_files_from_xlsx("E:\SouthAfrica\Tracking Data\elandsberg", "raw_data_elandsberg_debug.h5")

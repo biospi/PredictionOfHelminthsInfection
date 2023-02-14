@@ -149,7 +149,7 @@ def entropy2(labels, base=None):
     return ent
 
 
-def process_activity_data(activity_colummn, file, i, nfiles, w, res, start, end):
+def process_activity_data(activity_colummn, file, i, nfiles, w, res, start, end, zoom):
     print("process_activity_data processing files %d/%d  ..." % (i, nfiles))
     animal_id = parse_animal_id(str(file))
     df_activity = pd.read_csv(file, sep=",")
@@ -160,7 +160,7 @@ def process_activity_data(activity_colummn, file, i, nfiles, w, res, start, end)
     df_activity["xmax"] = 0
     df_activity["ymax"] = 0
     df_activity["zmax"] = 0
-    df_activity["signal_strength"] = 0
+    # df_activity["signal_strength"] = 0
     df_activity["battery_voltage"] = 0
 
     # w = 1440 * 3
@@ -182,12 +182,15 @@ def process_activity_data(activity_colummn, file, i, nfiles, w, res, start, end)
     # for i in range(start, end, w):
     # print(animal_id, i, i+w)
     df_activity_w = df_activity.loc[:, :]
+    if zoom:
+        df_activity_w = df_activity.loc[540002: 540002 +  1440 * 1, :]
+
     # print(df_activity_w)
     # 411989 2015-11-04T02:29
     # 159840
     # if df_activity_w.shape[0] - w > 1:
     #     continue
-    entropy = scipy.stats.entropy(np.histogram(df_activity[activity_colummn].dropna(), density=True)[0])
+    entropy = scipy.stats.entropy(np.histogram(df_activity["first_sensor_value"].dropna(), density=True)[0])
 
     # e_xmin = scipy.stats.entropy(df_activity["xmin"].dropna().abs())
     # e_xmax = scipy.stats.entropy(df_activity["xmax"].dropna().abs())
@@ -500,6 +503,9 @@ def compute_magnitude(a_xmin, a_ymin, a_zmin):
 
 
 def create_heatmap(
+    display_famacha,
+    activity_col,
+    zoom,
     no_filter,
     filename,
     DATA,
@@ -573,7 +579,10 @@ def create_heatmap(
 
     a = df_raw.iloc[:, :-5].values
 
-    a = anscombe(a)
+    a = anscombe(np.abs(a))
+
+    if "signal" in activity_col.lower():
+        a = np.log(a)
 
     viridis = cm.get_cmap("viridis", 256)
     newcolors = viridis(np.linspace(0, 1, 256))
@@ -584,7 +593,7 @@ def create_heatmap(
     date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    height = 14 * df_raw.shape[0]/100
+    height = 13 * df_raw.shape[0]/100
     figsize = (20.20, height)
     if farm_id == "cedara":
         figsize = (20.20, height)
@@ -601,7 +610,8 @@ def create_heatmap(
     )
     # plt.colorbar(im_a_log_anscomb, ax=[ax], location='left')
     # fig.colorbar(im_a_log_anscomb, cax=ax)
-    cb = plt.colorbar(im_a_log_anscomb, ax=[ax], location="left", pad=0.01)
+    if not no_filter:
+        cb = plt.colorbar(im_a_log_anscomb, ax=[ax], location="left", pad=0.01)
 
     ax.xaxis_date()
 
@@ -684,7 +694,7 @@ def create_heatmap(
                     lw=lw,
                     alpha=1,
                 )
-                if not no_filter:
+                if display_famacha:
                     ax.add_patch(rec)
 
     param_str = (
@@ -692,14 +702,14 @@ def create_heatmap(
     )
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
 
-    title1 = f"{farm_id} herd activity data (t=anscombe bin={resolution}) and samples"
+    title1 = f"{farm_id} herd {activity_col} data (t=anscombe bin={resolution}) and samples"
     # ax.set_title(title1)
 
     title2 = f"Imputed Activity data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
 
     title3 = f"(imputed only) Imputed Activity raw data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
     patches = []
-    if not no_filter:
+    if display_famacha:
         for k in DATASET_INFO.keys():
             if k == "total":
                 continue
@@ -721,16 +731,19 @@ def create_heatmap(
     if "cedara" in farm_id:
         y = 1.28
 
-    legend = ax.legend(
-        title=title1.title(),
-        frameon=False,
-        handles=patches,
-        loc="upper center",
-        bbox_to_anchor=(0.5, y),
-        fancybox=True,
-        framealpha=0.5,
-        ncol=4,
-    )
+    if display_famacha:
+        legend = ax.legend(
+            title=title1.title(),
+            frameon=False,
+            handles=patches,
+            loc="upper center",
+            bbox_to_anchor=(0.5, y),
+            fancybox=True,
+            framealpha=0.5,
+            ncol=4,
+        )
+    else:
+        ax.set_title(title1.title())
 
     # frame = legend.get_frame()  # sets up for color, edge, and transparency
     # frame.set_facecolor('#b4aeae')  # color of legend
@@ -1264,6 +1277,8 @@ def main(
     start: int = 0,
     end: str = -1,
     no_filter: bool = False,
+    display_famacha: bool = True,
+    zoom: bool = False,
     n_job: int = 6,
 ):
     """Create heatmap of the heard with sample overlay.\n
@@ -1302,7 +1317,7 @@ def main(
     print(f"sampling{sampling}")
     print(f"day_before_famacha_test{day_before_famacha_test}")
 
-    files = [str(x) for x in list(activity_dir.glob("*.csv"))][0:30]
+    files = [str(x) for x in list(activity_dir.glob("*.csv")) if len(x.stem) > 5]
     if len(files) == 0:
         raise IOError(f"missing activity files .csv! in {activity_dir}")
 
@@ -1330,7 +1345,7 @@ def main(
         results.append(
             pool.apply_async(
                 process_activity_data,
-                (activity_col, file, i, len(files), w, res, start, end),
+                (activity_col, file, i, len(files), w, res, start, end, zoom),
             )
         )
     pool.close()
@@ -1342,8 +1357,11 @@ def main(
         DATA.append(res.get())
 
     create_heatmap(
+        display_famacha,
+        activity_col,
+        zoom,
         no_filter,
-        f"heatmap_{farm_id}.png",
+        f"heatmap_{farm_id}_{activity_col}_{zoom}.png",
         DATA,
         0,
         0,
@@ -1399,26 +1417,60 @@ def local_run():
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
         activity_dir=Path(
-            "E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"
+            "F:/Data2/backfill_1min_xyz_delmas_fixed"
         ),
         dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
-        activity_col="first_sensor_value",
+        activity_col="signal_strength",
         farm_id="delmas",
         day_before_famacha_test=7,
-        no_filter=True
+        no_filter=False,
+        display_famacha=False,
+        res='1T',
+        zoom=True
     )
 
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
         activity_dir=Path(
-            "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
+            "F:/Data2/backfill_1min_xyz_delmas_fixed"
         ),
-        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
+        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
         activity_col="first_sensor_value",
-        farm_id="cedara",
+        farm_id="delmas",
         day_before_famacha_test=7,
-        no_filter=True
+        no_filter=False,
+        display_famacha=False,
+        res='1T',
+        zoom=True
     )
+
+
+
+
+
+    # main(
+    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+    #     activity_dir=Path(
+    #         "E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed_with_missing_tag"
+    #     ),
+    #     dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+    #     activity_col="first_sensor_value",
+    #     farm_id="delmas",
+    #     day_before_famacha_test=7,
+    #     no_filter=True
+    # )
+    #
+    # main(
+    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+    #     activity_dir=Path(
+    #         "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
+    #     ),
+    #     dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
+    #     activity_col="first_sensor_value",
+    #     farm_id="cedara",
+    #     day_before_famacha_test=7,
+    #     no_filter=True
+    # )
 
 
     # main(

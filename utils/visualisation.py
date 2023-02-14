@@ -615,6 +615,11 @@ def build_annotations(df, fig_auc_only):
     return tuple(annotations)
 
 
+def human_readable(string):
+    hr_String = ""
+    return hr_String
+
+
 def plot_ml_report_final(output_dir):
     print("building report visualisation...")
     dfs = []
@@ -681,7 +686,7 @@ def plot_ml_report_final(output_dir):
                     label_formated += f"{item}>"
                     if i == len(split)-4:
                         label_formated += "<br>"
-                formated_label.append(label_formated)
+                formated_label.append(human_readable(label_formated))
             df_f_['config'] = formated_label
 
             fig.append_trace(

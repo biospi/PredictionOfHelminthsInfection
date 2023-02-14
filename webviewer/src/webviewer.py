@@ -1,50 +1,46 @@
 # -*- coding: utf-8 -*-
-import base64
-import glob
 import json
+import math
 import operator
 import os
 import statistics
 import sys
 from datetime import datetime, timedelta
 from itertools import groupby
+from math import e
 from multiprocessing import Process, Queue
+from pathlib import Path
 from time import mktime
 from time import strptime
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import flask
 import numpy as np
-from numpy import diff
+import pandas as pd
 import plotly
 import plotly.graph_objs as go
 import pymysql
+# import PyWavelets ?? for pywt
+import pywt
+import pywt.data
 import requests
 import tables
 from dash.dependencies import Input, Output
 from dateutil.relativedelta import *
 from ipython_genutils.py3compat import xrange
-from scipy import signal
-#import PyWavelets ?? for pywt
-import pywt
-import pywt.data
-import matplotlib.pyplot as plt
-import pandas as pd
-import math
+from numpy import diff
 from scipy import interpolate
-from scipy.stats import entropy
-from math import log, e
-from pylab import figure, show, legend, ylabel
+from scipy import signal
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 global sql_db
 
-db_name = "south_africa_cedara"
-
+db_name = "south_africa"
+#database_type = sys.argv[3]
+database_type = 'sql'
 
 def get_date_range(layout_data, herd=False):
     #print('get_date_range', layout_data)
@@ -452,9 +448,9 @@ def get_resolution_string(value):
     if value == 3:
         result = 'resolution_5min'
     if value == 4:
-        result = 'resolution_min'
+        result = 'resolution_5min'
     if value == 5:
-        result = 'resolution_min'
+        result = 'resolution_5min'
     return result
 
 
@@ -567,14 +563,19 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
         file_path = raw["file_path"]
         farm_id = raw["farm_id"]
 
-        if 'sql' == 'h5':
+        if database_type == 'h5':
             print("opening file in thread test")
             h5 = tables.open_file(file_path, "r")
-            data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
-                     x['first_sensor_value'])
-                    for x in h5.root.resolution_month.data if x_min_epoch < x['timestamp'] < x_max_epoch]
+            if x_min_epoch is not None:
+                data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                         x['first_sensor_value'], x['serial_number'])
+                        for x in h5.root.resolution_m.data if x_min_epoch < x['timestamp'] < x_max_epoch]
+            else:
+                data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                         x['first_sensor_value'], x['serial_number'])
+                        for x in h5.root.resolution_h.data]
 
-        if 'sql' == 'sql':
+        if database_type == 'sql':
             if x_max_epoch is not None:
                 rows = execute_sql_query(
                     "SELECT timestamp_s, first_sensor_value, serial_number FROM %s_%s WHERE timestamp BETWEEN %s AND %s" %
@@ -585,19 +586,18 @@ def thread_activity_herd(q_4, intermediate_value, filter_famacha, relayout_data,
                     (farm_id, resolution_string))
 
 
-            # famacha = [40101310143, 40101310125, 40101310145, 40101310299, 40101310353, 40101310345, 40101310013,
-            #            40101310352, 40101310342, 40101310134, 40101310157, 40101310036, 40101310039, 40101310249,
-            #            40101310106, 40101310115, 40101310316, 40101310142, 40101310107, 40101310119, 40101310146,
-            #            40101310386, 40101310336, 40101310095, 40101310310, 40101310314, 40101310350, 40101310069,
-            #            40101310121, 40101310098, 40101310347, 40101310109, 40101310050]
+                # famacha = [40101310143, 40101310125, 40101310145, 40101310299, 40101310353, 40101310345, 40101310013,
+                #            40101310352, 40101310342, 40101310134, 40101310157, 40101310036, 40101310039, 40101310249,
+                #            40101310106, 40101310115, 40101310316, 40101310142, 40101310107, 40101310119, 40101310146,
+                #            40101310386, 40101310336, 40101310095, 40101310310, 40101310314, 40101310350, 40101310069,
+                #            40101310121, 40101310098, 40101310347, 40101310109, 40101310050]
 
-            famacha = []
-            data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
-            # if 'cubic' in filter_famacha:
-            #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows if x['serial_number'] in famacha]
-            # else:
-            #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
-
+                famacha = []
+                data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
+                # if 'cubic' in filter_famacha:
+                #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows if x['serial_number'] in famacha]
+                # else:
+                #     data = [(x['timestamp_s'], process_sensor_value(x['first_sensor_value']), x['serial_number']) for x in rows]
 
     activity_list = []
 
@@ -768,16 +768,22 @@ def thread_activity(q_1, selected_serial_number, intermediate_value, normalize, 
             file_path = raw["file_path"]
             farm_id = raw["farm_id"]
 
-            if 'sql' == 'h5':
+            if database_type == 'h5':
                 print("opening file in thread test")
                 h5 = tables.open_file(file_path, "r")
 
-            if 'sql' == 'h5':
-                data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
-                         x['first_sensor_value'])
-                        for x in h5.root.resolution_month.data if
-                        x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
-            if 'sql' == 'sql':
+            if database_type == 'h5':
+                if x_max_epoch is not None:
+                    data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                             x['first_sensor_value'])
+                            for x in h5.root.resolution_m.data if
+                            x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
+                else:
+                    data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                             x['first_sensor_value'])
+                            for x in h5.root.resolution_h.data if
+                            x['serial_number'] == i]
+            if database_type == 'sql':
                 if x_max_epoch is not None:
                     rows = execute_sql_query(
                         "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
@@ -943,16 +949,22 @@ def thread_signal(q_2, selected_serial_number, intermediate_value, relayout_data
 
             file_path = raw["file_path"]
             farm_id = raw["farm_id"]
-            if 'sql' == 'h5':
+            if database_type == 'h5':
                 print("opening file in thread signal")
                 h5 = tables.open_file(file_path, "r")
 
-            if 'sql' == 'h5':
-                data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
-                         x['signal_strength_max'], x['signal_strength_min'])
-                        for x in h5.root.resolution_month.data if
-                        x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
-            if 'sql' == 'sql':
+            if database_type == 'h5':
+                if x_max_epoch is not None:
+                    data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                             x['signal_strength_max'], x['signal_strength_min'])
+                            for x in h5.root.resolution_m.data if
+                            x['serial_number'] == i and x_min_epoch < x['timestamp'] < x_max_epoch]
+                else:
+                    data = [(datetime.utcfromtimestamp(x['timestamp']).strftime('%Y-%m-%dT%H:%M'),
+                             x['signal_strength_max'], x['signal_strength_min'])
+                            for x in h5.root.resolution_h.data if
+                            x['serial_number'] == i]
+            if database_type == 'sql':
                 if resolution_string == 'resolution_min':
                     rows = execute_sql_query(
                         "SELECT timestamp, signal_strength FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
@@ -1216,7 +1228,7 @@ def thread_spectrogram(q_3, window_size, radio, wavelet, data):
     }])
 
 
-def connect_to_sql_database(db_server_name="localhost", db_user="axel", db_password="Mojjo@2015", db_name="",
+def connect_to_sql_database(db_server_name="localhost", db_user="root", db_password="Mojjo@2015", db_name="",
                             char_set="utf8mb4", cusror_type=pymysql.cursors.DictCursor):
     # print("connecting to db %s..." % db_name)
     global sql_db
@@ -1296,13 +1308,13 @@ def build_dashboard_layout():
         html.Div(id='figure-data-herd', style={'display': 'none'}),
         html.Div(id='figure-data-spectogram', style={'display': 'none'}),
         html.Div(id='dropdown-data-serial', style={'display': 'none'}),
-        html.Img(id='logo', style={'max-width': '10%', 'min-width': '10%'},
-                 src='http://dof4zo1o53v4w.cloudfront.net/s3fs-public/styles/logo/public/logos/university-of-bristol'
-                     '-logo.png?itok=V80d7RFe'),
-        html.Br(),
-        html.Big(
-            children="PhD Thesis: Deep learning of activity monitoring data for disease detection to support "
-                     "livestock farming in resource-poor communities in Africa."),
+        # html.Img(id='logo', style={'max-width': '10%', 'min-width': '10%'},
+        #          src='http://dof4zo1o53v4w.cloudfront.net/s3fs-public/styles/logo/public/logos/university-of-bristol'
+        #              '-logo.png?itok=V80d7RFe'),
+        # html.Br(),
+        # html.Big(
+        #     children="PhD Thesis: Deep learning of activity monitoring data for disease detection to support "
+        #              "livestock farming in resource-poor communities in Africa."),
         html.Br(),
         html.Br(),
         # html.B(id='farm-title'),
@@ -1735,19 +1747,20 @@ if __name__ == '__main__':
     con = False
     farm_array = []
 
-    if 'sql' == 'h5':
-        h5_files_in_data_directory = glob.glob("\*.h5")
-        json_files_in_data_directory = glob.glob("\*.json")
-        print(h5_files_in_data_directory)
-        print(json_files_in_data_directory)
-        for s in h5_files_in_data_directory:
-            split = s.split("\\")
-            farm_name = split[len(split) - 1]
-            farm_array.append({'label': str(farm_name), 'value': farm_name})
+    data_dir = Path(os.path.realpath(__file__)).parent
+    h5_files_in_data_directory = data_dir.glob("*.h5")
 
-    if 'sql' == 'sql':
+    if database_type == 'h5':
+        #h5_files_in_data_directory = glob.glob("C:/Users/fo18103/PycharmProjects\PredictionOfHelminthsInfection\Data\*.h5")
+        # json_files_in_data_directory = glob.glob("\*.json")
+        # print(h5_files_in_data_directory)
+        # print(json_files_in_data_directory)
+        for file in h5_files_in_data_directory:
+            farm_array.append({'label': file.stem, 'value': file.stem})
+
+    if database_type == 'sql':
         db_server_name = "localhost"
-        db_user = "axel"
+        db_user = "root"
         db_password = "Mojjo@2015"
         char_set = "utf8mb4"
         cusror_type = pymysql.cursors.DictCursor
@@ -1870,20 +1883,20 @@ if __name__ == '__main__':
     def clean_data(farm_id):
         if farm_id is not None:
             print("saving data in hidden div...")
-            path = farm_id
-            if 'sql' == 'h5':
+            path = farm_id + ".h5"
+            if database_type == 'h5':
                 h5 = tables.open_file(path, "r")
-                serial_numbers = list(set([(x['serial_number']) for x in h5.root.resolution_month.data.iterrows()]))
+                serial_numbers = list(set([(x['serial_number']) for x in h5.root.resolution_m.data.iterrows()]))
                 print(serial_numbers)
                 print("getting data in file...")
 
                 # sort by serial numbers containing data size
                 map = {}
                 for serial_number in serial_numbers:
-                    map[serial_number] = len([x['signal_strength_min'] for x in h5.root.resolution_hour.data if
+                    map[serial_number] = len([x['signal_strength_min'] for x in h5.root.resolution_h.data if
                                               x['serial_number'] == serial_number])
 
-            if 'sql' == 'sql':
+            if database_type == 'sql':
                 serial_numbers_rows = execute_sql_query("SELECT DISTINCT(serial_number) FROM %s_resolution_week" % farm_id)
                 serial_numbers = [x['serial_number'] for x in serial_numbers_rows]
                 print("getting data in file...")
@@ -1986,38 +1999,38 @@ if __name__ == '__main__':
                 return json.dumps(result, cls=plotly.utils.PlotlyJSONEncoder)
 
 
-    @app.callback(
-        Output('activity-mean-value', 'children'),
-        [Input('farm-dropdown', 'value'),
-         Input('relayout-data', 'children'),
-         Input('normalize', 'value')])
-    def update_figure(farm_id, relayout_data, normalize):
-        print(farm_id)
-
-        if farm_id is not None:
-            range_d = get_date_range(json.loads(relayout_data))
-            resolution_string = 'resolution_day'
-            if 'x_max_epoch' in range_d:
-                x_max_epoch = range_d['x_max_epoch']
-                x_min_epoch = range_d['x_min_epoch']
-                if range_d['x_max'] is not None:
-                    value = find_appropriate_resolution(get_elapsed_time_seconds(x_min_epoch, x_max_epoch))
-                    resolution_string = get_resolution_string(value)
-
-                rows_mean = execute_sql_query(
-                    "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
-                    (farm_id, resolution_string, 50000000000, x_min_epoch, x_max_epoch))
-            else:
-                rows_mean = execute_sql_query(
-                    "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s" %
-                    (farm_id, resolution_string, 50000000000))
-
-            activity_m = [(x['first_sensor_value']) for x in rows_mean]
-            # if 'Anscombe' in normalize:
-            #     activity_m = normalize_activity_array_anscomb(activity_m)
-
-            if len(activity_m) > 0:
-                return json.dumps(activity_m, cls=plotly.utils.PlotlyJSONEncoder)
+    # @app.callback(
+    #     Output('activity-mean-value', 'children'),
+    #     [Input('farm-dropdown', 'value'),
+    #      Input('relayout-data', 'children'),
+    #      Input('normalize', 'value')])
+    # def update_figure(farm_id, relayout_data, normalize):
+    #     print(farm_id)
+    #
+    #     if farm_id is not None:
+    #         range_d = get_date_range(json.loads(relayout_data))
+    #         resolution_string = 'resolution_day'
+    #         if 'x_max_epoch' in range_d:
+    #             x_max_epoch = range_d['x_max_epoch']
+    #             x_min_epoch = range_d['x_min_epoch']
+    #             if range_d['x_max'] is not None:
+    #                 value = find_appropriate_resolution(get_elapsed_time_seconds(x_min_epoch, x_max_epoch))
+    #                 resolution_string = get_resolution_string(value)
+    #
+    #             rows_mean = execute_sql_query(
+    #                 "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s AND timestamp BETWEEN %s AND %s" %
+    #                 (farm_id, resolution_string, 50000000000, x_min_epoch, x_max_epoch))
+    #         else:
+    #             rows_mean = execute_sql_query(
+    #                 "SELECT timestamp, first_sensor_value FROM %s_%s WHERE serial_number=%s" %
+    #                 (farm_id, resolution_string, 50000000000))
+    #
+    #         activity_m = [(x['first_sensor_value']) for x in rows_mean]
+    #         # if 'Anscombe' in normalize:
+    #         #     activity_m = normalize_activity_array_anscomb(activity_m)
+    #
+    #         if len(activity_m) > 0:
+    #             return json.dumps(activity_m, cls=plotly.utils.PlotlyJSONEncoder)
 
 
     @app.callback(
@@ -2197,7 +2210,7 @@ if __name__ == '__main__':
         print("start thread_spectrogram...")
         p = Process(target=thread_spectrogram, args=(q_3, window_size, radio, wavelet, j,))
         p.start()
-        result = q_3.get(timeout=10)
+        result = q_3.get(timeout=1000000)
         p.join()
         print("thread_spectrogram finished.")
         return json.dumps(result, cls=plotly.utils.PlotlyJSONEncoder)
