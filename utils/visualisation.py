@@ -30,7 +30,7 @@ from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power, DWT
 from utils.Utils import anscombe, concatenate_images
 from utils._normalisation import CenterScaler
 
-import umap.plot
+# import umap.plot
 import seaborn as sns
 from collections import Counter
 import matplotlib.cm as cm
