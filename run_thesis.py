@@ -50,22 +50,22 @@ def biospi_run(n_job=25):
     main(
         output_dir=Path("/mnt/storage/scratch/axel/thesis"),
         cedara_dir_mrnn=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/datasetmrnn7_23"
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_datasetmrnn7_23"
         ),
         cedara_dir_gain=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/dataset_1_gain_60"
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_gain_60"
         ),
         cedara_dir_li=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/dataset_1_li_60"
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_li_60"
         ),
         delmas_dir_mrnn=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset4_mrnn_7day"
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
         ),
         delmas_dir_gain=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset_1_gain_60"
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_gain_60"
         ),
         delmas_dir_li=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset_1_li_60"
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_li_60"
         ),
         n_job=n_job,
     )
@@ -75,12 +75,12 @@ def local_run():
 
     main(
         output_dir=Path("E:/thesis_final_feb16"),
-        cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
-        cedara_dir_gain=Path("E:/thesis/datasets/cedara/datasetmrnn7_gain"),
-        cedara_dir_li=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
-        delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/dataset4_mrnn_7day"),
-        delmas_dir_gain=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain"),
-        delmas_dir_li=Path("E:/thesis/datasets/delmas/dataset_li_7_17"),
+        cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
+        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_gain"),
+        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"),
+        delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_datasetmrnn7_gain"),
+        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_li_7_17"),
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
