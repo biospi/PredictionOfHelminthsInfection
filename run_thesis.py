@@ -217,7 +217,7 @@ def main(
                                                 output_dir=output_dir
                                                 / "main_experiment"
                                                 / clf
-                                                / dataset
+                                                / dataset.stem
                                                 / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
                                                 / class_unhealthy_label,
                                                 dataset_folder=dataset,
