@@ -40,6 +40,7 @@ from natsort import natsorted
 import plotly.express as px
 
 CSS_COLORS = {
+    "NONE": "black",
     "QN_ANSCOMBE_LOG_STDS": "forestgreen",
     "LINEAR_QN_ANSCOMBE_LOG_CENTER_DWT": "teal",
     "LINEAR_QN_ANSCOMBE_LOG": "green",
@@ -615,9 +616,11 @@ def build_annotations(df, fig_auc_only):
     return tuple(annotations)
 
 
-def human_readable(string):
-    hr_String = ""
-    return hr_String
+def human_readable(string, df):
+    split = string.split('>')
+    hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
+    #hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]}"
+    return hr_string
 
 
 def plot_ml_report_final(output_dir):
@@ -625,8 +628,8 @@ def plot_ml_report_final(output_dir):
     dfs = []
     label_dict = {}
     paths = list(output_dir.glob("**/*.csv"))
-    if len(paths) == 0:
-        paths = list(output_dir.parent.glob("**/*.csv"))
+    # if len(paths) == 0:
+    #     paths = list(output_dir.parent.glob("**/*.csv"))
 
     for path in paths:
         if "report" not in str(path):
@@ -651,7 +654,7 @@ def plot_ml_report_final(output_dir):
         print("no reports available.")
         return
     df = pd.concat(dfs, axis=0)
-    df = df[df['classifier_details'] == 'SVC_rbf_results']
+    #df = df[df['classifier_details'] == 'SVC_rbf_results']
     df["health_tags"] = df["class_0_label"] + df["class_1_label"]
     df["color"] = [x.split(">")[-3] for x in df["config"].values]
     # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
@@ -679,6 +682,7 @@ def plot_ml_report_final(output_dir):
 
             df_f_ = formatForBoxPlot(df_f_)
             formated_label = []
+            formated_label_s = []
             for label in df_f_['config'].values:
                 split = label.split('>')
                 label_formated = ""
@@ -686,39 +690,39 @@ def plot_ml_report_final(output_dir):
                     label_formated += f"{item}>"
                     if i == len(split)-4:
                         label_formated += "<br>"
-                formated_label.append(human_readable(label_formated))
+                formated_label.append(label_formated)
+                formated_label_s.append(human_readable(label_formated, df_f_))
             df_f_['config'] = formated_label
+            df_f_['config_s'] = formated_label_s
 
             fig.append_trace(
-                px.box(df_f_, x="config", y="test_precision_score0").data[0],
+                px.box(df_f_, x="config_s", y="test_precision_score0").data[0],
                 row=1,
                 col=1,
             )
             fig.append_trace(
-                px.box(df_f_, x="config", y="test_precision_score1").data[0],
+                px.box(df_f_, x="config_s", y="test_precision_score1").data[0],
                 row=2,
                 col=1,
             )
             fig.append_trace(
-                px.box(df_f_, x="config", y="test_balanced_accuracy_score").data[0],
+                px.box(df_f_, x="config_s", y="test_balanced_accuracy_score").data[0],
                 row=3,
                 col=1,
             )
             fig.append_trace(
-                px.box(df_f_, x="config", y="roc_auc_scores").data[0],
+                px.box(df_f_, x="config_s", y="roc_auc_scores").data[0],
                 row=4,
                 col=1,
             )
-
             fig_auc_only.append_trace(
-                px.box(df_f_, x="config", y="roc_auc_scores", title=t4).data[0],
+                px.box(df_f_, x="config_s", y="roc_auc_scores", title=t4).data[0],
                 row=1,
                 col=1,
             )
             #annot = build_annotations(df_f_, fig_auc_only)
             fig.update_xaxes(showticklabels=False)  # hide all the xticks
             fig.update_xaxes(showticklabels=True, row=4, col=1, automargin=True)
-
             fig.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
             fig.update_xaxes(showgrid=True, gridwidth=1, automargin=True)
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=500))
@@ -732,30 +736,30 @@ def plot_ml_report_final(output_dir):
             # fig_auc_only.write_html(str(filepath))
             # fig.show()
 
-            x_data = df_f_["config"].unique()
+            x_data = df_f_["config_s"].unique()
 
-            color_data = [x.split(">")[-4] for x in x_data]
-            imp_days_data = [x.split(">")[1].split('=')[1] for x in x_data]
+            color_data = [x.split(" ")[-1] for x in x_data]
+            imp_days_data = [x.split(" ")[0].split('=')[1] for x in x_data]
             y_data = []
-            for x in df_f_["config"].unique():
-                y_data.append(df_f_[df_f_["config"] == x]["roc_auc_scores"].values)
+            for x in df_f_["config_s"].unique():
+                y_data.append(df_f_[df_f_["config_s"] == x]["roc_auc_scores"].values)
             traces = []
             colors = []
             class0_list = []
             class1_list = []
             sec_axis = []
             for i_d, c, xd, yd in zip(imp_days_data, color_data, x_data, y_data):
-                class0 = df_f_[df_f_["config"] == xd]["class0"].unique()
-                class1 = df_f_[df_f_["config"] == xd]["class1"].unique()
-                imp_days = df_f_[df_f_["config"] == xd]["class1"].unique()
+                class0 = df_f_[df_f_["config_s"] == xd]["class0"].unique()
+                class1 = df_f_[df_f_["config_s"] == xd]["class1"].unique()
+                imp_days = df_f_[df_f_["config_s"] == xd]["class1"].unique()
                 class0_list.append(class0)
                 class1_list.append(class1)
                 try:
                     color = CSS_COLORS[c.replace("(", '').replace(")", '')]
                 except Exception as e:
-                    print(e)
+                    print("error while parsing box color", e)
                     color = "blue"
-
+                #xd = xd.split('<br>')[0]
                 colors.append(color)
                 traces.append(
                     go.Bar(

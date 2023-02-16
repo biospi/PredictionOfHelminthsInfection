@@ -39,7 +39,7 @@ def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False):
 
 def window_length_effect_plot(data_dir, df, study_id="delmas", li=False):
     iteration = 99
-    n_top_traces = 40
+    n_top_traces = 20
     df_ = df[df["n_top_traces"] == n_top_traces]
     df_ = df_[df_["i"] == iteration]
     name = "Sample length\n(in days)"

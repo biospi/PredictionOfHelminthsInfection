@@ -3,6 +3,7 @@ import json
 from sklearn.metrics import roc_curve, auc
 from multiprocessing import Pool, Manager
 import numpy as np
+from tqdm import tqdm
 
 from utils.Utils import mean_confidence_interval
 
@@ -45,13 +46,11 @@ def worker(data, i, tot, paths, auc_list_test, auc_list_train):
     auc_list_train.append(roc_auc)
 
 
-def main(path=None, tot=100, n_job=6):
-    paths = np.array(list(path.glob("*.json")))
-
-    data = {}
+def main(path=None, n_bootstrap=1000, n_job=6):
     print("loading data...")
-    for i, filepath in enumerate(paths):
-        print(f"{i}/{len(paths)}...")
+    paths = np.array(list(path.glob("*.json")))
+    data = {}
+    for filepath in tqdm(paths):
         with open(filepath, "r") as fp:
             loo_result = json.load(fp)
             data[filepath.stem] = {
@@ -66,10 +65,10 @@ def main(path=None, tot=100, n_job=6):
     with Manager() as manager:
         auc_list_test = manager.list()
         auc_list_train = manager.list()
-        for i in range(tot):
+        for i in range(n_bootstrap):
             pool.apply_async(
                 worker,
-                (data, i, tot, paths, auc_list_test, auc_list_train),
+                (data, i, n_bootstrap, paths, auc_list_test, auc_list_train),
             )
         pool.close()
         pool.join()
@@ -81,13 +80,13 @@ def main(path=None, tot=100, n_job=6):
     mean_auc_test = np.mean(auc_list_test)
     lo_test, hi_test = mean_confidence_interval(auc_list_test)
     print(
-        f"Mean Test AUC = {mean_auc_test:.2f}, 95%% CI [{lo_test:.2f}, {hi_test:.2f}] )"
+        f"Mean Test AUC = {mean_auc_test:.2f}, 95% CI [{lo_test:.2f}, {hi_test:.2f}] )"
     )
 
     mean_auc_train = np.mean(auc_list_train)
     lo_train, hi_train = mean_confidence_interval(auc_list_train)
     print(
-        f"Mean Train AUC = {mean_auc_train:.2f}, 95%% CI [{lo_train:.2f}, {hi_train:.2f}] )"
+        f"Mean Train AUC = {mean_auc_train:.2f}, 95% CI [{lo_train:.2f}, {hi_train:.2f}] )"
     )
 
     return mean_auc_test, lo_test, hi_test, mean_auc_train, lo_train, hi_train

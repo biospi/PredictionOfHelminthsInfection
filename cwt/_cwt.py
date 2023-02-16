@@ -63,7 +63,7 @@ def plot_cwt_power_sidebyside(
     total_healthy = df_timedomain[df_timedomain["health"] == 0].shape[0]
     total_unhealthy = df_timedomain[df_timedomain["health"] == 1].shape[0]
     plt.clf()
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(22.20, 16.80))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(19.2, 7.2))
     # fig.suptitle(title, fontsize=18)
     # wavelength = 1 / freqs
 
@@ -339,7 +339,7 @@ def plot_dwt_power(
     standard_scale=False
 ):
     plt.clf()
-    fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+    fig, axs = plt.subplots(1, 2, figsize=(19.2, 7.2))
     ticks = list(range(len(activity)))
     if format_xaxis:
         ticks = list(range(len(activity)))
@@ -351,7 +351,7 @@ def plot_dwt_power(
     #             label='activity centered (signal - average of all sample (=%.2f))' % avg)
     axs[0].legend(loc="upper right")
     axs[0].set_title(
-        "Time domain signal %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
+        "Time domain signal\n %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
     )
 
     axs[0].set(xlabel="Time", ylabel="activity")
@@ -421,7 +421,7 @@ def plot_stft_power(
     standard_scale=False,
 ):
     plt.clf()
-    fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+    fig, axs = plt.subplots(1, 2, figsize=(19.2, 7.2))
     ticks = list(range(len(activity)))
     if format_xaxis:
         ticks = get_time_ticks(len(activity))
@@ -433,7 +433,7 @@ def plot_stft_power(
     #             label='activity centered (signal - average of all sample (=%.2f))' % avg)
     axs[0].legend(loc="upper right")
     axs[0].set_title(
-        "Time domain signal %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
+        "Time domain signal\n %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
     )
 
     if standard_scale:
@@ -517,9 +517,9 @@ def plot_cwt_power(
 ):
     plt.clf()
     if wavelet is not None:
-        fig, axs = plt.subplots(1, 3, figsize=(29.20, 19.20))
+        fig, axs = plt.subplots(1, 3, figsize=(19.2, 7.2))
     else:
-        fig, axs = plt.subplots(1, 2, figsize=(29.20, 7.20))
+        fig, axs = plt.subplots(1, 2, figsize=(19.2, 7.2))
 
     # fig.suptitle("Signal , CWT", fontsize=18)
     ticks = list(range(len(activity)))
@@ -535,7 +535,7 @@ def plot_cwt_power(
     #             label='activity centered (signal - average of all sample (=%.2f))' % avg)
     axs[0].legend(loc="upper right")
     axs[0].set_title(
-        "Time domain signal %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
+        "Time domain signal\n %s %s %s" % (date.replace("_", "/"), animal_id, str(target))
     )
     if standard_scale:
         if "CWT" in step_slug:
@@ -751,7 +751,7 @@ def simple_example():
     coefs_cc = np.conj(coefs)
     power_cwt = np.real(np.multiply(coefs, coefs_cc))
 
-    fig, axs = plt.subplots(1, 2, figsize=(19.20, 7.20))
+    fig, axs = plt.subplots(1, 2, figsize=(19.2, 7.2))
     axs[0].plot(y, label="signal")
     axs[0].set(xlabel="Time", ylabel="amplitude")
 

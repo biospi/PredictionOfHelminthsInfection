@@ -82,8 +82,8 @@ def main(
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_weather_days: int = 7,
-    n_scales: int = 6,
-    sub_sample_scales: int = 3,
+    n_scales: int = 8,
+    sub_sample_scales: int = 1,
     weather_file: Optional[Path] = Path("."),
     add_seasons_to_features: bool = False,
     n_splits: int = 5,
@@ -99,7 +99,7 @@ def main(
     output_qn_graph: bool = False,
     enable_qn_peak_filter: bool = False,
     enable_downsample_df: bool = False,
-    n_job: int = 7,
+    n_job: int = 6,
     batch_size: int = 100,
     epoch: int = 100,
     individual_to_ignore: List[str] = [],
@@ -109,6 +109,7 @@ def main(
     resolution: float = None,
     plot_2d_space: bool = False,
     export_fig_as_pdf: bool = False,
+    skip: bool = True
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -137,15 +138,16 @@ def main(
     """
 
     plot_ml_report_final(output_dir.parent.parent)
-    #exit()
+    # exit()
     meta_columns = [x.replace("'", "") for x in meta_columns]
     preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
     print(f"preprocessing_steps={preprocessing_steps}")
     print(f"output directory is {output_dir}")
-    # if output_dir.is_dir():
-    #     print("output directory already exist. skip run.")
-    #     return
+    if skip:
+        if output_dir.is_dir():
+            print("output directory already exist. skip run.")
+            return
 
     files = [str(x) for x in list(dataset_folder.glob("*.csv"))]  # find datset files
 

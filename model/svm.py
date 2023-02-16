@@ -37,6 +37,10 @@ from utils.visualisation import (
     plot_ml_report_final,
     plot_high_dimension_db, plot_learning_curves, plot_fold_details, mean_confidence_interval)
 
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn import tree
+from sklearn.linear_model import LogisticRegression
+
 
 def downsample_df(data_frame, class_healthy, class_unhealthy):
     df_true = data_frame[data_frame["target"] == class_unhealthy]
@@ -439,7 +443,7 @@ def process_ml(
     class1_count = str(y_h[y_h == 1].size)
     print("X-> class0=" + class0_count + " class1=" + class1_count)
 
-    if "linear" in classifiers or "rbf" in classifiers:
+    if classifiers[0] in ["linear", "rbf", "dtree", "lreg", "knn"]:#todo reformat
         scores, scores_proba = cross_validate_svm_fast(
             save_model,
             classifiers,
@@ -677,7 +681,8 @@ def fold_worker(
     augment_training,
     nfold,
     export_fig_as_pdf,
-    plot_2d_space
+    plot_2d_space,
+    clf_kernel
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -741,7 +746,7 @@ def fold_worker(
 
     if save_model:
         models_dir = (
-            out_dir / "models" / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+            out_dir / "models" / f"{type(clf).__name__}_{clf_kernel}_{days}_{steps}"
         )
         models_dir.mkdir(parents=True, exist_ok=True)
         filename = models_dir / f"model_{ifold}.pkl"
@@ -752,7 +757,10 @@ def fold_worker(
 
     # test healthy/unhealthy
     y_pred_test = clf.predict(X_test)
-    y_pred_proba_test = clf.decision_function(X_test)
+    if hasattr(clf, 'decision_function'):
+        y_pred_proba_test = clf.decision_function(X_test)
+    else:
+        y_pred_proba_test = clf.predict_proba(X_test)[:, 1]
 
     # prep for roc curve
     alpha = 0.3
@@ -814,7 +822,7 @@ def fold_worker(
             days,
             steps,
             ifold,
-            export_fig_as_pdf
+            export_fig_as_pdf,
         )
         plot_learning_curves(clf, X, y, ifold, out_dir / "testing" / str(ifold))
 
@@ -831,7 +839,11 @@ def fold_worker(
 
     # data for training
     y_pred_train = clf.predict(X_train)
-    y_pred_proba_train = clf.decision_function(X_train)
+    if hasattr(clf, 'decision_function'):
+        y_pred_proba_train = clf.decision_function(X_train)
+    else:
+        y_pred_proba_train = clf.predict_proba(X_train)[:, 1]
+
     accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
     (
         precision_train,
@@ -904,7 +916,10 @@ def fold_worker(
         label = label_series[y_f]
         X_test = X_fold[y_fold == y_f]
         y_test = y_fold[y_fold == y_f]
-        y_pred_proba_test = clf.decision_function(X_test)
+        if hasattr(clf, 'decision_function'):
+            y_pred_proba_test = clf.decision_function(X_test)
+        else:
+            y_pred_proba_test = clf.predict_proba(X_test)[:, 1]
         # if len(np.array(y_pred_proba_test).shape) > 1:
         #     test_y_pred_proba_0 = y_pred_proba_test[:, 0]
         #     test_y_pred_proba_1 = y_pred_proba_test[:, 1]
@@ -990,7 +1005,20 @@ def cross_validate_svm_fast(
     #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     # ]
     for kernel in svc_kernel:
-        clf = SVC(kernel=kernel, probability=True)
+        if kernel in ["linear", "rbf"]:
+            clf = SVC(kernel=kernel, probability=True)
+
+        if kernel in ["knn"]:
+            clf = KNeighborsClassifier(n_jobs=-1)
+
+        if kernel in ["dtree"]:
+            clf = tree.DecisionTreeClassifier()
+
+        if kernel in ["lreg"]:
+            clf = LogisticRegression(n_jobs=-1)
+
+        clf_kernel = kernel
+
         plt.clf()
         fig_roc, ax_roc = plt.subplots(1, 2, figsize=(8, 8))
         fig_roc_merge, ax_roc_merge = plt.subplots(figsize=(8, 8))
@@ -1050,9 +1078,44 @@ def cross_validate_svm_fast(
                         augment_training,
                         cross_validation_method.get_n_splits(),
                         export_fig_as_pdf,
-                        plot_2d_space
+                        plot_2d_space,
+                        clf_kernel
                     ),
                 )
+                # fold_worker(
+                #     info,
+                #     cv_name,
+                #     save_model,
+                #     out_dir,
+                #     y_h,
+                #     ids,
+                #     meta,
+                #     meta_data_short,
+                #     sample_dates,
+                #     days,
+                #     steps,
+                #     tprs_test,
+                #     tprs_train,
+                #     aucs_roc_test,
+                #     aucs_roc_train,
+                #     fold_results,
+                #     fold_probas,
+                #     label_series,
+                #     mean_fpr_test,
+                #     mean_fpr_train,
+                #     clf,
+                #     X,
+                #     y,
+                #     train_index,
+                #     test_index,
+                #     axis_test,
+                #     axis_train,
+                #     ifold,
+                #     augment_training,
+                #     cross_validation_method.get_n_splits(),
+                #     export_fig_as_pdf,
+                #     plot_2d_space
+                # )
             pool.close()
             pool.join()
             end = time.time()
@@ -1185,7 +1248,7 @@ def cross_validate_svm_fast(
             fig_roc.tight_layout()
             path = out_dir / "roc_curve" / cv_name
             path.mkdir(parents=True, exist_ok=True)
-            tag = f"{type(clf).__name__}_{clf.kernel}"
+            tag = f"{type(clf).__name__}_{clf_kernel}"
             final_path = path / f"{tag}_roc_{steps}.png"
             print(final_path)
             # fig_roc.savefig(final_path)
@@ -1246,7 +1309,7 @@ def cross_validate_svm_fast(
             fig_roc.tight_layout()
             path = out_dir / "roc_curve" / cv_name
             path.mkdir(parents=True, exist_ok=True)
-            tag = f"{type(clf).__name__}_{clf.kernel}"
+            tag = f"{type(clf).__name__}_{clf_kernel}"
             final_path = path / f"{tag}_roc_{steps}.png"
             print(final_path)
             # fig_roc.savefig(final_path)
@@ -1281,12 +1344,12 @@ def cross_validate_svm_fast(
                 cv_name,
                 days,
                 info=info,
-                tag=f"{type(clf).__name__}_{clf.kernel}",
+                tag=f"{type(clf).__name__}_{clf_kernel}",
                 export_fig_as_pdf=export_fig_as_pdf,
             )
 
-        scores[f"{type(clf).__name__}_{clf.kernel}_results"] = fold_results
-        scores_proba[f"{type(clf).__name__}_{clf.kernel}_probas"] = fold_probas
+        scores[f"{type(clf).__name__}_{clf_kernel}_results"] = fold_results
+        scores_proba[f"{type(clf).__name__}_{clf_kernel}_probas"] = fold_probas
 
     print("export results to json...")
     filepath = out_dir / "results.json"
