@@ -276,7 +276,7 @@ def worker_export_csv(i, id, tot, timestamp, date_str, ori_data_x, idata, ildata
     df["first_sensor_value_li"] = np.array(
         [x if np.isnan(x) else int(x) for x in inverse_anscombe(np.exp(ildata), 0)]
     )[0 : df["first_sensor_value"].shape[0]]
-    df["imputed"] = (ildata >= 0).astype(int)[0 : df["first_sensor_value"].shape[0]]
+    df["imputed"] = np.isnan(df["first_sensor_value"]).astype(int)
     filename = id + ".csv"
     filepath = out / filename
     df.to_csv(filepath, sep=",", index=False)
@@ -884,7 +884,7 @@ def local_run(
     run_exp=False,
     n_top_traces=20,
     n_job=6,
-    interation=20
+    interation=100
 ):
     thresh_daytime = 100
     thresh_nan_ratio = 80
@@ -911,8 +911,9 @@ def local_run(
             thresh_daytime=thresh_daytime,
             thresh_nan_ratio=thresh_nan_ratio,
             miss_rate=0,
-            n_top_traces=17,
+            n_top_traces=60,
             n_job=n_job,
+            window_size=1,
             interation=interation
         )
 
@@ -988,16 +989,22 @@ if __name__ == "__main__":
     # arg_run()
     # local_run()
 
-    # biospi
-    for n_top_traces in [20, 30, 40, 50]:
-        local_run(
-            input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
-            output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
-            run_exp=True,
-            n_top_traces=n_top_traces,
-            n_job=20,
-            interation=100
-        )
+    local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara",
+              run_exp=False, interation=100)
+
+    local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas",
+              run_exp=False, interation=100)
+
+    # # biospi
+    # for n_top_traces in [20, 30, 40, 50]:
+    #     local_run(
+    #         input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
+    #         output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
+    #         run_exp=True,
+    #         n_top_traces=n_top_traces,
+    #         n_job=20,
+    #         interation=100
+    #     )
 
     # local_run(
     #     input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed",

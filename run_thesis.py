@@ -5,26 +5,83 @@ import ml_temporal_validation as temporal_validation
 from pathlib import Path
 
 
+def single_run(
+    output_dir=Path("E:/thesis_final_feb16/test"),
+    clf="linear",
+    farm_id="cedara",
+    cv="RepeatedKFold",
+    i_day=1,
+    a_day=1,
+    w_day=7,
+    add_seasons_to_features=False,
+    class_unhealthy_label="2To2",
+    n_job=6,
+    dataset=None,
+):
+    steps = ["QN"]
+    slug = "_".join(steps)
+    main_experiment.main(
+        output_dir=output_dir
+        / "main_experiment"
+        / clf
+        / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+        / class_unhealthy_label,
+        dataset_folder=dataset,
+        preprocessing_steps=steps,
+        n_imputed_days=i_day,
+        n_activity_days=a_day,
+        n_weather_days=w_day,
+        cv=cv,
+        classifiers=[clf],
+        class_unhealthy_label=[class_unhealthy_label],
+        study_id=farm_id,
+        add_seasons_to_features=add_seasons_to_features,
+        export_fig_as_pdf=False,
+        plot_2d_space=False,
+        pre_visu=False,
+        weather_file=Path(
+            "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
+        ),
+        n_job=n_job,
+    )
+
+
 def biospi_run(n_job=25):
-    main(output_dir=Path("/mnt/storage/scratch/axel/thesis"),
-         cedara_dir_mrnn=Path("/mnt/storage/scratch/axel/thesis/datasets/cedara/datasetmrnn7_23"),
-         cedara_dir_gain=Path("/mnt/storage/scratch/axel/thesis/datasets/cedara/datasetmrnn7_gain"),
-         cedara_dir_li=Path("/mnt/storage/scratch/axel/thesis/datasets/cedara/dataset_li_7_23"),
-         delmas_dir_mrnn=Path("/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset4_mrnn_7day"),
-         delmas_dir_gain=Path("/mnt/storage/scratch/axel/thesis/datasets/delmas/datasetmrnn7_gain"),
-         delmas_dir_li=Path("/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset_li_7_17"),
-         n_job=n_job)
+    main(
+        output_dir=Path("/mnt/storage/scratch/axel/thesis"),
+        cedara_dir_mrnn=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/datasetmrnn7_23"
+        ),
+        cedara_dir_gain=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/dataset_1_gain_60"
+        ),
+        cedara_dir_li=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/dataset_1_li_60"
+        ),
+        delmas_dir_mrnn=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset4_mrnn_7day"
+        ),
+        delmas_dir_gain=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset_1_gain_60"
+        ),
+        delmas_dir_li=Path(
+            "/mnt/storage/scratch/axel/thesis/datasets/delmas/dataset_1_li_60"
+        ),
+        n_job=n_job,
+    )
 
 
 def local_run():
 
-    main(output_dir=Path("E:/thesis_final_feb16"),
-         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
-         cedara_dir_gain=Path("E:/thesis/datasets/cedara/datasetmrnn7_gain"),
-         cedara_dir_li=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
-         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/dataset4_mrnn_7day"),
-         delmas_dir_gain=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain"),
-         delmas_dir_li=Path("E:/thesis/datasets/delmas/dataset_li_7_17"))
+    main(
+        output_dir=Path("E:/thesis_final_feb16"),
+        cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+        cedara_dir_gain=Path("E:/thesis/datasets/cedara/datasetmrnn7_gain"),
+        cedara_dir_li=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
+        delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/dataset4_mrnn_7day"),
+        delmas_dir_gain=Path("E:/thesis/datasets/delmas/datasetmrnn7_gain"),
+        delmas_dir_li=Path("E:/thesis/datasets/delmas/dataset_li_7_17"),
+    )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
     # main(output_dir=Path("E:/thesis_debug_mrnn20/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_20"))
@@ -44,7 +101,7 @@ def main(
     cedara_dir_mrnn: Path = None,
     cedara_dir_gain: Path = None,
     cedara_dir_li: Path = None,
-    n_job: int = 6
+    n_job: int = 6,
 ):
     """Thesis script runs all key experiments for data exploration chapter
     Args:\n
@@ -58,12 +115,12 @@ def main(
             ["WINDSPEED", "STDS"],
             ["HUMIDITY", "STDS"],
             ["RAINFALL", "STDS"],
-            ["TEMPERATURE", "STDS"]
+            ["TEMPERATURE", "STDS"],
         ]
         for steps in steps_list:
             slug = "_".join(steps)
             for w_day in [7]:
-                for cv in ['RepeatedKFold']:
+                for cv in ["RepeatedKFold"]:
                     for add_seasons_to_features in [False]:
                         # main_experiment.main(
                         #     output_dir=output_dir
@@ -104,7 +161,8 @@ def main(
                             export_fig_as_pdf=False,
                             pre_visu=True,
                             weather_file=Path(
-                                "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"),
+                                "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"
+                            ),
                         )
                         continue
 
@@ -125,13 +183,13 @@ def main(
             # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "WINDSPEEDAPPEND", "STDS"],
-            #["QN", "ANSCOMBE", "LOG"]
-            #["QN", "ANSCOMBE", "LOG", "STDS"],
-            #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
+            # ["QN", "ANSCOMBE", "LOG"]
+            # ["QN", "ANSCOMBE", "LOG", "STDS"],
+            # ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"]
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
-            #["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
+            # ["QN", "ANSCOMBE", "LOG", "CENTER", "DWT"],
             # ["QN", "ANSCOMBE", "LOG", "STD", "APPEND", "LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
-            #["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
+            # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWTMORL"],
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
@@ -142,10 +200,16 @@ def main(
                     for i_day in [1, 4, 7]:
                         for a_day in [1, 4, 7]:
                             for w_day in [7]:
-                                for cv in ['RepeatedKFold']:
+                                for cv in ["RepeatedKFold"]:
                                     for add_seasons_to_features in [False]:
-                                        for dataset in [delmas_dir_mrnn, delmas_dir_gain, delmas_dir_li,
-                                                       cedara_dir_mrnn, cedara_dir_gain, cedara_dir_li]:
+                                        for dataset in [
+                                            delmas_dir_mrnn,
+                                            delmas_dir_gain,
+                                            delmas_dir_li,
+                                            cedara_dir_mrnn,
+                                            cedara_dir_gain,
+                                            cedara_dir_li,
+                                        ]:
                                             farm_id = "delmas"
                                             if "cedara" in str(dataset).lower():
                                                 farm_id = "cedara"
@@ -162,15 +226,18 @@ def main(
                                                 n_weather_days=w_day,
                                                 cv=cv,
                                                 classifiers=[clf],
-                                                class_unhealthy_label=[class_unhealthy_label],
+                                                class_unhealthy_label=[
+                                                    class_unhealthy_label
+                                                ],
                                                 study_id=farm_id,
                                                 add_seasons_to_features=add_seasons_to_features,
                                                 export_fig_as_pdf=False,
                                                 plot_2d_space=False,
                                                 pre_visu=False,
                                                 weather_file=Path(
-                                                    "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
-                                                n_job=n_job
+                                                    "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
+                                                ),
+                                                n_job=n_job,
                                             )
 
                                 # for dataset in [cedara_dir_gain, cedara_dir_li, cedara_dir_mrnn]:
@@ -302,7 +369,7 @@ def main(
                                 #     plot_2d_space=False,
                                 #     export_fig_as_pdf=True,
                                 #     pre_visu=False
-                                #)
+                                # )
                                 #
                                 #
                                 # main_experiment.main(
@@ -447,11 +514,14 @@ def main(
         i = 7
         n_a = 6
         temporal_validation.main(
-            output_dir=output_dir / "temporal_validation" / f"delmas_{i}_{n_a}" / "2To2",
+            output_dir=output_dir
+            / "temporal_validation"
+            / f"delmas_{i}_{n_a}"
+            / "2To2",
             dataset_folder=delmas_dir_mrnn,
             n_imputed_days=i,
             n_activity_days=n_a,
-            export_fig_as_pdf=True
+            export_fig_as_pdf=True,
         )
 
         # i = 7
@@ -466,7 +536,6 @@ def main(
         #     class_unhealthy_label=["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
         #     export_fig_as_pdf=True)
 
-
     if exp_cross_farm:
         print("experiment 3: cross farm validation")
         for imp_d in [7]:
@@ -474,10 +543,21 @@ def main(
                 cross_farm_validation.main(
                     farm1_path=delmas_dir_mrnn,
                     farm2_path=cedara_dir_mrnn,
-                    output_dir=output_dir / "cross_farm" / f"{imp_d}_{a_act_day}" / "2To2",
+                    output_dir=output_dir
+                    / "cross_farm"
+                    / f"{imp_d}_{a_act_day}"
+                    / "2To2",
                     n_imputed_days=imp_d,
                     n_activity_days=a_act_day,
-                    class_unhealthy_f2=["2To2", "2To4", "3To4", "1To4", "1To3", "4To5", "2To3"],
+                    class_unhealthy_f2=[
+                        "2To2",
+                        "2To4",
+                        "3To4",
+                        "1To4",
+                        "1To3",
+                        "4To5",
+                        "2To3",
+                    ],
                 )
 
                 # cross_farm_validation.main(
@@ -501,6 +581,7 @@ def main(
 
 
 if __name__ == "__main__":
-    #local_run()
-    biospi_run()
-    #typer.run(main)
+    # local_run()
+    single_run(dataset=Path("E:/thesis/datasets/cedara/dataset_1_gain_60"))
+    #biospi_run()
+    # typer.run(main)

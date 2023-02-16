@@ -35,19 +35,48 @@ import json
 
 def local_run():
 
-    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
-         data_dir=Path("F:/MRNN/imputed_data/23_missingrate_[0.0]_seql_1440_iteration_100_hw__n_325"),
-         out_dir=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
-         data_col="first_sensor_value_li",
+    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+         data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_60"),
+         out_dir=Path("E:/thesis/datasets/delmas/dataset_1_gain_60"),
+         data_col="first_sensor_value_gain",
          n_days=7,
          remove_missing=False)
 
     main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("F:/MRNN/imputed_data/17_missingrate_[0.0]_seql_1440_iteration_100_hw__n_299"),
-         out_dir=Path("E:/thesis/datasets/delmas/dataset_li_7_17"),
+         data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_60"),
+         out_dir=Path("E:/thesis/datasets/delmas/dataset_1_li_60"),
          data_col="first_sensor_value_li",
          n_days=7,
          remove_missing=False)
+
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_60"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/dataset_1_gain_60"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_60"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/dataset_1_li_60"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
+
+
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("F:/MRNN/imputed_data/23_missingrate_[0.0]_seql_1440_iteration_100_hw__n_325"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/dataset_li_7_23"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("F:/MRNN/imputed_data/17_missingrate_[0.0]_seql_1440_iteration_100_hw__n_299"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/dataset_li_7_17"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
 
 
     # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
