@@ -582,6 +582,6 @@ def main(
 
 if __name__ == "__main__":
     # local_run()
-    single_run(dataset=Path("E:/thesis/datasets/cedara/dataset_1_gain_60"))
-    #biospi_run()
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/dataset_1_gain_60"))
+    biospi_run()
     # typer.run(main)
