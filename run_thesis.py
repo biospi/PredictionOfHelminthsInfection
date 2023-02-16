@@ -146,11 +146,14 @@ def main(
                                     for add_seasons_to_features in [False]:
                                         for dataset in [delmas_dir_mrnn, delmas_dir_gain, delmas_dir_li,
                                                        cedara_dir_mrnn, cedara_dir_gain, cedara_dir_li]:
+                                            farm_id = "delmas"
+                                            if "cedara" in str(dataset).lower():
+                                                farm_id = "cedara"
                                             main_experiment.main(
                                                 output_dir=output_dir
                                                 / "main_experiment"
                                                 / clf
-                                                / f"{dataset.stem}_delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                                                / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
                                                 / class_unhealthy_label,
                                                 dataset_folder=dataset,
                                                 preprocessing_steps=steps,
@@ -160,7 +163,7 @@ def main(
                                                 cv=cv,
                                                 classifiers=[clf],
                                                 class_unhealthy_label=[class_unhealthy_label],
-                                                study_id="delmas",
+                                                study_id=farm_id,
                                                 add_seasons_to_features=add_seasons_to_features,
                                                 export_fig_as_pdf=False,
                                                 plot_2d_space=False,
