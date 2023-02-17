@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-#SBATCH --account=fo18103
+#SBATCH --account=sscm012844
 #SBATCH --job-name=cats_qnf
 #SBATCH --output=cat_qnf_out
 #SBATCH --error=cat_qnf_error
