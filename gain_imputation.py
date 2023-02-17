@@ -984,18 +984,18 @@ def arg_run(
         default=n_top_traces,
         help="select n traces with highest entropy (<= 0 number to select all traces)",
     )
-    parser.add_argument("--enable_anscombe", type=bool, default=False)
-    parser.add_argument("--enable_remove_zeros", type=bool, default=False)
-    parser.add_argument("--enable_log_anscombe", type=bool, default=True)
-    parser.add_argument("--window", type=bool, default=False)
-    parser.add_argument("--export_csv", type=bool, default=True)
-    parser.add_argument("--export_traces", type=bool, default=True)
+    parser.add_argument("--enable_anscombe", default=False, action='store_true')
+    parser.add_argument("--enable_remove_zeros", default=False, action='store_true')
+    parser.add_argument("--enable_log_anscombe", default=True, action='store_true')
+    parser.add_argument("--window", default=False, action='store_true')
+    parser.add_argument("--export_csv", default=True, action='store_true')
+    parser.add_argument("--export_traces", default=True, action='store_true')
     parser.add_argument("--reshape", type=str, default="y")
     parser.add_argument("--w", type=str, default="y")
     parser.add_argument("--add_t_col", type=str, default="t")
     parser.add_argument("--thresh_daytime", type=str, default=thresh_daytime)
     parser.add_argument("--thresh_nan_ratio", type=str, default=thresh_nan_ratio)
-    parser.add_argument("--export_heatmaps", type=bool, default=export_heatmaps)
+    parser.add_argument("--export_heatmaps", default=export_heatmaps, action='store_true')
 
     args = parser.parse_args()
     if output_hpc_string:
@@ -1010,8 +1010,8 @@ def print_hpc_string(args):
         if isinstance(a[1], bool):
             if a[1]:
                 hpc_s += f" --{a[0]}"
-            else:
-                hpc_s += f" --no-{a[0]}"
+            # else:
+            #     hpc_s += f" --no-{a[0]}"
             continue
         hpc_s += f" --{a[0]} {a[1]}"
     print(f"'{hpc_s}'")
