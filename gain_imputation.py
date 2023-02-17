@@ -892,7 +892,8 @@ def local_run(
     n_top_traces=20,
     n_job=6,
     interation=100,
-    export_heatmaps=False
+    export_heatmaps=False,
+    output_hpc_string=False
 ):
     thresh_daytime = 100
     thresh_nan_ratio = 80
@@ -911,7 +912,8 @@ def local_run(
                     window_size=day,
                     n_job=n_job,
                     interation=interation,
-                    export_heatmaps=export_heatmaps
+                    export_heatmaps=export_heatmaps,
+                    output_hpc_string=output_hpc_string
                 )
     else:
         arg_run(
@@ -924,7 +926,8 @@ def local_run(
             n_job=n_job,
             window_size=1,
             interation=interation,
-            export_heatmaps=export_heatmaps
+            export_heatmaps=export_heatmaps,
+            output_hpc_string=output_hpc_string
         )
 
     # for miss_rate in np.arange(0.1, 0.99, 0.05):
@@ -948,6 +951,7 @@ def arg_run(
         n_job = 20
         output_dir = f"/user/work/fo18103{output_dir.split(':')[1]}"
         data_dir = f"/user/work/fo18103{data_dir.split(':')[1]}"
+
     parser = argparse.ArgumentParser()
     if data_dir is None:
         parser.add_argument("data_dir", type=str)
@@ -955,6 +959,7 @@ def arg_run(
     else:
         parser.add_argument("--data_dir", type=str, default=data_dir)
         parser.add_argument("--output_dir", type=str, default=output_dir)
+
     parser.add_argument(
         "--batch_size",
         help="the number of samples in mini-batch",
@@ -1005,7 +1010,8 @@ def arg_run(
 
 
 def print_hpc_string(args):
-    hpc_s = "gain_imputation.py "
+    hpc_s = ""
+    positional_args = ""
     for a in args._get_kwargs():
         if isinstance(a[1], bool):
             if a[1]:
@@ -1013,7 +1019,13 @@ def print_hpc_string(args):
             # else:
             #     hpc_s += f" --no-{a[0]}"
             continue
+        if a[0] in ["data_dir", "output_dir"]:
+            positional_args += f" {a[1]}"
+            continue
+
         hpc_s += f" --{a[0]} {a[1]}"
+
+    hpc_s = "gain_imputation.py" + positional_args + hpc_s
     print(f"'{hpc_s}'")
     with open('gain_hpc_ln.txt', 'a') as f:
         f.write(f"'{hpc_s}'" + "\n")
@@ -1021,16 +1033,24 @@ def print_hpc_string(args):
         f.write(f"'{hpc_s}'" + " ")
 
 
+def purge_hpc_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+
+
 if __name__ == "__main__":
+    # purge_hpc_file('gain_hpc.txt')
+    # purge_hpc_file('gain_hpc_ln.txt')
+
     arg_run()
     # local_run()
 
     # for n_top_traces in [20, 30, 40, 50]:
     #     local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara_exp",
-    #               run_exp=True, interation=100, n_top_traces=n_top_traces)
+    #               run_exp=True, interation=100, n_top_traces=n_top_traces, output_hpc_string=True)
     #
     #     local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas_exp",
-    #               run_exp=True, interation=100, n_top_traces=n_top_traces)
+    #               run_exp=True, interation=100, n_top_traces=n_top_traces, output_hpc_string=True)
 
     # # biospi
     # for n_top_traces in [20, 30, 40, 50]:
