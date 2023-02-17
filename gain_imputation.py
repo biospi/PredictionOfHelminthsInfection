@@ -942,7 +942,7 @@ def arg_run(
     n_job=6,
     interation=20,
     export_heatmaps=False,
-    output_hpc_string=True
+    output_hpc_string=False
 ):
     if output_hpc_string: #cores on BC4
         n_job = 20
@@ -1022,15 +1022,15 @@ def print_hpc_string(args):
 
 
 if __name__ == "__main__":
-    # arg_run()
+    arg_run()
     # local_run()
 
-    for n_top_traces in [20, 30, 40, 50]:
-        local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara_exp",
-                  run_exp=True, interation=100, n_top_traces=n_top_traces)
-
-        local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas_exp",
-                  run_exp=True, interation=100, n_top_traces=n_top_traces)
+    # for n_top_traces in [20, 30, 40, 50]:
+    #     local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara_exp",
+    #               run_exp=True, interation=100, n_top_traces=n_top_traces)
+    #
+    #     local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas_exp",
+    #               run_exp=True, interation=100, n_top_traces=n_top_traces)
 
     # # biospi
     # for n_top_traces in [20, 30, 40, 50]:
