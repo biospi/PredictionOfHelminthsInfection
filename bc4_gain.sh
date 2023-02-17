@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-
+#SBATCH --account=fo18103
 #SBATCH --job-name=gain
 #SBATCH --output=gain_out
 #SBATCH --error=gain_error
