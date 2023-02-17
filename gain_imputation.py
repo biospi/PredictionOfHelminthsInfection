@@ -203,7 +203,8 @@ def worker_export_heatmaps(
     first_timestamp,
     THRESH_DT,
     out,
-    miss_rate
+    miss_rate,
+    export_heatmaps
 ):
     d_t = transponder.iloc[:, : -n_top_traces - 2]
     xaxix_label, yaxis_label = build_formated_axis(
@@ -218,7 +219,8 @@ def worker_export_heatmaps(
     id = int(transponder["id"].values[0])
 
     if miss_rate == 0:
-        print(f"exporting heatmap {id} {i}/{tot}...")
+        if export_heatmaps:
+            print(f"exporting heatmap {id} {i}/{tot}...")
 
     xaxix_label[0] = xaxix_label[0].replace(minute=0)
     fig = go.Figure(
@@ -234,8 +236,9 @@ def worker_export_heatmaps(
     filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}_filtered.html"
     # if i % 100 == 0:
     if miss_rate == 0:
-        print(filename)
-        fig.write_html(str(filename))
+        if export_heatmaps:
+            print(filename)
+            fig.write_html(str(filename))
 
     d_t_na_li = d_t.interpolate(method="linear", limit_direction="both", axis=1)
     fig = go.Figure(
@@ -256,8 +259,9 @@ def worker_export_heatmaps(
     filename = out / f"{id}_reshaped_{THRESH_DT}_{valid}_li.html"
     # if i % 100 == 0:
     if miss_rate == 0:
-        print(filename)
-        fig.write_html(str(filename))
+        if export_heatmaps:
+            print(filename)
+            fig.write_html(str(filename))
     return xaxix_label, yaxis_label
 
 
@@ -609,6 +613,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
     thresh_nan_ratio = args.thresh_nan_ratio
     export_csv = args.export_csv
     export_traces = args.export_traces
+    export_heatmaps = args.export_heatmaps
 
     gain_parameters = {
         "batch_size": batch_size,
@@ -694,7 +699,8 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
                 timestamp[0],
                 THRESH_DT,
                 out,
-                miss_rate
+                miss_rate,
+                export_heatmaps
             ),
         )
 
@@ -831,6 +837,7 @@ def main(args, raw_data, original_data_x, ids, timestamp, date_str, ss_data):
         N_TRANSPOND,
         days,
         args.n_job,
+        export_heatmaps
     )
 
     del dfs_transponder
@@ -884,14 +891,15 @@ def local_run(
     run_exp=False,
     n_top_traces=20,
     n_job=6,
-    interation=100
+    interation=100,
+    export_heatmaps=False
 ):
     thresh_daytime = 100
     thresh_nan_ratio = 80
 
     if run_exp:
         for day in [1, 2, 3, 4, 5, 6, 7]:
-            for miss_rate in [0.1, 0.4, 0.6, 0.9, 0]:
+            for miss_rate in [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]:
                 # for n_traces in [10, 20, 30]:
                 arg_run(
                     data_dir=input_dir,
@@ -902,7 +910,8 @@ def local_run(
                     n_top_traces=n_top_traces,
                     window_size=day,
                     n_job=n_job,
-                    interation=interation
+                    interation=interation,
+                    export_heatmaps=export_heatmaps
                 )
     else:
         arg_run(
@@ -914,7 +923,8 @@ def local_run(
             n_top_traces=60,
             n_job=n_job,
             window_size=1,
-            interation=interation
+            interation=interation,
+            export_heatmaps=export_heatmaps
         )
 
     # for miss_rate in np.arange(0.1, 0.99, 0.05):
@@ -931,7 +941,13 @@ def arg_run(
     window_size=1,
     n_job=6,
     interation=20,
+    export_heatmaps=False,
+    output_hpc_string=True
 ):
+    if output_hpc_string: #cores on BC4
+        n_job = 20
+        output_dir = f"/user/work/fo18103{output_dir.split(':')[1]}"
+        data_dir = f"/user/work/fo18103{data_dir.split(':')[1]}"
     parser = argparse.ArgumentParser()
     if data_dir is None:
         parser.add_argument("data_dir", type=str)
@@ -979,21 +995,42 @@ def arg_run(
     parser.add_argument("--add_t_col", type=str, default="t")
     parser.add_argument("--thresh_daytime", type=str, default=thresh_daytime)
     parser.add_argument("--thresh_nan_ratio", type=str, default=thresh_nan_ratio)
+    parser.add_argument("--export_heatmaps", type=bool, default=export_heatmaps)
 
     args = parser.parse_args()
-
+    if output_hpc_string:
+        print_hpc_string(args)
+        return
     start(args)
+
+
+def print_hpc_string(args):
+    hpc_s = "gain_imputation.py "
+    for a in args._get_kwargs():
+        if isinstance(a[1], bool):
+            if a[1]:
+                hpc_s += f" --{a[0]}"
+            else:
+                hpc_s += f" --no-{a[0]}"
+            continue
+        hpc_s += f" --{a[0]} {a[1]}"
+    print(f"'{hpc_s}'")
+    with open('gain_hpc_ln.txt', 'a') as f:
+        f.write(f"'{hpc_s}'" + "\n")
+    with open('gain_hpc.txt', 'a') as f:
+        f.write(f"'{hpc_s}'" + " ")
 
 
 if __name__ == "__main__":
     # arg_run()
     # local_run()
 
-    local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara",
-              run_exp=False, interation=100)
+    for n_top_traces in [20, 30, 40, 50]:
+        local_run(input_dir="E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed", output_dir="E:/thesis/gain/cedara_exp",
+                  run_exp=True, interation=100, n_top_traces=n_top_traces)
 
-    local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas",
-              run_exp=False, interation=100)
+        local_run(input_dir="E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed", output_dir="E:/thesis/gain/delmas_exp",
+                  run_exp=True, interation=100, n_top_traces=n_top_traces)
 
     # # biospi
     # for n_top_traces in [20, 30, 40, 50]:

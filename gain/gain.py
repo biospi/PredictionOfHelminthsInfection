@@ -32,7 +32,7 @@ from multiprocessing import Pool
 
 
 def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids, t_idx, output_dir, shape_o, rm_row_idx, data_m_x,
-         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days, n_job):
+         imputed_data_x_li, data_x_o, data_x, gain_parameters, outpath, RESHAPE, ADD_TRANSP_COL, N_TRANSPOND, days, n_job, export_heatmaps):
     '''Impute missing values in data_x
 
   Args:
@@ -220,8 +220,9 @@ def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids
 
         filename = output_dir + "/" + "imputed_gain.html"
         if i % 100 == 0:
-            print(filename)
-            fig.write_html(filename)
+            if export_heatmaps:
+                print(filename)
+                fig.write_html(filename)
 
         df_ = pd.DataFrame(imputed_data)
         header = [str(x) for x in range(imputed_data.shape[1])]
@@ -237,7 +238,7 @@ def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids
             for k in range(len(dfs_transponder)):
                 pool.apply_async(worker_export_heatmap, (k, len(dfs_transponder), dfs_transponder[k],
                                                          N_TRANSPOND, start_timestamp, xaxix_label, thresh,
-                                                         out, it))
+                                                         out, it, export_heatmaps))
             pool.close()
             pool.join()
             pool.terminate()
@@ -293,12 +294,12 @@ def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids
             rmse_g, rmse_l = rmse_loss(data_x, data_x_o.copy(), imputed_data_restored.copy(), imputed_data_x_li.copy(),
                                        data_m_x, output_dir, i)
 
-            print('RMSE GAIN Performance: ' + str(np.round(rmse_g, 4)))
-            print('RMSE LI Performance: ' + str(np.round(rmse_l, 4)))
+            print('RMSE GAIN Performance: ' + str(np.round(np.mean(rmse_g), 4)))
+            print('RMSE LI Performance: ' + str(np.round(np.mean(rmse_l), 4)))
             rmse_gain.append(rmse_g)
             rmse_li.append(rmse_l)
 
-            rmse_info = {"rmse": [rmse_g], "rmse_li": [rmse_l], "training_shape": [data_x.shape], "i": [i],
+            rmse_info = {"rmse": [np.mean(rmse_g)], "rmse_li": [np.mean(rmse_l)], "rmse_boot": [rmse_g], "rmse_li_boot": [rmse_l], "training_shape": [data_x.shape], "i": [i],
                          "g_loss": [G_loss_curr], "d_loss": [D_loss_curr], "missing_rate": miss_rate,
                          "seq_len": days, "n_top_traces": n_top_traces
                          }
@@ -337,13 +338,14 @@ def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids
     return imputed_data_restored, rmse_iter, rm_row_idx
 
 
-def worker_export_heatmap(i, tot, transponder, N_TRANSPOND, start_timestamp, xaxix_label, thresh, out, it):
+def worker_export_heatmap(i, tot, transponder, N_TRANSPOND, start_timestamp, xaxix_label, thresh, out, it, export_heatmaps):
     df_t_i = transponder.iloc[:, :-N_TRANSPOND - 2]
     valid = np.sum((~np.isnan(df_t_i.values)).astype(int))
     # if valid <= 0:
     #     continue
     id = int(transponder["id"].values[0])
-    print(f"exporting {id} imputed heatmaps {i}/{tot}...")
+    if export_heatmaps:
+        print(f"exporting {id} imputed heatmaps {i}/{tot}...")
     _, yaxis_label = build_formated_axis(start_timestamp, min_in_row=df_t_i.shape[1],
                                          days_in_col=df_t_i.shape[0])
     fig = go.Figure(data=go.Heatmap(
@@ -359,5 +361,6 @@ def worker_export_heatmap(i, tot, transponder, N_TRANSPOND, start_timestamp, xax
         xaxis_title="Time (1 min bins)",
         yaxis_title="Samples")
     filename = out / f"{id}_imputed_reshaped_{thresh}_{i}_{valid}_iter_{it}.html"
-    print(filename)
-    fig.write_html(filename)
+    if export_heatmaps:
+        print(filename)
+        fig.write_html(filename)

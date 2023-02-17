@@ -817,7 +817,7 @@ def fold_worker(
             np.concatenate((X_train, X_test), axis=0),
             np.concatenate((y_train, y_test), axis=0),
             list(np.arange(len(X_train))),
-            np.concatenate((meta_train_s, meta_test_s), axis=0),
+            np.concatenate((meta_train, meta_test), axis=0),
             clf,
             days,
             steps,
@@ -1548,7 +1548,8 @@ def process_clf(
     y_test,
     output_dir,
     n_job=None,
-    export_fig_as_pdf=None
+    export_fig_as_pdf=None,
+    plot_2d_space=False
 ):
     """Trains multiple model with n 90% samples
     Args:

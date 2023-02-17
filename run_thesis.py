@@ -6,19 +6,19 @@ from pathlib import Path
 
 
 def single_run(
-    output_dir=Path("E:/thesis_final_feb16/test"),
+    output_dir=Path("E:/thesis_final_feb17/test3"),
     clf="linear",
     farm_id="cedara",
     cv="RepeatedKFold",
-    i_day=1,
-    a_day=1,
+    i_day=7,
+    a_day=7,
     w_day=7,
     add_seasons_to_features=False,
     class_unhealthy_label="2To2",
     n_job=6,
     dataset=None,
 ):
-    steps = ["QN"]
+    steps = ["QN", "ANSCOMBE", "LOG"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -37,8 +37,9 @@ def single_run(
         study_id=farm_id,
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
-        plot_2d_space=False,
-        pre_visu=False,
+        plot_2d_space=True,
+        pre_visu=True,
+        skip=False,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
         ),
@@ -583,6 +584,6 @@ def main(
 
 if __name__ == "__main__":
     # local_run()
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/dataset_1_gain_60"))
-    biospi_run()
+    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"))
+    #biospi_run()
     # typer.run(main)

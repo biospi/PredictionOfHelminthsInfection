@@ -225,20 +225,29 @@ def rmse_loss(data_x, ori_data, imputed_data, imputed_data_li, data_m, output_di
     imputed_x_rmse = imputed_data[mask]
     imputed_li_x_rmse = imputed_data_li[mask]
 
-    nominator = np.nansum(((1 - m_rmse) * x_rmse - (1 - m_rmse) * imputed_x_rmse) ** 2)
-    denominator = np.nansum(1 - m_rmse)
+    rmse_list = []
+    rmse_li_list = []
+    for _ in range(100):
+        bootstrap = np.random.choice(np.arange(x_rmse.shape[1]), size=x_rmse.shape[1], replace=True)
 
-    rmse = np.sqrt(nominator / float(denominator))
+        m_rmse_ = m_rmse[:, bootstrap]
+        x_rmse_ = x_rmse[:, bootstrap]
+        imputed_x_rmse_ = imputed_x_rmse[:, bootstrap]
+        imputed_li_x_rmse_ = imputed_li_x_rmse[:, bootstrap]
 
-    nominator = np.nansum(((1 - m_rmse) * x_rmse - (1 - m_rmse) * imputed_li_x_rmse) ** 2)
-    denominator = np.nansum(1 - m_rmse)
-
-    rmse_li = np.sqrt(nominator / float(denominator))
+        nominator = np.nansum(((1 - m_rmse_) * x_rmse_ - (1 - m_rmse_) * imputed_x_rmse_) ** 2)
+        denominator = np.nansum(1 - m_rmse_)
+        rmse = np.sqrt(nominator / float(denominator))
+        rmse_list.append(rmse)
+        nominator = np.nansum(((1 - m_rmse_) * x_rmse_ - (1 - m_rmse_) * imputed_li_x_rmse_) ** 2)
+        denominator = np.nansum(1 - m_rmse_)
+        rmse_li = np.sqrt(nominator / float(denominator))
+        rmse_li_list.append(rmse_li)
 
     # rmse = mean_squared_error(ori_data_, imputed_data, squared=True)
     # rmse_li = mean_squared_error(ori_data_, imputed_data_li, squared=True)
 
-    return rmse, rmse_li
+    return rmse_list, rmse_li_list
 
 
 def xavier_init(size):

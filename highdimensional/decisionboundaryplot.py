@@ -381,7 +381,7 @@ class DBPlot(BaseEstimator):
         generate_background=True,
         tune_background_model=False,
         background_resolution=800,
-        scatter_size_scale=1.0,
+        scatter_size_scale=0.95,
         legend=True,
         meta=None,
     ):
@@ -450,7 +450,7 @@ class DBPlot(BaseEstimator):
         plt.scatter(
             self.decision_boundary_points_2d[:, 0],
             self.decision_boundary_points_2d[:, 1],
-            600 * scatter_size_scale,
+            500 * scatter_size_scale,
             c="c",
             marker="p",
         )
@@ -463,6 +463,57 @@ class DBPlot(BaseEstimator):
         #         c=["g" if i else "b" for i in self.y_testpoints],
         #         alpha=0.6,
         #     )
+
+        # label data points with their indices
+        map_color = {1:'tab:blue',
+                     2:'tab:orange',
+                     3:'tab:green',
+                     4:'tab:red',
+                     5:'tab:purple',
+                     6:'tab:brown',
+                     7:'tab:pink',
+                     8:'tab:gray',
+                     9:'tab:olive',
+                     10:'tab:cyan',
+                     11:'black',
+                     12:'white'}
+
+        map_color_f = {"1To1":'tab:blue',
+                     "2To2":'tab:orange',
+                     "2To1":'tab:green',
+                     "1To2":'tab:red'}
+
+        #months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
+        for i in range(len(self.X2d)):
+            # "label",
+            # "id",
+            # "imputed_days",
+            # "date",
+            # "health",
+            # "target",
+
+            data = meta[i]
+            label = data[0]
+            id = int(str(int(data[1]))[-3:])
+            imputed_days = data[2]
+            date = data[3]
+            health = data[4]
+            target = data[5]
+            month = int(date.split('/')[1])
+            text_ = f"{id}"
+
+            t = plt.text(
+                self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2 * 5,
+                self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2 * 5,
+                text_,
+                # fontsize=12,
+                weight='bold',
+                size=6,
+                color="white"
+            )
+            t.set_bbox(dict(facecolor=map_color[month], alpha=0.5, edgecolor=map_color[month]))
+
+
 
         # training data
         plt.scatter(
@@ -481,6 +532,7 @@ class DBPlot(BaseEstimator):
                 for i in range(len(self.train_idx))
             ],
             linewidths=5 * scatter_size_scale,
+            alpha=0.8
         )
         # testing data
         plt.scatter(
@@ -500,30 +552,9 @@ class DBPlot(BaseEstimator):
             ],
             linewidths=5 * scatter_size_scale,
             marker="s",
+            alpha=0.8
         )
 
-        # label data points with their indices
-        # map_color = {1:'tab:blue',
-        #              2:'tab:orange',
-        #              3:'tab:green',
-        #              4:'tab:red',
-        #              5:'tab:purple',
-        #              6:'tab:brown',
-        #              7:'tab:pink',
-        #              8:'tab:gray',
-        #              9:'tab:olive',
-        #              10:'tab:cyan',
-        #              11:'black',
-        #              12:'white'}
-        # months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
-        # for i in range(len(self.X2d)):
-        #     plt.text(
-        #         self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2,
-        #         self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2,
-        #         str(meta[i].split(' ')[1] +"_"+ meta[i].split(' ')[2]),
-        #         size=12,
-        #         color=months[i]
-        #     )
 
         # blue 1to1
         # green 2to2

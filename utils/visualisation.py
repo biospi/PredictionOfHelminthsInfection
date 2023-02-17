@@ -30,12 +30,12 @@ from cwt._cwt import CWT, plot_line, STFT, plot_cwt_power, plot_stft_power, DWT
 from utils.Utils import anscombe, concatenate_images
 from utils._normalisation import CenterScaler
 
-# import umap.plot
+import umap.plot
 import seaborn as sns
 from collections import Counter
 import matplotlib.cm as cm
 from bokeh.plotting import figure, output_file, save
-# from highdimensional.decisionboundaryplot import DBPlot
+from highdimensional.decisionboundaryplot import DBPlot
 from natsort import natsorted
 import plotly.express as px
 
@@ -1942,22 +1942,22 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
     """
     print(f"plot_high_dimension_db {ifold}")
     try:
-        # db = DBPlot(clf)
-        # db.fit(X, y, training_indices=train_index)
-        # fig, ax = plt.subplots(figsize=(19.20, 19.20))
-        # db.plot(
-        #     ax, generate_testpoints=True, meta=meta
-        # )  # set generate_testpoints=False to speed up plotting
-        # models_visu_dir = (
-        #     out_dir
-        #     / "models_visu_pca"
-        #     / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
-        # )
-        # models_visu_dir.mkdir(parents=True, exist_ok=True)
-        # filepath = models_visu_dir / f"{ifold}.png"
-        # print(filepath)
-        # plt.savefig(filepath)
-        # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
+        db = DBPlot(clf)
+        db.fit(X, y, training_indices=train_index)
+        fig, ax = plt.subplots(figsize=(19.20, 19.20))
+        db.plot(
+            ax, generate_testpoints=True, meta=meta
+        )  # set generate_testpoints=False to speed up plotting
+        models_visu_dir = (
+            out_dir
+            / "models_visu_pca"
+            / f"{type(clf).__name__}_{clf.kernel}_{days}_{steps}"
+        )
+        models_visu_dir.mkdir(parents=True, exist_ok=True)
+        filepath = models_visu_dir / f"{ifold}.png"
+        print(filepath)
+        plt.savefig(filepath)
+        plot_learning_curves(clf, X, y, ifold, models_visu_dir)
         db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
         db.fit(X, y, training_indices=train_index)
         fig, ax = plt.subplots(figsize=(8.0, 8.0))
