@@ -535,7 +535,7 @@ def remove_rows(thresh_nan, vstack_ss, input, thresh_pos, n_transponder, n_h=6):
     return filtered_row, filtered_row_ss, idx
 
 
-def restore_matrix_v1(i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
+def restore_matrix_v1(export_heatmaps, i, thresh, xaxix_label, ids, start_timestamp, t_idx, output_dir, shape_o, row_idx, imputed,
                       n_transpond, days = 1, add_t_col=None):
     if thresh >= 0:
         imputed = add_nan_rows(shape_o, imputed, row_idx)
@@ -553,9 +553,10 @@ def restore_matrix_v1(i, thresh, xaxix_label, ids, start_timestamp, t_idx, outpu
             xaxis_title="Time (1 min bins)",
             yaxis_title="Days")
 
-        if i % 100 == 0:
-            filename = output_dir / f"imputed_gain_restored_{i}.html"
-            fig.write_html(filename)
+        if export_heatmaps:
+            if i % 100 == 0:
+                filename = output_dir / f"imputed_gain_restored_{i}.html"
+                fig.write_html(filename)
 
     # df_ = pd.DataFrame(imputed).iloc[:, :-n_transpond - 1]
     # start = 0

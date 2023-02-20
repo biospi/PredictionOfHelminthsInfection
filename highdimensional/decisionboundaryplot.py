@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as mplt
 import os
 from sklearn.base import BaseEstimator
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
@@ -15,6 +16,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+import datetime
 
 
 class DBPlot(BaseEstimator):
@@ -376,7 +378,7 @@ class DBPlot(BaseEstimator):
 
     def plot(
         self,
-        plt=None,
+        ax=None,
         generate_testpoints=True,
         generate_background=True,
         tune_background_model=False,
@@ -390,7 +392,7 @@ class DBPlot(BaseEstimator):
 
         Parameters
         ----------
-        plt : matplotlib.pyplot or axis object (default=matplotlib.pyplot)
+        ax : matplotlib.pyplot or axis object (default=matplotlib.pyplot)
             Object to be plotted on
 
         generate_testpoints : boolean, optional (default=True)
@@ -422,10 +424,10 @@ class DBPlot(BaseEstimator):
         and will be required)
         """
         print("plotting high dimension db...")
-        if plt == None:
-            plt = mplt
+        if ax == None:
+            ax = mplt
 
-        plt.set_facecolor((215 / 255, 239 / 255, 233 / 255))
+        ax.set_facecolor((215 / 255, 239 / 255, 233 / 255))
 
         if len(self.X_testpoints) == 0:
             self.generate_plot(
@@ -437,23 +439,16 @@ class DBPlot(BaseEstimator):
 
         if generate_background and generate_testpoints:
             try:
-                plt.imshow(
+                ax.imshow(
                     np.flipud(self.background),
                     extent=[self.X2d_xmin, self.X2d_xmax, self.X2d_ymin, self.X2d_ymax],
                     cmap="GnBu",
                     alpha=0.33,
                 )
-            except (Exception, ex):
-                print("Failed to render image background")
+            except Exception as ex:
+                print("Failed to render image background", ex)
 
-        # decision boundary
-        plt.scatter(
-            self.decision_boundary_points_2d[:, 0],
-            self.decision_boundary_points_2d[:, 1],
-            500 * scatter_size_scale,
-            c="c",
-            marker="p",
-        )
+
         # generated demo points
         # if generate_testpoints:
         #     plt.scatter(
@@ -464,59 +459,8 @@ class DBPlot(BaseEstimator):
         #         alpha=0.6,
         #     )
 
-        # label data points with their indices
-        map_color = {1:'tab:blue',
-                     2:'tab:orange',
-                     3:'tab:green',
-                     4:'tab:red',
-                     5:'tab:purple',
-                     6:'tab:brown',
-                     7:'tab:pink',
-                     8:'tab:gray',
-                     9:'tab:olive',
-                     10:'tab:cyan',
-                     11:'black',
-                     12:'white'}
-
-        map_color_f = {"1To1":'tab:blue',
-                     "2To2":'tab:orange',
-                     "2To1":'tab:green',
-                     "1To2":'tab:red'}
-
-        #months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
-        for i in range(len(self.X2d)):
-            # "label",
-            # "id",
-            # "imputed_days",
-            # "date",
-            # "health",
-            # "target",
-
-            data = meta[i]
-            label = data[0]
-            id = int(str(int(data[1]))[-3:])
-            imputed_days = data[2]
-            date = data[3]
-            health = data[4]
-            target = data[5]
-            month = int(date.split('/')[1])
-            text_ = f"{id}"
-
-            t = plt.text(
-                self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2 * 5,
-                self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2 * 5,
-                text_,
-                # fontsize=12,
-                weight='bold',
-                size=6,
-                color="white"
-            )
-            t.set_bbox(dict(facecolor=map_color[month], alpha=0.5, edgecolor=map_color[month]))
-
-
-
         # training data
-        plt.scatter(
+        ax.scatter(
             self.X2d[self.train_idx, 0],
             self.X2d[self.train_idx, 1],
             40 * scatter_size_scale,
@@ -532,10 +476,11 @@ class DBPlot(BaseEstimator):
                 for i in range(len(self.train_idx))
             ],
             linewidths=5 * scatter_size_scale,
-            alpha=0.8
+            alpha=0.8,
+            zorder=1
         )
         # testing data
-        plt.scatter(
+        ax.scatter(
             self.X2d[self.test_idx, 0],
             self.X2d[self.test_idx, 1],
             150 * scatter_size_scale,
@@ -552,10 +497,9 @@ class DBPlot(BaseEstimator):
             ],
             linewidths=5 * scatter_size_scale,
             marker="s",
-            alpha=0.8
+            alpha=0.8,
+            zorder=1
         )
-
-
         # blue 1to1
         # green 2to2
         if legend:
@@ -610,13 +554,43 @@ class DBPlot(BaseEstimator):
                     [0],
                     marker="o",
                     color="w",
-                    label="Misclassification",
+                    label="Miss-classification",
                     markerfacecolor="r",
                     markersize=15,
                 ),
             ]
 
-            plt.legend(handles=legend_elements, loc="lower right", ncol=2)
+            legend0 = mplt.legend(handles=legend_elements, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.20))
+
+            # label data points with their indices
+            colors = mplt.cm.twilight(np.linspace(0, 1, 12))
+            map_color = {1: colors[0],
+                         2: colors[1],
+                         3: colors[2],
+                         4: colors[3],
+                         5: colors[4],
+                         6: colors[5],
+                         7: colors[6],
+                         8: colors[7],
+                         9: colors[8],
+                         10: colors[9],
+                         11: colors[10],
+                         12: colors[11]}
+            legend_elements = []
+            for k, v in map_color.items():
+                legend_elements.append(Patch(facecolor=v, edgecolor="black", alpha=0.6,
+                                             label=datetime.date(1900, k, 1).strftime('%B')))
+
+            legend1 = mplt.legend(handles=legend_elements, ncol=int(len(legend_elements) / 2), loc='upper center',
+                                  bbox_to_anchor=(0., 1.02, 1., .102))
+
+            ax.add_artist(legend0)
+            ax.add_artist(legend1)
+            ax.set_xlabel("PCA component 1")
+            ax.set_ylabel("PCA component 2")
+            if isinstance(self.dimensionality_reduction, PLSRegression):
+                ax.set_xlabel("PLS component 1")
+                ax.set_ylabel("PLS component 2")
 
             # plt.legend(handles=[plt.scatter([0, 1], [2, 3], marker="p", c="c").legend_elements()[0],
             #                     plt.scatter([0, 1], [2, 3], marker="s", c="b").legend_elements()[0],
@@ -648,15 +622,16 @@ class DBPlot(BaseEstimator):
             # )
 
         # decision boundary keypoints, in case not visible in background
-        plt.scatter(
+        ax.scatter(
             self.decision_boundary_points_2d[:, 0],
             self.decision_boundary_points_2d[:, 1],
             600 * scatter_size_scale,
             c="c",
             marker="p",
             alpha=0.1,
+            zorder=2
         )
-        plt.scatter(
+        ax.scatter(
             self.decision_boundary_points_2d[:, 0],
             self.decision_boundary_points_2d[:, 1],
             30 * scatter_size_scale,
@@ -664,13 +639,24 @@ class DBPlot(BaseEstimator):
             marker="p",
             edgecolor="c",
             alpha=0.8,
+            zorder=2
+        )
+
+        # decision boundary
+        ax.scatter(
+            self.decision_boundary_points_2d[:, 0],
+            self.decision_boundary_points_2d[:, 1],
+            500 * scatter_size_scale,
+            c="c",
+            marker="p",
+            zorder=2
         )
 
         # minimum spanning tree through decision boundary keypoints
         D = pdist(self.decision_boundary_points_2d)
         edges = minimum_spanning_tree(squareform(D))
         for e in edges:
-            plt.plot(
+            ax.plot(
                 [
                     self.decision_boundary_points_2d[e[0], 0],
                     self.decision_boundary_points_2d[e[1], 0],
@@ -681,8 +667,9 @@ class DBPlot(BaseEstimator):
                 ],
                 "--c",
                 linewidth=4 * scatter_size_scale,
+                zorder=5
             )
-            plt.plot(
+            ax.plot(
                 [
                     self.decision_boundary_points_2d[e[0], 0],
                     self.decision_boundary_points_2d[e[1], 0],
@@ -693,38 +680,63 @@ class DBPlot(BaseEstimator):
                 ],
                 "--k",
                 linewidth=1,
+                zorder=5
             )
 
-        if len(self.test_idx) == 0:
-            print("No demo performance calculated, as no testing data was specified")
-        else:
-            freq = np.array(
-                np.unique(self.y[self.test_idx], return_counts=True)
-            ).T.astype(float)
-            imbalance = np.round(
-                np.max((freq[0, 1], freq[1, 1])) / len(self.test_idx), 3
+        # months = [map_color[int(x.split(' ')[2].split('/')[1])] for x in meta]
+        for i in range(len(self.X2d)):
+            data = meta[i]
+            label = data[0]
+            id = int(str(int(data[1]))[-3:])
+            imputed_days = data[2]
+            date = data[3]
+            health = data[4]
+            target = data[5]
+            month = int(date.split('/')[1])
+            text_ = f"{label}"
+            t = ax.text(
+                self.X2d[i, 0] + (self.X2d_xmax - self.X2d_xmin) * 0.5e-2 * 5,
+                self.X2d[i, 1] + (self.X2d_ymax - self.X2d_ymin) * 0.5e-2 * 5,
+                text_,
+                # fontsize=12,
+                weight='bold',
+                size=6,
+                color="white",
+                zorder=4
             )
-            acc_score = np.round(
-                accuracy_score(self.y[self.test_idx], self.y_pred[self.test_idx]), 3
-            )
-            f1 = np.round(
-                f1_score(self.y[self.test_idx], self.y_pred[self.test_idx]), 3
-            )
-            plt.set_title(
-                "Test accuracy: "
-                + str(acc_score)
-                + ", F1 score: "
-                + str(f1)
-                + ". Imbalance (max chance accuracy): "
-                + str(imbalance)
-            )
+            t.set_bbox(dict(facecolor=map_color[month], alpha=0.5, edgecolor=map_color[month]))
+
+
+        # if len(self.test_idx) == 0:
+        #     print("No demo performance calculated, as no testing data was specified")
+        # else:
+        #     freq = np.array(
+        #         np.unique(self.y[self.test_idx], return_counts=True)
+        #     ).T.astype(float)
+        #     imbalance = np.round(
+        #         np.max((freq[0, 1], freq[1, 1])) / len(self.test_idx), 3
+        #     )
+        #     acc_score = np.round(
+        #         accuracy_score(self.y[self.test_idx], self.y_pred[self.test_idx]), 3
+        #     )
+        #     f1 = np.round(
+        #         f1_score(self.y[self.test_idx], self.y_pred[self.test_idx]), 3
+        #     )
+        #     ax.set_title(
+        #         "Test accuracy: "
+        #         + str(acc_score)
+        #         + ", F1 score: "
+        #         + str(f1)
+        #         + ". Imbalance (max chance accuracy): "
+        #         + str(imbalance)
+        #     )
 
         if self.verbose:
             print(
                 "Plot successfully generated! Don't forget to call the show() method to display it"
             )
-
-        return plt
+        #ax.tight_layout()
+        return ax, legend0, legend1
 
     def generate_plot(
         self,

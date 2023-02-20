@@ -283,7 +283,7 @@ def gain(n_top_traces, xaxix_label, start_timestamp, miss_rate, out, thresh, ids
             raise ValueError("Error while imputing data, all value NaN!")
 
         if RESHAPE:
-            imputed_data_restored = restore_matrix_v1(i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
+            imputed_data_restored = restore_matrix_v1(export_heatmaps, i, thresh, xaxix_label, ids, start_timestamp, t_idx, out,
                                                       shape_o, rm_row_idx, imputed_data, N_TRANSPOND,
                                                       add_t_col=ADD_TRANSP_COL, days=days)
         else:

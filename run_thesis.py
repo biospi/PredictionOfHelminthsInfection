@@ -1,3 +1,5 @@
+import os
+
 import typer
 import ml as main_experiment
 import ml_cross_farm_validation as cross_farm_validation
@@ -8,7 +10,7 @@ from pathlib import Path
 def single_run(
     output_dir=Path("E:/thesis_final_feb17/test3"),
     clf="linear",
-    farm_id="cedara",
+    farm_id="",
     cv="RepeatedKFold",
     i_day=7,
     a_day=7,
@@ -103,6 +105,7 @@ def main(
     cedara_dir_gain: Path = None,
     cedara_dir_li: Path = None,
     n_job: int = 6,
+    export_hpc_string: bool = True
 ):
     """Thesis script runs all key experiments for data exploration chapter
     Args:\n
@@ -161,6 +164,7 @@ def main(
                             plot_2d_space=False,
                             export_fig_as_pdf=False,
                             pre_visu=True,
+                            export_hpc_string=export_hpc_string,
                             weather_file=Path(
                                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"
                             ),
@@ -236,6 +240,8 @@ def main(
                                                 export_fig_as_pdf=False,
                                                 plot_2d_space=False,
                                                 pre_visu=False,
+                                                export_hpc_string = export_hpc_string,
+                                                skip=False,
                                                 weather_file=Path(
                                                     "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
                                                 ),
@@ -582,8 +588,16 @@ def main(
                 # )
 
 
+def purge_hpc_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+
+
 if __name__ == "__main__":
-    # local_run()
-    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"))
+    purge_hpc_file('thesis_hpc_ln.txt')
+    purge_hpc_file('thesis_hpc.txt')
+    local_run()
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
     #biospi_run()
     # typer.run(main)

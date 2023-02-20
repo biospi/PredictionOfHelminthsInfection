@@ -52,9 +52,9 @@ def process(df_raw_, df_gain_, df_mrnn):
     df["RAW vs GAIN"] = rmse_gain_list
     df["RAW vs LI"] = rmse_li_list
     print(df)
-    fig_ = df.boxplot(column=['RAW vs MRNN', 'RAW vs GAIN', 'RAW vs LI']).get_figure()
+    fig_ = df.boxplot(column=['RAW vs MRNN', 'RAW vs GAIN', 'RAW vs LI'], figsize=(3.0, 5.0), rot=-45).get_figure()
     ax = fig_.gca()
-    ax.set_title("RMSE comparison for each ML samples")
+    # ax.set_title("RMSE comparison for each ML samples")
     ax.set_ylabel("RMSE")
     ax.set_xlabel("Imputation")
     filename = f"../RMSE_comparison_ml_samples.png"
@@ -78,12 +78,14 @@ def find_samples(df, date, id, label):
 
 def main(dataset, dataset_mrnn, dataset_gain):
     print(dataset, dataset_mrnn, dataset_gain)
+    print("loading data...")
     df_dataset = pd.read_csv(dataset, header=None)
     df_mrnn = pd.read_csv(dataset_mrnn, header=None)
     df_gain = pd.read_csv(dataset_gain, header=None)
     samples_raw = []
     samples_gain = []
     for index, row in df_mrnn.iterrows():
+        print(f"{index}/{len(df_mrnn)}...")
         date = row.values[-1]
         id = row.values[-3]
         label = row.values[-4]

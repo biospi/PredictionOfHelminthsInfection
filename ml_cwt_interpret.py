@@ -12,6 +12,7 @@ import pycwt as wavelet
 import typer
 from skfeature.function.similarity_based import fisher_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
 from cwt._cwt import CWT, DWT
@@ -379,10 +380,10 @@ def main(
     plot_high_dimension_db: bool = False,
     p: bool = typer.Option(False, "--p"),
     farmname: str = '',
-    sunrise_max=9,
-    sunset_min=17,
-    sunrise_min=9,
-    sunset_max=17,
+    sunrise_max: int = 9,
+    sunset_min: int =17,
+    sunrise_min: int =9,
+    sunset_max: int =17,
     n_peaks=1
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -502,6 +503,7 @@ def main(
 
         clf = SVC(kernel="linear", probability=True)
         # clf = LinearRegression()
+        clf = LogisticRegression(n_jobs=-1)
         if random_forest:
             clf = RandomForestClassifier(random_state=0)
 
@@ -1371,7 +1373,7 @@ if __name__ == "__main__":
             for j in [1, 2, 3, 4, 5, 6, 7]:
                 main(
                     Path(
-                        f"E:/preprint/thesis/interpret3/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__A"
+                        f"E:/preprint/thesis/interpret4/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__A"
                     ),
                     Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
@@ -1389,7 +1391,7 @@ if __name__ == "__main__":
 
                 main(
                     Path(
-                        f"E:/preprint/thesis/interpret3/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__B"
+                        f"E:/preprint/thesis/interpret4/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__B"
                     ),
                     Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
@@ -1407,7 +1409,7 @@ if __name__ == "__main__":
 
                 main(
                     Path(
-                        f"E:/preprint/thesis/interpret3/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__A"
+                        f"E:/preprint/thesis/interpret4/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__A"
                     ),
                     Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
@@ -1425,7 +1427,7 @@ if __name__ == "__main__":
 
                 main(
                     Path(
-                        f"E:/preprint/thesis/interpret3/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__B"
+                        f"E:/preprint/thesis/interpret4/delmas/{str(daytime_prct).replace('.','_')}/{t}_explain_{j}_datasetmrnn7_17__B"
                     ),
                     Path("E:/thesis/datasets/delmas/datasetmrnn7_17"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],

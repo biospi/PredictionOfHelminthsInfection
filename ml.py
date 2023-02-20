@@ -19,6 +19,7 @@
 # along with seaMass.  If not, see <http://www.gnu.org/licenses/>.
 #
 import json
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -59,6 +60,44 @@ def format_time(time):
         return "20:00"
 
 
+def build_hpc_string(
+    output_dir,
+    dataset_folder,
+    preprocessing_steps,
+    class_unhealthy_label,
+    n_imputed_days,
+    n_activity_days,
+    n_weather_days,
+    weather_file,
+    classifiers,
+    pre_visu,
+    n_job,
+    skip,
+):
+    output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
+    data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
+
+    hpc_s = f"ml.py --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} "
+    for item in preprocessing_steps:
+        hpc_s += f"--preprocessing-steps {item} "
+    for item in class_unhealthy_label:
+        hpc_s += f"--class-unhealthy-label {item} "
+    for item in classifiers:
+        hpc_s += f"--classifiers {item}"
+
+    if pre_visu:
+        hpc_s += "--pre_visu"
+
+    if skip:
+        hpc_s += "--skip"
+
+    print(hpc_s)
+    with open("thesis_hpc_ln.txt", "a") as f:
+        f.write(f"'{hpc_s}'" + "\n")
+    with open("thesis_hpc.txt", "a") as f:
+        f.write(f"'{hpc_s}'" + " ")
+
+
 def main(
     output_dir: Path = typer.Option(
         ..., exists=False, file_okay=False, dir_okay=True, resolve_path=True
@@ -95,7 +134,7 @@ def main(
     dwt_window: str = "coif1",
     study_id: str = "study",
     sampling: str = "T",
-    pre_visu: bool = True,
+    pre_visu: bool = False,
     output_qn_graph: bool = False,
     enable_qn_peak_filter: bool = False,
     enable_downsample_df: bool = False,
@@ -109,7 +148,8 @@ def main(
     resolution: float = None,
     plot_2d_space: bool = False,
     export_fig_as_pdf: bool = False,
-    skip: bool = True
+    skip: bool = False,
+    export_hpc_string: bool = True,
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -137,7 +177,23 @@ def main(
         n_job: Number of threads to use for cross validation.
     """
 
-    plot_ml_report_final(output_dir.parent.parent)
+    if export_hpc_string:
+        build_hpc_string(
+            output_dir,
+            dataset_folder,
+            preprocessing_steps,
+            class_unhealthy_label,
+            n_imputed_days,
+            n_activity_days,
+            n_weather_days,
+            weather_file,
+            classifiers,
+            pre_visu,
+            20,
+            skip,
+        )
+        return
+    # plot_ml_report_final(output_dir.parent.parent)
     # exit()
     meta_columns = [x.replace("'", "") for x in meta_columns]
     preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
@@ -198,14 +254,14 @@ def main(
                 print(weather_file)
                 df_weather = pd.read_csv(weather_file)
                 df_weather["d"] = pd.to_datetime(df_weather["datetime"])
-                df_weather = df_weather.sort_values('d')
+                df_weather = df_weather.sort_values("d")
 
                 for d in ["precip", "humidity", "temp_c", "windspeed"]:
                     fig = plt.figure()
                     plt.plot(df_weather["d"], df_weather[d])
-                    fig.suptitle(f'{d} data')
-                    plt.xlabel('Time')
-                    plt.ylabel(f'{d}')
+                    fig.suptitle(f"{d} data")
+                    plt.xlabel("Time")
+                    plt.ylabel(f"{d}")
                     path = weather_file.parent / f"{weather_file.stem}_{d}.png"
                     print(path)
                     fig.tight_layout()
@@ -215,28 +271,24 @@ def main(
                 df_temp_list = []
                 df_rain_list = []
                 df_windspeed_list = []
-                for j, d in tqdm(enumerate(data_frame["date"]), total=len(data_frame["date"])):
+                for j, d in tqdm(
+                    enumerate(data_frame["date"]), total=len(data_frame["date"])
+                ):
                     d = pd.to_datetime(d) - timedelta(days=n_weather_days)
                     df_h = []
                     df_t = []
                     df_rain = []
                     df_windspeed = []
-                    #print(f"SAMPLE {j}/{data_frame.shape[0]}")
+                    # print(f"SAMPLE {j}/{data_frame.shape[0]}")
                     for n in range(n_weather_days):
                         d_ = d - timedelta(days=n)
                         d_ = d_.strftime("%d/%m/%Y")
-                        df_h_ = df_weather[df_weather["date"] == d_][
-                            "humidity"
-                        ].values
+                        df_h_ = df_weather[df_weather["date"] == d_]["humidity"].values
                         df_h.extend(df_h_)
-                        df_t_ = df_weather[df_weather["date"] == d_][
-                            "temp_c"
-                        ].values
+                        df_t_ = df_weather[df_weather["date"] == d_]["temp_c"].values
                         df_t.extend(df_t_)
 
-                        df_rain_ = df_weather[df_weather["date"] == d_][
-                            "precip"
-                        ].values
+                        df_rain_ = df_weather[df_weather["date"] == d_]["precip"].values
                         df_rain.extend(df_rain_)
 
                         df_wind_ = df_weather[df_weather["date"] == d_][

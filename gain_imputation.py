@@ -899,7 +899,7 @@ def local_run(
     thresh_nan_ratio = 80
 
     if run_exp:
-        for day in [1, 2, 3, 4, 5, 6, 7]:
+        for day in [1, 2, 3, 4, 5, 6, 7, 14]:
             for miss_rate in [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]:
                 # for n_traces in [10, 20, 30]:
                 arg_run(
@@ -948,7 +948,7 @@ def arg_run(
     output_hpc_string=False
 ):
     if output_hpc_string: #cores on BC4
-        n_job = 20
+        n_job = 27
         output_dir = f"/user/work/fo18103{output_dir.split(':')[1]}"
         data_dir = f"/user/work/fo18103{data_dir.split(':')[1]}"
 

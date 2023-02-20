@@ -18,6 +18,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import host_subplot
 from tqdm import tqdm
+import matplotlib.ticker as ticker
 
 from utils.Utils import anscombe
 
@@ -593,10 +594,14 @@ def create_heatmap(
     date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
     x_lims = mdates.date2num(time_axis)
 
-    height = 13 * df_raw.shape[0]/100
-    figsize = (20.20, height)
+    # height = 13 * df_raw.shape[0]/100
+    # figsize = (20.20, height)
+    # if farm_id == "cedara":
+    #     figsize = (20.20, height)
+
+    figsize = (7.2, 9.8)
     if farm_id == "cedara":
-        figsize = (20.20, height)
+        figsize = (7.2, 12.8)
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.yaxis.set_label_position("right")
@@ -627,16 +632,18 @@ def create_heatmap(
     else:
         # axs[p].xaxis_date()
         ax.xaxis.set_major_formatter(date_format)
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=30))
 
     fig.autofmt_xdate(rotation=45)
     if farm_id == "cedara":
         ax.axvline(pd.Timestamp("2013-02-14"), color="white", linestyle="--", lw=3)
 
-    every_nth = 2
-    for n, label in enumerate(ax.xaxis.get_ticklabels()):
-        if n % every_nth != 0:
-            label.set_visible(False)
+    # every_nth = 2
+    # if farm_id == "cedara":
+    #     every_nth = 6
+    # for n, label in enumerate(ax.xaxis.get_ticklabels()):
+    #     if n % every_nth == 0:
+    #         label.set_visible(False)
 
     animal_ids_formatted_ent = df_raw["id"].values[::-1]
     animal_ids_formatted_ent = [x.split(" ")[0] for x in animal_ids_formatted_ent]
@@ -754,6 +761,20 @@ def create_heatmap(
     ax.yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     # axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     # axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+
+    # every_nth = 2
+    # if farm_id == "cedara":
+    #     every_nth = 15
+    # for n, label in enumerate(ax.yaxis.get_ticklabels()):
+    #     if n % every_nth == 0:
+    #         label.set_visible(False)
+    tick_spacing = 2
+    if farm_id == "cedara":
+        tick_spacing = 6
+    # ax.set_yticks(ax.get_yticks()[::tick_spacing])
+    for i, label in enumerate(ax.get_yticklabels()):
+        if i % tick_spacing != 0:
+            label.set_visible(False)
 
     ax.set_facecolor("pink")
     ax.tick_params(axis="x", rotation=45)
@@ -1414,39 +1435,48 @@ def main(
 
 def local_run():
 
-    main(
-        output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
-        activity_dir=Path(
-            "F:/Data2/backfill_1min_xyz_delmas_fixed"
-        ),
-        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
-        activity_col="signal_strength",
-        farm_id="delmas",
-        day_before_famacha_test=7,
-        no_filter=False,
-        display_famacha=False,
-        res='1T',
-        zoom=True
-    )
+    # main(
+    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+    #     activity_dir=Path(
+    #         "F:/Data2/backfill_1min_xyz_delmas_fixed"
+    #     ),
+    #     dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+    #     activity_col="signal_strength",
+    #     farm_id="delmas",
+    #     day_before_famacha_test=7,
+    #     no_filter=False,
+    #     display_famacha=False,
+    #     res='1T',
+    #     zoom=True
+    # )
+    #
+    # main(
+    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+    #     activity_dir=Path(
+    #         "F:/Data2/backfill_1min_xyz_delmas_fixed"
+    #     ),
+    #     dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+    #     activity_col="first_sensor_value",
+    #     farm_id="delmas",
+    #     day_before_famacha_test=7,
+    #     no_filter=False,
+    #     display_famacha=False,
+    #     res='1T',
+    #     zoom=True
+    # )
 
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
         activity_dir=Path(
-            "F:/Data2/backfill_1min_xyz_delmas_fixed"
+            "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
         ),
-        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
         activity_col="first_sensor_value",
-        farm_id="delmas",
+        farm_id="cedara",
         day_before_famacha_test=7,
-        no_filter=False,
-        display_famacha=False,
-        res='1T',
-        zoom=True
+        no_filter=True,
+        display_famacha=False
     )
-
-
-
-
 
     # main(
     #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
@@ -1457,20 +1487,11 @@ def local_run():
     #     activity_col="first_sensor_value",
     #     farm_id="delmas",
     #     day_before_famacha_test=7,
-    #     no_filter=True
+    #     no_filter=True,
+    #     display_famacha=False
     # )
-    #
-    # main(
-    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
-    #     activity_dir=Path(
-    #         "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
-    #     ),
-    #     dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
-    #     activity_col="first_sensor_value",
-    #     farm_id="cedara",
-    #     day_before_famacha_test=7,
-    #     no_filter=True
-    # )
+
+
 
 
     # main(
