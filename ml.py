@@ -149,7 +149,7 @@ def main(
     plot_2d_space: bool = False,
     export_fig_as_pdf: bool = False,
     skip: bool = False,
-    export_hpc_string: bool = True,
+    export_hpc_string: bool = False,
 ):
     """ML Main machine learning script\n
     Args:\n
