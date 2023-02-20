@@ -177,9 +177,7 @@ def main(
         steps_list = [
             [],
             ["QN"],
-            ["QN", "ANSCOMBE"],
-            ["QN", "ANSCOMBE", "LOG"],
-            ["QN", "ANSCOMBE", "LOG", "STDS"]
+            ["QN", "ANSCOMBE", "LOG"]
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
@@ -198,7 +196,7 @@ def main(
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
-        for class_unhealthy_label in ["2To2", "1To2", "2To1"]:
+        for class_unhealthy_label in ["2To2", "1To2"]:
             for steps in steps_list:
                 slug = "_".join(steps)
                 for clf in ["linear", "rbf", "knn", "lreg", "dtree"]:
