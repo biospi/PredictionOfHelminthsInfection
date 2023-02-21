@@ -14,6 +14,7 @@ def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False):
     n_top_traces = 20
     df_ = df[df["n_top_traces"] == n_top_traces]
     df_ = df_[df_["i"] == iteration]
+    df_ = df_[df_["missing_rate"] <= 0.8]
     name = "Sample length\n(in days)"
     df_ = df_.rename(columns={"seq_len": f"{name}"})
     metric = "rmse"
@@ -55,6 +56,7 @@ def window_length_effect_plot(data_dir, df, study_id="delmas", li=False):
     n_top_traces = 20
     df_ = df[df["n_top_traces"] == n_top_traces]
     df_ = df_[df_["i"] == iteration]
+    df_ = df_[df_["missing_rate"] <= 0.8]
     name = "Sample length\n(in days)"
     df_ = df_.rename(columns={"seq_len": f"{name}"})
     metric = "rmse"
@@ -196,5 +198,7 @@ if __name__ == "__main__":
     df = df.reset_index(drop=True)
     loss_curve(data_dir, df, study_id="delmas")
     n_transponder_effect_plot(data_dir, df, study_id="delmas")
+    missingness_robustness_plot(data_dir, df, study_id="delmas", li=True)
+    window_length_effect_plot(data_dir, df, study_id="delmas", li=True)
     missingness_robustness_plot(data_dir, df, study_id="delmas")
     window_length_effect_plot(data_dir, df, study_id="delmas")

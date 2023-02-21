@@ -899,8 +899,24 @@ def local_run(
     thresh_nan_ratio = 80
 
     if run_exp:
-        for day in [1, 2, 3, 4, 5, 6, 7, 14]:
-            for miss_rate in [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]:
+        for day in [1, 2, 3, 4, 5, 6, 7]:
+            for miss_rate in [0.5]:
+                # for n_traces in [10, 20, 30]:
+                arg_run(
+                    data_dir=input_dir,
+                    output_dir=output_dir,
+                    thresh_daytime=thresh_daytime,
+                    thresh_nan_ratio=thresh_nan_ratio,
+                    miss_rate=miss_rate,
+                    n_top_traces=n_top_traces,
+                    window_size=day,
+                    n_job=n_job,
+                    interation=interation,
+                    export_heatmaps=export_heatmaps,
+                    output_hpc_string=output_hpc_string
+                )
+        for day in [10, 12, 14]:
+            for miss_rate in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
                 # for n_traces in [10, 20, 30]:
                 arg_run(
                     data_dir=input_dir,
