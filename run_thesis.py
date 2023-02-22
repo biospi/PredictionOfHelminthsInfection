@@ -175,9 +175,12 @@ def main(
         print("experiment 1: main pipeline")
 
         steps_list = [
-            [],
-            ["QN"],
-            ["QN", "ANSCOMBE", "LOG"]
+            # [],
+            # ["QN"],
+            # ["QN", "ANSCOMBE", "LOG"],
+            ["L2"],
+            ["QN", "ANSCOMBE", "LOG", "STD"],
+            ["QN", "ANSCOMBE", "LOG", "MINMAX"],
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],

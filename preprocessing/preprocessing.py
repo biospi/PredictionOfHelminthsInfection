@@ -4,7 +4,7 @@ import numpy as np
 import umap
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, normalize
 
 from cwt._cwt import STFT, CWT, CWTVisualisation, DWT
 
@@ -282,6 +282,8 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = MinMaxScaler().fit_transform(
                 df.iloc[:, :-N_META].values
             )
+        if step == "L2":
+            df.iloc[:, :-N_META] = normalize([df.iloc[:, :-N_META].values])
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
         if step == "SQRT":
