@@ -20,7 +20,7 @@ def single_run(
     n_job=6,
     dataset=None,
 ):
-    steps = ["QN", "ANSCOMBE", "LOG"]
+    steps = ["L2", "ANSCOMBE", "LOG"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -39,8 +39,8 @@ def single_run(
         study_id=farm_id,
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
-        plot_2d_space=True,
-        pre_visu=True,
+        plot_2d_space=False,
+        pre_visu=False,
         skip=False,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
@@ -595,10 +595,10 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
-    local_run()
-    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # purge_hpc_file('thesis_hpc_ln.txt')
+    # purge_hpc_file('thesis_hpc.txt')
+    # local_run()
+    single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
     #biospi_run()
     # typer.run(main)
