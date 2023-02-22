@@ -9,7 +9,7 @@ import pandas as pd
 marker = ['x', 's', 'o', 'D', 'P', '^', '.', '>', '|']
 import matplotlib.colors as mcolors
 
-def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False):
+def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False, axhline=False):
     iteration = 99
     n_top_traces = 20
     df_ = df[df["n_top_traces"] == n_top_traces]
@@ -43,6 +43,8 @@ def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False):
         a.append(line.get_label())
     ax.legend(ax.get_lines(), a, loc='best', title=ax.get_legend().get_title().get_text())
     ax.set(xlabel="Missing rate (in percent)", ylabel="RMSE")
+    if axhline:
+        ax.axhline(y=0.2, color='black', linestyle='-.', zorder=0)
     filename = f"{study_id}_{metric}_missingness_gain.png"
     filepath = data_dir / filename
     print(filepath)
@@ -51,7 +53,7 @@ def missingness_robustness_plot(data_dir, df, study_id="delmas", li=False):
     plt.show()
 
 
-def window_length_effect_plot(data_dir, df, study_id="delmas", li=False):
+def window_length_effect_plot(data_dir, df, study_id="delmas", li=False, axhline=False):
     iteration = 99
     n_top_traces = 20
     df_ = df[df["n_top_traces"] == n_top_traces]
@@ -85,6 +87,8 @@ def window_length_effect_plot(data_dir, df, study_id="delmas", li=False):
         a.append(line.get_label())
     ax.legend(ax.get_lines(), a, loc='best', title=ax.get_legend().get_title().get_text())
     ax.set(xlabel="Sample length (in days)", ylabel="RMSE")
+    if axhline:
+        ax.axhline(y=0.2, color='black', linestyle='-.', zorder=0)
     filename = f"{study_id}_{metric}_seqlen_gain.png"
     filepath = data_dir / filename
     print(filepath)
@@ -103,6 +107,9 @@ def loss_curve(data_dir, df, study_id="delmas", li=False):
     df_n = df[df["n_top_traces"] == 40]
     colors = list(mcolors.TABLEAU_COLORS.keys())
     for s_l in df_n["seq_len"].unique():
+        if s_l >= 10:
+            continue
+        print(s_l)
         df_ = df_n[df_n["seq_len"] == s_l]
         #df_ = df_[df_["i"] > 1]
         iterations = df_["i"].values[::15]
@@ -200,5 +207,5 @@ if __name__ == "__main__":
     n_transponder_effect_plot(data_dir, df, study_id="delmas")
     missingness_robustness_plot(data_dir, df, study_id="delmas", li=True)
     window_length_effect_plot(data_dir, df, study_id="delmas", li=True)
-    missingness_robustness_plot(data_dir, df, study_id="delmas")
-    window_length_effect_plot(data_dir, df, study_id="delmas")
+    missingness_robustness_plot(data_dir, df, study_id="delmas", axhline=True)
+    window_length_effect_plot(data_dir, df, study_id="delmas", axhline=True)
