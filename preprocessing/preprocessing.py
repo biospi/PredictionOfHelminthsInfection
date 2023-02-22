@@ -283,7 +283,7 @@ def apply_preprocessing_steps(
                 df.iloc[:, :-N_META].values
             )
         if step == "L2":
-            df.iloc[:, :-N_META] = Normalizer().transform([df.iloc[:, :-N_META].values])
+            df.iloc[:, :-N_META] = Normalizer().transform(df.iloc[:, :-N_META].values)
         if step == "ANSCOMBE":
             df.iloc[:, :-N_META] = Anscombe().transform(df.iloc[:, :-N_META].values)
         if step == "SQRT":
