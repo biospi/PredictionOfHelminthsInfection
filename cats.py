@@ -2,11 +2,14 @@ import typer
 import ml as main_pipeline
 from pathlib import Path
 
+from utils.Utils import purge_hpc_file
+
+
 # nohup python3 cats.py --dataset-parent /mnt/storage/scratch/axel/cats/peak --out-parent /mnt/storage/scratch/axel/cats/ml_peak > peak.log &
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations_qnf_ldebug2",
+    out_parent: str = "E:/Cats/ml_build_permutations_thesis",
     dataset_parent: str = "E:/Cats/build_permutations",
 ):
     """Thesis script runs the cats study
@@ -17,8 +20,9 @@ def main(
     print(out_parent)
     print(dataset_parent)
 
-    for clf in ["linear", "rbf"]:
+    for clf in ["transformer"]:
         for steps in [
+            [],
             ["QN", "STD"],
             # ["QN", "STD", "CENTER", "CWTMORL"],
             # ["QN", "STD", "CENTER", "DWT"]
@@ -56,7 +60,7 @@ def main(
             #     "6000__004__0_00100__120",
             # ]
 
-            folders = ["1000__002__0_00100__120"]
+            #folders = ["1000__002__0_00100__120"]
             print(folders)
             for thresh in folders:
                 print(f"threshold={thresh}")
@@ -110,6 +114,7 @@ def main(
                         epoch=100,
                         batch_size=100,
                         plot_2d_space=False,
+                        export_hpc_string=True
                     )
 
                 # main_pipeline.main(
@@ -326,5 +331,7 @@ def main(
 
 
 if __name__ == "__main__":
+    purge_hpc_file('thesis_hpc_ln.txt')
+    purge_hpc_file('thesis_hpc.txt')
     main()
     # typer.run(main)

@@ -325,3 +325,8 @@ def plot_model_metrics(history, out_dir, i, dir_name="model_cnn", meta=""):
     fig_fold.savefig(final_path)
     fig_fold.clear()
     plt.close(fig_fold)
+
+
+def purge_hpc_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
