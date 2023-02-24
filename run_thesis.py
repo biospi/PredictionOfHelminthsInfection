@@ -79,11 +79,11 @@ def local_run():
     main(
         output_dir=Path("E:/thesis_final_feb16"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
-        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_60"),
-        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"),
+        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"),
+        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172"),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_datasetmrnn7_gain"),
-        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_li_7_17"),
+        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66"),
+        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66"),
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
@@ -175,13 +175,13 @@ def main(
         print("experiment 1: main pipeline")
 
         steps_list = [
-            # [],
-            # ["QN"],
-            # ["QN", "ANSCOMBE", "LOG"],
-            # ["L2"],
-            # ["QN", "ANSCOMBE", "LOG", "STD"],
+            [],
+            ["QN"],
+            ["QN", "ANSCOMBE", "LOG"],
+            #["L2"],
+            ["QN", "ANSCOMBE", "LOG", "STD"],
             # ["QN", "ANSCOMBE", "LOG", "MINMAX"],
-            ["QN", "ANSCOMBE", "LOG", "CWT", "STD"],
+            # ["QN", "ANSCOMBE", "LOG", "CWT", "STD"],
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
@@ -210,10 +210,10 @@ def main(
                                 for cv in ["RepeatedKFold"]:
                                     for add_seasons_to_features in [False]:
                                         for dataset in [
-                                            delmas_dir_mrnn,
+                                            # delmas_dir_mrnn,
                                             delmas_dir_gain,
                                             delmas_dir_li,
-                                            cedara_dir_mrnn,
+                                            # cedara_dir_mrnn,
                                             cedara_dir_gain,
                                             cedara_dir_li,
                                         ]:
@@ -596,13 +596,13 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    # purge_hpc_file('thesis_hpc_ln.txt')
-    # purge_hpc_file('thesis_hpc.txt')
-    # local_run()
+    purge_hpc_file('thesis_hpc_ln.txt')
+    purge_hpc_file('thesis_hpc.txt')
+    local_run()
     #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
-    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_60"), farm_id="cedara")
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"), farm_id="cedara")
 
     #biospi_run()
     # typer.run(main)
