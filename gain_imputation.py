@@ -1055,10 +1055,18 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
+    local_run(input_dir="/mnt/storage/scratch/axel/thesis/activity_data/cedara/backfill_1min_cedara_fixed",
+              output_dir="/mnt/storage/scratch/axel/thesis/gain/cedara",
+              run_exp=False, interation=100, n_top_traces=100, output_hpc_string=False, export_heatmaps=True, n_job=25)
+
+    local_run(input_dir="/mnt/storage/scratch/axel/thesis/activity_data/delmas/backfill_1min_delmas_fixed",
+              output_dir="/mnt/storage/scratch/axel/thesis/gain/delmas",
+              run_exp=False, interation=100, n_top_traces=100, output_hpc_string=False, export_heatmaps=True, n_job=25)
+
     # purge_hpc_file('gain_hpc.txt')
     # purge_hpc_file('gain_hpc_ln.txt')
 
-    arg_run()
+    #arg_run()
     # local_run()
 
     # for n_top_traces in [20, 30, 40, 50]:

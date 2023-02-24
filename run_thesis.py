@@ -20,7 +20,7 @@ def single_run(
     n_job=6,
     dataset=None,
 ):
-    steps = ["L2", "ANSCOMBE", "LOG"]
+    steps = ["QN", "ANSCOMBE", "LOG"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -53,7 +53,7 @@ def biospi_run(n_job=25):
     main(
         output_dir=Path("/mnt/storage/scratch/axel/thesis"),
         cedara_dir_mrnn=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_datasetmrnn7_23"
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset6_mrnn_7day"
         ),
         cedara_dir_gain=Path(
             "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_gain_60"
@@ -79,7 +79,7 @@ def local_run():
     main(
         output_dir=Path("E:/thesis_final_feb16"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
-        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_gain"),
+        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_60"),
         cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
         delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_datasetmrnn7_gain"),
@@ -596,10 +596,13 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
-    local_run()
+    # purge_hpc_file('thesis_hpc_ln.txt')
+    # purge_hpc_file('thesis_hpc.txt')
+    # local_run()
     #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
-    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
+    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_60"), farm_id="cedara")
+
     #biospi_run()
     # typer.run(main)
