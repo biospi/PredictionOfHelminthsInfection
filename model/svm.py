@@ -556,7 +556,7 @@ def process_ml(
     #     sample_dates,
     # )
 
-    if cv is not "LeaveOneOut":
+    if cv != "LeaveOneOut":
         build_individual_animal_pred(
             output_dir, steps, class_unhealthy_label, scores, ids, meta_columns
         )

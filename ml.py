@@ -75,7 +75,8 @@ def build_hpc_string(
     n_job,
     skip,
     meta_columns,
-    cv
+    cv,
+    individual_to_ignore
 ):
     output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
@@ -89,6 +90,8 @@ def build_hpc_string(
         hpc_s += f"--class-unhealthy-label {item} "
     for item in meta_columns:
         hpc_s += f"--meta-columns {item} "
+    for item in individual_to_ignore:
+        hpc_s += f"--individual-to-ignore {item} "
     for item in classifiers:
         hpc_s += f"--classifiers {item}"
 
@@ -201,6 +204,7 @@ def main(
             skip,
             meta_columns,
             cv,
+            individual_to_ignore
         )
         return
     # plot_ml_report_final(output_dir.parent.parent)
