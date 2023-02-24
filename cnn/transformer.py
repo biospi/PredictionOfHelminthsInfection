@@ -229,6 +229,9 @@ def fold_worker(
 
     num_classes = len(np.unique(y_train))
 
+    if num_classes == 1:
+        num_classes = 2
+
     # idx = np.random.permutation(len(x_train))
     # x_train = x_train[idx]
     # y_train = y_train[idx]
@@ -265,7 +268,7 @@ def fold_worker(
     # ]
 
     model.compile(
-        loss="binary_crossentropy",
+        loss="sparse_categorical_crossentropy",
         optimizer=keras.optimizers.Adam(learning_rate=1e-4),
         metrics=["accuracy"],
     )

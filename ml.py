@@ -64,6 +64,7 @@ def build_hpc_string(
     output_dir,
     dataset_folder,
     preprocessing_steps,
+    class_healthy_label,
     class_unhealthy_label,
     n_imputed_days,
     n_activity_days,
@@ -82,6 +83,8 @@ def build_hpc_string(
     hpc_s = f"ml.py --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
+    for item in class_healthy_label:
+        hpc_s += f"--class-healthy-label {item} "
     for item in class_unhealthy_label:
         hpc_s += f"--class-unhealthy-label {item} "
     for item in meta_columns:
@@ -186,6 +189,7 @@ def main(
             output_dir,
             dataset_folder,
             preprocessing_steps,
+            class_healthy_label,
             class_unhealthy_label,
             n_imputed_days,
             n_activity_days,
@@ -196,7 +200,7 @@ def main(
             20,
             skip,
             meta_columns,
-            cv
+            cv,
         )
         return
     # plot_ml_report_final(output_dir.parent.parent)

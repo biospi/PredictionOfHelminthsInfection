@@ -325,6 +325,11 @@ def plot_model_metrics(history, out_dir, i, dir_name="model_cnn", meta=""):
     fig_fold.savefig(final_path)
     fig_fold.clear()
     plt.close(fig_fold)
+    df = pd.DataFrame()
+    df["accuracy"] = history.history['accuracy']
+    df["loss"] = history.history['loss']
+    df["fold"] = i
+    df.to_csv(str(final_path).replace("png", "csv"), index=False)
 
 
 def purge_hpc_file(filename):
