@@ -160,12 +160,15 @@ def load_activity_data(
 
     data_frame["health"] = new_label
 
-    seasons = pd.DataFrame(
-        (pd.to_datetime(data_frame["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1).values,
-        columns=[data_point_count - len(meta_columns)],
-        index=data_frame.index
-    )
-    seasons = seasons.loc[data_frame.index]
+    try:
+        seasons = pd.DataFrame(
+            (pd.to_datetime(data_frame["date"], format="%d/%m/%Y").dt.month % 12 // 3 + 1).values,
+            columns=[data_point_count - len(meta_columns)],
+            index=data_frame.index
+        )
+        seasons = seasons.loc[data_frame.index]
+    except Exception as e: #todo check if date available
+        print(e)
 
     # Hot Encode of FAmacha targets and assign integer target to each famacha label
     data_frame_labeled = pd.get_dummies(data_frame, columns=["label"])
