@@ -54,7 +54,7 @@ def worker(
     prec_list_train.append(precision_score(all_train_y, (np.array(all_train_proba) > 0.5).astype(int)))
 
 
-def main(path=None, n_bootstrap=3, n_job=8):
+def main(path=None, n_bootstrap=100, n_job=8):
     print("loading data...")
     paths = np.array(list(path.glob("*.json")))
     if len(paths) == 0:
@@ -180,6 +180,7 @@ if __name__ == "__main__":
     df_ = df.sort_values("mean_auc_test", ascending=False)
     df_ = df_.drop("mean_auc_test", axis=1)
     df_ = df_.drop("path", axis=1)
-    print(df_.to_latex())
+    df_ = df_.head(20)
+    print(df_.to_latex(index=False))
     df.to_csv("cat_result_table.csv", index=False)
 

@@ -265,7 +265,7 @@ def fold_worker(
     # ]
 
     model.compile(
-        loss="sparse_categorical_crossentropy",
+        loss="binary_crossentropy",
         optimizer=keras.optimizers.Adam(learning_rate=1e-4),
         metrics=["accuracy"],
     )

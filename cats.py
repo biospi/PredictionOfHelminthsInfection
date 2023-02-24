@@ -30,6 +30,7 @@ def main(
             slug = "_".join(steps)
             print(slug)
             folders = sorted([x.stem for x in Path(dataset_parent).glob("*")])
+            folders = [x for x in folders if "visu" not in str(x)]
             print(folders)
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
             #folders = ["800__001__0_00100__120"]

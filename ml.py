@@ -73,15 +73,19 @@ def build_hpc_string(
     pre_visu,
     n_job,
     skip,
+    meta_columns,
+    cv
 ):
     output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
 
-    hpc_s = f"ml.py --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} "
+    hpc_s = f"ml.py --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
     for item in class_unhealthy_label:
         hpc_s += f"--class-unhealthy-label {item} "
+    for item in meta_columns:
+        hpc_s += f"--meta-columns {item} "
     for item in classifiers:
         hpc_s += f"--classifiers {item}"
 
@@ -127,7 +131,7 @@ def main(
     add_seasons_to_features: bool = False,
     n_splits: int = 5,
     n_repeats: int = 10,
-    cv: str = "RepeatedStratifiedKFold",
+    cv: str = "RepeatedKFold",
     classifiers: List[str] = [],
     wavelet_f0: int = 6,
     sfft_window: int = 60,
@@ -191,6 +195,8 @@ def main(
             pre_visu,
             20,
             skip,
+            meta_columns,
+            cv
         )
         return
     # plot_ml_report_final(output_dir.parent.parent)
