@@ -181,7 +181,7 @@ def main(
             ["QN", "ANSCOMBE", "LOG", "STD"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
 
-            ["L2"],
+            # ["L2"],
             # ["L2", "ANSCOMBE", "LOG"],
             # ["L2", "ANSCOMBE", "LOG", "STD"],
             # ["L2", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
