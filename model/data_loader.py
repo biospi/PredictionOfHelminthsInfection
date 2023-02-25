@@ -119,7 +119,7 @@ def load_activity_data(
         data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
         data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
 
-    data_frame = data_frame[data_frame.nunique(1) > 10]
+    #data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(
         subset=data_frame.columns[: -len(meta_columns)], how="all"
     )

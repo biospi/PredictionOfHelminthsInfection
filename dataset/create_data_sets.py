@@ -34,34 +34,61 @@ import json
 
 
 def local_run():
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_66"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
 
     main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("H:/fo18103/gain/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_66"),
-         out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66"),
-         data_col="first_sensor_value_gain",
-         n_days=7,
-         remove_missing=False)
-
-    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("H:/fo18103/gain/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_66"),
-         out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66"),
+         data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_66"),
+         out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter"),
          data_col="first_sensor_value_li",
          n_days=7,
          remove_missing=False)
 
-    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
-         data_dir=Path("H:/fo18103/gain/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_172"),
-         out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"),
-         data_col="first_sensor_value_gain",
-         n_days=7,
-         remove_missing=False)
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_172"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_172"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
 
-    main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
-         data_dir=Path("H:/fo18103/gain/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_172"),
-         out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_li_172"),
-         data_col="first_sensor_value_li",
-         n_days=7,
-         remove_missing=False)
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("H:/fo18103/gain/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_66"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("H:/fo18103/gain/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_66"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("H:/fo18103/gain/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_172"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"),
+    #      data_col="first_sensor_value_gain",
+    #      n_days=7,
+    #      remove_missing=False)
+    #
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("H:/fo18103/gain/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_100_anscombe_False_n_top_traces_172"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_li_172"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
 
 
     # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),

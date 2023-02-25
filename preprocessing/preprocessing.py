@@ -294,6 +294,7 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = QuotientNormalizer(
                 out_dir=graph_outputdir / step, output_graph=output_qn_graph, enable_qn_peak_filter=enable_qn_peak_filter
             ).transform(df.iloc[:, :-N_META].values)
+            df = df.fillna(0)
         if "STFT" in step:
             STFT_Transform = STFT(
                 sfft_window=sfft_window,

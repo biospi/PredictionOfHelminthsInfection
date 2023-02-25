@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def single_run(
-    output_dir=Path("E:/thesis_final_feb17/test3"),
+    output_dir=Path("E:/thesis_final_feb25"),
     clf="linear",
     farm_id="",
     cv="RepeatedKFold",
@@ -77,13 +77,13 @@ def biospi_run(n_job=25):
 def local_run():
 
     main(
-        output_dir=Path("E:/thesis_final_feb16"),
+        output_dir=Path("E:/thesis_final_feb25"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
-        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"),
-        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172"),
+        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"),
+        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66"),
-        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66"),
+        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"),
+        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"),
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
@@ -178,8 +178,15 @@ def main(
             [],
             ["QN"],
             ["QN", "ANSCOMBE", "LOG"],
-            #["L2"],
             ["QN", "ANSCOMBE", "LOG", "STD"],
+            ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+
+            ["L2"],
+            ["L2", "ANSCOMBE", "LOG"],
+            ["L2", "ANSCOMBE", "LOG", "STD"],
+            ["L2", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+            # ["L2"],
+            # ["QN", "ANSCOMBE", "LOG", "STD"],
             # ["QN", "ANSCOMBE", "LOG", "MINMAX"],
             # ["QN", "ANSCOMBE", "LOG", "CWT", "STD"],
             # ["LINEAR", "QN", "STD"],
@@ -599,6 +606,14 @@ if __name__ == "__main__":
     purge_hpc_file('thesis_hpc_ln.txt')
     purge_hpc_file('thesis_hpc.txt')
     local_run()
+    # #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"), farm_id="delmas")
+    # #
+    # # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"), farm_id="cedara")
+
     #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
