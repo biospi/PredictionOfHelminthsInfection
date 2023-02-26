@@ -619,15 +619,39 @@ def build_annotations(df, fig_auc_only):
 def human_readable(string, df):
     split = string.split('>')
     hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
+    if "rbf" in string:
+        hr_string = hr_string.replace("SVC", "SVCrbf")
     #hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]}"
     return hr_string
 
 
-def plot_ml_report_final(output_dir):
+def plot_ml_report_final(output_dir, filter_per_clf=False):
     print("building report visualisation...")
     dfs = []
     label_dict = {}
     paths = list(output_dir.glob("**/*.csv"))
+
+    if filter_per_clf:
+        path_filtered = []
+        for path in paths:
+            if "report" not in str(path):
+                continue
+
+            if "delmas_dataset4_mrnn_7day" not in str(path) and "cedara_datasetmrnn7_23" not in str(path):
+                continue
+
+            if "QN_ANSCOMBE_LOG_STDS" not in str(path):
+                continue
+            split = str(path).split('RepeatedKFold_')[1].split('_')
+            i_d = int(split[0])
+            a_d = int(split[1])
+            w_d = int(split[2])
+            if i_d != 7 or i_d != a_d:
+                continue
+
+            path_filtered.append(path)
+        paths = path_filtered
+
     # if len(paths) == 0:
     #     paths = list(output_dir.parent.glob("**/*.csv"))
 
@@ -635,7 +659,13 @@ def plot_ml_report_final(output_dir):
         if "report" not in str(path):
             continue
         df = pd.read_csv(str(path), index_col=None)
+        if "delmas" in str(path):
+            df["farm_id"] = "delmas"
+        if "cedara" in str(path):
+            df["farm_id"] = "cedara"
+
         medians = []
+
         if "roc_auc_scores" not in df.columns:
             continue
         for value in df["roc_auc_scores"].values:
@@ -737,8 +767,17 @@ def plot_ml_report_final(output_dir):
             # fig.show()
 
             preproc = df_f_["config_s"].str.split(' ').str[-1].unique()
-            mapping = dict(zip(preproc,range(len(preproc))))
-            df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[:-1].str.join(' ') + "(" + [str(mapping[x]) for x in df_f_["config_s"].str.split(' ').str[-1]] + ")"
+            if filter_per_clf:
+                preproc = df_f_["config_s"].str.split(' ').str[-2].unique()
+            mapping = dict(zip(preproc, range(len(preproc))))
+
+            if filter_per_clf:
+                df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[0:-1].str.join(' ') + " (" + [str(mapping[x]) for x in df_f_["config_s"].str.split(' ').str[-2]] + ")"
+            else:
+                df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[0:-1].str.join(' ') + " (" + [str(mapping[x])
+                                                                                                       for x in df_f_[
+                                                                                                           "config_s"].str.split(
+                        ' ').str[-1]] + ")"
 
             x_data = df_f_["config_s"].unique()
 
@@ -833,7 +872,7 @@ def plot_ml_report_final(output_dir):
                 traces.append(
                     go.Box(
                         y=yd,
-                        name={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])] + f"{c}",
+                        name={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])] + f"|{c}",
                         boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         marker_color=color,
