@@ -50,8 +50,12 @@ def worker(
     roc_auc = auc(fpr, tpr)
     auc_list_train.append(roc_auc)
 
-    prec_list_test.append(precision_score(all_test_y, (np.array(all_test_proba) > 0.5).astype(int)))
-    prec_list_train.append(precision_score(all_train_y, (np.array(all_train_proba) > 0.5).astype(int)))
+    prec_list_test.append(
+        precision_score(all_test_y, (np.array(all_test_proba) > 0.5).astype(int))
+    )
+    prec_list_train.append(
+        precision_score(all_train_y, (np.array(all_train_proba) > 0.5).astype(int))
+    )
 
 
 def main(path=None, n_bootstrap=100, n_job=8):
@@ -159,28 +163,43 @@ def main(path=None, n_bootstrap=100, n_job=8):
         clf,
         pre_proc,
         mean_auc_test,
-        paths
+        paths,
     ]
 
 
 if __name__ == "__main__":
     results = []
-    folders = [x for x in Path("E:/Cats/article/ml_build_permutations_qnf_final/").glob('*/*/*') if x.is_dir()]
+    folders = [
+        x
+        for x in Path("E:/Cats/article/ml_build_permutations_qnf_final/").glob("*/*/*")
+        if x.is_dir()
+    ]
     for i, item in enumerate(folders):
         print(f"{i}/{len(folders)}...")
-        res = main(
-            Path(
-                f"{item}/fold_data"
-            )
-        )
+        res = main(Path(f"{item}/fold_data"))
         if res is not None:
             results.append(res)
 
-    df = pd.DataFrame(results, columns=["AUC testing (95% CI)", "AUC training (95% CI)", "Class1 Precision testing (95% CI)", "Class1 Precision training (95% CI)", "N training samples", "N testing samples", "N peaks", "Sample length (minutes)", "Classifier", "Pre-processing", "mean_auc_test", "path"])
+    df = pd.DataFrame(
+        results,
+        columns=[
+            "AUC testing (95% CI)",
+            "AUC training (95% CI)",
+            "Class1 Precision testing (95% CI)",
+            "Class1 Precision training (95% CI)",
+            "N training samples",
+            "N testing samples",
+            "N peaks",
+            "Sample length (minutes)",
+            "Classifier",
+            "Pre-processing",
+            "mean_auc_test",
+            "path",
+        ],
+    )
     df_ = df.sort_values("mean_auc_test", ascending=False)
     df_ = df_.drop("mean_auc_test", axis=1)
     df_ = df_.drop("path", axis=1)
     df_ = df_.head(20)
     print(df_.to_latex(index=False))
     df.to_csv("cat_result_table.csv", index=False)
-

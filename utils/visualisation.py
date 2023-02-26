@@ -731,10 +731,14 @@ def plot_ml_report_final(output_dir):
             filepath = output_dir / f"ML_performance_final_{farm}.html"
             print(filepath)
             fig.write_html(str(filepath))
-            filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
-            print(filepath)
+            #filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
+            # print(filepath)
             # fig_auc_only.write_html(str(filepath))
             # fig.show()
+
+            preproc = df_f_["config_s"].str.split(' ').str[-1].unique()
+            mapping = dict(zip(preproc,range(len(preproc))))
+            df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[:-1].str.join(' ') + "(" + [str(mapping[x]) for x in df_f_["config_s"].str.split(' ').str[-1]] + ")"
 
             x_data = df_f_["config_s"].unique()
 
@@ -754,11 +758,15 @@ def plot_ml_report_final(output_dir):
                 imp_days = df_f_[df_f_["config_s"] == xd]["class1"].unique()
                 class0_list.append(class0)
                 class1_list.append(class1)
-                try:
-                    color = CSS_COLORS[c.replace("(", '').replace(")", '')]
-                except Exception as e:
-                    print("error while parsing box color", e)
-                    color = "blue"
+                keys = np.unique(color_data)
+                values = px.colors.qualitative.Plotly[0:len(keys)]
+                COLOR_MAP = dict(zip(keys, values))
+                color = COLOR_MAP[c]
+                # try:
+                #     color = CSS_COLORS[c.replace("(", '').replace(")", '')]
+                # except Exception as e:
+                #     print("error while parsing box color", e)
+                #     color = "blue"
                 #xd = xd.split('<br>')[0]
                 colors.append(color)
                 traces.append(
@@ -806,6 +814,7 @@ def plot_ml_report_final(output_dir):
                         boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         legendgroup=c,
+                        #legendgroup={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])],
                         marker_color=color,
                         marker_size=2,
                         line_width=1 if float(i_d) < 0 else float(i_d)*0.5,
@@ -815,16 +824,16 @@ def plot_ml_report_final(output_dir):
                 sec_axis.append(True)
 
             for c in np.unique(color_data):
-                color = "blue"
-                try:
-                    color = CSS_COLORS[c.replace("(", '').replace(")", '')]
-                except Exception as e:
-                    print(e)
+                color = COLOR_MAP[c]
+                # try:
+                #     color = CSS_COLORS[c.replace("(", '').replace(")", '')]
+                # except Exception as e:
+                #     print(e)
 
                 traces.append(
                     go.Box(
                         y=yd,
-                        name=c,
+                        name={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])] + f"{c}",
                         boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         marker_color=color,

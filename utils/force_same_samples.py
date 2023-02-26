@@ -63,7 +63,7 @@ def main(dataset_mrnn=None, dataset_gain=None, dataset_li=None, filename = "heat
     fig = make_subplots(
         rows=1,
         cols=3,
-        subplot_titles=(f"MRNN Samples ({df_mrnn.shape[0]})", f"GAIN Samples ({df_mrnn.shape[0]})<br>{df_gain_.iloc[:, -4].value_counts().to_dict()}", f"LI Samples ({df_mrnn.shape[0]})"),
+        subplot_titles=(f"MRNN Samples ({df_mrnn.shape[0]})", f"{df_gain_.iloc[:, -4].value_counts().to_dict()}<br>GAIN Samples ({df_mrnn.shape[0]})", f"LI Samples ({df_mrnn.shape[0]})"),
         y_title="",
         x_title="Time (1 min bins)",
     )
