@@ -61,6 +61,7 @@ def format_time(time):
 
 
 def build_hpc_string(
+    study_id,
     output_dir,
     dataset_folder,
     preprocessing_steps,
@@ -81,7 +82,7 @@ def build_hpc_string(
     output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
 
-    hpc_s = f"ml.py --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
+    hpc_s = f"ml.py --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
     for item in class_healthy_label:
@@ -189,6 +190,7 @@ def main(
 
     if export_hpc_string:
         build_hpc_string(
+            study_id,
             output_dir,
             dataset_folder,
             preprocessing_steps,
