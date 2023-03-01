@@ -181,6 +181,7 @@ def main(
             ["QN"],
             ["QN", "ANSCOMBE", "LOG"],
             ["QN", "ANSCOMBE", "LOG", "STD"],
+            ["QN", "ANSCOMBE", "LOG", "MINMAX"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
 
             # ["L2"],
@@ -599,8 +600,8 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    # purge_hpc_file('thesis_hpc_ln.txt')
-    # purge_hpc_file('thesis_hpc.txt')
+    purge_hpc_file('thesis_hpc_ln.txt')
+    purge_hpc_file('thesis_hpc.txt')
     local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
