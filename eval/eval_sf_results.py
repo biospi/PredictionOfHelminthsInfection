@@ -273,6 +273,12 @@ if __name__ == "__main__":
             "Farm",
         ]
     ]
+    df_cwt = df_2[df_2['Pre-proc'].str.contains('CWT')]
+    df_cwt_delmas = df_cwt[df_cwt["Farm"] == "delmas"]
+    df_cwt_cedara = df_cwt[df_cwt["Farm"] == "cedara"]
+    print(df_cwt_delmas.head(10).to_latex(index=False))
+    print(df_cwt_cedara.head(10).to_latex(index=False))
+
     df_2 = df_2[df_2["Farm"] == "cedara"]
     df_2_h = df_2.head(10)
     print(df_2_h.to_latex(index=False))

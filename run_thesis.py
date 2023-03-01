@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def single_run(
-    output_dir=Path("E:/thesis_final_feb25"),
+    output_dir=Path("E:/thesis_final_march1"),
     clf="linear",
     farm_id="",
     cv="RepeatedKFold",
@@ -42,6 +42,7 @@ def single_run(
         plot_2d_space=False,
         pre_visu=False,
         skip=False,
+        export_hpc_string=False,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
         ),
@@ -77,13 +78,14 @@ def biospi_run(n_job=25):
 def local_run():
 
     main(
-        output_dir=Path("E:/thesis_final_feb25"),
+        output_dir=Path("E:/thesis_final_march1"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
         cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"),
         cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
         delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"),
         delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"),
+        export_hpc_string=True
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
@@ -105,7 +107,7 @@ def main(
     cedara_dir_gain: Path = None,
     cedara_dir_li: Path = None,
     n_job: int = 6,
-    export_hpc_string: bool = True
+    export_hpc_string: bool = False
 ):
     """Thesis script runs all key experiments for data exploration chapter
     Args:\n
@@ -207,7 +209,7 @@ def main(
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
-        for class_unhealthy_label in ["2To1"]:
+        for class_unhealthy_label in ["1To2", "2To2"]:
             for steps in steps_list:
                 slug = "_".join(steps)
                 for clf in ["linear", "rbf", "knn", "lreg", "dtree"]:
@@ -556,7 +558,7 @@ def main(
     if exp_cross_farm:
         print("experiment 3: cross farm validation")
         for imp_d in [7]:
-            for a_act_day in [6]:
+            for a_act_day in [1, 4, 7]:
                 cross_farm_validation.main(
                     farm1_path=delmas_dir_mrnn,
                     farm2_path=cedara_dir_mrnn,
@@ -567,14 +569,8 @@ def main(
                     n_imputed_days=imp_d,
                     n_activity_days=a_act_day,
                     class_unhealthy_f2=[
-                        "2To2",
-                        "2To4",
-                        "3To4",
-                        "1To4",
-                        "1To3",
-                        "4To5",
-                        "2To3",
-                    ],
+                        "2To2"
+                    ]
                 )
 
                 # cross_farm_validation.main(
@@ -603,10 +599,13 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
+    # purge_hpc_file('thesis_hpc_ln.txt')
+    # purge_hpc_file('thesis_hpc.txt')
     local_run()
-    # #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
+
+    #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"), farm_id="delmas")
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"), farm_id="delmas")
     # #

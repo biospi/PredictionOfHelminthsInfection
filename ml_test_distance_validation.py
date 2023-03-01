@@ -68,25 +68,26 @@ def plot_ribbon(path, data, title, y_label, days):
     for t in time_axis:
         time_axis_s.append("%d" % t)
 
-    fig, ax = plt.subplots(figsize=(15, 5))
+    df["time"] = df["time"].max()  - df["time"]
+    fig, ax = plt.subplots(figsize=(7.2, 4))
     sns.lineplot(x=df["time"], y="acc", data=df, marker="o", ax=ax)
     fig.suptitle(title)
     # ax = df.copy().plot.box(grid=True, patch_artist=True, title=title, figsize=(10, 7))
-    ax.set_xlabel("days (window shift from test)")
+    ax.set_xlabel("Time (Days from FAMACHA test)")
     ax.set_ylabel(y_label)
 
     labels = [item.get_text() for item in ax.get_xticklabels()]
     m_d = max(df["time"].to_list()) + 1
-    labels_ = interpolate_time(np.arange(days + 1), m_d)
-    l = []
-    for i, item in enumerate(labels_):
-        l.append("%.1f" % float(item))
+    # labels_ = interpolate_time(np.arange(days + 1), m_d)
+    # l = []
+    # for i, item in enumerate(labels_):
+    #     l.append(int(float(item)))
 
     # labels = ['0'] + labels + ['0']
     # ax.set_xticklabels(labels)
-    ticks = list(range(m_d))
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(l)
+    # ticks = list(range(m_d))
+    # ax.set_xticks(ticks)
+    # ax.set_xticklabels(l)
 
     print("labels", labels)
 
@@ -128,7 +129,7 @@ def main_(
     class_unhealthy_label: List[str] = ["2To2"],
     famacha_healthy: List[str] = ["1To1", "1To1"],
     famacha_unhealthy: List[str] = ["2To2", "2To2"],
-    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    preprocessing_steps: List[str] = ["QN", "ANSCOMBE", "LOG", "STDS"],
     n_activity_days: int = 7,
     n_imputed_days: int = 7,
     meta_columns: List[str] = [
@@ -203,6 +204,7 @@ def main_(
         None,
         None,
         None,
+        None,
         data_frame.copy(),
         output_dir,
         preprocessing_steps,
@@ -227,11 +229,11 @@ def main_(
     df_target = df_processed[["target", "health"]]
     df_activity_window = df_processed.iloc[:, np.array([str(x).isnumeric() for x in df_processed.columns])]
     cpt = 0
-    for i in range(0, df_activity_window.shape[1] - window, stride):
+    for i in range(0, df_activity_window.shape[1], stride):
         start = i
         end = start + window
         print("****")
-        print(start, end)
+        print(cpt, start, end)
         df_a_w = df_activity_window.iloc[:, start:end]
         df_week = pd.concat([df_a_w, df_target], axis=1)
         print(df_week)
@@ -240,7 +242,7 @@ def main_(
             add_feature,
             animal_ids,#meta
             animal_ids,#meta
-            output_dir / f"week_{str(cpt).zfill(3)}",
+            output_dir / f"day_{cpt}_{start}_{end}",
             animal_ids,
             sample_dates,
             df_week,
@@ -259,7 +261,7 @@ def main_(
             add_seasons_to_features,
             cv=cv,
             n_job=n_job,
-            plot_2d_space=True
+            plot_2d_space=False
         )
         cpt += 1
 
@@ -337,45 +339,45 @@ def main(
         meta_cols_str=meta_col_str
     )
     #print(data_frame)
-    data_frame["datetime"] = pd.to_datetime(data_frame['date'], format="%d/%m/%Y")
-    data_frame = data_frame.sort_values(by='datetime')
-    dfs = [g for _, g in data_frame.groupby(['id'])]
-
-    label_series_inverse = dict((v, k) for k, v in label_series.items())
-
-    unhealthy_samples = []
-    for df in dfs:
-        df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
-        if back_to_back:
-            df = df[df["diff"] == days_between]
-        df = df.reset_index(drop=True)
-        a = df["label"].tolist()
-        b = famacha_unhealthy
-        idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
-        idxs = np.array(idxs).flatten()
-        df_f = df.loc[idxs]
-        for item in build_samples(df_f, b, '2To2', 1, label_series_inverse['2To2']):
-            unhealthy_samples.append(item)
-
-    healthy_samples = []
-    for df in dfs:
-        df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
-        if back_to_back:
-            df = df[df["diff"] == days_between]
-        df = df.reset_index(drop=True)
-        a = df["label"].tolist()
-        b = famacha_healthy
-        idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
-        idxs = np.array(idxs).flatten()
-        df_f = df.loc[idxs]
-        for item in build_samples(df_f, b, '1To1', 0, label_series_inverse['1To1']):
-            healthy_samples.append(item)
-
-    data_frame = pd.DataFrame(np.concatenate([unhealthy_samples, healthy_samples]))
-    header = list(data_frame.columns)
-    for i, meta in enumerate(meta_columns[::-1]):
-        header[-i-1] = meta
-    data_frame.columns = header
+    #data_frame["datetime"] = pd.to_datetime(data_frame['date'], format="%d/%m/%Y")
+    # data_frame = data_frame.sort_values(by='datetime')
+    # dfs = [g for _, g in data_frame.groupby(['id'])]
+    #
+    # label_series_inverse = dict((v, k) for k, v in label_series.items())
+    #
+    # unhealthy_samples = []
+    # for df in dfs:
+    #     df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
+    #     if back_to_back:
+    #         df = df[df["diff"] == days_between]
+    #     df = df.reset_index(drop=True)
+    #     a = df["label"].tolist()
+    #     b = famacha_unhealthy
+    #     idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
+    #     idxs = np.array(idxs).flatten()
+    #     df_f = df.loc[idxs]
+    #     for item in build_samples(df_f, b, '2To2', 1, label_series_inverse['2To2']):
+    #         unhealthy_samples.append(item)
+    #
+    # healthy_samples = []
+    # for df in dfs:
+    #     df["diff"] = df["datetime"].diff() / np.timedelta64(1, 'D')
+    #     if back_to_back:
+    #         df = df[df["diff"] == days_between]
+    #     df = df.reset_index(drop=True)
+    #     a = df["label"].tolist()
+    #     b = famacha_healthy
+    #     idxs = [list(range(i, i+len(b))) for i in range(len(a)) if a[i:i+len(b)] == b]
+    #     idxs = np.array(idxs).flatten()
+    #     df_f = df.loc[idxs]
+    #     for item in build_samples(df_f, b, '1To1', 0, label_series_inverse['1To1']):
+    #         healthy_samples.append(item)
+    #
+    # data_frame = pd.DataFrame(np.concatenate([unhealthy_samples, healthy_samples]))
+    # header = list(data_frame.columns)
+    # for i, meta in enumerate(meta_columns[::-1]):
+    #     header[-i-1] = meta
+    # data_frame.columns = header
 
     sample_dates = pd.to_datetime(
         data_frame["date"], format="%d/%m/%Y"
@@ -487,17 +489,22 @@ if __name__ == "__main__":
     #      Path("E:/Data2/debug3/delmas/dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
     #      famacha_healthy=["1To1", "1To1"], famacha_unhealthy=["1To2", "2To2"], back_to_back=True, n_aug=10)
 
-    for w in [1440*6, 1440*5, 1440*4, 1440*3]:
-        for n_i in [21, 11, 7, 1]:
-            main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_debug_w_{w}_{n_i}_2to2'),
-                 Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
+    for w in [1440*2]:
+        for n_i in [13]:
+            main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_w_{w}_{n_i}_2to2'),
+                 Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day/activity_farmid_dbft_7_1min.csv"),
                  famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
-                 study_id="delmas", window=w, stride=1440, n_activity_days=21, n_imputed_days=n_i)
+                 study_id="delmas", window=w, stride=1440, n_activity_days=7, n_imputed_days=n_i)
 
-            main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_debug_w_{w}_{n_i}_1to2'),
-                 Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
-                 famacha_healthy=["1To1"], famacha_unhealthy=["1To2"], back_to_back=True,
-                 study_id="delmas", window=w, stride=1440, n_activity_days=21, n_imputed_days=n_i)
+            main_(Path(f'E:/preprint/thesis/cedara_test_distance_validation_w_{w}_{n_i}_2to2'),
+                 Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23/activity_farmid_dbft_7_1min.csv"),
+                 famacha_healthy=["1To1"], famacha_unhealthy=["2To2"], back_to_back=True,
+                 study_id="cedara", window=w, stride=1440, n_activity_days=7, n_imputed_days=n_i)
+
+            # main_(Path(f'E:/preprint/thesis/delmas_test_distance_validation_debug_w_{w}_{n_i}_1to2'),
+            #      Path("E:/thesis/datasets/delmas/datasetmrnn21_17/activity_farmid_dbft_21_1min.csv"),
+            #      famacha_healthy=["1To1"], famacha_unhealthy=["1To2"], back_to_back=True,
+            #      study_id="delmas", window=w, stride=1440, n_activity_days=21, n_imputed_days=n_i)
 
     # for w in [1440*5, 1440*3, 1440]:
     #     for a in [15, 20]:

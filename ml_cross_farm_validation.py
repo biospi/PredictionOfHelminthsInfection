@@ -33,7 +33,7 @@ def main(
     class_unhealthy_f1: List[str] = ["2To2"],
     class_healthy_f2: List[str] = ["1To1"],
     class_unhealthy_f2: List[str] = ["2To2"],
-    steps: List[str] = ["QN", "ANSCOMBE", "LOG"],
+    steps: List[str] = ["QN", "ANSCOMBE", "LOG", "STDS"],
     meta_columns: List[str] = [
         "label",
         "id",
@@ -204,9 +204,9 @@ def main(
     X1, y1 = getXY(df1_processed)
     X2, y2 = getXY(df2_processed)
 
-    process_clf(n_activity_days, train_size, label_series_f1, label_series_f2, info, steps, n_fold, X1, X2, y1, y2, output_dir)
+    process_clf(n_activity_days, train_size, label_series_f1, label_series_f2, info, steps, n_fold, X1, X2, y1, y2, output_dir, plot_2d_space=True)
 
-    process_clf(n_activity_days, train_size, label_series_f2, label_series_f1, info, steps, n_fold, X2, X1, y2, y1, output_dir / 'rev')
+    process_clf(n_activity_days, train_size, label_series_f2, label_series_f1, info, steps, n_fold, X2, X1, y2, y1, output_dir / 'rev', plot_2d_space=True)
 
     # for clf_best, X, y in results:
     #     make_roc_curve(

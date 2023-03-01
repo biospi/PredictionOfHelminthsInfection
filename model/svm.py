@@ -936,6 +936,16 @@ def fold_worker(
     print(f"process id={ifold}/{nfold} done!")
 
 
+def find_test_samples_with_full_synthetic(meta_columns, meta, meta_test, test_index, n_i=2):
+    if 'imputed_days' not in meta_columns:
+        return test_index
+    else:
+        idx_i = meta_columns.index('imputed_days')
+        new_test_index = test_index[meta_test[:, idx_i] < n_i]
+        #meta[new_test_index] metadata of new testing samples without imputed days in them
+        return new_test_index
+
+
 def cross_validate_svm_fast(
     save_model,
     svc_kernel,
@@ -1009,7 +1019,9 @@ def cross_validate_svm_fast(
             clf = SVC(kernel=kernel, probability=True)
 
         if kernel in ["knn"]:
-            clf = KNeighborsClassifier(n_jobs=-1)
+            n_neighbors = int(np.sqrt(len(y)))
+            print(f"KNN K={n_neighbors}")
+            clf = KNeighborsClassifier(n_jobs=-1, n_neighbors=n_neighbors)
 
         if kernel in ["dtree"]:
             clf = tree.DecisionTreeClassifier()
@@ -1043,6 +1055,8 @@ def cross_validate_svm_fast(
             for ifold, (train_index, test_index) in enumerate(
                 cross_validation_method.split(X, y)
             ):
+                idx_s = find_test_samples_with_full_synthetic(meta_columns, meta, meta[test_index], test_index)
+                test_index = idx_s
                 info = {}
                 pool.apply_async(
                     fold_worker,

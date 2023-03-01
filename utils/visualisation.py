@@ -618,7 +618,7 @@ def build_annotations(df, fig_auc_only):
 
 def human_readable(string, df):
     split = string.split('>')
-    hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
+    hr_string = f"{split[1]} {split[2]} {split[3]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
     if "rbf" in string:
         hr_string = hr_string.replace("SVC", "SVCrbf")
     #hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]}"
@@ -799,6 +799,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False):
                 class1_list.append(class1)
                 keys = np.unique(color_data)
                 values = px.colors.qualitative.Plotly[0:len(keys)]
+                #values[values.index('#B6E880')] = 'black' #replace green-yellow
                 COLOR_MAP = dict(zip(keys, values))
                 color = COLOR_MAP[c]
                 # try:

@@ -34,6 +34,22 @@ import json
 
 
 def local_run():
+
+    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+         data_dir=Path("F:/MRNN/imputed_data_/8_missingrate_[0.0]_seql_1440_iteration_1000_hw__n_316"),
+         out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"),
+         data_col="first_sensor_value_mrnn",
+         n_days=7,
+         remove_missing=False)
+
+    # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
+    #      data_dir=Path("F:/MRNN/imputed_data/4_4000_missingrate_0_seql_1440_iteration_100_hw__n_325"),
+    #      out_dir=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"),
+    #      data_col="first_sensor_value_mrnn",
+    #      n_days=30,
+    #      remove_missing=False)
+
+
     # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
     #      data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_66"),
     #      out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter"),
@@ -41,12 +57,12 @@ def local_run():
     #      n_days=7,
     #      remove_missing=False)
 
-    main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
-         data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_66"),
-         out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter"),
-         data_col="first_sensor_value_li",
-         n_days=7,
-         remove_missing=False)
+    # main(fam_file=Path("F:/Data2/delmas_animal_data.h5"),
+    #      data_dir=Path("E:/thesis/gain/delmas/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_66"),
+    #      out_dir=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter"),
+    #      data_col="first_sensor_value_li",
+    #      n_days=7,
+    #      remove_missing=False)
 
     # main(fam_file=Path("F:/Data2/cedara_animal_data.h5"),
     #      data_dir=Path("E:/thesis/gain/cedara/1_miss_rate_0000_iteration_0100_thresh_-1_anscombe_False_n_top_traces_172"),
