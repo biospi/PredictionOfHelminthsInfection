@@ -1,7 +1,7 @@
 #!/bin/env bash
 
 #SBATCH --account=sscm012844
-#SBATCH --job-name=thesis
+#SBATCH --job-name=thesis_f
 #SBATCH --output=thesis_out
 #SBATCH --error=thesis_error
 #SBATCH --partition=cpu
