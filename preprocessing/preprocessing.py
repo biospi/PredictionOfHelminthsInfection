@@ -1,3 +1,4 @@
+import gc
 import warnings
 import pandas as pd
 import numpy as np
@@ -345,6 +346,9 @@ def apply_preprocessing_steps(
             )
             time_freq_shape = CWT_Transform.shape
             data_frame_cwt = pd.DataFrame(data_frame_cwt)
+            start_mem = data_frame_cwt.memory_usage().sum() / 1024 ** 2
+            gc.collect()
+            print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
             # data_frame_cwt_raw = pd.DataFrame(data_frame_cwt_raw)
 
             # data_frame_cwt.index = df.index  # need to keep original sample index!!!!

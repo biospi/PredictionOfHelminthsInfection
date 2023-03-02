@@ -9,18 +9,19 @@ from pathlib import Path
 
 def single_run(
     output_dir=Path("E:/thesis_final_march1"),
-    clf="linear",
+    clf="rbf",
     farm_id="",
     cv="RepeatedKFold",
     i_day=7,
     a_day=7,
     w_day=7,
     add_seasons_to_features=False,
-    class_unhealthy_label="2To2",
+    class_unhealthy_label="1To2",
     n_job=6,
     dataset=None,
+    export_hpc_string=False
 ):
-    steps = ["QN", "ANSCOMBE", "LOG"]
+    steps = ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "MINMAX"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -40,9 +41,9 @@ def single_run(
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
         plot_2d_space=False,
-        pre_visu=False,
+        pre_visu=True,
         skip=False,
-        export_hpc_string=False,
+        export_hpc_string=export_hpc_string,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
         ),
@@ -600,9 +601,9 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
-    local_run()
+    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
 

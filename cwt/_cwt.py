@@ -810,7 +810,7 @@ def compute_cwt_paper_hd(activity, scales, wavelet_f0, step_slug):
     # iwave_test = wavelet.icwt(coefs, scales, delta_t, wavelet=wavelet_type)
     # plt.plot(iwave_test)
     # plt.show()
-    return coefs, coi, scales, freqs, wavelet_type, delta_t
+    return coefs.astype(np.complex64), coi.astype(np.float16), scales, freqs, wavelet_type, delta_t
 
 
 def compute_cwt_new(y):
@@ -1088,9 +1088,9 @@ def cwt_power(
         power_masked = power_cwt.copy()
 
     # return coefs.copy().real, freqs, coi, power_masked.shape, scales
-    imag = coefs.copy().imag
-    real = coefs.copy().real
-    mag = abs(coefs.copy())
+    imag = coefs.copy().imag.astype(np.float16)
+    real = coefs.copy().real.astype(np.float16)
+    mag = abs(coefs.copy()).astype(np.float16)
     if enable_coi:
         imag = mask_cwt(imag.copy(), coi)
         real = mask_cwt(real.copy(), coi)

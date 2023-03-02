@@ -1,13 +1,13 @@
 from pathlib import Path
-import json
 
 import pandas as pd
 from sklearn.metrics import roc_curve, auc
 from multiprocessing import Pool, Manager
 import numpy as np
+import json
 from tqdm import tqdm
 
-from utils.Utils import mean_confidence_interval
+from utils.Utils import ninefive_confidence_interval
 from sklearn.metrics import precision_score
 
 
@@ -127,42 +127,42 @@ def main(path=None, n_bootstrap=100, n_job=8):
         prec_list_test = list(prec_list_test)
         prec_list_train = list(prec_list_train)
 
-    mean_auc_test = np.mean(auc_list_test)
-    lo_test_auc, hi_test_auc = mean_confidence_interval(auc_list_test)
+    median_auc_test = np.median(auc_list_test)
+    lo_test_auc, hi_test_auc = ninefive_confidence_interval(auc_list_test)
     print(
-        f"Mean Test AUC = {mean_auc_test:.2f}, 95% CI [{lo_test_auc:.2f}, {hi_test_auc:.2f}] )"
+        f"median Test AUC = {median_auc_test:.2f}, 95% CI [{lo_test_auc:.2f}, {hi_test_auc:.2f}] )"
     )
 
-    mean_auc_train = np.mean(auc_list_train)
-    lo_train_auc, hi_train_auc = mean_confidence_interval(auc_list_train)
+    median_auc_train = np.median(auc_list_train)
+    lo_train_auc, hi_train_auc = ninefive_confidence_interval(auc_list_train)
     print(
-        f"Mean Train AUC = {mean_auc_train:.2f}, 95% CI [{lo_train_auc:.2f}, {hi_train_auc:.2f}] )"
+        f"median Train AUC = {median_auc_train:.2f}, 95% CI [{lo_train_auc:.2f}, {hi_train_auc:.2f}] )"
     )
 
-    mean_prec_test = np.mean(prec_list_test)
-    lo_test_prec, hi_test_prec = mean_confidence_interval(prec_list_test)
+    median_prec_test = np.median(prec_list_test)
+    lo_test_prec, hi_test_prec = ninefive_confidence_interval(prec_list_test)
     print(
-        f"Mean Test prec = {mean_prec_test:.2f}, 95% CI [{lo_test_prec:.2f}, {hi_test_prec:.2f}] )"
+        f"median Test prec = {median_prec_test:.2f}, 95% CI [{lo_test_prec:.2f}, {hi_test_prec:.2f}] )"
     )
 
-    mean_prec_train = np.mean(prec_list_train)
-    lo_train_prec, hi_train_prec = mean_confidence_interval(prec_list_train)
+    median_prec_train = np.median(prec_list_train)
+    lo_train_prec, hi_train_prec = ninefive_confidence_interval(prec_list_train)
     print(
-        f"Mean Train prec = {mean_prec_train:.2f}, 95% CI [{lo_train_prec:.2f}, {hi_train_prec:.2f}] )"
+        f"median Train prec = {median_prec_train:.2f}, 95% CI [{lo_train_prec:.2f}, {hi_train_prec:.2f}] )"
     )
 
     return [
-        f"{mean_auc_test:.2f} ({lo_test_auc:.2f}-{hi_test_auc:.2f})",
-        f"{mean_auc_train:.2f} ({lo_train_auc:.2f}-{hi_train_auc:.2f})",
-        f"{mean_prec_test:.2f} ({lo_test_prec:.2f}-{hi_test_prec:.2f})",
-        f"{mean_prec_train:.2f} ({lo_train_prec:.2f}-{hi_train_prec:.2f})",
+        f"{median_auc_test:.2f} ({lo_test_auc:.2f}-{hi_test_auc:.2f})",
+        f"{median_auc_train:.2f} ({lo_train_auc:.2f}-{hi_train_auc:.2f})",
+        f"{median_prec_test:.2f} ({lo_test_prec:.2f}-{hi_test_prec:.2f})",
+        f"{median_prec_train:.2f} ({lo_train_prec:.2f}-{hi_train_prec:.2f})",
         training_size,
         testing_size,
         n_peaks,
         window_size,
         clf,
         pre_proc,
-        mean_auc_test,
+        median_auc_test,
         paths,
     ]
 
@@ -193,12 +193,13 @@ if __name__ == "__main__":
             "Sample length (minutes)",
             "Classifier",
             "Pre-processing",
-            "mean_auc_test",
+            "median_auc_test",
             "path",
         ],
     )
-    df_ = df.sort_values("mean_auc_test", ascending=False)
-    df_ = df_.drop("mean_auc_test", axis=1)
+    df = df.sort_values("median_auc_test", ascending=False)
+    df_ = df.sort_values("median_auc_test", ascending=False)
+    df_ = df_.drop("median_auc_test", axis=1)
     df_ = df_.drop("path", axis=1)
     df_ = df_.head(20)
     print(df_.to_latex(index=False))

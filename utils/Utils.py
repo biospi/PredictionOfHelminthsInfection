@@ -203,7 +203,7 @@ def concatenate_images(images_list, out_dir, filename="cwt_mean_per_label.png"):
     img_merge.save(str(file_path))
 
 
-def mean_confidence_interval(x):
+def ninefive_confidence_interval(x):
     # boot_median = [np.median(np.random.choice(x, len(x))) for _ in range(iteration)]
     x.sort()
     lo_x_boot = np.percentile(x, 2.5)

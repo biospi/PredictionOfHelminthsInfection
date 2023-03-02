@@ -34,6 +34,7 @@ from datetime import timedelta
 from model.data_loader import load_activity_data
 from model.svm import process_ml
 from preprocessing.preprocessing import apply_preprocessing_steps
+from utils.Utils import purge_hpc_file, reduce_mem_usage
 from utils.visualisation import (
     plotHeatmap,
     plot_zeros_distrib,
@@ -79,6 +80,8 @@ def build_hpc_string(
     cv,
     individual_to_ignore
 ):
+    purge_hpc_file('thesis_hpc_ln.txt')
+    purge_hpc_file('thesis_hpc.txt')
     output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
 
@@ -575,6 +578,7 @@ def main(
         target = df.pop("target")
         health = df.pop("health")
         df_processed = pd.concat([df, target, health], 1)
+        #df_processed = reduce_mem_usage(df_processed)
 
         # plot_umap(
         #     meta_columns,
