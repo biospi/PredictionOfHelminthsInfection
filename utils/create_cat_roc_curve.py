@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.legend_handler import HandlerBase
 
+from var import marker
+
 
 class AnyObjectHandler(HandlerBase):
     def create_artists(self, legend, orig_handle,
@@ -301,6 +303,9 @@ def main(path=None, n_bootstrap=100, n_job=6):
         clf,
         pre_proc,
         median_auc_test,
+        median_auc_train,
+        auc_list_test,
+        auc_list_train,
         paths,
     ]
 
@@ -318,7 +323,7 @@ if __name__ == "__main__":
         #     continue
         print(item)
         print(f"{i}/{len(folders)}...")
-        res = main(Path(f"{item}/fold_data"))
+        res = main(Path(f"{item}/fold_data"), n_bootstrap=100)
         if res is not None:
             results.append(res)
 
@@ -336,9 +341,13 @@ if __name__ == "__main__":
             "Classifier",
             "Pre-processing",
             "median_auc_test",
+            "median_auc_train",
+            "median_auc_test_bootstrap",
+            "median_auc_train_bootstrap",
             "path",
         ],
     )
+
     # df_ = df.sort_values("median_auc_test", ascending=False)
     # df_ = df_.drop("median_auc_test", axis=1)
     # df_ = df_.drop("path", axis=1)
@@ -347,9 +356,9 @@ if __name__ == "__main__":
     # df.to_csv("cat_result_table.csv", index=False)
 
     print(df)
-    fig, ax1 = plt.subplots(figsize=(10.80, 10.80))
+    fig, ax1 = plt.subplots(figsize=(9.80, 9.80))
     ax2 = ax1.twinx()
-    dfs = [group for _, group in df.groupby(['p_steps_list'])]
+    dfs = [group for _, group in df.sort_values("median_auc_test", ascending=False).head(10).groupby(['Pre-processing'])]
 
     ax2.bar(
         [1, 2, 3, 4, 5, 6],
@@ -360,13 +369,13 @@ if __name__ == "__main__":
         width=0.2
     )
 
-    colors = list(mcolors.CSS4_COLORS.keys())
+    colors = list(mcolors.TABLEAU_COLORS.keys())
     print(colors)
     cpt = 0
     colors_ = []
     label_ = []
     for i, df in enumerate(dfs):
-        dfs_ = [group for _, group in df.groupby(['window_size_list'])]
+        dfs_ = [group for _, group in df.groupby(['Sample length (minutes)'])]
         for df_ in dfs_:
             # df_ = df_[df_['n_peaks'] <= 4]
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
@@ -378,28 +387,43 @@ if __name__ == "__main__":
             #
             # if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
-            print(df_['p_steps_list'].tolist()[0])
+            print(df_['Pre-processing'].tolist()[0])
             #
             # if len(df_["median_auc_test"]) != 4:
             #     continue
             #print(df_["n_samples"])
-            label = f"Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}"
+            label = f"Window size={df_['Sample length (minutes)'].tolist()[0]*2} min | {'>'.join(df_['Pre-processing'].tolist()[0].split('_')[:])}"
             ax1.plot(
-                df_["n_peaks"],
+                df_["N peaks"],
                 df_["median_auc_test"],
                 label=label,
                 marker="x",
                 color=colors[cpt]
             )
 
+            intervals = pd.eval(df_["median_auc_test_bootstrap"])
+            perct = np.percentile(intervals, [2.5, 50, 97.5], axis=1)
+            top = perct[2, :]
+            bottom = perct[0, :]
+            x = df_["N peaks"].values
+            ax1.fill_between(x, top.astype(float), bottom.astype(float), alpha=0.1, color=colors[cpt])
+
             ax1.plot(
-                df_["n_peaks"],
+                df_["N peaks"],
                 df_["median_auc_train"],
                 #label=f"Train Window size={df_['window_size_list'].tolist()[0]*2} sec | {'>'.join(df_['p_steps_list'].tolist()[0].split('_')[4:])}",
-                marker=".",
+                marker="s",
                 linestyle='-.',
                 color=colors[cpt]
             )
+
+            intervals = pd.eval(df_["median_auc_train_bootstrap"])
+            perct = np.percentile(intervals, [2.5, 50, 97.5], axis=1)
+            top = perct[2, :]
+            bottom = perct[0, :]
+            x = df_["N peaks"].values
+            ax1.fill_between(x, top.astype(float), bottom.astype(float), alpha=0.1, color=colors[cpt])
+
             cpt +=1
             colors_.append(colors[cpt])
             label_.append(label)
@@ -417,8 +441,10 @@ if __name__ == "__main__":
     for item in colors_:
         color_data.append((item, '--'))
 
-    ax1.legend(color_data, label_, loc="lower right",
+    ax1.legend(color_data, label_, loc="upper right",
                handler_map={tuple: AnyObjectHandler()})
+
+    # ax1.grid()
 
     fig.tight_layout()
     filename = f"auc_per_npeak_bootstrap.png"

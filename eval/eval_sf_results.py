@@ -7,47 +7,10 @@ from multiprocessing import Pool
 
 from utils.visualisation import plot_ml_report_final
 
-marker = [
-    ".",
-    ",",
-    "o",
-    "v",
-    "^",
-    "<",
-    ">",
-    "1",
-    "2",
-    "3",
-    "4",
-    "8",
-    "s",
-    "p",
-    "P",
-    "*",
-    "h",
-    "H",
-    "+",
-    "x",
-    "X",
-    "D",
-    "d",
-    "|",
-    "_",
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-]
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+
+from var import marker
 
 
 def mean_confidence_interval(x):
