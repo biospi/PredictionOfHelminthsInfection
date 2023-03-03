@@ -55,7 +55,7 @@ def biospi_run(n_job=25):
     main(
         output_dir=Path("/mnt/storage/scratch/axel/thesis"),
         cedara_dir_mrnn=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset6_mrnn_7day"
+            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_datasetmrnn7_23"
         ),
         # cedara_dir_gain=Path(
         #     "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_gain_60"
@@ -167,6 +167,7 @@ def main(
                             plot_2d_space=False,
                             export_fig_as_pdf=False,
                             pre_visu=True,
+                            skip=False,
                             export_hpc_string=export_hpc_string,
                             weather_file=Path(
                                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"
