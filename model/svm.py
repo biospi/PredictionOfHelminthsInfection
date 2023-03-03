@@ -22,7 +22,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     RepeatedKFold,
-    LeaveOneOut)
+    LeaveOneOut, GridSearchCV)
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
@@ -344,7 +344,8 @@ def process_ml(
     individual_to_test=None,
     plot_2d_space=False,
     export_fig_as_pdf=False,
-    wheather_days=None
+    wheather_days=None,
+    syhth_thresh=2
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -464,7 +465,8 @@ def process_ml(
             augment_training,
             n_job,
             plot_2d_space,
-            export_fig_as_pdf
+            export_fig_as_pdf,
+            syhth_thresh
         )
 
     if "transformer" in classifiers:
@@ -966,7 +968,8 @@ def cross_validate_svm_fast(
     augment_training,
     n_job=None,
     plot_2d_space=False,
-    export_fig_as_pdf=False
+    export_fig_as_pdf=False,
+    syhth_thresh=2,
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -1007,16 +1010,15 @@ def cross_validate_svm_fast(
 
     scores, scores_proba = {}, {}
 
-    # tuned_parameters_rbf = [
-    #     {"kernel": ["rbf"], "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
-    # ]
-    #
+    tuned_parameters_rbf = { "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
+
     # tuned_parameters_linear = [
     #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     # ]
     for kernel in svc_kernel:
         if kernel in ["linear", "rbf"]:
             clf = SVC(kernel=kernel, probability=True)
+            #clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
 
         if kernel in ["knn"]:
             n_neighbors = int(np.sqrt(len(y)))
@@ -1055,7 +1057,7 @@ def cross_validate_svm_fast(
             for ifold, (train_index, test_index) in enumerate(
                 cross_validation_method.split(X, y)
             ):
-                idx_s = find_test_samples_with_full_synthetic(meta_columns, meta, meta[test_index], test_index)
+                idx_s = find_test_samples_with_full_synthetic(meta_columns, meta, meta[test_index], test_index, n_i=syhth_thresh)
                 test_index = idx_s
                 info = {}
                 pool.apply_async(

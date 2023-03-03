@@ -164,7 +164,7 @@ def sample_length_effect_plot(
 
 if __name__ == "__main__":
 
-    data_dir = Path("H:/thesis_final_march1/thesis_final_march1/main_experiment")
+    data_dir = Path("H:/thesis_final_feb16/thesis_final_feb16/main_experiment")
     folders = [x for x in data_dir.glob("*/*/*/*") if x.is_dir()]
 
     pool = Pool(processes=7)

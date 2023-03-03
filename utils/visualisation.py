@@ -625,7 +625,7 @@ def human_readable(string, df):
     return hr_string
 
 
-def plot_ml_report_final(output_dir, filter_per_clf=False):
+def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False):
     print("building report visualisation...")
     dfs = []
     label_dict = {}
@@ -640,6 +640,12 @@ def plot_ml_report_final(output_dir, filter_per_clf=False):
             if "delmas_dataset4_mrnn_7day" not in str(path) and "cedara_datasetmrnn7_23" not in str(path):
                 continue
 
+            # pproc = "_".join(path.parent.parent.parent.stem.split('RepeatedKFold_')[1].split('_')[3:-2])
+            # if pproc not in ['QN', "L2", ""]:
+            #     continue
+
+            #print(pproc,"****", path)
+
             if "QN_ANSCOMBE_LOG_STDS" not in str(path):
                 continue
             split = str(path).split('RepeatedKFold_')[1].split('_')
@@ -652,6 +658,45 @@ def plot_ml_report_final(output_dir, filter_per_clf=False):
             path_filtered.append(path)
         paths = path_filtered
 
+    if filter_for_norm:
+        path_filtered = []
+        for path in paths:
+            if "report" not in str(path):
+                continue
+
+            if "delmas_dataset4_mrnn_7day" not in str(path) and "cedara_datasetmrnn7_23" not in str(path):
+                continue
+
+            if "SVC_rbf" not in str(path):
+                continue
+
+            if "STDS" in str(path):
+                continue
+
+            pproc = "_".join(path.parent.parent.parent.stem.split('RepeatedKFold_')[1].split('_')[3:-2])
+
+            if "QN_ANSCOMBE_LOG" in pproc:
+                continue
+
+            if "QN_ANSCOMBE_LOG_STDS" in pproc:
+                continue
+
+            if pproc not in ['QN', "L2", '']:
+                continue
+            # print(f"{pproc}**********{path.parent.parent.parent.stem}")
+            # print(path)
+
+            split = str(path).split('RepeatedKFold_')[1].split('_')
+            i_d = int(split[0])
+            a_d = int(split[1])
+            w_d = int(split[2])
+            if i_d != 7 or i_d != a_d:
+                continue
+
+            path_filtered.append(path)
+        paths = path_filtered
+
+
     # if len(paths) == 0:
     #     paths = list(output_dir.parent.glob("**/*.csv"))
 
@@ -659,6 +704,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False):
         if "report" not in str(path):
             continue
         df = pd.read_csv(str(path), index_col=None)
+
         if "delmas" in str(path):
             df["farm_id"] = "delmas"
         if "cedara" in str(path):

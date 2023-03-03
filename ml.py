@@ -135,6 +135,7 @@ def main(
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_weather_days: int = 7,
+    syhth_thresh: int = 4,
     n_scales: int = 8,
     sub_sample_scales: int = 1,
     weather_file: Optional[Path] = Path("."),
@@ -149,7 +150,7 @@ def main(
     study_id: str = "study",
     sampling: str = "T",
     pre_visu: bool = False,
-    output_qn_graph: bool = False,
+    output_qn_graph: bool = True,
     enable_qn_peak_filter: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 6,
@@ -371,7 +372,7 @@ def main(
                 keep_meta=True,
                 output_qn_graph=output_qn_graph,
                 sub_sample_scales=sub_sample_scales,
-                enable_qn_peak_filter=enable_qn_peak_filter,
+                enable_qn_peak_filter=enable_qn_peak_filter
             )
 
             # plot_zeros_distrib(
@@ -661,6 +662,7 @@ def main(
             plot_2d_space=plot_2d_space,
             export_fig_as_pdf=export_fig_as_pdf,
             wheather_days=n_weather_days,
+            syhth_thresh=syhth_thresh
         )
 
         # 2DCNN

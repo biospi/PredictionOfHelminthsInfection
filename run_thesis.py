@@ -8,20 +8,21 @@ from pathlib import Path
 
 
 def single_run(
-    output_dir=Path("E:/thesis_final_march1"),
-    clf="rbf",
+    output_dir=Path("E:/thesis_final_march3_regularisation"),
+    clf="linear",
     farm_id="",
     cv="RepeatedKFold",
-    i_day=1,
-    a_day=1,
+    i_day=7,
+    a_day=7,
     w_day=7,
     add_seasons_to_features=False,
     class_unhealthy_label="2To2",
     n_job=6,
     dataset=None,
-    export_hpc_string=False
+    export_hpc_string=False,
+    syhth_thresh=6,
+    steps = None
 ):
-    steps = ["QN", "ANSCOMBE", "LOG"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -41,9 +42,12 @@ def single_run(
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
         plot_2d_space=False,
-        pre_visu=True,
+        pre_visu=False,
         skip=False,
+        n_repeats=2,
+        syhth_thresh=syhth_thresh,
         export_hpc_string=export_hpc_string,
+        output_qn_graph=True,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
         ),
@@ -181,6 +185,7 @@ def main(
         steps_list = [
             [],
             ["QN"],
+            ["L2"],
             ["QN", "ANSCOMBE", "LOG"],
             ["QN", "ANSCOMBE", "LOG", "STD"],
             ["QN", "ANSCOMBE", "LOG", "MINMAX"],
@@ -216,8 +221,8 @@ def main(
             for steps in steps_list:
                 slug = "_".join(steps)
                 for clf in ["linear", "rbf", "knn", "lreg", "dtree"]:
-                    for i_day in [1, 4, 7]:
-                        for a_day in [1, 4, 7]:
+                    for i_day in [7]:
+                        for a_day in [4, 7]:
                             for w_day in [7]:
                                 for cv in ["RepeatedKFold"]:
                                     for add_seasons_to_features in [False]:
@@ -602,8 +607,19 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["QN"])
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=[""])
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["L2"])
+
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
+    #            export_hpc_string=False, steps = [""])
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
+    #            export_hpc_string=False, steps=["QN"])
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
+    #            export_hpc_string=False, steps=["L2"])
+
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", export_hpc_string=False)
-    #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas", export_hpc_string=False)
+
     # local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
