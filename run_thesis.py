@@ -12,16 +12,16 @@ def single_run(
     clf="rbf",
     farm_id="",
     cv="RepeatedKFold",
-    i_day=7,
-    a_day=7,
+    i_day=1,
+    a_day=1,
     w_day=7,
     add_seasons_to_features=False,
-    class_unhealthy_label="1To2",
+    class_unhealthy_label="2To2",
     n_job=6,
     dataset=None,
     export_hpc_string=False
 ):
-    steps = ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "MINMAX"]
+    steps = ["QN", "ANSCOMBE", "LOG"]
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
@@ -57,21 +57,21 @@ def biospi_run(n_job=25):
         cedara_dir_mrnn=Path(
             "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset6_mrnn_7day"
         ),
-        cedara_dir_gain=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_gain_60"
-        ),
-        cedara_dir_li=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_li_60"
-        ),
+        # cedara_dir_gain=Path(
+        #     "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_gain_60"
+        # ),
+        # cedara_dir_li=Path(
+        #     "/mnt/storage/scratch/axel/thesis/datasets/cedara/cedara_dataset_1_li_60"
+        # ),
         delmas_dir_mrnn=Path(
             "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
         ),
-        delmas_dir_gain=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_gain_60"
-        ),
-        delmas_dir_li=Path(
-            "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_li_60"
-        ),
+        # delmas_dir_gain=Path(
+        #     "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_gain_60"
+        # ),
+        # delmas_dir_li=Path(
+        #     "/mnt/storage/scratch/axel/thesis/datasets/delmas/delmas_dataset_1_li_60"
+        # ),
         n_job=n_job,
     )
 
@@ -211,7 +211,7 @@ def main(
             # ["LINEAR", "QN", "LOG", "CENTER", "CWT(MORL)"],
             # ["LINEAR", "QN", "ANSCOMBE", "LOG", "CENTER", "CWT(MORL)", "STD"]
         ]
-        for class_unhealthy_label in ["1To2", "2To2"]:
+        for class_unhealthy_label in ["2To2"]:
             for steps in steps_list:
                 slug = "_".join(steps)
                 for clf in ["linear", "rbf", "knn", "lreg", "dtree"]:
@@ -601,8 +601,8 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
-    single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
-    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", export_hpc_string=False)
+    #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas", export_hpc_string=False)
     # local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
@@ -620,5 +620,5 @@ if __name__ == "__main__":
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"), farm_id="cedara")
 
-    #biospi_run()
+    biospi_run()
     # typer.run(main)

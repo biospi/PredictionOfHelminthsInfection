@@ -7,4 +7,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main('E:/thesis_debug_weather7/main_experiment')
+    main('H:/thesis_final_march1/thesis_final_march1/main_experiment')

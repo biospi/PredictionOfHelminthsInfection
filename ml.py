@@ -529,6 +529,7 @@ def main(
             ################################################################################################################
 
         step_slug = "_".join(preprocessing_steps)
+        return
 
         steps_ = []
         if "APPEND" in preprocessing_steps:

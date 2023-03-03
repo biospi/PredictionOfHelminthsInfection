@@ -12,6 +12,7 @@ from sklearn.metrics import precision_score
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.legend_handler import HandlerBase
+from itertools import zip_longest
 
 from var import marker
 
@@ -35,7 +36,11 @@ def worker(
     xaxis_train,
     xaxis_test,
     auc_list_test,
-    auc_list_train
+    auc_list_train,
+    tprs_test,
+    tprs_train,
+    fprs_test,
+    fprs_train
 
 ):
     all_test_y_list = []
@@ -44,6 +49,11 @@ def worker(
     all_train_proba_list= []
     prec_list_test= []
     prec_list_train= []
+
+    # tprs_test = []
+    # tprs_train = []
+    # fprs_test = []
+    # fprs_train = []
 
     print(f"bootstrap results progress {i}/{tot}...")
     bootstrap = np.random.choice(paths, size=len(paths), replace=True)
@@ -84,16 +94,16 @@ def worker(
         all_train_proba_list.extend(y_pred_proba_train)
 
     fpr, tpr, thresholds = roc_curve(all_test_y, all_test_proba)
-    # tprs_test.append(tpr)
-    # fprs_test.append(fpr)
+    tprs_test.append(tpr)
+    fprs_test.append(fpr)
     roc_auc = auc(fpr, tpr)
     auc_list_test.append(roc_auc)
     xaxis_test.append([fpr, tpr])
     # ax_roc_merge.plot(fpr, tpr, color="tab:blue", alpha=0.3, linewidth=1)
 
     fpr, tpr, thresholds = roc_curve(all_train_y, all_train_proba)
-    # tprs_train.append(tpr)
-    # fprs_train.append(fpr)
+    tprs_train.append(tpr)
+    fprs_train.append(fpr)
     roc_auc = auc(fpr, tpr)
     auc_list_train.append(roc_auc)
     xaxis_train.append([fpr, tpr])
@@ -114,6 +124,12 @@ def worker(
     # pd.DataFrame(auc_list_train).to_pickle("auc_list_train.pkl")
     pd.DataFrame(prec_list_test).to_pickle("prec_list_test.pkl")
     pd.DataFrame(prec_list_train).to_pickle("prec_list_train.pkl")
+
+    # pd.DataFrame(tprs_train).to_pickle("tprs_train.pkl")
+    # pd.DataFrame(tprs_test).to_pickle("tprs_test.pkl")
+    #
+    # pd.DataFrame(fprs_train).to_pickle("fprs_train.pkl")
+    # pd.DataFrame(fprs_test).to_pickle("fprs_test.pkl")
 
     print(f"{i}/{tot} done.")
 
@@ -165,10 +181,10 @@ def main(path=None, n_bootstrap=100, n_job=6):
         auc_list_train = manager.list()
         prec_list_test = manager.list()
         prec_list_train = manager.list()
-        # tprs_test = manager.list()
-        # tprs_train = manager.list()
-        # fprs_test = manager.list()
-        # fprs_train = manager.list()
+        tprs_test = manager.list()
+        tprs_train = manager.list()
+        fprs_test = manager.list()
+        fprs_train = manager.list()
         xaxis_train = manager.list()
         xaxis_test = manager.list()
         all_test_y_list = manager.list()
@@ -187,7 +203,11 @@ def main(path=None, n_bootstrap=100, n_job=6):
                     xaxis_train,
                     xaxis_test,
                     auc_list_test,
-                    auc_list_train
+                    auc_list_train,
+                    tprs_test,
+                    tprs_train,
+                    fprs_test,
+                    fprs_train
                 ),
             )
         pool.close()
@@ -198,6 +218,10 @@ def main(path=None, n_bootstrap=100, n_job=6):
         xaxis_test = list(xaxis_test)
         auc_list_test = list(auc_list_test)
         auc_list_train = list(auc_list_train)
+        tprs_test = list(tprs_test)
+        tprs_train = list(tprs_train)
+        fprs_test = list(fprs_test)
+        fprs_train = list(fprs_train)
 
     all_test_y_list = pd.read_pickle("all_test_y_list.pkl").values
     all_test_proba_list = pd.read_pickle("all_test_proba_list.pkl").values
@@ -207,6 +231,11 @@ def main(path=None, n_bootstrap=100, n_job=6):
     # auc_list_train = pd.read_pickle("auc_list_train.pkl").values
     prec_list_test = pd.read_pickle("prec_list_test.pkl").values
     prec_list_train = pd.read_pickle("prec_list_train.pkl").values
+
+    # tprs_train = pd.read_pickle("tprs_train.pkl").values
+    # tprs_test = pd.read_pickle("tprs_test.pkl").values
+    # fprs_train = pd.read_pickle("fprs_train.pkl").values
+    # fprs_test = pd.read_pickle("fprs_test.pkl").values
 
     print("building roc...")
     median_auc_test = np.median(auc_list_test)
@@ -243,8 +272,12 @@ def main(path=None, n_bootstrap=100, n_job=6):
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
     )
 
-    # mean_fpr_test = np.mean(fprs_test, axis=0)
-    # mean_tpr_test = np.mean(tprs_test, axis=0)
+    # fprs_test = np.array(list(zip_longest(*fprs_test, fillvalue=0))).T #todo fix
+    # tprs_test = np.array(list(zip_longest(*tprs_test, fillvalue=0))).T
+    #
+    # mean_fpr_test = np.median(fprs_test, axis=0)
+    # mean_tpr_test = np.median(tprs_test, axis=0)
+    #mean_tpr_test[-1] = 1.0
     mean_fpr_test, mean_tpr_test, thresholds = roc_curve(
         all_test_y_list, all_test_proba_list
     )
@@ -262,6 +295,9 @@ def main(path=None, n_bootstrap=100, n_job=6):
     ax_roc_merge.legend(loc="lower right")
     # fig.show()
 
+    # tprs_train = np.array(list(zip_longest(*tprs_train, fillvalue=0))).T #todo fix
+    # fprs_train = np.array(list(zip_longest(*fprs_train, fillvalue=0))).T
+
     # mean_tpr_train = np.mean(tprs_train, axis=0)
     # mean_fpr_train = np.mean(fprs_train, axis=0)
     # mean_tpr_train[-1] = 1.0
@@ -276,18 +312,18 @@ def main(path=None, n_bootstrap=100, n_job=6):
     ax_roc_merge.set(
         xlim=[-0.05, 1.05],
         ylim=[-0.05, 1.05],
-        title=f"(Training data) Receiver operating characteristic",
+        title=f"Receiver operating characteristic (Training and Testing data)",
     )
     ax_roc_merge.legend(loc="lower right")
 
     fig_roc_merge.tight_layout()
-    path = path.parent.parent.parent / "roc_curve"
-    path.mkdir(parents=True, exist_ok=True)
+    path_ = path.parent.parent.parent / "roc_curve"
+    path_.mkdir(parents=True, exist_ok=True)
     # final_path = path / f"{tag}_roc_{classifier_name}.png"
     # print(final_path)
     # fig.savefig(final_path)
 
-    final_path = path / f"{path.parent.stem}.png"
+    final_path = path_ / f"{n_bootstrap}_{path_.parent.stem}_{path.parent.parent.stem}.png"
     print(final_path)
     fig_roc_merge.savefig(final_path)
 
@@ -323,7 +359,10 @@ if __name__ == "__main__":
         #     continue
         print(item)
         print(f"{i}/{len(folders)}...")
-        res = main(Path(f"{item}/fold_data"), n_bootstrap=100)
+        try:
+            res = main(Path(f"{item}/fold_data"), n_bootstrap=100)
+        except Exception as e:
+            print(e)
         if res is not None:
             results.append(res)
 
@@ -347,6 +386,14 @@ if __name__ == "__main__":
             "path",
         ],
     )
+    df = df[~pd.isna(df["median_auc_test"])]
+    df = df[df["median_auc_test"] > 0.5]
+    df = df[df["N peaks"] <= 6]
+    df = df.sort_values("N peaks", ascending=True)
+
+    df["pipeline"] = df["Pre-processing"] + "->" + df["Classifier"]
+
+    df['Sample length (minutes)'] = [x[0].parent.parent.parent.parent.stem.split('__')[-1] for x in df["path"]]
 
     # df_ = df.sort_values("median_auc_test", ascending=False)
     # df_ = df_.drop("median_auc_test", axis=1)
@@ -358,7 +405,7 @@ if __name__ == "__main__":
     print(df)
     fig, ax1 = plt.subplots(figsize=(9.80, 9.80))
     ax2 = ax1.twinx()
-    dfs = [group for _, group in df.sort_values("median_auc_test", ascending=False).head(10).groupby(['Pre-processing'])]
+    dfs = [group for _, group in df.groupby(['pipeline'])]
 
     ax2.bar(
         [1, 2, 3, 4, 5, 6],
@@ -387,12 +434,14 @@ if __name__ == "__main__":
             #
             # if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
-            print(df_['Pre-processing'].tolist()[0])
+            if len(df_) < 5:
+                continue
+            print(df_['pipeline'].tolist()[0])
             #
             # if len(df_["median_auc_test"]) != 4:
             #     continue
             #print(df_["n_samples"])
-            label = f"Window size={df_['Sample length (minutes)'].tolist()[0]*2} min | {'>'.join(df_['Pre-processing'].tolist()[0].split('_')[:])}"
+            label = f"Window size={df_['Sample length (minutes)'].tolist()[0]} sec | {'>'.join(df_['pipeline'].tolist()[0].split('_')[:])}"
             ax1.plot(
                 df_["N peaks"],
                 df_["median_auc_test"],
@@ -431,7 +480,7 @@ if __name__ == "__main__":
     ax1.axhline(y=0.5, color='black', linestyle='--')
     fig.suptitle("Evolution of AUC(training and testing) with N peak increase")
     ax1.set_xlabel("Number of peaks")
-    ax1.set_ylabel("Mean AUC")
+    ax1.set_ylabel("Median AUC")
     ax2.set_ylabel("Number of samples(high activity peak window)")
     #plt.legend()
     #ax1.legend(loc="lower right").set_visible(True)
@@ -444,10 +493,10 @@ if __name__ == "__main__":
     ax1.legend(color_data, label_, loc="upper right",
                handler_map={tuple: AnyObjectHandler()})
 
-    # ax1.grid()
+    ax1.grid()
 
     fig.tight_layout()
-    filename = f"auc_per_npeak_bootstrap.png"
+    filename = f"auc_per_npeak_bootstrap_.png"
     out_dir.mkdir(parents=True, exist_ok=True)
     filepath = out_dir / filename
     print(filepath)
