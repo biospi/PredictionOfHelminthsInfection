@@ -529,8 +529,6 @@ def main(
             ################################################################################################################
 
         step_slug = "_".join(preprocessing_steps)
-        return
-
         steps_ = []
         if "APPEND" in preprocessing_steps:
             steps_.append(preprocessing_steps[0 : preprocessing_steps.index("APPEND")])
