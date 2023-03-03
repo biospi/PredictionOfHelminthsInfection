@@ -1018,7 +1018,7 @@ def cross_validate_svm_fast(
     for kernel in svc_kernel:
         if kernel in ["linear", "rbf"]:
             clf = SVC(kernel=kernel, probability=True)
-            #clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
+            clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
 
         if kernel in ["knn"]:
             n_neighbors = int(np.sqrt(len(y)))
