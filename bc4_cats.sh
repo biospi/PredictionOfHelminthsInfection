@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-
+#SBATCH --account=sscm012844
 #SBATCH --job-name=cats
 #SBATCH --output=cat_job_out
 #SBATCH --error=cat_job_error
