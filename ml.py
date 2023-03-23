@@ -80,8 +80,7 @@ def build_hpc_string(
     cv,
     individual_to_ignore
 ):
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
+
     output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
 

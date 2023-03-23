@@ -10,7 +10,8 @@ from utils.Utils import purge_hpc_file
 
 def main(
     out_parent: str = "E:/Cats/ml_build_permutations_thesis",
-    dataset_parent: str = "E:/Cats/build_permutations",
+    dataset_parent: str = "E:/Cats/build_permutations_final",
+    export_hpc_string:bool = True
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -19,12 +20,17 @@ def main(
     """
     print(out_parent)
     print(dataset_parent)
+    if export_hpc_string:
+        purge_hpc_file('thesis_hpc_ln.txt')
+        purge_hpc_file('thesis_hpc.txt')
 
-    for clf in ["transformer"]:
+    for clf in ["rbf"]:
         for steps in [
             [],
             ["QN", "STD"],
-            # ["QN", "STD", "CENTER", "CWTMORL"],
+            ["QN"],
+            ["STD"],
+            ["QN", "STD", "CENTER", "CWTMORL"]
             # ["QN", "STD", "CENTER", "DWT"]
         ]:
             slug = "_".join(steps)
@@ -115,7 +121,7 @@ def main(
                         epoch=100,
                         batch_size=100,
                         plot_2d_space=False,
-                        export_hpc_string=True
+                        export_hpc_string=export_hpc_string
                     )
 
                 # main_pipeline.main(
@@ -332,7 +338,6 @@ def main(
 
 
 if __name__ == "__main__":
-    purge_hpc_file('thesis_hpc_ln.txt')
-    purge_hpc_file('thesis_hpc.txt')
+
     main()
     # typer.run(main)
