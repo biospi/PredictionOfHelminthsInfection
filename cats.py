@@ -29,8 +29,8 @@ def main(
             [],
             ["QN", "STD"],
             ["QN"],
-            ["STD"],
-            ["QN", "STD", "CENTER", "CWTMORL"]
+            ["STD"]
+            #["QN", "STD", "CENTER", "CWTMORL"]
             # ["QN", "STD", "CENTER", "DWT"]
         ]:
             slug = "_".join(steps)
