@@ -11,7 +11,8 @@ from utils.Utils import purge_hpc_file
 def main(
     out_parent: str = "E:/Cats/ml_build_permutations_thesis",
     dataset_parent: str = "E:/Cats/build_permutations_final",
-    export_hpc_string:bool = True
+    export_hpc_string: bool = False,
+    biospi_run: bool = False
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -20,18 +21,22 @@ def main(
     """
     print(out_parent)
     print(dataset_parent)
+
+    if biospi_run:
+        dataset_parent = "/mnt/storage/scratch/axel/cats/build_permutations_final"
+        out_parent = "/mnt/storage/scratch/axel/cats/ml"
+
     if export_hpc_string:
         purge_hpc_file('thesis_hpc_ln.txt')
         purge_hpc_file('thesis_hpc.txt')
 
-    for clf in ["rbf"]:
+    for clf in ["linear", "rbf"]:
         for steps in [
             [],
-            ["QN", "STD"],
             ["QN"],
-            ["STD"]
-            #["QN", "STD", "CENTER", "CWTMORL"]
-            # ["QN", "STD", "CENTER", "DWT"]
+            ["STD"],
+            ["QN", "ANSCOMBE", "LOG"],
+            ["STD", "ANSCOMBE", "LOG"]
         ]:
             slug = "_".join(steps)
             print(slug)
@@ -112,7 +117,7 @@ def main(
                         n_scales=8,
                         n_splits=5,
                         n_repeats=10,
-                        n_job=7,
+                        n_job=28,
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=False,
@@ -338,6 +343,5 @@ def main(
 
 
 if __name__ == "__main__":
-
     main()
     # typer.run(main)

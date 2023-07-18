@@ -83,14 +83,14 @@ def biospi_run(n_job=25):
 def local_run():
 
     main(
-        output_dir=Path("E:/thesis_final_march1"),
+        output_dir=Path("E:/thesis"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
         cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"),
         cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
         delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"),
         delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"),
-        export_hpc_string=True
+        export_hpc_string=False
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
@@ -620,7 +620,7 @@ if __name__ == "__main__":
 
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", export_hpc_string=False)
 
-    # local_run()
+    local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
 
@@ -637,5 +637,5 @@ if __name__ == "__main__":
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
     #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"), farm_id="cedara")
 
-    biospi_run()
+    #biospi_run()
     # typer.run(main)

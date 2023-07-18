@@ -49,8 +49,8 @@ def mean_confidence_interval(x):
 
 
 def local_run(
-    input_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final3"),
-    out_dir=Path("E:/Cats/article/ml_build_permutations_qnf_final3"),
+    input_dir=Path("H:/Cats/article/ml_build_permutations_thesis"),
+    out_dir=Path("H:/Cats/article/ml_build_permutations_thesis"),
 ):
     main(input_dir, out_dir)
 
@@ -84,6 +84,11 @@ def main(
 
     for index, row in df.iterrows():
         res_file_path = row[8]
+        if "3000__001__0_00100__030" in str(res_file_path):
+            continue
+        if "2000__001__0_00100__030" in str(res_file_path):
+            continue
+
         try:
             results = json.load(open(res_file_path))
         except Exception as e:
@@ -98,6 +103,7 @@ def main(
         thresh_float = float(t_v)
         npeak = int(row[4].split("__")[1])
         n_peaks.append(npeak)
+
         print(res_file_path)
 
         clf_res = results[list(results.keys())[0]]

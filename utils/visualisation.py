@@ -61,7 +61,6 @@ CSS_COLORS = {
     "QN_ANSCOMBE_LOG_CENTER_CWTMORL": "red",
     "QN_ANSCOMBE_LOG_CENTER_DWT": "gold",
     "QN_ANSCOMBE_LOG_SEASONS": "cyan",
-
     "WINDSPEED_STDS": "greenyellow",
     "HUMIDITY_STDS": "blue",
     "TEMPERATURE_STDS": "violet",
@@ -70,7 +69,7 @@ CSS_COLORS = {
     "QN_ANSCOMBE_LOG_HUMIDITYAPPEND_STDS": "teal",
     "QN_ANSCOMBE_LOG_TEMPERATUREAPPEND_STDS": "crimson",
     "QN_ANSCOMBE_LOG_RAINFALLAPPEND_STDS": "steelblue",
-    "QN_ANSCOMBE_LOG_WINDSPEEDAPPEND_STDS": "palegreen"
+    "QN_ANSCOMBE_LOG_WINDSPEEDAPPEND_STDS": "palegreen",
 }
 
 
@@ -555,7 +554,10 @@ def formatForBoxPlot(df):
         test_f1_score0 = stringArrayToArray(row["test_f1_score0"])
         test_f1_score1 = stringArrayToArray(row["test_f1_score1"])
         roc_auc_scores = stringArrayToArray(row["roc_auc_scores"])
-        config = [row["config"].replace("->",">").replace(" ","") for _ in range(len(test_balanced_accuracy_score))]
+        config = [
+            row["config"].replace("->", ">").replace(" ", "")
+            for _ in range(len(test_balanced_accuracy_score))
+        ]
         data["test_balanced_accuracy_score"] = test_balanced_accuracy_score
         data["test_precision_score0"] = test_precision_score0
         data["test_precision_score1"] = test_precision_score1
@@ -616,13 +618,45 @@ def build_annotations(df, fig_auc_only):
     return tuple(annotations)
 
 
-def human_readable(string, df):
-    split = string.split('>')
-    hr_string = f"{split[1]} {split[2]} {split[3]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
+def human_readable(string, df, n):
+    split = string.split(">")
+    hr_string = f"{split[1]} {split[2]} {split[4]} {split[10].split('_')[0]} {'NONE' if len(split[-4])==0 else split[-4]}"
     if "rbf" in string:
         hr_string = hr_string.replace("SVC", "SVCrbf")
-    #hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]}"
+    # hr_string = f"{split[1]} {split[2]} {split[10].split('_')[0]}"
     return hr_string
+
+
+def get_delta(df):
+    data = {}
+    for item in df["config"].unique():
+        df_ = df[df["config"] == item]["roc_auc_scores"]
+        data[item] = df_.median()
+    data_sorted = sorted(data, key=data.get, reverse=True)
+    df_max = df[df["config"] == data_sorted[0]]
+    # substract all configs with max
+    dfs_deltas = []
+    cols_delta = [
+        "test_balanced_accuracy_score",
+        "test_precision_score0",
+        "test_precision_score1",
+        "test_recall_score0",
+        "test_recall_score1",
+        "test_f1_score0",
+        "test_f1_score1",
+        "roc_auc_scores",
+    ]
+    for item in df["config"].unique():
+        # if item != data_sorted[0]:
+        #     continue
+        df_o = df[df["config"] == item]
+        df_diff = df[df["config"] == item]
+        df_diff[cols_delta] = df_o[cols_delta] - df_max[cols_delta]
+        df_diff = df_diff.reset_index(drop=True)
+        dfs_deltas.append(df_diff)
+    df_result = pd.concat(dfs_deltas)
+    df_result = df_result.sort_values('config_s')
+    return df_result
 
 
 def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False):
@@ -637,18 +671,20 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             if "report" not in str(path):
                 continue
 
-            if "delmas_dataset4_mrnn_7day" not in str(path) and "cedara_datasetmrnn7_23" not in str(path):
+            if "delmas_dataset4_mrnn_7day" not in str(
+                path
+            ) and "cedara_datasetmrnn7_23" not in str(path):
                 continue
 
             # pproc = "_".join(path.parent.parent.parent.stem.split('RepeatedKFold_')[1].split('_')[3:-2])
             # if pproc not in ['QN', "L2", ""]:
             #     continue
 
-            #print(pproc,"****", path)
+            # print(pproc,"****", path)
 
             if "QN_ANSCOMBE_LOG_STDS" not in str(path):
                 continue
-            split = str(path).split('RepeatedKFold_')[1].split('_')
+            split = str(path).split("RepeatedKFold_")[1].split("_")
             i_d = int(split[0])
             a_d = int(split[1])
             w_d = int(split[2])
@@ -664,7 +700,9 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             if "report" not in str(path):
                 continue
 
-            if "delmas_dataset4_mrnn_7day" not in str(path) and "cedara_datasetmrnn7_23" not in str(path):
+            if "delmas_dataset4_mrnn_7day" not in str(
+                path
+            ) and "cedara_datasetmrnn7_23" not in str(path):
                 continue
 
             if "SVC_rbf" not in str(path):
@@ -673,7 +711,11 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             if "STDS" in str(path):
                 continue
 
-            pproc = "_".join(path.parent.parent.parent.stem.split('RepeatedKFold_')[1].split('_')[3:-2])
+            pproc = "_".join(
+                path.parent.parent.parent.stem.split("RepeatedKFold_")[1].split("_")[
+                    3:-2
+                ]
+            )
 
             if "QN_ANSCOMBE_LOG" in pproc:
                 continue
@@ -681,12 +723,12 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             if "QN_ANSCOMBE_LOG_STDS" in pproc:
                 continue
 
-            if pproc not in ['QN', "L2", '']:
+            if pproc not in ["QN", "L2", ""]:
                 continue
             # print(f"{pproc}**********{path.parent.parent.parent.stem}")
             # print(path)
 
-            split = str(path).split('RepeatedKFold_')[1].split('_')
+            split = str(path).split("RepeatedKFold_")[1].split("_")
             i_d = int(split[0])
             a_d = int(split[1])
             w_d = int(split[2])
@@ -695,7 +737,6 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
 
             path_filtered.append(path)
         paths = path_filtered
-
 
     # if len(paths) == 0:
     #     paths = list(output_dir.parent.glob("**/*.csv"))
@@ -730,7 +771,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
         print("no reports available.")
         return
     df = pd.concat(dfs, axis=0)
-    #df = df[df['classifier_details'] == 'SVC_rbf_results']
+    # df = df[df['classifier_details'] == 'SVC_rbf_results']
     df["health_tags"] = df["class_0_label"] + df["class_1_label"]
     df["color"] = [x.split(">")[-3] for x in df["config"].values]
     # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
@@ -759,18 +800,18 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             df_f_ = formatForBoxPlot(df_f_)
             formated_label = []
             formated_label_s = []
-            for label in df_f_['config'].values:
-                split = label.split('>')
+            for n, label in enumerate(df_f_["config"].values):
+                split = label.split(">")
                 label_formated = ""
                 for i, item in enumerate(split):
                     label_formated += f"{item}>"
-                    if i == len(split)-4:
+                    if i == len(split) - 4:
                         label_formated += "<br>"
                 formated_label.append(label_formated)
-                formated_label_s.append(human_readable(label_formated, df_f_))
-            df_f_['config'] = formated_label
-            df_f_['config_s'] = formated_label_s
-
+                formated_label_s.append(human_readable(label_formated, df_f_, n))
+            df_f_["config"] = formated_label
+            df_f_["config_s"] = formated_label_s
+            df_f_ = get_delta(df_f_)
             fig.append_trace(
                 px.box(df_f_, x="config_s", y="test_precision_score0").data[0],
                 row=1,
@@ -796,7 +837,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 row=1,
                 col=1,
             )
-            #annot = build_annotations(df_f_, fig_auc_only)
+            # annot = build_annotations(df_f_, fig_auc_only)
             fig.update_xaxes(showticklabels=False)  # hide all the xticks
             fig.update_xaxes(showticklabels=True, row=4, col=1, automargin=True)
             fig.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
@@ -807,28 +848,41 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             filepath = output_dir / f"ML_performance_final_{farm}.html"
             print(filepath)
             fig.write_html(str(filepath))
-            #filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
+            # filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
             # print(filepath)
             # fig_auc_only.write_html(str(filepath))
             # fig.show()
 
-            preproc = df_f_["config_s"].str.split(' ').str[-1].unique()
+            preproc = df_f_["config_s"].str.split(" ").str[-1].unique()
             if filter_per_clf:
-                preproc = df_f_["config_s"].str.split(' ').str[-2].unique()
+                preproc = df_f_["config_s"].str.split(" ").str[-2].unique()
             mapping = dict(zip(preproc, range(len(preproc))))
 
             if filter_per_clf:
-                df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[0:-1].str.join(' ') + " (" + [str(mapping[x]) for x in df_f_["config_s"].str.split(' ').str[-2]] + ")"
+                df_f_["config_s"] = (
+                    df_f_["config_s"].str.split(" ").str[0:-1].str.join(" ")
+                    + " ("
+                    + [
+                        str(mapping[x])
+                        for x in df_f_["config_s"].str.split(" ").str[-2]
+                    ]
+                    + ")"
+                )
             else:
-                df_f_["config_s"] = df_f_["config_s"].str.split(' ').str[0:-1].str.join(' ') + " (" + [str(mapping[x])
-                                                                                                       for x in df_f_[
-                                                                                                           "config_s"].str.split(
-                        ' ').str[-1]] + ")"
+                df_f_["config_s"] = (
+                    df_f_["config_s"].str.split(" ").str[0:-1].str.join(" ")
+                    + " ("
+                    + [
+                        str(mapping[x])
+                        for x in df_f_["config_s"].str.split(" ").str[-1]
+                    ]
+                    + ")"
+                )
 
             x_data = df_f_["config_s"].unique()
 
             color_data = [x.split(" ")[-1] for x in x_data]
-            imp_days_data = [x.split(" ")[0].split('=')[1] for x in x_data]
+            imp_days_data = [x.split(" ")[0].split("=")[1] for x in x_data]
             y_data = []
             for x in df_f_["config_s"].unique():
                 y_data.append(df_f_[df_f_["config_s"] == x]["roc_auc_scores"].values)
@@ -844,8 +898,8 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 class0_list.append(class0)
                 class1_list.append(class1)
                 keys = np.unique(color_data)
-                values = px.colors.qualitative.Plotly[0:len(keys)]
-                #values[values.index('#B6E880')] = 'black' #replace green-yellow
+                values = px.colors.qualitative.Plotly[0 : len(keys)]
+                # values[values.index('#B6E880')] = 'black' #replace green-yellow
                 COLOR_MAP = dict(zip(keys, values))
                 color = COLOR_MAP[c]
                 # try:
@@ -853,7 +907,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 # except Exception as e:
                 #     print("error while parsing box color", e)
                 #     color = "blue"
-                #xd = xd.split('<br>')[0]
+                # xd = xd.split('<br>')[0]
                 colors.append(color)
                 traces.append(
                     go.Bar(
@@ -864,7 +918,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                         offsetgroup="Healthy samples",
                         marker=dict(color="#1f77b4"),
                         opacity=0.2,
-                        showlegend=False
+                        showlegend=False,
                     )
                 )
                 sec_axis.append(False)
@@ -877,7 +931,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                         offsetgroup="Unhealthy samples",
                         marker=dict(color="#ff7f0e"),
                         opacity=0.2,
-                        showlegend=False
+                        showlegend=False,
                     )
                 )
                 sec_axis.append(False)
@@ -900,11 +954,11 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                         boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         legendgroup=c,
-                        #legendgroup={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])],
+                        # legendgroup={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])],
                         marker_color=color,
                         marker_size=2,
-                        line_width=1 if float(i_d) < 0 else float(i_d)*0.5,
-                        showlegend=False
+                        line_width=1 if float(i_d) < 0 else float(i_d) * 0.5,
+                        showlegend=False,
                     )
                 )
                 sec_axis.append(True)
@@ -919,11 +973,14 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 traces.append(
                     go.Box(
                         y=yd,
-                        name={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])] + f"|{c}",
+                        name={v: k for k, v in mapping.items()}[
+                            int(list(filter(str.isdigit, c))[0])
+                        ]
+                        + f"|{c}",
                         boxpoints="outliers",
                         marker=dict(color=color, size=10),
                         marker_color=color,
-                        showlegend = True,
+                        showlegend=True,
                     )
                 )
                 sec_axis.append(True)
@@ -937,20 +994,22 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                     offsetgroup="Healthy samples",
                     marker=dict(color="#1f77b4"),
                     opacity=0.8,
-                    showlegend=True
+                    showlegend=True,
                 )
             )
             sec_axis.append(False)
-            traces.append(go.Bar(
-                y=class0,
-                x=[xd],
-                name="Unhealthy samples",
-                width=[0],
-                offsetgroup="Unhealthy samples",
-                marker=dict(color="#ff7f0e"),
-                opacity=0.8,
-                showlegend=True
-            ))
+            traces.append(
+                go.Bar(
+                    y=class0,
+                    x=[xd],
+                    name="Unhealthy samples",
+                    width=[0],
+                    offsetgroup="Unhealthy samples",
+                    marker=dict(color="#ff7f0e"),
+                    opacity=0.8,
+                    showlegend=True,
+                )
+            )
             sec_axis.append(False)
 
             h_labels = df_f_["config"].values[0].split(">H=")[1].split(">")[0]
@@ -971,7 +1030,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             fig_.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
             fig_.update_layout(
                 title=f"healthy labels={h_labels} unhealthy labels={uh_labels}",
-                yaxis_title="AUC"
+                yaxis_title="DELTA AUC",
             )
             fig_.update_xaxes(tickangle=-45)
 
@@ -991,10 +1050,10 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
 
             filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
             print(filepath)
-            fig_.update_layout(barmode='group')
-            fig_.update_yaxes(title_text="AUC", secondary_y=True)
+            fig_.update_layout(barmode="group")
+            fig_.update_yaxes(title_text="DELTA AUC", secondary_y=True)
             fig_.update_yaxes(title_text="Sample count", secondary_y=False)
-            fig_.update_xaxes(range=[-1, len(x_data)-0.5])
+            fig_.update_xaxes(range=[-1, len(x_data) - 0.5])
             fig_.write_html(str(filepath))
 
 
@@ -1031,20 +1090,26 @@ def plot_ml_report(clf_name, path, output_dir):
         )
     )
 
-    t1 = "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-        df["days"].values[0],
-        df["class0"].values[0],
-        df["class_0_label"].values[0],
-        df["class1"].values[0],
-        df["class_1_label"].values[0],
+    t1 = (
+        "Precision class0 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s"
+        % (
+            df["days"].values[0],
+            df["class0"].values[0],
+            df["class_0_label"].values[0],
+            df["class1"].values[0],
+            df["class_1_label"].values[0],
+        )
     )
 
-    t2 = "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s" % (
-        df["days"].values[0],
-        df["class0"].values[0],
-        df["class_0_label"].values[0],
-        df["class1"].values[0],
-        df["class_1_label"].values[0],
+    t2 = (
+        "Precision class1 performance of different inputs<br>Days=%d class0=%d %s class1=%d %s"
+        % (
+            df["days"].values[0],
+            df["class0"].values[0],
+            df["class_0_label"].values[0],
+            df["class1"].values[0],
+            df["class_1_label"].values[0],
+        )
     )
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
@@ -1299,7 +1364,7 @@ def plot_roc_range(
     days,
     info="None",
     tag="",
-    export_fig_as_pdf=False
+    export_fig_as_pdf=False,
 ):
     ax_roc_merge.plot(
         [0, 1], [0, 1], linestyle="--", lw=2, color="orange", label="Chance", alpha=1
@@ -1396,7 +1461,9 @@ def plot_roc_range(
         print(final_path)
         fig_roc_merge.savefig(final_path)
 
-        filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}_merge.pdf"
+        filepath = (
+            out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}_merge.pdf"
+        )
         print(filepath)
         fig_roc_merge.savefig(filepath)
     # filepath = out_dir.parent / f"{out_dir.stem}_{tag}_roc_{classifier_name}.png"
@@ -1518,12 +1585,24 @@ def plot_mean_groups(
         median = np.median(df_.iloc[:, :-N_META], axis=0)
 
         try:
-            dfs_mean = [(g['name'].values[0], np.mean(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
-            dfs_median = [(g['name'].values[0], np.median(g.iloc[:, :-N_META], axis=0)) for _, g in df_.groupby(['name'])]
+            dfs_mean = [
+                (g["name"].values[0], np.mean(g.iloc[:, :-N_META], axis=0))
+                for _, g in df_.groupby(["name"])
+            ]
+            dfs_median = [
+                (g["name"].values[0], np.median(g.iloc[:, :-N_META], axis=0))
+                for _, g in df_.groupby(["name"])
+            ]
 
             for m1, m2 in zip(dfs_mean, dfs_median):
                 fig_group.add_trace(
-                    go.Scatter(x=x, y=m1[1].values, mode="lines", name=f"Mean {m1[0]}", line_color="#000000")
+                    go.Scatter(
+                        x=x,
+                        y=m1[1].values,
+                        mode="lines",
+                        name=f"Mean {m1[0]}",
+                        line_color="#000000",
+                    )
                 )
                 # fig_group.add_trace(
                 #     go.Scatter(x=x, y=m2[1].values, mode="lines", name=f"Median {m2[0]}", line_color="#000000")
@@ -1566,7 +1645,7 @@ def plot_mean_groups(
                 sub_sample_scales=sub_sample_scales,
             ).transform([s])
 
-        #if sfft_window is not None:
+        # if sfft_window is not None:
         STFT(
             enable_graph_out=True,
             sfft_window=sfft_window,
@@ -1577,9 +1656,9 @@ def plot_mean_groups(
             dates=[],
         ).transform([s])
 
-        #if dwt_w is not None:
+        # if dwt_w is not None:
         DWT(
-            enable_graph_out = True,
+            enable_graph_out=True,
             dwt_window=dwt_w,
             out_dir=out_dir,
             step_slug="ANSCOMBE_" + label + "_" + str(df_.shape[0]),
@@ -2031,7 +2110,9 @@ def plot_3D_decision_boundaries(
 #
 
 
-def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, ifold, export_fig_as_pdf):
+def plot_high_dimension_db(
+    out_dir, X, y, train_index, meta, clf, days, steps, ifold, export_fig_as_pdf
+):
     """
     Plot high-dimensional decision boundary
     """
@@ -2051,7 +2132,7 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
         models_visu_dir.mkdir(parents=True, exist_ok=True)
         filepath = models_visu_dir / f"{ifold}.png"
         print(filepath)
-        #fig.tight_layout()
+        # fig.tight_layout()
         fig.savefig(filepath)
         plot_learning_curves(clf, X, y, ifold, models_visu_dir)
         db = DBPlot(clf, dimensionality_reduction=PLSRegression(n_components=2))
@@ -2068,12 +2149,26 @@ def plot_high_dimension_db(out_dir, X, y, train_index, meta, clf, days, steps, i
         models_visu_dir.mkdir(parents=True, exist_ok=True)
         filepath = models_visu_dir / f"{ifold}.png"
         print(filepath)
-        #fig.tight_layout()
-        fig.savefig(filepath, bbox_extra_artists=(l1, l2, ), bbox_inches='tight')
+        # fig.tight_layout()
+        fig.savefig(
+            filepath,
+            bbox_extra_artists=(
+                l1,
+                l2,
+            ),
+            bbox_inches="tight",
+        )
         if export_fig_as_pdf:
             filepath = models_visu_dir / f"{ifold}.pdf"
             print(filepath)
-            fig.savefig(filepath, bbox_extra_artists=(l1, l2, ), bbox_inches='tight')
+            fig.savefig(
+                filepath,
+                bbox_extra_artists=(
+                    l1,
+                    l2,
+                ),
+                bbox_inches="tight",
+            )
 
         # plot_learning_curves(clf, X, y, ifold, models_visu_dir)
     except Exception as e:
@@ -2277,29 +2372,38 @@ def build_roc_curve(output_dir, label_unhealthy, scores):
 def plot_fold_details(
     fold_results, meta, meta_columns, out_dir, filename="fold_details"
 ):
-    #print(fold_results)
-    #create one histogram per test fold (for loo)
+    # print(fold_results)
+    # create one histogram per test fold (for loo)
     try:
         hist_list = []
         names = []
-        fold_results = sorted(fold_results, key=itemgetter('target'))
+        fold_results = sorted(fold_results, key=itemgetter("target"))
         for item in fold_results:
-            probs = [x[1] for x in item['y_pred_proba_test']]
+            probs = [x[1] for x in item["y_pred_proba_test"]]
             test_fold_name = f"{item['meta_test'][0][7]}_{item['meta_test'][0][1]}_{item['meta_test'][0][0]}"
             names.append(test_fold_name)
             plt.clf()
-            h, _, _ = plt.hist(probs, density=True, bins=50, alpha=0.5, label=f"prob of sample (mean={np.mean([x[1] for x in item['y_pred_proba_test']]):.2f})")
+            h, _, _ = plt.hist(
+                probs,
+                density=True,
+                bins=50,
+                alpha=0.5,
+                label=f"prob of sample (mean={np.mean([x[1] for x in item['y_pred_proba_test']]):.2f})",
+            )
             hist_list.append(h)
             plt.ylabel("Density")
-            plt.xlabel("Probability of being unhealthy(target=1) per sample(perm of peaks)")
+            plt.xlabel(
+                "Probability of being unhealthy(target=1) per sample(perm of peaks)"
+            )
             plt.xlim(xmin=0, xmax=1)
             plt.title(
-                f"Histograms of prediction probabilities\n{test_fold_name} testing_shape={item['testing_shape']} target={item['meta_test'][0][0]}")
+                f"Histograms of prediction probabilities\n{test_fold_name} testing_shape={item['testing_shape']} target={item['meta_test'][0][0]}"
+            )
             plt.axvline(x=0.5, color="gray", ls="--")
             plt.legend(loc="upper right")
             # plt.show()
             filename = f"histogram_of_prob_{test_fold_name}.png"
-            out = out_dir / 'loo_histograms'
+            out = out_dir / "loo_histograms"
             out.mkdir(parents=True, exist_ok=True)
             filepath = out / filename
             print(filepath)
@@ -2310,17 +2414,19 @@ def plot_fold_details(
         hist_list = np.log(hist_list)
         fig, ax = plt.subplots(figsize=(8.20, 7.20))
         im = ax.imshow(hist_list)
-        x_axis = [f"{x:.1f}" for x in np.linspace(start=0, stop=1, num=hist_list.shape[1])]
+        x_axis = [
+            f"{x:.1f}" for x in np.linspace(start=0, stop=1, num=hist_list.shape[1])
+        ]
         ax.set_xticks(np.arange(len(x_axis)), labels=x_axis)
         ax.set_yticks(np.arange(len(names)), labels=names)
         ax.xaxis.set_major_locator(plt.MaxNLocator(10))
         ax.set_xlabel("Model Prediction Value (log)")
-        #ax.set_xscale('log')
+        # ax.set_xscale('log')
 
         ax.set_title("Histograms of test prediction probabilities")
 
         filename = f"heatmap_histogram_of_prob.png"
-        out = out_dir / 'loo_histograms'
+        out = out_dir / "loo_histograms"
         out.mkdir(parents=True, exist_ok=True)
         filepath = out / filename
 
@@ -2357,7 +2463,9 @@ def plot_fold_details(
 
         data.append([accuracy_train, accuracy, ids_test_, ids_train_])
 
-    df = pd.DataFrame(data, columns=["accuracy_train", "accuracy_test", "ids_test", "ids_train"])
+    df = pd.DataFrame(
+        data, columns=["accuracy_train", "accuracy_test", "ids_test", "ids_train"]
+    )
     mean_acc_train = np.mean(df["accuracy_train"].values)
     mean_acc = np.mean(df["accuracy_test"].values)
     df = df.sort_values(by="accuracy_test")
@@ -2376,10 +2484,10 @@ def plot_fold_details(
         figsize=(w, 7.20),
         title=f"Classifier predictions per fold n={len(fold_results)} mean_acc_train={mean_acc_train:.2f} mean_acc_test={mean_acc:.2f}",
     )
-    ax.axhline(y=0.5, color='r', linestyle='--')
+    ax.axhline(y=0.5, color="r", linestyle="--")
     try:
         for item in ax.get_xticklabels():
-            if int(item.get_text().split(' ')[0].replace('[', '')) == 0:
+            if int(item.get_text().split(" ")[0].replace("[", "")) == 0:
                 item.set_color("tab:blue")
     except ValueError as e:
         print(e)
@@ -2927,7 +3035,9 @@ def build_proba_hist(output_dir, steps, label_unhealthy, scores):
         plt.clf()
         fig, axs = plt.subplots(2, 1, facecolor="white", figsize=(24.0, 10.80))
 
-        if "delmas" in str(output_dir) or "cedara" in str(output_dir): #todo use farm id
+        if "delmas" in str(output_dir) or "cedara" in str(
+            output_dir
+        ):  # todo use farm id
             fig, axs = plt.subplots(
                 3, max_col, facecolor="white", figsize=(4.0 * max_col, 8.0)
             )
@@ -3124,7 +3234,7 @@ def build_report(
 
 
 if __name__ == "__main__":
-    print()
+    plot_ml_report_final(Path("E:/thesis/main_experiment"))
     # dir_path = "F:/Data2/job_debug/ml"
     # output_dir = "F:/Data2/job_debug/ml"
     # build_roc_mosaic(dir_path, output_dir)
