@@ -19,12 +19,13 @@ def main(
         out_parent: Output directory
         dataset_parent: Dataset directory
     """
-    print(out_parent)
-    print(dataset_parent)
-
     if biospi_run:
         dataset_parent = "/mnt/storage/scratch/axel/cats/build_permutations_final"
         out_parent = "/mnt/storage/scratch/axel/cats/ml"
+
+    print(out_parent)
+    print(dataset_parent)
+    print(export_hpc_string)
 
     if export_hpc_string:
         purge_hpc_file('thesis_hpc_ln.txt')
@@ -42,7 +43,6 @@ def main(
             print(slug)
             folders = sorted([x.stem for x in Path(dataset_parent).glob("*")])
             folders = [x for x in folders if "visu" not in str(x)]
-            print(folders)
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
             #folders = ["800__001__0_00100__120"]
             #folders = ["800__001__0_00100__120"]
