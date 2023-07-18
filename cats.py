@@ -12,7 +12,7 @@ def main(
     out_parent: str = "E:/Cats/ml_build_permutations_thesis",
     dataset_parent: str = "E:/Cats/build_permutations_final",
     export_hpc_string: bool = False,
-    biospi_run: bool = False
+    biospi_run: bool = True
 ):
     """Thesis script runs the cats study
     Args:\n
