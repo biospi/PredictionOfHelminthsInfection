@@ -1010,7 +1010,7 @@ def cross_validate_svm_fast(
 
     scores, scores_proba = {}, {}
 
-    tuned_parameters_rbf = { "gamma": [1e-10, 1e-6, 1e-4, 1e-3, 1, 10], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]}
+    tuned_parameters_rbf = { "gamma": [1e-10, 1], "C": [0.001, 0.1, 1]}
 
     # tuned_parameters_linear = [
     #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
