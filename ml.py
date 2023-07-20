@@ -205,7 +205,7 @@ def main(
             weather_file,
             classifiers,
             pre_visu,
-            20,
+            n_job,
             skip,
             meta_columns,
             cv,
