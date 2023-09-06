@@ -78,13 +78,16 @@ def build_hpc_string(
     skip,
     meta_columns,
     cv,
-    individual_to_ignore
+    individual_to_ignore,
+    c,
+    gamma
 ):
 
-    output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
-    data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
+    #output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
+    #data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
+    data_dir = str(dataset_folder)
 
-    hpc_s = f"ml.py --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
+    hpc_s = f"ml.py --c {c} --gamma {gamma} --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
     for item in class_healthy_label:
@@ -149,7 +152,7 @@ def main(
     study_id: str = "study",
     sampling: str = "T",
     pre_visu: bool = False,
-    output_qn_graph: bool = True,
+    output_qn_graph: bool = False,
     enable_qn_peak_filter: bool = False,
     enable_downsample_df: bool = False,
     n_job: int = 6,
@@ -164,6 +167,8 @@ def main(
     export_fig_as_pdf: bool = False,
     skip: bool = False,
     export_hpc_string: bool = False,
+    c: float = 1,
+    gamma: float = 1
 ):
     """ML Main machine learning script\n
     Args:\n
@@ -209,10 +214,13 @@ def main(
             skip,
             meta_columns,
             cv,
-            individual_to_ignore
+            individual_to_ignore,
+            c,
+            gamma
         )
         return
-
+    #plot_ml_report_final(output_dir.parent.parent)
+    # exit()
     meta_columns = [x.replace("'", "") for x in meta_columns]
     preprocessing_steps = [x.replace("'", "") for x in preprocessing_steps]
     print(f"meta_columns={meta_columns}")
@@ -660,7 +668,9 @@ def main(
             plot_2d_space=plot_2d_space,
             export_fig_as_pdf=export_fig_as_pdf,
             wheather_days=n_weather_days,
-            syhth_thresh=syhth_thresh
+            syhth_thresh=syhth_thresh,
+            C=c,
+            gamma=gamma
         )
 
         # 2DCNN

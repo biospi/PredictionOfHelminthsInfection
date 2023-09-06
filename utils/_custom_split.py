@@ -189,7 +189,7 @@ class LeaveNOut:
         leaven=2,
         n_test_samples_th=-1,
         stratified=False,
-        verbose=False,
+        verbose=True,
         individual_to_test=None
     ):
         self.nfold = 0

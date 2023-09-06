@@ -26,8 +26,8 @@ from sklearn.model_selection import (
 from sklearn.svm import SVC
 
 # from utils._custom_split import StratifiedLeaveTwoOut
-from classifier.src.CNN import cross_validate_cnnnd
-from cnn.transformer import cross_validate_transformer
+# from classifier.src.CNN import cross_validate_cnnnd
+# from cnn.transformer import cross_validate_transformer
 from utils._custom_split import LeaveNOut, BootstrapCustom_
 from utils.visualisation import (
     plot_roc_range,
@@ -345,7 +345,9 @@ def process_ml(
     plot_2d_space=False,
     export_fig_as_pdf=False,
     wheather_days=None,
-    syhth_thresh=2
+    syhth_thresh=2,
+    C=None,
+    gamma=None
 ):
     print("*******************************************************************")
     mlp_layers = (1000, 500, 100, 45, 30, 15)
@@ -363,14 +365,9 @@ def process_ml(
             animal_ids, sample_idxs, stratified=True, verbose=True, max_comb=-1
         )
 
-    if cv == "LeaveOneOut":
-        cross_validation_method = LeaveNOut(
-            animal_ids, sample_idxs, stratified=False, verbose=True, max_comb=-1, leaven=1
-        )
-
     if cv == "LeaveTwoOut":
         cross_validation_method = LeaveNOut(
-            animal_ids, sample_idxs, stratified=False, verbose=True
+            animal_ids, sample_idxs, stratified=False, verbose=True, max_comb=-1, leaven=2
         )
 
     if cv == "StratifiedLeaveOneOut":
@@ -379,9 +376,14 @@ def process_ml(
         )
 
     if cv == "LeaveOneOut":
-        cross_validation_method = LeaveNOut(
-            animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1, individual_to_test=individual_to_test
-        )
+        if len(individual_to_test) > 0:
+            cross_validation_method = LeaveNOut(
+                animal_ids, sample_idxs, stratified=False, verbose=True, leaven=1, individual_to_test=individual_to_test
+            )
+        else:
+            cross_validation_method = LeaveNOut(
+                animal_ids, sample_idxs, stratified=False, verbose=True, max_comb=-1, leaven=1
+            )
 
     if cv == "RepeatedStratifiedKFold":
         cross_validation_method = RepeatedStratifiedKFold(
@@ -466,7 +468,9 @@ def process_ml(
             n_job,
             plot_2d_space,
             export_fig_as_pdf,
-            syhth_thresh
+            syhth_thresh,
+            C=C,
+            gamma=gamma
         )
 
     if "transformer" in classifiers:
@@ -684,7 +688,9 @@ def fold_worker(
     nfold,
     export_fig_as_pdf,
     plot_2d_space,
-    clf_kernel
+    clf_kernel,
+    c,
+    gamma
 ):
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -756,13 +762,18 @@ def fold_worker(
         print(filename)
         with open(str(filename), "wb") as f:
             pickle.dump(clf, f)
+        # df_cv_results = pd.DataFrame(clf.cv_results_)
+        # filename = models_dir / f"model_{ifold}.csv"
+        # df_cv_results.to_csv(filename)
 
     # test healthy/unhealthy
     y_pred_test = clf.predict(X_test)
     if hasattr(clf, 'decision_function'):
-        y_pred_proba_test = clf.decision_function(X_test)
+        y_pred_proba_test_df = clf.decision_function(X_test)
+        y_pred_proba_test = clf.predict_proba(X_test)[:, 1]
     else:
         y_pred_proba_test = clf.predict_proba(X_test)[:, 1]
+        y_pred_proba_test_df = y_pred_proba_test
 
     # prep for roc curve
     alpha = 0.3
@@ -842,9 +853,11 @@ def fold_worker(
     # data for training
     y_pred_train = clf.predict(X_train)
     if hasattr(clf, 'decision_function'):
-        y_pred_proba_train = clf.decision_function(X_train)
+        y_pred_proba_train_df = clf.decision_function(X_train)
+        y_pred_proba_train = clf.predict_proba(X_train)[:, 1]
     else:
         y_pred_proba_train = clf.predict_proba(X_train)[:, 1]
+        y_pred_proba_train_df = y_pred_proba_train
 
     accuracy_train = balanced_accuracy_score(y_train, y_pred_train)
     (
@@ -874,6 +887,8 @@ def fold_worker(
         "y_pred_train": y_pred_train.tolist(),
         "y_pred_proba_test": y_pred_proba_test.tolist(),
         "y_pred_proba_train": y_pred_proba_train.tolist(),
+        "y_pred_proba_test_df": y_pred_proba_test_df.tolist(),
+        "y_pred_proba_train_df": y_pred_proba_train_df.tolist(),
         "ids_test": ids_test.tolist(),
         "ids_train": ids_train.tolist(),
         "sample_dates_test": sample_dates_test.tolist(),
@@ -902,6 +917,8 @@ def fold_worker(
         "train_support_0": float(support_train[0]),
         "train_support_1": float(support_train[1]),
         "fit_time": fit_time,
+        "c": c,
+        "gamma": gamma
     }
     print("export result to json...")
     out = out_dir / "fold_data"
@@ -970,6 +987,8 @@ def cross_validate_svm_fast(
     plot_2d_space=False,
     export_fig_as_pdf=False,
     syhth_thresh=2,
+    C=None,
+    gamma=None
 ):
     """Cross validate X,y data and plot roc curve with range
     Args:
@@ -987,7 +1006,7 @@ def cross_validate_svm_fast(
     if plot_2d_space:
         for kernel in svc_kernel:
             try:
-                clf = SVC(kernel=kernel, probability=True)
+                clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
                 X_ = X[np.isin(y_h, [0, 1])]
                 y_ = y_h[np.isin(y_h, [0, 1])]
                 meta_ = meta_data_short[np.isin(y_h, [0, 1])]
@@ -1010,15 +1029,16 @@ def cross_validate_svm_fast(
 
     scores, scores_proba = {}, {}
 
-    tuned_parameters_rbf = { "gamma": [1e-10, 1], "C": [0.001, 0.1, 1]}
+    #tuned_parameters_rbf = { "gamma": [1e-10, 1], "C": [0.001, 0.1, 1]}
+    #tuned_parameters_rbf = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001]}
 
     # tuned_parameters_linear = [
     #     {"kernel": ["linear"], "C": [0.0000000001, 0.000001, 0.001, 0.1, 1, 10, 100, 1000]},
     # ]
     for kernel in svc_kernel:
         if kernel in ["linear", "rbf"]:
-            clf = SVC(kernel=kernel, probability=True)
-            clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
+            clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
+            #clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
 
         if kernel in ["knn"]:
             n_neighbors = int(np.sqrt(len(y)))
@@ -1095,7 +1115,9 @@ def cross_validate_svm_fast(
                         cross_validation_method.get_n_splits(),
                         export_fig_as_pdf,
                         plot_2d_space,
-                        clf_kernel
+                        clf_kernel,
+                        C,
+                        gamma
                     ),
                 )
                 # fold_worker(
@@ -1130,7 +1152,8 @@ def cross_validate_svm_fast(
                 #     augment_training,
                 #     cross_validation_method.get_n_splits(),
                 #     export_fig_as_pdf,
-                #     plot_2d_space
+                #     plot_2d_space,
+                #     clf_kernel
                 # )
             pool.close()
             pool.join()
@@ -1148,7 +1171,7 @@ def cross_validate_svm_fast(
 
         plot_fold_details(fold_results, meta, meta_columns, out_dir)
 
-        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{len(fold_results[0]['training_shape'])} testing_shape:{len(fold_results[0]['testing_shape'])}"
+        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{fold_results[0]['training_shape']} testing_shape:{fold_results[0]['testing_shape']}"
         if kernel == "transformer":
             for a in axis_test:
                 xdata = a["fpr"]
@@ -1282,13 +1305,12 @@ def cross_validate_svm_fast(
                 print(final_path)
                 fig_roc_merge.savefig(final_path)
 
-
         if cv_name == "LeaveOneOut":
             all_y_test = []
             all_probs_test = []
             for item in fold_results:
                 all_y_test.extend(item['y_test'])
-                y_pred_proba_test = np.array(item['y_pred_proba_test'])
+                y_pred_proba_test = np.array(item['y_pred_test'])
                 # if len(y_pred_proba_test) > 1:
                 #     y_pred_proba_test = y_pred_proba_test[:, 1]
                 all_probs_test.extend(y_pred_proba_test)
@@ -1297,7 +1319,7 @@ def cross_validate_svm_fast(
             fpr, tpr, thresholds = roc_curve(all_y_test, all_probs_test.astype(int))
             roc_auc_test = auc(fpr, tpr)
             print(f"LOO AUC TEST={roc_auc_test}")
-            ax_roc_merge.plot(fpr, tpr, lw=2, alpha=0.5, label='LOOCV ROC (TEST AUC = %0.2f)' % (roc_auc_test))
+            ax_roc_merge.plot(fpr, tpr, lw=3, alpha=0.9, label='LOOCV ROC (TEST AUC = %0.2f)' % (roc_auc_test))
 
             all_y_train = []
             all_probs_train = []

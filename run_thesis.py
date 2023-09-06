@@ -5,10 +5,42 @@ import ml as main_experiment
 import ml_cross_farm_validation as cross_farm_validation
 import ml_temporal_validation as temporal_validation
 from pathlib import Path
+from sklearn.model_selection import ParameterGrid
+import numpy as np
+
+
+def grid_search_run():
+    # dataset = "/user/work/fo18103/thesis/datasets/cedara/dataset6_mrnn_7day"
+    # output_dir = "/user/work/fo18103/thesis/regularisation/cedara"
+
+    dataset = "/user/work/fo18103/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
+    output_dir = "/user/work/fo18103/thesis/regularisation/delmas"
+
+    #parameters = {"C": [10000000, 100000000], "gamma": [0.000008, 0.000009, 0.00002, 0.00003, 0.00004, 0.00005]}
+
+    parameters = {"C": [1, 10, 100, 1000, 10000],
+                  "gamma": np.arange(10e-21, 10e-0, (10e-2)).tolist()}
+    params = list(ParameterGrid(parameters))
+    print(len(params))
+    for param in params:
+        single_run(
+            output_dir=Path(output_dir),
+            #output_dir=Path("E:/thesis_Aug26_regularisation_cedara"),
+            # dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+            # dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
+            dataset=Path(dataset),
+            farm_id="delmas",
+            clf="rbf",
+            export_hpc_string=True,
+            steps=["QN", "ANSCOMBE", "LOG"],
+            c=param["C"],
+            gamma=param["gamma"],
+            plot_2d_space=False
+        )
 
 
 def single_run(
-    output_dir=Path("E:/thesis_final_march3_regularisation"),
+    output_dir=Path("E:/thesis_final_aug10_regularisation"),
     clf="linear",
     farm_id="",
     cv="RepeatedKFold",
@@ -21,14 +53,18 @@ def single_run(
     dataset=None,
     export_hpc_string=False,
     syhth_thresh=6,
-    steps = None
+    steps=None,
+    c=1.0,
+    gamma='auto',
+    plot_2d_space=False
 ):
+
     slug = "_".join(steps)
     main_experiment.main(
         output_dir=output_dir
         / "main_experiment"
         / clf
-        / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
+        / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}_{c}_{gamma}"
         / class_unhealthy_label,
         dataset_folder=dataset,
         preprocessing_steps=steps,
@@ -41,17 +77,19 @@ def single_run(
         study_id=farm_id,
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
-        plot_2d_space=False,
+        plot_2d_space=plot_2d_space,
         pre_visu=False,
-        skip=False,
-        n_repeats=2,
+        skip=True,
         syhth_thresh=syhth_thresh,
         export_hpc_string=export_hpc_string,
-        output_qn_graph=True,
+        output_qn_graph=False,
+        save_model=False,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
         ),
         n_job=n_job,
+        c=c,
+        gamma=gamma,
     )
 
 
@@ -85,12 +123,20 @@ def local_run():
     main(
         output_dir=Path("E:/thesis"),
         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
-        cedara_dir_gain=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"),
-        cedara_dir_li=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"),
+        cedara_dir_gain=Path(
+            "E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"
+        ),
+        cedara_dir_li=Path(
+            "E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"
+        ),
         delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-        delmas_dir_gain=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"),
-        delmas_dir_li=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"),
-        export_hpc_string=False
+        delmas_dir_gain=Path(
+            "E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"
+        ),
+        delmas_dir_li=Path(
+            "E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"
+        ),
+        export_hpc_string=False,
     )
     # main(output_dir=Path("E:/thesis_debug_mrnn18/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_18"))
     # main(output_dir=Path("E:/thesis_debug_mrnn19/"), delmas_dir=Path("E:/thesis/datasets/delmas/datasetmrnn7_19"))
@@ -112,7 +158,7 @@ def main(
     cedara_dir_gain: Path = None,
     cedara_dir_li: Path = None,
     n_job: int = 6,
-    export_hpc_string: bool = False
+    export_hpc_string: bool = False,
 ):
     """Thesis script runs all key experiments for data exploration chapter
     Args:\n
@@ -190,7 +236,6 @@ def main(
             ["QN", "ANSCOMBE", "LOG", "STD"],
             ["QN", "ANSCOMBE", "LOG", "MINMAX"],
             ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
-
             # ["L2"],
             # ["L2", "ANSCOMBE", "LOG"],
             # ["L2", "ANSCOMBE", "LOG", "STD"],
@@ -259,7 +304,7 @@ def main(
                                                 export_fig_as_pdf=False,
                                                 plot_2d_space=False,
                                                 pre_visu=False,
-                                                export_hpc_string = export_hpc_string,
+                                                export_hpc_string=export_hpc_string,
                                                 skip=False,
                                                 weather_file=Path(
                                                     "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
@@ -576,9 +621,7 @@ def main(
                     / "2To2",
                     n_imputed_days=imp_d,
                     n_activity_days=a_act_day,
-                    class_unhealthy_f2=[
-                        "2To2"
-                    ]
+                    class_unhealthy_f2=["2To2"],
                 )
 
                 # cross_farm_validation.main(
@@ -610,21 +653,54 @@ if __name__ == "__main__":
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["QN"])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=[""])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["L2"])
-
-    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
-    #            export_hpc_string=False, steps = [""])
+    grid_search_run()
+    # single_run(
+    #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
+    #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+    #     farm_id="delmas",
+    #     clf="rbf",
+    #     export_hpc_string=False,
+    #     steps=["QN", "ANSCOMBE", "LOG"],
+    #     plot_2d_space=False,
+    #     cv="LeaveTwoOut"
+    # )
+    #
+    # single_run(
+    #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
+    #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+    #     farm_id="delmas",
+    #     clf="linear",
+    #     export_hpc_string=False,
+    #     steps=["QN", "ANSCOMBE", "LOG"],
+    #     plot_2d_space=False,
+    #     cv="LeaveTwoOut"
+    # )
+    #
+    # single_run(
+    #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
+    #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+    #     farm_id="delmas",
+    #     clf="rbf",
+    #     export_hpc_string=False,
+    #     steps=["QN", "ANSCOMBE", "LOG"],
+    #     plot_2d_space=False,
+    #     cv="LeaveTwoOut",
+    #     class_unhealthy_label="1To2"
+    # )
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", clf="rbf",
+    #            export_hpc_string=False, steps = ["QN", "ANSCOMBE", "LOG"])
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
     #            export_hpc_string=False, steps=["QN"])
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
     #            export_hpc_string=False, steps=["L2"])
 
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", export_hpc_string=False)
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", export_hpc_string=False)
 
-    local_run()
+    # local_run()
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_mrnn_30days"), farm_id="delmas")
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_mrnn_30days"), farm_id="cedara")
 
-    #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_gain_66_no_filter_fixed"), farm_id="delmas")
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset_1_li_66_no_filter_fixed"), farm_id="delmas")
     # #
@@ -632,10 +708,10 @@ if __name__ == "__main__":
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172_no_filter_fixed"), farm_id="cedara")
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_li_172_no_filter_fixed"), farm_id="cedara")
 
-    #single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
-    #single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_li_7_23"), farm_id="cedara")
+    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_dataset_1_gain_172"), farm_id="cedara")
 
-    #biospi_run()
+    # biospi_run()
     # typer.run(main)

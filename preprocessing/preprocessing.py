@@ -293,7 +293,7 @@ def apply_preprocessing_steps(
             df.iloc[:, :-N_META] = Log().transform(df.iloc[:, :-N_META].values)
         if step == "QN":
             df.iloc[:, :-N_META] = QuotientNormalizer(
-                out_dir=graph_outputdir / step, output_graph=True, enable_qn_peak_filter=False
+                out_dir=graph_outputdir / step, output_graph=output_qn_graph, enable_qn_peak_filter=False
             ).transform(df.iloc[:, :-N_META].values)
             df = df.fillna(0)
         if "STFT" in step:

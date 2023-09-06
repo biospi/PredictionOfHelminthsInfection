@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def main(path):
-    plot_ml_report_final(Path(path), filter_for_norm=True)
+    plot_ml_report_final(Path(path), filter_for_norm=False)
     #plot_ml_report_final(Path(path), filter_per_clf=False)
 
 

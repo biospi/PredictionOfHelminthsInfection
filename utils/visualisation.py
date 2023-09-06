@@ -2379,16 +2379,23 @@ def plot_fold_details(
         names = []
         fold_results = sorted(fold_results, key=itemgetter("target"))
         for item in fold_results:
-            probs = [x[1] for x in item["y_pred_proba_test"]]
-            test_fold_name = f"{item['meta_test'][0][7]}_{item['meta_test'][0][1]}_{item['meta_test'][0][0]}"
+            if len(np.array(item["y_pred_proba_test"]).shape) > 1:
+                probs = [x[1] for x in item["y_pred_proba_test"]]
+            else:
+                probs = [x for x in item["y_pred_proba_test"]]
+            test_fold_name = f"{item['meta_test'][0][1]}_{item['meta_test'][0][0]}"
             names.append(test_fold_name)
             plt.clf()
+            if len(np.array(item["y_pred_proba_test"]).shape) > 1:
+                label = f"prob of sample (mean={np.mean([x[1] for x in item['y_pred_proba_test']]):.2f})"
+            else:
+                label = f"prob of sample (mean={np.mean([x for x in item['y_pred_proba_test']]):.2f})"
             h, _, _ = plt.hist(
                 probs,
                 density=True,
                 bins=50,
                 alpha=0.5,
-                label=f"prob of sample (mean={np.mean([x[1] for x in item['y_pred_proba_test']]):.2f})",
+                label=label,
             )
             hist_list.append(h)
             plt.ylabel("Density")
@@ -2448,6 +2455,8 @@ def plot_fold_details(
         name = 0
         if "name" in meta_columns:
             name = m[meta_columns.index("name")]
+        else:
+            name = int(m[1])
         meta_dict[id] = f"{target} {name}"
     data = []
     for f in fold_results:
