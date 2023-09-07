@@ -85,7 +85,8 @@ def build_hpc_string(
 
     #output_dir = f"/user/work/fo18103{str(output_dir).split(':')[1]}".replace("\\", '/')
     #data_dir = f"/user/work/fo18103{str(dataset_folder).split(':')[1]}".replace("\\", '/')
-    data_dir = str(dataset_folder)
+    data_dir = str(dataset_folder).replace("\\", '/')
+    output_dir = str(output_dir).replace("\\", '/')
 
     hpc_s = f"ml.py --c {c} --gamma {gamma} --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
@@ -105,7 +106,7 @@ def build_hpc_string(
         hpc_s += "--pre_visu"
 
     if skip:
-        hpc_s += "--skip"
+        hpc_s += " --skip"
 
     print(hpc_s)
     with open("thesis_hpc_ln.txt", "a") as f:

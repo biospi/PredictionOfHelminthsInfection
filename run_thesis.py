@@ -10,16 +10,12 @@ import numpy as np
 
 
 def grid_search_run():
-    # dataset = "/user/work/fo18103/thesis/datasets/cedara/dataset6_mrnn_7day"
-    # output_dir = "/user/work/fo18103/thesis/regularisation/cedara"
-
     dataset = "/user/work/fo18103/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
     output_dir = "/user/work/fo18103/thesis/regularisation/delmas"
-
-    #parameters = {"C": [10000000, 100000000], "gamma": [0.000008, 0.000009, 0.00002, 0.00003, 0.00004, 0.00005]}
+    farm_id = "delmas"
 
     parameters = {"C": [1, 10, 100, 1000, 10000],
-                  "gamma": np.arange(10e-21, 10e-0, (10e-2)).tolist()}
+                  "gamma": np.arange(10e-15, 10e-0, (10e-2)/2).tolist()}
     params = list(ParameterGrid(parameters))
     print(len(params))
     for param in params:
@@ -29,7 +25,26 @@ def grid_search_run():
             # dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
             # dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
             dataset=Path(dataset),
-            farm_id="delmas",
+            farm_id=farm_id,
+            clf="rbf",
+            export_hpc_string=True,
+            steps=["QN", "ANSCOMBE", "LOG"],
+            c=param["C"],
+            gamma=param["gamma"],
+            plot_2d_space=False
+        )
+
+    dataset = "/user/work/fo18103/thesis/datasets/cedara/dataset6_mrnn_7day"
+    output_dir = "/user/work/fo18103/thesis/regularisation/cedara"
+    farm_id = "cedara"
+    for param in params:
+        single_run(
+            output_dir=Path(output_dir),
+            #output_dir=Path("E:/thesis_Aug26_regularisation_cedara"),
+            # dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+            # dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
+            dataset=Path(dataset),
+            farm_id=farm_id,
             clf="rbf",
             export_hpc_string=True,
             steps=["QN", "ANSCOMBE", "LOG"],
@@ -64,7 +79,7 @@ def single_run(
         output_dir=output_dir
         / "main_experiment"
         / clf
-        / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}_{c}_{gamma}"
+        / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}_{c}_{str(gamma).replace('.','_')}"
         / class_unhealthy_label,
         dataset_folder=dataset,
         preprocessing_steps=steps,
@@ -79,7 +94,7 @@ def single_run(
         export_fig_as_pdf=False,
         plot_2d_space=plot_2d_space,
         pre_visu=False,
-        skip=True,
+        skip=False,
         syhth_thresh=syhth_thresh,
         export_hpc_string=export_hpc_string,
         output_qn_graph=False,
