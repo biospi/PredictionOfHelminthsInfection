@@ -107,14 +107,14 @@ def main(data_dir, out_dir):
     df = pd.DataFrame(results)
     df = df.sort_values(["C", "gamma"])
 
-    # dfs = []
-    # for c in df["C"].unique():
-    #     df_ = df[df["C"] == c]
-    #     df_ = df_[df_["gamma"].isin([1e-22, 1e-10, 1e-08, 1e-07, 1e-06, 8e-06, 9e-06, 1e-05, 2e-05, 3e-05, 4e-05, 5e-05, 0.0001, 0.001, 0.01, 0.1])]
-    #     print(df_["gamma"].unique(), len(df_["gamma"].unique()))
-    #     dfs.append(df_)
-    #
-    # df = pd.concat(dfs)
+    dfs = []
+    for c in df["C"].unique():
+        df_ = df[df["C"] == c]
+        df_ = df_[df_["gamma"].isin(df[df["C"] == 1]["gamma"].tolist())]
+        print(c, len(df_["gamma"].unique()))
+        dfs.append(df_)
+
+    df = pd.concat(dfs)
 
     plot_fig(
         df,
@@ -145,5 +145,6 @@ def main(data_dir, out_dir):
 
 
 if __name__ == "__main__":
-    main(Path("E:/thesis_Aug26_regularisation_cedara/main_experiment"), Path("E:/thesis_Aug26_regularisation_cedara/eval/"))
+    main(Path("E:/thesis/reg/regularisation/delmas/main_experiment"), Path("E:/thesis/reg/regularisation/delmas/eval/"))
+    main(Path("E:/thesis/reg/regularisation/cedara/main_experiment"), Path("E:/thesis/reg/regularisation/cedara/eval/"))
     #main("E:/thesis_Aug24_regularisation/main_experiment")
