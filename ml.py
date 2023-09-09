@@ -70,6 +70,7 @@ def build_hpc_string(
     class_unhealthy_label,
     n_imputed_days,
     n_activity_days,
+    syhth_thresh,
     n_weather_days,
     weather_file,
     classifiers,
@@ -88,7 +89,7 @@ def build_hpc_string(
     data_dir = str(dataset_folder).replace("\\", '/')
     output_dir = str(output_dir).replace("\\", '/')
 
-    hpc_s = f"ml.py --c {c} --gamma {gamma} --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
+    hpc_s = f"ml.py --c {c} --gamma {gamma} --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --syhth-thresh {syhth_thresh} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
     for item in class_healthy_label:
@@ -207,6 +208,7 @@ def main(
             class_unhealthy_label,
             n_imputed_days,
             n_activity_days,
+            syhth_thresh,
             n_weather_days,
             weather_file,
             classifiers,
