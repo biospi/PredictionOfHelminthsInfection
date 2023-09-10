@@ -10,31 +10,31 @@ import numpy as np
 
 
 def grid_search_run():
-    dataset = "/user/work/fo18103/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
-    output_dir = "/user/work/fo18103/thesis/regularisation/delmas"
-    farm_id = "delmas"
-
+    # dataset = "/user/work/fo18103/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"
+    # output_dir = "/user/work/fo18103/thesis/regularisation/delmas"
+    # farm_id = "delmas"
+    #
     parameters = {"C": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000],
                   "gamma": [10e-25, 10e-24, 10e-23, 10e-22, 10e-21, 10e-20, 10e-19, 10e-18, 10e-17, 10e-16, 10e-15, 10e-14, 10e-13, 10e-12,
                             10e-11, 10e-10, 10e-9, 10e-8, 10e-7, 10e-6, 10e-5, 10e-4, 10e-3, 10e-2, 10e-1, 10e-0, 10e1,
                             10e2, 10e3]}
     params = list(ParameterGrid(parameters))
     print(len(params))
-    for param in params:
-        single_run(
-            output_dir=Path(output_dir),
-            #output_dir=Path("E:/thesis_Aug26_regularisation_cedara"),
-            # dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-            # dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
-            dataset=Path(dataset),
-            farm_id=farm_id,
-            clf="rbf",
-            export_hpc_string=True,
-            steps=["QN", "ANSCOMBE", "LOG"],
-            c=param["C"],
-            gamma=param["gamma"],
-            plot_2d_space=False
-        )
+    # for param in params:
+    #     single_run(
+    #         output_dir=Path(output_dir),
+    #         #output_dir=Path("E:/thesis_Aug26_regularisation_cedara"),
+    #         # dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+    #         # dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
+    #         dataset=Path(dataset),
+    #         farm_id=farm_id,
+    #         clf="rbf",
+    #         export_hpc_string=True,
+    #         steps=["QN", "ANSCOMBE", "LOG"],
+    #         c=param["C"],
+    #         gamma=param["gamma"],
+    #         plot_2d_space=False
+    #     )
 
     dataset = "/user/work/fo18103/thesis/datasets/cedara/dataset6_mrnn_7day"
     output_dir = "/user/work/fo18103/thesis/regularisation/cedara"
@@ -53,8 +53,8 @@ def grid_search_run():
             c=param["C"],
             gamma=param["gamma"],
             plot_2d_space=False,
-            a_day=4,
-            syhth_thresh=3
+            a_day=1,
+            syhth_thresh=7
         )
 
 
