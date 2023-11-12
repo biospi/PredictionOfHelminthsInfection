@@ -869,6 +869,9 @@ def fold_worker(
     correct_predictions_train = (y_train == y_pred_train).astype(int)
     incorrect_predictions_train = (y_train != y_pred_train).astype(int)
 
+    n_healthy = np.sum(y_test == int(class_healthy)) + np.sum(y_train == int(class_healthy))
+    n_unhealthy = np.sum(y_test == int(class_unhealthy)) + np.sum(y_train == int(class_unhealthy))
+
     fold_result = {
         "i_fold": ifold,
         "info": info,
@@ -880,6 +883,8 @@ def fold_worker(
         "accuracy": float(accuracy),
         "accuracy_train": float(accuracy_train),
         "class_healthy": int(class_healthy),
+        "n_healthy": int(n_healthy),
+        "n_unhealthy": int(n_unhealthy),
         "class_unhealthy": int(class_unhealthy),
         "y_test": y_test.tolist(),
         "y_train": y_train.tolist(),
@@ -1006,7 +1011,10 @@ def cross_validate_svm_fast(
     if plot_2d_space:
         for kernel in svc_kernel:
             try:
-                clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
+                if C is None or gamma is None:
+                    clf = SVC(kernel=kernel, probability=True)
+                else:
+                    clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
                 X_ = X[np.isin(y_h, [0, 1])]
                 y_ = y_h[np.isin(y_h, [0, 1])]
                 meta_ = meta_data_short[np.isin(y_h, [0, 1])]
@@ -1037,7 +1045,10 @@ def cross_validate_svm_fast(
     # ]
     for kernel in svc_kernel:
         if kernel in ["linear", "rbf"]:
-            clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
+            if C is None or gamma is None:
+                clf = SVC(kernel=kernel, probability=True)
+            else:
+                clf = SVC(kernel=kernel, probability=True, C=C, gamma=gamma)
             #clf = GridSearchCV(clf, tuned_parameters_rbf, refit=True, verbose=3)
 
         if kernel in ["knn"]:
@@ -1171,7 +1182,8 @@ def cross_validate_svm_fast(
 
         plot_fold_details(fold_results, meta, meta_columns, out_dir)
 
-        info = f"X shape:{str(X.shape)} healthy:{np.sum(y_h == 0)} unhealthy:{np.sum(y_h == 1)} \n training_shape:{fold_results[0]['training_shape']} testing_shape:{fold_results[0]['testing_shape']}"
+        info = f"X shape:{str(X.shape)} healthy:{fold_results[0]['n_healthy']} unhealthy:{fold_results[0]['n_unhealthy']} \n" \
+               f" training_shape:{fold_results[0]['training_shape']} testing_shape:{fold_results[0]['testing_shape']}"
         if kernel == "transformer":
             for a in axis_test:
                 xdata = a["fpr"]
@@ -1411,20 +1423,20 @@ def loo_roc(clf, X, y, out_dir, cv_name, classifier_name, animal_ids, cv, days):
     for train, test in cv.split(X, y_binary):
         animal_ids = np.array(animal_ids)
         print("make_roc_curve fold %d/%d" % (i, n))
-        print(
-            "FOLD %d --> \nSAMPLE TRAIN IDX:" % i,
-            train,
-            "\nSAMPLE TEST IDX:",
-            test,
-            "\nTEST TARGET:",
-            np.unique(y_binary[test]),
-            "\nTRAIN TARGET:",
-            np.unique(y_binary[train]),
-            "\nTEST ANIMAL ID:",
-            np.unique(animal_ids[test]),
-            "\nTRAIN ANIMAL ID:",
-            np.unique(animal_ids[train]),
-        )
+        # print(
+        #     "FOLD %d --> \nSAMPLE TRAIN IDX:" % i,
+        #     train,
+        #     "\nSAMPLE TEST IDX:",
+        #     test,
+        #     "\nTEST TARGET:",
+        #     np.unique(y_binary[test]),
+        #     "\nTRAIN TARGET:",
+        #     np.unique(y_binary[train]),
+        #     "\nTEST ANIMAL ID:",
+        #     np.unique(animal_ids[test]),
+        #     "\nTRAIN ANIMAL ID:",
+        #     np.unique(animal_ids[train]),
+        # )
         i += 1
         all_y.append(y_binary[test])
 

@@ -211,7 +211,8 @@ if __name__ == "__main__":
     df["S-days"] = df["S-days"].astype(int)
 
     df_ = df.sort_values("mean_auc_test", ascending=False)
-    df_ = df_[df_["N test"] > 20]
+    df_ = df_[df_["S-days"] < df_["A-days"]]
+    df_ = df_[df_["N test"] > 10]
     df_.to_csv("sf_results.csv", index=None)
 
     # sample_length_effect_plot(data_dir, df_, "delmas", "2To2", "lreg")
@@ -226,7 +227,7 @@ if __name__ == "__main__":
             "Class0 P-test",
             "Class1 P-test",
             # "N train",
-            # "N test",
+            "N test",
             "A-days",
             "S-days",
             "Imp",
@@ -242,8 +243,17 @@ if __name__ == "__main__":
     print(df_cwt_delmas.head(10).to_latex(index=False))
     print(df_cwt_cedara.head(10).to_latex(index=False))
 
-    df_2 = df_2[df_2["Farm"] == "cedara"]
-    df_2_h = df_2.head(10)
+    df_2 = df_2[~df_2['Pre-proc'].str.contains('CWT')]
+    print("###########Delmas#############")
+    df_2_delmas = df_2[df_2["Farm"] == "delmas"]
+    df_2_h = df_2_delmas.head(10)
     print(df_2_h.to_latex(index=False))
-    df_2_t = df_2.tail(10)
+    df_2_t = df_2_delmas.tail(10)
+    print(df_2_t.to_latex(index=False))
+
+    print("###########Cedara#############")
+    df_2_cedara = df_2[df_2["Farm"] == "cedara"]
+    df_2_h = df_2_cedara.head(10)
+    print(df_2_h.to_latex(index=False))
+    df_2_t = df_2_cedara.tail(10)
     print(df_2_t.to_latex(index=False))

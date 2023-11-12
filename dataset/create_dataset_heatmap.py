@@ -804,6 +804,9 @@ def main(
     res: str = "T",
     start: int = 0,
     end: str = -1,
+    farm_id: str = "delmas",
+    day_before_famacha_test: int = 7,
+    sampling: str = "T",
     n_job: int = 6,
 ):
     """Create heatmap of the heard with sample overlay.\n
@@ -833,7 +836,7 @@ def main(
         raise IOError(f"missing dataset info (.json) file! in {dataset_dir}")
     DATASET_INFO = json.load(open(info_file))
 
-    farm_id, sampling, day_before_famacha_test = parse_options(dataset_file_path)
+    #farm_id, sampling, day_before_famacha_test = parse_options(dataset_file_path)
 
     out_DIR = output / farm_id
     out_DIR.mkdir(parents=True, exist_ok=True)
@@ -911,4 +914,7 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main(output=Path("E:/thesis/figure"),
+         activity_dir=Path("E:/thesis/activity_data/delmas/backfill_1min_delmas_fixed"),
+         dataset_dir=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"))
+    #typer.run(main)

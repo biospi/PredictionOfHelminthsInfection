@@ -74,8 +74,9 @@ def worker(
         loo_result = data[filepath.stem]
         # print(len(loo_result["y_test"]))
 
-        y_pred_proba_test = loo_result["y_pred_proba_test"]
-        y_pred_proba_test = np.array(y_pred_proba_test)[:, 1]
+        y_pred_proba_test = np.array(loo_result["y_pred_proba_test"])
+        if len(y_pred_proba_test.shape) > 1:
+            y_pred_proba_test = y_pred_proba_test[:, 1]
         y_pred_proba_test = y_pred_proba_test.astype(np.float16)
         y_test = loo_result["y_test"]
 
@@ -84,8 +85,9 @@ def worker(
         all_test_y_list.extend(y_test)
         all_test_proba_list.extend(y_pred_proba_test)
 
-        y_pred_proba_train = loo_result["y_pred_proba_train"]
-        y_pred_proba_train = np.array(y_pred_proba_train)[:, 1]
+        y_pred_proba_train = np.array(loo_result["y_pred_proba_train"])
+        if len(y_pred_proba_train.shape) > 1:
+            y_pred_proba_train = y_pred_proba_train[:, 1]
         y_pred_proba_train = y_pred_proba_train.astype(np.float16)
         y_train = loo_result["y_train"]
         all_train_proba.extend(y_pred_proba_train)
@@ -360,11 +362,11 @@ if __name__ == "__main__":
         print(item)
         print(f"{i}/{len(folders)}...")
         try:
-            res = main(Path(f"{item}/fold_data"), n_bootstrap=100)
+            res = main(Path(f"{item}/fold_data"), n_bootstrap=1)
+            if res is not None:
+                results.append(res)
         except Exception as e:
             print(e)
-        if res is not None:
-            results.append(res)
 
     df = pd.DataFrame(
         results,
@@ -387,8 +389,8 @@ if __name__ == "__main__":
         ],
     )
     df = df[~pd.isna(df["median_auc_test"])]
-    df = df[df["median_auc_test"] > 0.5]
-    df = df[df["N peaks"] <= 6]
+    df.loc[df["median_auc_test"] <= 0.5, "median_auc_test"] = 0.5 #skitlearn can auc <0.5 are cahnce
+    #df = df[df["N peaks"] < 6]
     df = df.sort_values("N peaks", ascending=True)
 
     df["pipeline"] = df["Pre-processing"] + "->" + df["Classifier"]
@@ -424,7 +426,7 @@ if __name__ == "__main__":
     for i, df in enumerate(dfs):
         dfs_ = [group for _, group in df.groupby(['Sample length (minutes)'])]
         for df_ in dfs_:
-            # df_ = df_[df_['n_peaks'] <= 4]
+            #df_ = df_[df_['N peaks'] <= 5]
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
             #     continue
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
@@ -432,10 +434,12 @@ if __name__ == "__main__":
             # if 'cats_LeaveOneOut_-1_-1_STD_rbf' in df_['p_steps_list'].tolist()[0]:
             #     continue
             #
-            # if 'cats_LeaveOneOut_-1_-1_STD_linear' in df_['p_steps_list'].tolist()[0]:
-            #     continue
-            if len(df_) < 5:
+            if 'linear' in df_['Classifier'].tolist()[0]:
                 continue
+            if 'QN' not in df_['Pre-processing'].tolist()[0]:
+                continue
+            # if len(df_) < 5:
+            #     continue
             print(df_['pipeline'].tolist()[0])
             #
             # if len(df_["median_auc_test"]) != 4:
@@ -473,9 +477,12 @@ if __name__ == "__main__":
             x = df_["N peaks"].values
             ax1.fill_between(x, top.astype(float), bottom.astype(float), alpha=0.1, color=colors[cpt])
 
-            cpt +=1
             colors_.append(colors[cpt])
             label_.append(label)
+
+            cpt +=1
+            if cpt >= len(colors):
+                cpt = 0
 
     ax1.axhline(y=0.5, color='black', linestyle='--')
     fig.suptitle("Evolution of AUC(training and testing) with N peak increase")

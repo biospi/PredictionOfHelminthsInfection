@@ -519,6 +519,8 @@ def create_heatmap(
     DATASET_INFO,
     out_dir,
     n_job,
+    w,
+    h
 ):
     print("create_heatmap")
     print(f"progress create_heatmap {idx}/{itot} ...")
@@ -587,11 +589,11 @@ def create_heatmap(
 
     viridis = cm.get_cmap("viridis", 256)
     newcolors = viridis(np.linspace(0, 1, 256))
-    pink = np.array([0 / 256, 0 / 256, 0 / 256, 1])
+    pink = np.array([0 / 229, 0 / 236, 0 / 246, 1])
     newcolors[:1, :] = pink
     newcmp = ListedColormap(newcolors)
 
-    date_format = mdates.DateFormatter("%d/%b/%Y %H:%M")
+    date_format = mdates.DateFormatter("%H:00")
     x_lims = mdates.date2num(time_axis)
 
     # height = 13 * df_raw.shape[0]/100
@@ -599,9 +601,10 @@ def create_heatmap(
     # if farm_id == "cedara":
     #     figsize = (20.20, height)
 
-    figsize = (7.2, 9.8)
-    if farm_id == "cedara":
-        figsize = (7.2, 12.8)
+    figsize = (w, h)
+    # figsize = (7.2, 9.8)
+    # if farm_id == "cedara":
+    #     figsize = (7.2, 12.8)
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.yaxis.set_label_position("right")
@@ -623,7 +626,7 @@ def create_heatmap(
     if resolution == "1T":
         ax.xaxis_date()
         ax.xaxis.set_major_formatter(date_format)
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=60*3))
 
     elif resolution == "1D":
         # axs[p].xaxis_date()
@@ -634,7 +637,7 @@ def create_heatmap(
         ax.xaxis.set_major_formatter(date_format)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=30))
 
-    fig.autofmt_xdate(rotation=45)
+    fig.autofmt_xdate(rotation=90)
     if farm_id == "cedara":
         ax.axvline(pd.Timestamp("2013-02-14"), color="white", linestyle="--", lw=3)
 
@@ -652,8 +655,9 @@ def create_heatmap(
     # )
     # animal_ids_formatted_ent_s2 = df_raw_xmin["id"].values[::-1]
 
-    ax.set_yticklabels(animal_ids_formatted_ent)
-    ax.set_yticks(np.arange(len(animal_ids_formatted_ent)))
+    #ax.set_yticklabels(animal_ids_formatted_ent)
+    # ax.set_yticklabels(np.arange(len(animal_ids_formatted_ent)))
+    # ax.set_yticks(np.arange(len(animal_ids_formatted_ent)))
     # if p > 2:
     #     axs[p].set_yticklabels(animal_ids_formatted_ent_s2)
     #     axs[p].set_yticks(np.arange(len(animal_ids_formatted_ent_s2)))
@@ -709,7 +713,7 @@ def create_heatmap(
     )
     ntrans_with_samples = len(animal_ids_formatted_ent) - len(missing_ids)
 
-    title1 = f"{farm_id} herd {activity_col} data (t=anscombe bin={resolution}) and samples"
+    title1 = f"{farm_id} herd {activity_col} data (t=anscombe bin={resolution})"
     # ax.set_title(title1)
 
     title2 = f"Imputed Activity data per {resolution}  {farm_id} herd and dataset samples location\n{breaklineinsert(str(DATASET_INFO))}\n{param_str}\n*no famacha data corresponding animal id size={len(missing_ids)}/{len(animal_ids_formatted_ent)}\ntransponder traces with fam samples={ntrans_with_samples}"
@@ -758,7 +762,7 @@ def create_heatmap(
     # axs[1].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.5)
     # axs[2].legend(handles=[patch1, patch2, patch3, patch4, patch5], loc='lower left', fancybox=True, framealpha=0.6)
 
-    ax.yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
+    # ax.yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     # axs[1].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
     # axs[2].yaxis.set(ticks=np.arange(0.5, len(animal_ids_formatted_ent)))
 
@@ -772,19 +776,19 @@ def create_heatmap(
     if farm_id == "cedara":
         tick_spacing = 6
     # ax.set_yticks(ax.get_yticks()[::tick_spacing])
-    for i, label in enumerate(ax.get_yticklabels()):
-        if i % tick_spacing != 0:
-            label.set_visible(False)
+    # for i, label in enumerate(ax.get_yticklabels()):
+    #     if i % tick_spacing != 0:
+    #         label.set_visible(False)
 
-    ax.set_facecolor("pink")
+    ax.set_facecolor("#e5ecf6")
     ax.tick_params(axis="x", rotation=45)
     # axs[1].set_facecolor('pink')
     # axs[2].set_facecolor('pink')
-    # fig.tight_layout()
+    #fig.tight_layout()
     ax.set_xlabel("Time")
     ax.set_ylabel("Animals")
-    ax.tick_params(axis="both", which="major", labelsize=6)
-    ax.tick_params(axis="both", which="minor", labelsize=6)
+    # ax.tick_params(axis="both", which="major", labelsize=6)
+    # ax.tick_params(axis="both", which="minor", labelsize=6)
     out_dir.mkdir(parents=True, exist_ok=True)
     file_path = out_dir / filename.replace("=", "_")
     print("saving figure ", file_path)
@@ -1300,6 +1304,8 @@ def main(
     no_filter: bool = False,
     display_famacha: bool = True,
     zoom: bool = False,
+    weight: int = 0,
+    height: int = 0,
     n_job: int = 6,
 ):
     """Create heatmap of the heard with sample overlay.\n
@@ -1393,6 +1399,8 @@ def main(
         DATASET_INFO,
         out_DIR,
         n_job,
+        weight,
+        height
     )
 
     ######################################################
@@ -1449,34 +1457,54 @@ def local_run():
     #     res='1T',
     #     zoom=True
     # )
-    #
-    # main(
-    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
-    #     activity_dir=Path(
-    #         "F:/Data2/backfill_1min_xyz_delmas_fixed"
-    #     ),
-    #     dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
-    #     activity_col="first_sensor_value",
-    #     farm_id="delmas",
-    #     day_before_famacha_test=7,
-    #     no_filter=False,
-    #     display_famacha=False,
-    #     res='1T',
-    #     zoom=True
-    # )
 
     main(
         output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
         activity_dir=Path(
-            "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
+            "F:/Data2/backfill_1min_xyz_delmas_fixed"
         ),
-        dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
-        activity_col="first_sensor_value",
-        farm_id="cedara",
+        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+        activity_col="signal_strength",
+        farm_id="delmas",
         day_before_famacha_test=7,
-        no_filter=True,
-        display_famacha=False
+        no_filter=False,
+        display_famacha=False,
+        res='1T',
+        zoom=True,
+        weight=9,
+        height=2
     )
+
+    main(
+        output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+        activity_dir=Path(
+            "F:/Data2/backfill_1min_xyz_delmas_fixed"
+        ),
+        dataset_dir=Path("E:/thesis/datasets/delmas/raw_all_famacha_test"),
+        activity_col="first_sensor_value",
+        farm_id="delmas",
+        day_before_famacha_test=7,
+        no_filter=False,
+        display_famacha=False,
+        res='1T',
+        zoom=True,
+        weight=9,
+        height=2
+    )
+
+    # main(
+    #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),
+    #     activity_dir=Path(
+    #         "E:/thesis/activity_data/cedara/backfill_1min_cedara_fixed_with_missing_tag"
+    #     ),
+    #     dataset_dir=Path("E:/thesis/datasets/cedara/raw_all_famacha_test"),
+    #     activity_col="first_sensor_value",
+    #     farm_id="cedara",
+    #     day_before_famacha_test=7,
+    #     no_filter=True,
+    #     display_famacha=False,
+    #     zoom=True
+    # )
 
     # main(
     #     output=Path("E:/thesis/heatmaps/raw_all_famacha_test"),

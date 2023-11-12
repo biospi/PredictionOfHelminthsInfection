@@ -13,7 +13,7 @@ from utils.Utils import anscombe
 np.random.seed(0)
 
 
-def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
+def normalize(X, out_dir, output_graph, enable_qn_peak_filter, animal_ids, labels):
     out_dir_ = out_dir / "_normalisation"
     traces = []
     X = X.astype(np.float)
@@ -136,11 +136,25 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
         qnorm_samples.append(q_sample)
 
     if output_graph:
+        # qnorm_samples = []
+        # for l in labels:
+        #     qnorm_samples.append([l])
+        animal_mask = (animal_ids[:-1] != animal_ids[1:])
+        animal_mask = np.append(animal_mask, False)
+        qnorm_samples_mask = []
+        for i, sample in enumerate(qnorm_samples):
+            if animal_mask[i]:
+                for _ in range(5):
+                    qnorm_samples_mask.append([np.nan] * (len(sample)+1))
+            # sample[::] = np.nan
+            sample = np.append(sample, labels[i])
+            qnorm_samples_mask.append(sample)
+        qnorm_samples_mask = np.vstack(qnorm_samples_mask)
         traces.append(
             plotHeatmap(
                 zmin,
                 zmax,
-                np.array(qnorm_samples).copy(),
+                np.array(qnorm_samples_mask).copy(),
                 out_dir_,
                 "STEP 4 | Use the array of medians"
                 " to scale(divide) each original sample,\n"
@@ -148,7 +162,7 @@ def normalize(X, out_dir, output_graph, enable_qn_peak_filter):
                 "4_qnorm_sample.html",
                 y_log=True,
                 xaxis_title="Time (in minutes)",
-                yaxis_title="Samples"
+                yaxis_title="Samples",
             )
         )
 
@@ -281,12 +295,14 @@ class CenterScaler(TransformerMixin, BaseEstimator):
 
 
 class QuotientNormalizer(TransformerMixin, BaseEstimator):
-    def __init__(self, norm="q", *, out_dir=None, copy=True, output_graph=False, enable_qn_peak_filter=False):
+    def __init__(self, norm="q", *, out_dir=None, copy=True, output_graph=False, enable_qn_peak_filter=False, animal_ids=None, labels=None):
         self.out_dir = out_dir
         self.norm = norm
         self.copy = copy
         self.output_graph = output_graph
         self.enable_qn_peak_filter = enable_qn_peak_filter
+        self.animal_ids = animal_ids
+        self.labels = labels
 
     def fit(self, X, y=None):
         """Do nothing and return the estimator unchanged
@@ -314,7 +330,7 @@ class QuotientNormalizer(TransformerMixin, BaseEstimator):
         """
         # copy = copy if copy is not None else self.copy
         X = check_array(X, accept_sparse="csr")
-        norm = normalize(X, self.out_dir, self.output_graph, self.enable_qn_peak_filter)
+        norm = normalize(X, self.out_dir, self.output_graph, self.enable_qn_peak_filter, self.animal_ids, self.labels)
         # norm_simple = normalize_simple(X, self.out_dir)
         return norm
 

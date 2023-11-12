@@ -67,15 +67,17 @@ def single_run(
     a_day=7,
     w_day=7,
     add_seasons_to_features=False,
-    class_unhealthy_label="2To2",
     n_job=6,
     dataset=None,
     export_hpc_string=False,
     syhth_thresh=6,
     steps=None,
     c=1.0,
-    gamma='auto',
-    plot_2d_space=False
+    gamma='scale',
+    plot_2d_space=False,
+    output_qn_graph=False,
+    class_healthy_label=["1To1"],
+    class_unhealthy_label=["2To2"],
 ):
 
     slug = "_".join(steps)
@@ -84,7 +86,7 @@ def single_run(
         / "main_experiment"
         / clf
         / f"{dataset.stem}_{farm_id}_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}_{c}_{str(gamma).replace('.','_')}"
-        / class_unhealthy_label,
+        / "_".join(class_unhealthy_label),
         dataset_folder=dataset,
         preprocessing_steps=steps,
         n_imputed_days=i_day,
@@ -92,7 +94,8 @@ def single_run(
         n_weather_days=w_day,
         cv=cv,
         classifiers=[clf],
-        class_unhealthy_label=[class_unhealthy_label],
+        class_healthy_label=class_healthy_label,
+        class_unhealthy_label=class_unhealthy_label,
         study_id=farm_id,
         add_seasons_to_features=add_seasons_to_features,
         export_fig_as_pdf=False,
@@ -101,7 +104,7 @@ def single_run(
         skip=False,
         syhth_thresh=syhth_thresh,
         export_hpc_string=export_hpc_string,
-        output_qn_graph=False,
+        output_qn_graph=output_qn_graph,
         save_model=False,
         weather_file=Path(
             "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"
@@ -672,7 +675,7 @@ if __name__ == "__main__":
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["QN"])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=[""])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["L2"])
-    grid_search_run()
+    #grid_search_run()
     # single_run(
     #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
     #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
@@ -681,20 +684,24 @@ if __name__ == "__main__":
     #     export_hpc_string=False,
     #     steps=["QN", "ANSCOMBE", "LOG"],
     #     plot_2d_space=False,
-    #     cv="LeaveTwoOut"
+    #     cv="LeaveTwoOut",
+    #     output_qn_graph=True
     # )
-    #
-    # single_run(
-    #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
-    #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-    #     farm_id="delmas",
-    #     clf="linear",
-    #     export_hpc_string=False,
-    #     steps=["QN", "ANSCOMBE", "LOG"],
-    #     plot_2d_space=False,
-    #     cv="LeaveTwoOut"
-    # )
-    #
+
+    single_run(
+        output_dir=Path("E:/thesis_ltwoo"),
+        dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+        farm_id="delmas",
+        clf="linear",
+        export_hpc_string=False,
+        steps=["QN", "ANSCOMBE", "LOG"],
+        plot_2d_space=False,
+        cv="LeaveTwoOut",
+        i_day=4,
+        a_day=5,
+        syhth_thresh=4
+    )
+
     # single_run(
     #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),
     #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
@@ -706,8 +713,9 @@ if __name__ == "__main__":
     #     cv="LeaveTwoOut",
     #     class_unhealthy_label="1To2"
     # )
-    # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", clf="rbf",
-    #            export_hpc_string=False, steps = ["QN", "ANSCOMBE", "LOG"])
+    #single_run(dataset=Path("H:/datasets/delmas/datasetraw_none_7day"), farm_id="delmas", clf="rbf",steps = ["QN", "ANSCOMBE", "LOG"])
+    # single_run(dataset=Path("H:/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", clf="rbf",
+    #            export_hpc_string=False, steps = ["QN", "ANSCOMBE", "LOG"], a_day=7 , i_day=6, syhth_thresh=6, c=None, gamma=None)
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",
     #            export_hpc_string=False, steps=["QN"])
     # single_run(dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"), farm_id="delmas",

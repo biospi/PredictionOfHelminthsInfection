@@ -268,6 +268,16 @@ def main(
         )
 
         N_META = len(meta_columns)
+
+        fig, ax = plt.subplots()
+        sample = data_frame.iloc[0][:-N_META]
+        ax.plot(sample)
+        ax.set_ylabel('Activity Count', fontsize=18)
+        ax.set_title('A Single Sample', fontsize=18)
+        ax.set_xlabel('Time in minutes', fontsize=18)
+        ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+        plt.show()
+
         df_hum = None
         df_rainfall = None
         df_temp = None

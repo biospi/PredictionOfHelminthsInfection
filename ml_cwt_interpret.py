@@ -369,7 +369,7 @@ def main(
     meta_col_str: List[str] = ["health", "label", "date"],
     r_avg: int = 60,
     prct: int = 90,
-    _size: int = 2,
+    _size: int = 3,
     transform: str = "cwt",
     enable_graph_out: bool = True,
     # distance: bool = True,
@@ -384,6 +384,8 @@ def main(
     sunset_min: int =17,
     sunrise_min: int =9,
     sunset_max: int =17,
+    width: int = 11,
+    height: int = 5,
     n_peaks=1
 ):
     """This script builds the graphs for cwt interpretation\n
@@ -680,7 +682,7 @@ def main(
                 n_peaks=n_peaks
             )
 
-        fig, ax = plt.subplots(figsize=(16.80, 7.20))
+        fig, ax = plt.subplots(figsize=(width, height))
         ax2 = ax.twinx()
         ax.plot(
             date_list,
@@ -741,16 +743,16 @@ def main(
         )
         ax.set_xlabel("Time")
         ax.set_ylabel("Activity")
-        ax2.set_ylabel("Importance", color="red")
+        ax2.set_ylabel("abs(Coefficients)", color="red")
         filename = f"{n_activity_days}_feature_importance_{X_train.shape[1]}.png"
         filepath = output_dir / filename
         print(filepath)
 
         if farmname != 'cats':
             T = 60 * 1
-            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H:%M %p"))
+            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H"))
             #ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H:%M %p"))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%dT%H"))
             #ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=T * n_activity_days))
             fig.autofmt_xdate()
         fig.savefig(filepath)
@@ -846,7 +848,7 @@ def main(
         ax.set_title(f"Feature importance {type(clf).__name__} days={n_activity_days}")
         ax.set_xlabel(f"{transform} (features)")
         ax.set_ylabel("Activity")
-        ax2.set_ylabel("importance", color="red")
+        ax2.set_ylabel("abs(Coefficients)", color="red")
         filename = (
             f"{n_activity_days}_{transform}_feature_importance_{X_train.shape[1]}.png"
         )
@@ -917,7 +919,7 @@ def main(
         )
         fig.colorbar(im, ax=axs[0])
         if farmname != 'cats':
-            date_format = "%dT%H %p"
+            date_format = "%dT%H"
             if n_activity_days < 0:
                 date_format = "00:%H"
             axs[0].xaxis.set_major_formatter(mdates.DateFormatter(date_format))
@@ -1370,12 +1372,12 @@ if __name__ == "__main__":
         )
 
         for t in ["dwt"]:
-            for j in [1, 2, 3, 4, 5, 6, 7]:
+            for j in [7]:
                 main(
                     Path(
                         f"E:/preprint/thesis/interpret4/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__A"
                     ),
-                    Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG"],
                     p=False,
                     n_activity_days=j,
@@ -1393,7 +1395,7 @@ if __name__ == "__main__":
                     Path(
                         f"E:/preprint/thesis/interpret4/cedara/{str(daytime_prct).replace('.', '_')}/{t}_explain_{j}_datasetmrnn7_23__B"
                     ),
-                    Path("E:/thesis/datasets/cedara/datasetmrnn7_23"),
+                    Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"),
                     preprocessing_steps=["QN", "ANSCOMBE", "LOG", "STDS"],
                     p=False,
                     n_activity_days=j,

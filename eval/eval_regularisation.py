@@ -24,7 +24,7 @@ def plot_heatmap(df, col, out_dir, title=""):
     #plt.figure(figsize=(8, 6))
     #plt.subplots_adjust(left=.2, right=0.95, bottom=0.15, top=0.95)
     fig, ax = plt.subplots()
-    im = ax.imshow(scores, interpolation='nearest')
+    im = ax.imshow(scores[::-1,:], interpolation='nearest')
     # im = ax.imshow(scores, interpolation='nearest',
     #            norm=MidpointNormalize(vmin=-.2, midpoint=0.5))
     ax.set_xlabel('gamma')
@@ -32,7 +32,7 @@ def plot_heatmap(df, col, out_dir, title=""):
     fig.colorbar(im)
     ax.set_xticks(np.arange(len(df["gamma"].unique())),
                [np.format_float_scientific(i, 1) for i in df["gamma"].unique()], rotation=45)
-    ax.set_yticks(np.arange(len(df["C"].unique())),
+    ax.set_yticks(np.arange(len(df["C"].unique()))[::-1],
                [np.format_float_scientific(i, ) for i in df["C"].unique()])
     ax.set_title(f'Regularisation AUC\n{title}')
     fig.tight_layout()

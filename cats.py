@@ -9,10 +9,11 @@ from utils.Utils import purge_hpc_file
 
 
 def main(
-    out_parent: str = "E:/Cats/ml_build_permutations_thesis",
+    out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
     dataset_parent: str = "E:/Cats/build_permutations_final",
     export_hpc_string: bool = True,
-    biospi_run: bool = False
+    biospi_run: bool = False,
+    n_job: int = 28,
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -31,20 +32,17 @@ def main(
         purge_hpc_file('thesis_hpc_ln.txt')
         purge_hpc_file('thesis_hpc.txt')
 
-    for clf in ["linear", "rbf"]:
+    for clf in ["rbf"]:
         for steps in [
-            [],
             ["QN"],
-            ["STD"],
-            ["QN", "ANSCOMBE", "LOG"],
-            ["STD", "ANSCOMBE", "LOG"]
+            ["QN", "STD"]
         ]:
             slug = "_".join(steps)
             print(slug)
             folders = sorted([x.stem for x in Path(dataset_parent).glob("*")])
             folders = [x for x in folders if "visu" not in str(x)]
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
-            #folders = ["800__001__0_00100__120"]
+            folders = ["1000__006__0_00100__030", "1000__006__0_00100__060", "1000__005__0_00100__030"]
             #folders = ["800__001__0_00100__120"]
             # folders = [
             #     "800__001__0_00100__120",
@@ -117,7 +115,7 @@ def main(
                         n_scales=8,
                         n_splits=5,
                         n_repeats=10,
-                        n_job=28,
+                        n_job=n_job,
                         study_id="cat",
                         cv=cv,
                         output_qn_graph=False,
@@ -126,7 +124,9 @@ def main(
                         epoch=100,
                         batch_size=100,
                         plot_2d_space=False,
-                        export_hpc_string=export_hpc_string
+                        export_hpc_string=export_hpc_string,
+                        c=None,
+                        gamma=None
                     )
 
                 # main_pipeline.main(

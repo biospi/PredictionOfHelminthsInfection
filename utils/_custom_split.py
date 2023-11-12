@@ -322,7 +322,7 @@ class LeaveNOut:
                     "TRAIN ANIMAL ID": np.unique(self.animal_ids[all_train_idx]).tolist(),
                 }
                 self.info_list.append(info)
-                print(info)
+                #print(info)
 
         len_check = np.array(len_check)
         if len_check[len_check > self.leaven].size > 0:
