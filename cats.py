@@ -9,12 +9,12 @@ from utils.Utils import purge_hpc_file
 
 
 def main(
-    out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev",
-    dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
-    # out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
-    # dataset_parent: str = "E:/Cats/build_permutations_final",
-    export_hpc_string: bool = True,
-    biospi_run: bool = False,
+    # out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev",
+    # dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
+    out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
+    dataset_parent: str = "E:/Cats/build_permutations_final",
+    export_hpc_string: bool = False,
+    biospi_run: bool = True,
     n_job: int = 28,
 ):
     """Thesis script runs the cats study
@@ -24,7 +24,7 @@ def main(
     """
     if biospi_run:
         dataset_parent = "/mnt/storage/scratch/axel/cats/build_permutations_final"
-        out_parent = "/mnt/storage/scratch/axel/cats/ml"
+        out_parent = "/mnt/storage/scratch/axel/cats/ml_rev"
 
     print(out_parent)
     print(dataset_parent)
