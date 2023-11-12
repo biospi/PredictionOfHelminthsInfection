@@ -89,7 +89,7 @@ def build_hpc_string(
     data_dir = str(dataset_folder).replace("\\", '/')
     output_dir = str(output_dir).replace("\\", '/')
 
-    hpc_s = f"ml.py --c {c} --gamma {gamma} --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --syhth-thresh {syhth_thresh} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
+    hpc_s = f"ml.py --study-id {study_id} --output-dir {output_dir} --dataset-folder {data_dir} --n-imputed-days {n_imputed_days} --n-activity-days {n_activity_days} --syhth-thresh {syhth_thresh} --n-weather-days {n_weather_days} --weather-file {weather_file} --n-job {n_job} --cv {cv} "
     for item in preprocessing_steps:
         hpc_s += f"--preprocessing-steps {item} "
     for item in class_healthy_label:
@@ -101,13 +101,16 @@ def build_hpc_string(
     for item in individual_to_ignore:
         hpc_s += f"--individual-to-ignore {item} "
     for item in classifiers:
-        hpc_s += f"--classifiers {item}"
+        hpc_s += f"--classifiers {item} "
+
+    if c is not None:
+        hpc_s += f"--c {c} --gamma {gamma} "
 
     if pre_visu:
-        hpc_s += "--pre_visu"
+        hpc_s += "--pre_visu "
 
     if skip:
-        hpc_s += " --skip"
+        hpc_s += "--skip"
 
     print(hpc_s)
     with open("thesis_hpc_ln.txt", "a") as f:
@@ -169,8 +172,8 @@ def main(
     export_fig_as_pdf: bool = False,
     skip: bool = False,
     export_hpc_string: bool = False,
-    c: float = 1,
-    gamma: float = 1
+    c: float = None,
+    gamma: float = None
 ):
     """ML Main machine learning script\n
     Args:\n
