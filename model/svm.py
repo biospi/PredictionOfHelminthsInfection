@@ -873,6 +873,11 @@ def fold_worker(
     n_unhealthy = np.sum(y_test == int(class_unhealthy)) + np.sum(y_train == int(class_unhealthy))
 
     fold_result = {
+        "clf": type(clf).__name__,
+        "days": days,
+        "clf_kernel": clf_kernel,
+        "cross_validation": cv_name,
+        "steps": steps,
         "i_fold": ifold,
         "info": info,
         "training_shape": X_train.shape,

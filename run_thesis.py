@@ -689,7 +689,7 @@ if __name__ == "__main__":
     # )
 
     single_run(
-        output_dir=Path("E:/thesis_ltwoo"),
+        output_dir=Path("E:/thesis_ltwoo_rev"),
         dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
         farm_id="delmas",
         clf="linear",

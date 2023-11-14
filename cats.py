@@ -9,12 +9,12 @@ from utils.Utils import purge_hpc_file
 
 
 def main(
-    # out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev",
-    # dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
-    out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
-    dataset_parent: str = "E:/Cats/build_permutations_final",
-    export_hpc_string: bool = False,
-    biospi_run: bool = True,
+    out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev",
+    dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
+    # out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
+    # dataset_parent: str = "E:/Cats/build_permutations_final",
+    export_hpc_string: bool = True,
+    biospi_run: bool = False,
     n_job: int = 28,
 ):
     """Thesis script runs the cats study
@@ -37,14 +37,36 @@ def main(
     for clf in ["rbf"]:
         for steps in [
             ["QN"],
-            ["QN", "STD"]
+            ["QN", "STD"],
+            ["QN", "ANSCOMBE", "LOG"]
         ]:
             slug = "_".join(steps)
             print(slug)
             folders = sorted([x.stem for x in Path(dataset_parent).glob("*")])
             folders = [x for x in folders if "visu" not in str(x)]
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
-            folders = ["1000__006__0_00100__030", "1000__006__0_00100__060", "1000__005__0_00100__120"]
+            folders = [
+                "1000__001__0_00100__030",
+                "1000__002__0_00100__030",
+                "1000__003__0_00100__030",
+                "1000__004__0_00100__030",
+                "1000__005__0_00100__030",
+                "1000__006__0_00100__030",
+
+                "1000__001__0_00100__060",
+                "1000__002__0_00100__060",
+                "1000__003__0_00100__060",
+                "1000__004__0_00100__060",
+                "1000__005__0_00100__060",
+                "1000__006__0_00100__060",
+
+                "1000__001__0_00100__120",
+                "1000__002__0_00100__120",
+                "1000__003__0_00100__120",
+                "1000__004__0_00100__120",
+                "1000__005__0_00100__120",
+                "1000__006__0_00100__120",
+            ]
             #folders = ["800__001__0_00100__120"]
             # folders = [
             #     "800__001__0_00100__120",

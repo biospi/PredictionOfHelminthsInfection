@@ -152,15 +152,15 @@ def main(path=None, n_bootstrap=100, n_job=6):
 
             training_size = loo_result["training_shape"][0]
             testing_size = loo_result["testing_shape"][0]
-            n_peaks = int(filepath.parent.parent.parent.parent.stem.split("__")[1])
+            n_peaks = int(filepath.parent.parent.parent.parent.stem.split("__")[1]) #TODO fix add clf info in json output
             window_size = int(loo_result["training_shape"][1] / 60)
-            clf = filepath.parent.parent.parent.stem[23:].split("_")[-1]
+            clf = filepath.parent.parent.parent.stem #TODO fix
             if clf == "rbf":
                 clf = "SVM(rbf)"
             if clf == "linear":
                 clf = "SVM(linear)"
             pre_proc = "->".join(
-                filepath.parent.parent.parent.stem[23:].split("_")[:-1]
+                filepath.parent.parent.stem.split("_")[:-1]
             )
 
             data[filepath.stem] = {
@@ -349,7 +349,7 @@ def main(path=None, n_bootstrap=100, n_job=6):
 
 
 if __name__ == "__main__":
-    out_dir = Path("E:/Cats/article/ml_build_permutations_qnf_final/")
+    out_dir = Path("E:/Cats/article/ml_build_permutations_thesis/")
     results = []
     folders = [
         x
@@ -436,8 +436,8 @@ if __name__ == "__main__":
             #
             if 'linear' in df_['Classifier'].tolist()[0]:
                 continue
-            if 'QN' not in df_['Pre-processing'].tolist()[0]:
-                continue
+            # if 'QN' not in df_['Pre-processing'].tolist()[0]:
+            #     continue
             # if len(df_) < 5:
             #     continue
             print(df_['pipeline'].tolist()[0])
