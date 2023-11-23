@@ -141,7 +141,7 @@ def createSynthetic(activity):
     signal = pure + noise
     synt = signal * np.random.uniform(0.1, 3)
     synt[synt < 0] = 0
-    return synt.astype(float)
+    return synt.astype(np.float16)
 
 
 def plotData(X, title="Activity sample before quotient normalisation"):

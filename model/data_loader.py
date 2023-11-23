@@ -72,7 +72,7 @@ def load_activity_data(
     # # todo remove
 
     data_frame = data_frame.astype(
-        dtype=float, errors="ignore"
+        dtype=np.float16, errors="ignore"
     )  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
@@ -132,17 +132,17 @@ def load_activity_data(
         if "LINEAR" in preprocessing_steps[0]:
             data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
                 :, : -len(meta_columns)
-            ].astype(float).interpolate(axis=1, limit_direction="both")
+            ].astype(np.float16).interpolate(axis=1, limit_direction="both")
 
     data_frame = data_frame.dropna()
 
-    data_frame['id'] = data_frame['id'].astype(float)
+    data_frame['id'] = data_frame['id'].astype(np.float16)
     #data_frame = data_frame[data_frame['id'] != 40]
 
     # clip negative values
     data_frame[data_frame.columns.values[: -len(meta_columns)]] = data_frame[
         data_frame.columns.values[: -len(meta_columns)]
-    ].astype(float).clip(lower=0)
+    ].astype(np.float16).clip(lower=0)
 
     data_frame["target"] = data_frame["target"].astype(int)
     data_frame["imputed_days"] = data_frame["imputed_days"].astype(int)

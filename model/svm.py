@@ -799,7 +799,7 @@ def fold_worker(
     auc_value_test = viz_roc_test.roc_auc
     print("auc test=", auc_value_test)
     # if cv_name == "LeaveOneOut":
-    #     #auc_value_test = ((np.mean(y_pred_proba_test) > 0.5).astype(int) == np.mean(y_test)).astype(float)
+    #     #auc_value_test = ((np.mean(y_pred_proba_test) > 0.5).astype(int) == np.mean(y_test)).astype(np.float16)
     #     #auc_value_test = balanced_accuracy_score(y_test, y_pred)
     #     print("acc test=", auc_value_test)
 

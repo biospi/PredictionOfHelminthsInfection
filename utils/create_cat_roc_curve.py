@@ -148,20 +148,15 @@ def main(path=None, n_bootstrap=100, n_job=6):
             try:
                 loo_result = json.load(fp)
             except Exception as e:
+                print(e)
                 return
 
             training_size = loo_result["training_shape"][0]
             testing_size = loo_result["testing_shape"][0]
             n_peaks = int(filepath.parent.parent.parent.parent.stem.split("__")[1]) #TODO fix add clf info in json output
-            window_size = int(loo_result["training_shape"][1] / 60)
-            clf = filepath.parent.parent.parent.stem #TODO fix
-            if clf == "rbf":
-                clf = "SVM(rbf)"
-            if clf == "linear":
-                clf = "SVM(linear)"
-            pre_proc = "->".join(
-                filepath.parent.parent.stem.split("_")[:-1]
-            )
+            window_size = int(loo_result["training_shape"][1])
+            clf = f"{loo_result['clf']}({loo_result['clf_kernel']})"
+            pre_proc = "->".join(loo_result["steps"].split("_"))
 
             data[filepath.stem] = {
                 "y_pred_proba_test": loo_result["y_pred_proba_test"],
@@ -349,7 +344,7 @@ def main(path=None, n_bootstrap=100, n_job=6):
 
 
 if __name__ == "__main__":
-    out_dir = Path("E:/Cats/article/ml_build_permutations_thesis/")
+    out_dir = Path("E:/Cats/article/ml_build_permutations_thesis_rev/")
     results = []
     folders = [
         x
@@ -362,7 +357,7 @@ if __name__ == "__main__":
         print(item)
         print(f"{i}/{len(folders)}...")
         try:
-            res = main(Path(f"{item}/fold_data"), n_bootstrap=1)
+            res = main(Path(f"{item}/fold_data"), n_bootstrap=10)
             if res is not None:
                 results.append(res)
         except Exception as e:
@@ -423,8 +418,8 @@ if __name__ == "__main__":
     cpt = 0
     colors_ = []
     label_ = []
-    for i, df in enumerate(dfs):
-        dfs_ = [group for _, group in df.groupby(['Sample length (minutes)'])]
+    for i, item in enumerate(dfs):
+        dfs_ = [group for _, group in item.groupby(['Sample length (minutes)'])]
         for df_ in dfs_:
             #df_ = df_[df_['N peaks'] <= 5]
             # if 'linear' in df_['p_steps_list'].tolist()[0]:
@@ -434,8 +429,8 @@ if __name__ == "__main__":
             # if 'cats_LeaveOneOut_-1_-1_STD_rbf' in df_['p_steps_list'].tolist()[0]:
             #     continue
             #
-            if 'linear' in df_['Classifier'].tolist()[0]:
-                continue
+            # if 'linear' in df_['Classifier'].tolist()[0]:
+            #     continue
             # if 'QN' not in df_['Pre-processing'].tolist()[0]:
             #     continue
             # if len(df_) < 5:

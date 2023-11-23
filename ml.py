@@ -563,7 +563,7 @@ def main(
 
         sample_dates = pd.to_datetime(
             data_frame["date"], format="%d/%m/%Y"
-        ).values.astype(float)
+        ).values.astype(np.float16)
         animal_ids = data_frame["id"].astype(str).tolist()
         df_processed_list = []
         for preprocessing_steps in steps_:
@@ -649,7 +649,7 @@ def main(
 
         # sample_dates = pd.to_datetime(
         #     df_processed_meta["date"], format="%d/%m/%Y"
-        # ).values.astype(float)
+        # ).values.astype(np.float16)
         # animal_ids = df_processed_meta["id"].astype(str).tolist()
 
         process_ml(
