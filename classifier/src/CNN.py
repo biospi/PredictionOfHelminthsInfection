@@ -428,7 +428,7 @@ def cnn2d(X_train_, X_test_, y_train_, y_test_ ):
 
 def format_samples_for1dcnn(samples, y, num_classes):
     y = list(map(lambda x: int(x) - 1, y))
-    data = np.ndarray(shape=(len(samples), len(samples[0]), 1), dtype=np.float16)
+    data = np.ndarray(shape=(len(samples), len(samples[0]), 1), dtype=float)
     for ii, s in enumerate(samples):
         # plt.imshow(
         #     matrix_2d,
@@ -443,17 +443,17 @@ def format_samples_for1dcnn(samples, y, num_classes):
     input_shape = (data.shape[1], 1)
 
     y = keras.utils.np_utils.to_categorical(y, num_classes)
-    data = data.astype(np.float16)
-    y = y.astype(np.float16)
+    data = data.astype(float)
+    y = y.astype(float)
 
     return data, y, input_shape
 
 
 def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
     y = list(map(lambda x: int(x) - 1, y))
-    data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1), dtype=np.float16)
+    data = np.ndarray(shape=(len(samples), time_freq_shape[0], time_freq_shape[1], 1), dtype=float)
     for ii, s in enumerate(samples):
-        matrix_2d = s.reshape(time_freq_shape).astype(np.float16)
+        matrix_2d = s.reshape(time_freq_shape).astype(float)
         # plt.imshow(
         #     matrix_2d,
         #     origin="lower",
@@ -471,8 +471,8 @@ def format_samples_for2dcnn(samples, y, time_freq_shape, num_classes):
     input_shape = (img_x, img_y, img_z)
 
     y = keras.utils.np_utils.to_categorical(y, num_classes)
-    data = data.astype(np.float16)
-    y = y.astype(np.float16)
+    data = data.astype(float)
+    y = y.astype(float)
 
     return data, y, input_shape
 
@@ -671,7 +671,7 @@ def fold_worker(
     #     c="tab:blue",
     # )
     # axis_train.append(viz_roc_train)
-    x_train = x_train.astype(np.float16)
+    x_train = x_train.astype(float)
     y_pred_train = model.predict(x_train)
     y_pred_proba_train = y_pred_train
     y_pred_train = (y_pred_train[:, 1] >= 0.5).astype(int)

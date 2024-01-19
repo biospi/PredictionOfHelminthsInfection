@@ -539,7 +539,7 @@ def stringArrayToArray(string):
     ]
 
 
-def formatForBoxPlot(df):
+def formatForBoxPlot(df, best_model):
     print("formatForBoxPlot...")
     dfs = []
     for index, row in df.iterrows():
@@ -554,6 +554,9 @@ def formatForBoxPlot(df):
         test_f1_score0 = stringArrayToArray(row["test_f1_score0"])
         test_f1_score1 = stringArrayToArray(row["test_f1_score1"])
         roc_auc_scores = stringArrayToArray(row["roc_auc_scores"])
+        if best_model is not None:
+            roc_auc_scores_b = stringArrayToArray(best_model["roc_auc_scores"].values[0])
+            roc_auc_scores = list(np.array(roc_auc_scores_b) - np.array(roc_auc_scores)) #get the delta compared to the best model
         config = [
             row["config"].replace("->", ">").replace(" ", "")
             for _ in range(len(test_balanced_accuracy_score))
@@ -659,7 +662,7 @@ def get_delta(df):
     return df_result
 
 
-def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False):
+def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False): #TODO refactor
     print("building report visualisation...")
     dfs = []
     label_dict = {}
@@ -671,10 +674,10 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             if "report" not in str(path):
                 continue
 
-            if "delmas_dataset4_mrnn_7day" not in str(
-                path
-            ) and "cedara_datasetmrnn7_23" not in str(path):
-                continue
+            # if "delmas_dataset4_mrnn_7day" not in str(
+            #     path
+            # ) and "cedara_datasetmrnn7_23" not in str(path):
+            #     continue
 
             # pproc = "_".join(path.parent.parent.parent.stem.split('RepeatedKFold_')[1].split('_')[3:-2])
             # if pproc not in ['QN', "L2", ""]:
@@ -797,7 +800,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
             fig_auc_only = make_subplots(rows=1, cols=1)
 
-            df_f_ = formatForBoxPlot(df_f_)
+            df_f_ = formatForBoxPlot(df_f_, None)
             formated_label = []
             formated_label_s = []
             for n, label in enumerate(df_f_["config"].values):
@@ -811,7 +814,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 formated_label_s.append(human_readable(label_formated, df_f_, n))
             df_f_["config"] = formated_label
             df_f_["config_s"] = formated_label_s
-            df_f_ = get_delta(df_f_)
+            #df_f_ = get_delta(df_f_)
             fig.append_trace(
                 px.box(df_f_, x="config_s", y="test_precision_score0").data[0],
                 row=1,
@@ -901,7 +904,11 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 values = px.colors.qualitative.Plotly[0 : len(keys)]
                 # values[values.index('#B6E880')] = 'black' #replace green-yellow
                 COLOR_MAP = dict(zip(keys, values))
-                color = COLOR_MAP[c]
+                try:
+                    color = COLOR_MAP[c]
+                except KeyError as e:
+                    print(e)
+                    color = values[0]
                 # try:
                 #     color = CSS_COLORS[c.replace("(", '').replace(")", '')]
                 # except Exception as e:
@@ -964,7 +971,11 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
                 sec_axis.append(True)
 
             for c in np.unique(color_data):
-                color = COLOR_MAP[c]
+                try:
+                    color = COLOR_MAP[c]
+                except KeyError as e:
+                    print(e)
+                    color = values[0]
                 # try:
                 #     color = CSS_COLORS[c.replace("(", '').replace(")", '')]
                 # except Exception as e:
@@ -1030,7 +1041,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             fig_.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
             fig_.update_layout(
                 title=f"healthy labels={h_labels} unhealthy labels={uh_labels}",
-                yaxis_title="DELTA AUC",
+                yaxis_title="AUC",
             )
             fig_.update_xaxes(tickangle=-45)
 
@@ -1051,7 +1062,7 @@ def plot_ml_report_final(output_dir, filter_per_clf=False, filter_for_norm=False
             filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
             print(filepath)
             fig_.update_layout(barmode="group")
-            fig_.update_yaxes(title_text="DELTA AUC", secondary_y=True)
+            fig_.update_yaxes(title_text="AUC", secondary_y=True)
             fig_.update_yaxes(title_text="Sample count", secondary_y=False)
             fig_.update_xaxes(range=[-1, len(x_data) - 0.5])
             fig_.write_html(str(filepath))
@@ -1114,7 +1125,7 @@ def plot_ml_report(clf_name, path, output_dir):
 
     fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
 
-    df = formatForBoxPlot(df)
+    df = formatForBoxPlot(df, None)
 
     fig.append_trace(
         px.box(df, x="config", y="test_precision_score0").data[0], row=1, col=1
@@ -3242,8 +3253,311 @@ def build_report(
         plot_ml_report(k, filename, out)
 
 
+def find_best_model(output_dir):
+    paths = list(output_dir.glob("**/*.csv"))
+    dfs = []
+    for path in paths:
+        if "report" not in str(path):
+            continue
+        df = pd.read_csv(str(path), index_col=None)
+        if "delmas" in str(path):
+            df["farm_id"] = "delmas"
+        if "cedara" in str(path):
+            df["farm_id"] = "cedara"
+        v = stringArrayToArray(df["roc_auc_scores"].values[0])
+        median = np.median(v)
+        df["median_auc"] = median
+        dfs.append(df)
+    df_res = pd.concat(dfs)
+    best_models = {}
+    for farm in df_res["farm_id"].unique():
+        d = df_res[df_res["farm_id"] == farm]
+        df_s = d.sort_values("median_auc", ascending=False)
+        best_model = df_s.head(1)
+        best_models[farm] = best_model
+
+    return best_models
+
+
+def plot_ml_report_final_abs(output_dir):
+    best_models = find_best_model(output_dir)
+    print("building report visualisation...")
+    dfs = []
+    label_dict = {}
+    paths = list(output_dir.glob("**/*.csv"))
+
+    for path in paths:
+        if "report" not in str(path):
+            continue
+        df = pd.read_csv(str(path), index_col=None)
+
+        if "delmas" in str(path):
+            df["farm_id"] = "delmas"
+        if "cedara" in str(path):
+            df["farm_id"] = "cedara"
+
+        medians = []
+
+        if "roc_auc_scores" not in df.columns:
+            continue
+        for value in df["roc_auc_scores"].values:
+            v = stringArrayToArray(value)
+            medians.append(np.median(v))
+        df["median_auc"] = medians
+
+        df["config"] = f"{df.steps[0]}{df.classifier[0]}"
+        df = df.sort_values("median_auc")
+        df = df.drop_duplicates(subset=["config"], keep="first")
+        label_dict["UnHealthy"] = df["class1"].values[0]
+        label_dict["Healthy"] = df["class0"].values[0]
+        dfs.append(df)
+
+    if len(dfs) == 0:
+        print("no reports available.")
+        return
+    df = pd.concat(dfs, axis=0)
+    # df = df[df['classifier_details'] == 'SVC_rbf_results']
+    df["health_tags"] = df["class_0_label"] + df["class_1_label"]
+    df["color"] = [x.split(">")[-3] for x in df["config"].values]
+    # df = df.sort_values(["median_auc", "color"], ascending=[True, True])
+    for farm in df["farm_id"].unique():
+        df_f = df[df["farm_id"] == farm]
+        best = best_models[farm]
+        for h_tag in df_f["health_tags"].unique():
+            df_f_ = df_f[df_f["health_tags"] == h_tag]
+
+            df_f_ = df_f_.sort_values(["color", "median_auc"], ascending=[True, True])
+
+            t4 = "AUC performance of different inputs<br>%s" % str(label_dict)
+
+            t3 = "Accuracy performance of different inputs<br>%s" % str(label_dict)
+
+            t1 = "Precision class0 performance of different inputs<br>%s" % str(
+                label_dict
+            )
+
+            t2 = "Precision class1 performance of different inputs<br>%s" % str(
+                label_dict
+            )
+
+            fig = make_subplots(rows=4, cols=1, subplot_titles=(t1, t2, t3, t4))
+            fig_auc_only = make_subplots(rows=1, cols=1)
+
+            df_f_ = formatForBoxPlot(df_f_, best)
+            formated_label = []
+            formated_label_s = []
+            for n, label in enumerate(df_f_["config"].values):
+                split = label.split(">")
+                label_formated = ""
+                for i, item in enumerate(split):
+                    label_formated += f"{item}>"
+                    if i == len(split) - 4:
+                        label_formated += "<br>"
+                formated_label.append(label_formated)
+                formated_label_s.append(human_readable(label_formated, df_f_, n))
+            df_f_["config"] = formated_label
+            df_f_["config_s"] = formated_label_s
+            #df_f_ = get_delta(df_f_)
+            fig.append_trace(
+                px.box(df_f_, x="config_s", y="test_precision_score0").data[0],
+                row=1,
+                col=1,
+            )
+            fig.append_trace(
+                px.box(df_f_, x="config_s", y="test_precision_score1").data[0],
+                row=2,
+                col=1,
+            )
+            fig.append_trace(
+                px.box(df_f_, x="config_s", y="test_balanced_accuracy_score").data[0],
+                row=3,
+                col=1,
+            )
+            fig.append_trace(
+                px.box(df_f_, x="config_s", y="roc_auc_scores").data[0],
+                row=4,
+                col=1,
+            )
+            fig_auc_only.append_trace(
+                px.box(df_f_, x="config_s", y="roc_auc_scores", title=t4).data[0],
+                row=1,
+                col=1,
+            )
+            # annot = build_annotations(df_f_, fig_auc_only)
+            fig.update_xaxes(showticklabels=False)  # hide all the xticks
+            fig.update_xaxes(showticklabels=True, row=4, col=1, automargin=True)
+            fig.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
+            fig.update_xaxes(showgrid=True, gridwidth=1, automargin=True)
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=500))
+            fig_auc_only.update_layout(margin=dict(l=20, r=20, t=20, b=500))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            filepath = output_dir / f"ML_performance_final_{farm}_abs.html"
+            print(filepath)
+            fig.write_html(str(filepath))
+            # filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}.html"
+            # print(filepath)
+            # fig_auc_only.write_html(str(filepath))
+            # fig.show()
+
+            preproc = df_f_["config_s"].str.split(" ").str[-1].unique()
+            mapping = dict(zip(preproc, range(len(preproc))))
+
+            df_f_["config_s"] = (
+                df_f_["config_s"].str.split(" ").str[0:-1].str.join(" ")
+                + " ("
+                + [
+                    str(mapping[x])
+                    for x in df_f_["config_s"].str.split(" ").str[-1]
+                ]
+                + ")"
+            )
+
+            x_data = df_f_["config_s"].unique()
+
+            color_data = [x.split(" ")[-1] for x in x_data]
+            imp_days_data = [x.split(" ")[0].split("=")[1] for x in x_data]
+            y_data = []
+            for x in df_f_["config_s"].unique():
+                y_data.append(df_f_[df_f_["config_s"] == x]["roc_auc_scores"].values)
+            traces = []
+            colors = []
+            class0_list = []
+            class1_list = []
+            sec_axis = []
+            for i_d, c, xd, yd in zip(imp_days_data, color_data, x_data, y_data):
+                class0 = df_f_[df_f_["config_s"] == xd]["class0"].unique()
+                class1 = df_f_[df_f_["config_s"] == xd]["class1"].unique()
+                imp_days = df_f_[df_f_["config_s"] == xd]["class1"].unique()
+                class0_list.append(class0)
+                class1_list.append(class1)
+                keys = np.unique(color_data)
+                values = px.colors.qualitative.Plotly[0 : len(keys)]
+                # values[values.index('#B6E880')] = 'black' #replace green-yellow
+                COLOR_MAP = dict(zip(keys, values))
+                try:
+                    color = COLOR_MAP[c]
+                except KeyError as e:
+                    print(e)
+                    color = values[0]
+
+                colors.append(color)
+                traces.append(
+                    go.Bar(
+                        y=class0,
+                        x=[xd],
+                        name="Healthy samples",
+                        width=[0.25],
+                        offsetgroup="Healthy samples",
+                        marker=dict(color="#1f77b4"),
+                        opacity=0.2,
+                        showlegend=False,
+                    )
+                )
+                sec_axis.append(False)
+                traces.append(
+                    go.Bar(
+                        y=class1,
+                        x=[xd],
+                        name="Unhealthy samples",
+                        width=[0.25],
+                        offsetgroup="Unhealthy samples",
+                        marker=dict(color="#ff7f0e"),
+                        opacity=0.2,
+                        showlegend=False,
+                    )
+                )
+                sec_axis.append(False)
+
+                traces.append(
+                    go.Box(
+                        y=yd,
+                        name=xd,
+                        boxpoints="all",
+                        jitter=0.3,  # Adjust the jitter value to control the spread
+                        pointpos=0,
+                        marker=dict(color=color, size=6),
+                        legendgroup=c,
+                        # legendgroup={v: k for k, v in mapping.items()}[int(list(filter(str.isdigit, c))[0])],
+                        marker_color=color,
+                        line_width=1 if float(i_d) < 0 else float(i_d) * 0.5,
+                        showlegend=False,
+                    )
+                )
+                sec_axis.append(True)
+
+            for c in np.unique(color_data):
+                try:
+                    color = COLOR_MAP[c]
+                except KeyError as e:
+                    print(e)
+                    color = values[0]
+
+                traces.append(
+                    go.Box(
+                        y=yd,
+                        name={v: k for k, v in mapping.items()}[
+                            int(list(filter(str.isdigit, c))[0])
+                        ]
+                        + f"|{c}",
+                        boxpoints="outliers",
+                        marker=dict(color=color, size=10),
+                        marker_color=color,
+                        showlegend=True,
+                    )
+                )
+                sec_axis.append(True)
+
+            traces.append(
+                go.Bar(
+                    y=class0,
+                    x=[xd],
+                    name="Healthy samples",
+                    width=[0],
+                    offsetgroup="Healthy samples",
+                    marker=dict(color="#1f77b4"),
+                    opacity=0.8,
+                    showlegend=True,
+                )
+            )
+            sec_axis.append(False)
+            traces.append(
+                go.Bar(
+                    y=class0,
+                    x=[xd],
+                    name="Unhealthy samples",
+                    width=[0],
+                    offsetgroup="Unhealthy samples",
+                    marker=dict(color="#ff7f0e"),
+                    opacity=0.8,
+                    showlegend=True,
+                )
+            )
+            sec_axis.append(False)
+
+            h_labels = df_f_["config"].values[0].split(">H=")[1].split(">")[0]
+            uh_labels = df_f_["config"].values[0].split(">UH=")[1].split(">")[0]
+
+            fig_ = make_subplots(specs=[[{"secondary_y": True}]])
+            for a, t in zip(sec_axis, traces):
+                fig_.add_trace(t, secondary_y=a)
+
+            fig_.update_yaxes(showgrid=True, gridwidth=1, automargin=True)
+            fig_.update_layout(
+                title=f"healthy labels={h_labels} unhealthy labels={uh_labels}",
+                yaxis_title="AUC",
+            )
+            fig_.update_xaxes(tickangle=-45)
+            filepath = output_dir / f"ML_performance_final_auc_{farm}_{h_tag}_abs.html"
+            print(filepath)
+            fig_.update_layout(barmode="group")
+            fig_.update_yaxes(title_text="AUC", secondary_y=True)
+            fig_.update_yaxes(title_text="Sample count", secondary_y=False)
+            fig_.update_xaxes(range=[-1, len(x_data) - 0.5])
+            fig_.write_html(str(filepath))
+
+
 if __name__ == "__main__":
-    plot_ml_report_final(Path("E:/thesis/main_experiment"))
+    plot_ml_report_final_abs(Path("E:/thesis_weather_paper/main_experiment"))
     # dir_path = "F:/Data2/job_debug/ml"
     # output_dir = "F:/Data2/job_debug/ml"
     # build_roc_mosaic(dir_path, output_dir)

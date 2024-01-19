@@ -168,11 +168,11 @@ def local_run():
 
 
 def main(
-    exp_main: bool = True,
+    exp_main: bool = False,
     exp_temporal: bool = False,
     exp_cross_farm: bool = False,
-    weather_exp: bool = False,
-    output_dir: Path = Path("E:/thesis"),
+    weather_exp: bool = True,
+    output_dir: Path = Path("E:/thesis_weather_paper"),
     delmas_dir_mrnn: Path = None,
     delmas_dir_gain: Path = None,
     delmas_dir_li: Path = None,
@@ -191,36 +191,39 @@ def main(
         print("experiment 1 (weather): main pipeline")
 
         steps_list = [
-            ["WINDSPEED", "STDS"],
-            ["HUMIDITY", "STDS"],
+            # ["WINDSPEED", "STDS"],
+            # ["HUMIDITY", "STDS"],
             ["RAINFALL", "STDS"],
-            ["TEMPERATURE", "STDS"],
+            ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
+            ["QN", "ANSCOMBE", "LOG"]
         ]
         for steps in steps_list:
             slug = "_".join(steps)
             for w_day in [7]:
                 for cv in ["RepeatedKFold"]:
                     for add_seasons_to_features in [False]:
-                        # main_experiment.main(
-                        #     output_dir=output_dir
-                        #     / "main_experiment"
-                        #     / f"delmas_{cv}_{i_day}_{a_day}_{w_day}_{slug}_season_{add_seasons_to_features}"
-                        #     / "2To2",
-                        #     dataset_folder=delmas_dir,
-                        #     preprocessing_steps=steps,
-                        #     n_imputed_days=i_day,
-                        #     n_activity_days=a_day,
-                        #     n_weather_days=w_day,
-                        #     cv=cv,
-                        #     classifiers=["rbf", "linear"],
-                        #     class_unhealthy_label=["2To2"],
-                        #     study_id="delmas",
-                        #     add_seasons_to_features=add_seasons_to_features,
-                        #     export_fig_as_pdf=True,
-                        #     plot_2d_space=True,
-                        #     weather_file=Path(
-                        #         "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
-                        # )
+                        main_experiment.main(
+                            output_dir=output_dir
+                            / "main_experiment"
+                            / f"delmas_{cv}_{0}_{0}_{w_day}_{slug}_season_{add_seasons_to_features}"
+                            / "2To2",
+                            dataset_folder=delmas_dir_mrnn,
+                            preprocessing_steps=steps,
+                            n_imputed_days=7, #need this for preprocessing wont be used for the weather
+                            n_activity_days=7,
+                            n_weather_days=w_day,
+                            cv=cv,
+                            classifiers=["rbf"],
+                            class_unhealthy_label=["2To2"],
+                            study_id="delmas",
+                            add_seasons_to_features=add_seasons_to_features,
+                            export_fig_as_pdf=False,
+                            plot_2d_space=False,
+                            pre_visu=False,
+                            skip=False,
+                            weather_file=Path(
+                                "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/delmas_south_africa_2011-01-01_to_2015-12-31.csv"),
+                        )
                         main_experiment.main(
                             output_dir=output_dir
                             / "main_experiment"
@@ -228,36 +231,35 @@ def main(
                             / "2To2",
                             dataset_folder=cedara_dir_mrnn,
                             preprocessing_steps=steps,
-                            n_imputed_days=0,
-                            n_activity_days=0,
+                            n_imputed_days=7,
+                            n_activity_days=7,
                             n_weather_days=w_day,
                             class_unhealthy_label=["2To2"],
                             cv=cv,
-                            classifiers=["linear", "rbf"],
+                            classifiers=["rbf"],
                             study_id="cedara",
                             add_seasons_to_features=add_seasons_to_features,
                             plot_2d_space=False,
                             export_fig_as_pdf=False,
-                            pre_visu=True,
+                            pre_visu=False,
                             skip=False,
                             export_hpc_string=export_hpc_string,
                             weather_file=Path(
                                 "C:/Users/fo18103/PycharmProjects/PredictionOfHelminthsInfection/weather_data/cedara_south_africa_2011-01-01_to_2015-12-31.csv"
                             ),
                         )
-                        continue
 
     if exp_main:
         print("experiment 1: main pipeline")
 
         steps_list = [
-            [],
-            ["QN"],
-            ["L2"],
-            ["QN", "ANSCOMBE", "LOG"],
-            ["QN", "ANSCOMBE", "LOG", "STD"],
-            ["QN", "ANSCOMBE", "LOG", "MINMAX"],
-            ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
+            # [],
+            # ["QN"],
+            # ["L2"],
+            ["QN", "ANSCOMBE", "LOG", "STDS"],
+            # ["QN", "ANSCOMBE", "LOG", "STD"],
+            # ["QN", "ANSCOMBE", "LOG", "MINMAX"],
+            # ["QN", "ANSCOMBE", "LOG", "CENTER", "CWT", "STD"],
             # ["L2"],
             # ["L2", "ANSCOMBE", "LOG"],
             # ["L2", "ANSCOMBE", "LOG", "STD"],
@@ -269,7 +271,7 @@ def main(
             # ["LINEAR", "QN", "STD"],
             # ["LINEAR", "QN", "ANSCOMBE", "STD"],
             # ["LINEAR", "QN", "LOG", "STD"],
-            # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "TEMPERATUREAPPEND", "STDS"],
+            # ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "TEMPERATUREAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "HUMIDITYAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "TEMPERATUREAPPEND", "STDS"],
             # ["QN", "ANSCOMBE", "LOG", "RAINFALLAPPEND", "STDS"],
@@ -287,9 +289,9 @@ def main(
         for class_unhealthy_label in ["2To2"]:
             for steps in steps_list:
                 slug = "_".join(steps)
-                for clf in ["linear", "rbf", "knn", "lreg", "dtree"]:
+                for clf in ["rbf"]:
                     for i_day in [7]:
-                        for a_day in [4, 7]:
+                        for a_day in [7]:
                             for w_day in [7]:
                                 for cv in ["RepeatedKFold"]:
                                     for add_seasons_to_features in [False]:
@@ -672,6 +674,8 @@ def purge_hpc_file(filename):
 
 
 if __name__ == "__main__":
+    main(delmas_dir_mrnn=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+         cedara_dir_mrnn=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"))
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["QN"])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=[""])
     # single_run(dataset=Path("E:/thesis/datasets/cedara/cedara_datasetmrnn7_23"), farm_id="cedara", steps=["L2"])
@@ -688,19 +692,19 @@ if __name__ == "__main__":
     #     output_qn_graph=True
     # )
 
-    single_run(
-        output_dir=Path("E:/thesis_ltwoo_rev"),
-        dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
-        farm_id="delmas",
-        clf="linear",
-        export_hpc_string=False,
-        steps=["QN", "ANSCOMBE", "LOG"],
-        plot_2d_space=False,
-        cv="LeaveTwoOut",
-        i_day=4,
-        a_day=5,
-        syhth_thresh=4
-    )
+    # single_run(
+    #     output_dir=Path("E:/thesis_ltwoo_rev"),
+    #     dataset=Path("E:/thesis/datasets/delmas/delmas_dataset4_mrnn_7day"),
+    #     farm_id="delmas",
+    #     clf="linear",
+    #     export_hpc_string=False,
+    #     steps=["QN", "ANSCOMBE", "LOG"],
+    #     plot_2d_space=False,
+    #     cv="LeaveTwoOut",
+    #     i_day=4,
+    #     a_day=5,
+    #     syhth_thresh=4
+    # )
 
     # single_run(
     #     output_dir=Path("E:/thesis_final_Aug30_regularisation_ltwoo"),

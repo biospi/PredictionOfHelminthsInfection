@@ -32,7 +32,7 @@ def get_temp(d_dates, weather_file_path, metric="temp_c"):
             for elem in data[key]:
                 v = elem[metric]
                 df_row_data.loc[elem["time"]] = v
-            df_row_data_i = pd.Series(df_row_data[0].astype(np.float16).values).interpolate(method='nearest').ffill().bfill().values
+            df_row_data_i = pd.Series(df_row_data[0].astype(float).values).interpolate(method='nearest').ffill().bfill().values
             temp_.append(df_row_data_i)
         row_data = np.array(temp_).flatten()
         exo.append(row_data)

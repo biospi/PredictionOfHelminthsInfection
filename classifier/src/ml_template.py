@@ -119,7 +119,7 @@ def get_cwt_data_frame(data_frame):
         cwt, coefs, freqs, indexes, scales, delta_t, wavelet_type = compute_cwt(activity)
 
         if cpt == 0:
-            X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=np.float16)
+            X_cwt = pd.DataFrame(columns=[str(x) for x in range(len(cwt))], dtype=float)
 
         X_cwt.loc[cpt] = cwt
         cpt += 1

@@ -48,7 +48,7 @@ def main(folder_path):
         dataset = file.parent.parent.parent.parent.stem
         full_data.append([config, aucs_test, aucs_train, aucs_test_median, aucs_train_median, training_shape, testing_shape, n_c, dataset])
     df_data = pd.DataFrame(full_data, columns=["config", "auc_test", "auc_train", "auc_test_median", "auc_train_median", "training_shape", "testing_shape", "n_c", "dataset"])
-    #df_data['n_c'] = df_data['n_c'].astype(np.float16)
+    #df_data['n_c'] = df_data['n_c'].astype(float)
     #df_data = df_data[df_data["dataset"] == "003__0_00100__120"]
     #df_data = df_data[df_data['n_c'] < 45]
     df_data["n_peaks"] = [int(x.split('__')[1]) for x in df_data['n_c'].values]

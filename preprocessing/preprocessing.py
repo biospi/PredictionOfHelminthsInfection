@@ -90,6 +90,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
+            df_temp.index = df.index
             #df_temp = df_temp.reindex(df.index)
             df = pd.concat([df_activity, df_temp, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
@@ -102,6 +103,7 @@ def apply_preprocessing_steps(
             #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
             #df_hum = df_hum.reindex(df.index)
+            df_hum.index = df.index
             df = pd.concat([df_activity, df_hum, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -112,6 +114,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
+            df_rainfall.index = df.index
             #df_rainfall = df_rainfall.reindex(df.index)
             df = pd.concat([df_activity, df_rainfall, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
@@ -123,6 +126,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             #df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
+            df_windspeed.index = df.index
             #df_windspeed = df_windspeed.reindex(df.index)
             df = pd.concat([df_activity, df_windspeed, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
@@ -214,7 +218,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_temp = df_temp.loc[df.index]
+            df_temp.index = df.index
             df = pd.concat([df_temp, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -225,7 +229,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_hum = df_hum.loc[df.index]
+            df_hum.index = df.index
             df = pd.concat([df_hum, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -236,7 +240,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_rainfall = df_rainfall.loc[df.index]
+            df_rainfall.index = df.index
             df = pd.concat([df_rainfall, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :
@@ -247,7 +251,7 @@ def apply_preprocessing_steps(
             df_activity = df.copy().iloc[:, :-N_META]
             df_activity.index = df.index  # need to keep original sample index!!!!
             df_meta = df.iloc[:, -N_META:]
-            df_windspeed = df_windspeed.loc[df.index]
+            df_windspeed.index = df.index
             df = pd.concat([df_windspeed, df_meta], axis=1)
             new_header = [str(x) for x in np.arange(df.shape[1] - N_META)] + df.columns[
                 df.shape[1] - N_META :

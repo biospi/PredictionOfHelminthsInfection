@@ -1023,7 +1023,7 @@ def process_raw_h5files(path, njob=None):
     # df = df[df["counts"] > 0]
     # df = df[df["counts"] < np.exp(10)]
     # df["activity counts (logged)"] = np.log(df["counts"])
-    # df = df.astype(np.float16)
+    # df = df.astype(float)
     # fig = px.histogram(df, x="activity counts (logged)", title="Histogram of positive raw activity counts", nbins=1000)
     # fig.add_vline(x=np.log(MAX_ACTIVITY_COUNT_BIO), line_dash='dash', line_color='firebrick')
     # #fig.show()

@@ -77,7 +77,7 @@ def worker(
         y_pred_proba_test = np.array(loo_result["y_pred_proba_test"])
         if len(y_pred_proba_test.shape) > 1:
             y_pred_proba_test = y_pred_proba_test[:, 1]
-        y_pred_proba_test = y_pred_proba_test.astype(np.float16)
+        y_pred_proba_test = y_pred_proba_test.astype(float)
         y_test = loo_result["y_test"]
 
         all_test_proba.extend(y_pred_proba_test)
@@ -88,7 +88,7 @@ def worker(
         y_pred_proba_train = np.array(loo_result["y_pred_proba_train"])
         if len(y_pred_proba_train.shape) > 1:
             y_pred_proba_train = y_pred_proba_train[:, 1]
-        y_pred_proba_train = y_pred_proba_train.astype(np.float16)
+        y_pred_proba_train = y_pred_proba_train.astype(float)
         y_train = loo_result["y_train"]
         all_train_proba.extend(y_pred_proba_train)
         all_train_y.extend(y_train)
@@ -153,8 +153,8 @@ def main(path=None, n_bootstrap=100, n_job=6):
 
             training_size = loo_result["training_shape"][0]
             testing_size = loo_result["testing_shape"][0]
-            n_peaks = int(filepath.parent.parent.parent.parent.stem.split("__")[1]) #TODO fix add clf info in json output
-            window_size = int(loo_result["training_shape"][1])
+            n_peaks = loo_result["n_peak"]
+            window_size = loo_result["w_size"]
             clf = f"{loo_result['clf']}({loo_result['clf_kernel']})"
             pre_proc = "->".join(loo_result["steps"].split("_"))
 
@@ -344,24 +344,24 @@ def main(path=None, n_bootstrap=100, n_job=6):
 
 
 if __name__ == "__main__":
-    out_dir = Path("E:/Cats/article/ml_build_permutations_thesis_rev/")
+    #out_dir = Path("E:/Cats/article/ml_build_permutations_thesis_rev/")
+    out_dir = Path("E:/Cats/output_test3")
     results = []
-    folders = [
-        x
-        for x in out_dir.glob("*/*/*")
-        if x.is_dir()
-    ]
+    # folders = [
+    #     x
+    #     for x in out_dir.glob("*/*/*")
+    #     if x.is_dir()
+    # ]
+    folders = list(out_dir.glob("**/fold_data"))
     for i, item in enumerate(folders):
         # if "1000__005__0_00100__030\cats_LeaveOneOut_-1_-1_QN_rbf" not in str(item):
         #     continue
         print(item)
         print(f"{i}/{len(folders)}...")
-        try:
-            res = main(Path(f"{item}/fold_data"), n_bootstrap=10)
-            if res is not None:
-                results.append(res)
-        except Exception as e:
-            print(e)
+
+        res = main(item, n_bootstrap=10)
+        if res is not None:
+            results.append(res)
 
     df = pd.DataFrame(
         results,

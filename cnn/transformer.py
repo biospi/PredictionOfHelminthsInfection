@@ -163,7 +163,7 @@ def fold_worker(
     epochs,
     batch_size,
 ):
-    X = X.astype(np.float16)
+    X = X.astype(float)
     y = y.astype(int)
     print(f"process id={ifold}/{nfold}...")
     X_train, X_test = X[train_index], X[test_index]
@@ -224,8 +224,8 @@ def fold_worker(
     # plt.show()
     # plt.close()
 
-    x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype(np.float16)
-    x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype(np.float16)
+    x_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)).astype(float)
+    x_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1)).astype(float)
 
     num_classes = len(np.unique(y_train))
 

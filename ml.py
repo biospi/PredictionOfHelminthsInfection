@@ -142,7 +142,7 @@ def main(
     n_imputed_days: int = 7,
     n_activity_days: int = 7,
     n_weather_days: int = 7,
-    syhth_thresh: int = 4,
+    syhth_thresh: int = 7,
     n_scales: int = 8,
     sub_sample_scales: int = 1,
     weather_file: Optional[Path] = Path("."),
@@ -272,14 +272,14 @@ def main(
 
         N_META = len(meta_columns)
 
-        fig, ax = plt.subplots()
-        sample = data_frame.iloc[0][:-N_META]
-        ax.plot(sample)
-        ax.set_ylabel('Activity Count', fontsize=18)
-        ax.set_title('A Single Sample', fontsize=18)
-        ax.set_xlabel('Time in minutes', fontsize=18)
-        ax.xaxis.set_major_locator(plt.MaxNLocator(3))
-        plt.show()
+        # fig, ax = plt.subplots()
+        # sample = data_frame.iloc[0][:-N_META]
+        # ax.plot(sample)
+        # ax.set_ylabel('Activity Count', fontsize=18)
+        # ax.set_title('A Single Sample', fontsize=18)
+        # ax.set_xlabel('Time in minutes', fontsize=18)
+        # ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+        # plt.show()
 
         df_hum = None
         df_rainfall = None
@@ -291,86 +291,6 @@ def main(
             #                                           VISUALISATION                                                   #
             #############################################################################################################
             animal_ids = data_frame["id"].astype(str).tolist()
-
-            if weather_file.is_file():
-                print(weather_file)
-                df_weather = pd.read_csv(weather_file)
-                df_weather["d"] = pd.to_datetime(df_weather["datetime"])
-                df_weather = df_weather.sort_values("d")
-
-                for d in ["precip", "humidity", "temp_c", "windspeed"]:
-                    fig = plt.figure()
-                    plt.plot(df_weather["d"], df_weather[d])
-                    fig.suptitle(f"{d} data")
-                    plt.xlabel("Time")
-                    plt.ylabel(f"{d}")
-                    path = weather_file.parent / f"{weather_file.stem}_{d}.png"
-                    print(path)
-                    fig.tight_layout()
-                    fig.savefig(path)
-                ##########################################
-                df_hum_list = []
-                df_temp_list = []
-                df_rain_list = []
-                df_windspeed_list = []
-                for j, d in tqdm(
-                    enumerate(data_frame["date"]), total=len(data_frame["date"])
-                ):
-                    d = pd.to_datetime(d) - timedelta(days=n_weather_days)
-                    df_h = []
-                    df_t = []
-                    df_rain = []
-                    df_windspeed = []
-                    # print(f"SAMPLE {j}/{data_frame.shape[0]}")
-                    for n in range(n_weather_days):
-                        d_ = d - timedelta(days=n)
-                        d_ = d_.strftime("%d/%m/%Y")
-                        df_h_ = df_weather[df_weather["date"] == d_]["humidity"].values
-                        df_h.extend(df_h_)
-                        df_t_ = df_weather[df_weather["date"] == d_]["temp_c"].values
-                        df_t.extend(df_t_)
-
-                        df_rain_ = df_weather[df_weather["date"] == d_]["precip"].values
-                        df_rain.extend(df_rain_)
-
-                        df_wind_ = df_weather[df_weather["date"] == d_][
-                            "windspeed"
-                        ].values
-                        df_windspeed.extend(df_wind_)
-
-                        if len(df_h_) == 0:
-                            print(f"missing data for date {d_}")
-
-                    df_hum_list.append(df_h)
-                    df_temp_list.append(df_t)
-                    df_rain_list.append(df_rain)
-                    df_windspeed_list.append(df_windspeed)
-
-                df_hum = pd.DataFrame(df_hum_list)
-                df_temp = pd.DataFrame(df_temp_list)
-                df_rainfall = pd.DataFrame(df_rain_list)
-                df_windspeed = pd.DataFrame(df_windspeed_list)
-                plotHeatmap(
-                    df_hum.values, output_dir, "Samples humidity", "humidity.html"
-                )
-                plotHeatmap(
-                    df_temp.values,
-                    output_dir,
-                    "Samples temperature",
-                    "temperature.html",
-                )
-                plotHeatmap(
-                    df_rainfall.values,
-                    output_dir,
-                    "Samples rainfall",
-                    "rainfall.html",
-                )
-                plotHeatmap(
-                    df_windspeed.values,
-                    output_dir,
-                    "Samples windspeed",
-                    "windspeed.html",
-                )
 
             df_norm, _, time_freq_shape = apply_preprocessing_steps(
                 meta_columns,
@@ -551,6 +471,86 @@ def main(
             # )
             ################################################################################################################
 
+        if weather_file.is_file():
+            print(weather_file)
+            df_weather = pd.read_csv(weather_file)
+            df_weather["d"] = pd.to_datetime(df_weather["datetime"])
+            df_weather = df_weather.sort_values("d")
+
+            for d in ["precip", "humidity", "temp_c", "windspeed"]:
+                fig = plt.figure()
+                plt.plot(df_weather["d"], df_weather[d])
+                fig.suptitle(f"{d} data")
+                plt.xlabel("Time")
+                plt.ylabel(f"{d}")
+                path = weather_file.parent / f"{weather_file.stem}_{d}.png"
+                print(path)
+                fig.tight_layout()
+                fig.savefig(path)
+            ##########################################
+            df_hum_list = []
+            df_temp_list = []
+            df_rain_list = []
+            df_windspeed_list = []
+            for j, d in tqdm(
+                    enumerate(data_frame["date"]), total=len(data_frame["date"])
+            ):
+                d = pd.to_datetime(d) - timedelta(days=n_weather_days)
+                df_h = []
+                df_t = []
+                df_rain = []
+                df_windspeed = []
+                # print(f"SAMPLE {j}/{data_frame.shape[0]}")
+                for n in range(n_weather_days):
+                    d_ = d - timedelta(days=n)
+                    d_ = d_.strftime("%d/%m/%Y")
+                    df_h_ = df_weather[df_weather["date"] == d_]["humidity"].values
+                    df_h.extend(df_h_)
+                    df_t_ = df_weather[df_weather["date"] == d_]["temp_c"].values
+                    df_t.extend(df_t_)
+
+                    df_rain_ = df_weather[df_weather["date"] == d_]["precip"].values
+                    df_rain.extend(df_rain_)
+
+                    df_wind_ = df_weather[df_weather["date"] == d_][
+                        "windspeed"
+                    ].values
+                    df_windspeed.extend(df_wind_)
+
+                    if len(df_h_) == 0:
+                        print(f"missing data for date {d_}")
+
+                df_hum_list.append(df_h)
+                df_temp_list.append(df_t)
+                df_rain_list.append(df_rain)
+                df_windspeed_list.append(df_windspeed)
+
+            df_hum = pd.DataFrame(df_hum_list)
+            df_temp = pd.DataFrame(df_temp_list)
+            df_rainfall = pd.DataFrame(df_rain_list)
+            df_windspeed = pd.DataFrame(df_windspeed_list)
+            plotHeatmap(
+                df_hum.values, output_dir, "Samples humidity", "humidity.html"
+            )
+            plotHeatmap(
+                df_temp.values,
+                output_dir,
+                "Samples temperature",
+                "temperature.html",
+            )
+            plotHeatmap(
+                df_rainfall.values,
+                output_dir,
+                "Samples rainfall",
+                "rainfall.html",
+            )
+            plotHeatmap(
+                df_windspeed.values,
+                output_dir,
+                "Samples windspeed",
+                "windspeed.html",
+            )
+
         step_slug = "_".join(preprocessing_steps)
         steps_ = []
         if "APPEND" in preprocessing_steps:
@@ -563,7 +563,7 @@ def main(
 
         sample_dates = pd.to_datetime(
             data_frame["date"], format="%d/%m/%Y"
-        ).values.astype(np.float16)
+        ).values.astype(float)
         animal_ids = data_frame["id"].astype(str).tolist()
         df_processed_list = []
         for preprocessing_steps in steps_:
@@ -649,7 +649,7 @@ def main(
 
         # sample_dates = pd.to_datetime(
         #     df_processed_meta["date"], format="%d/%m/%Y"
-        # ).values.astype(np.float16)
+        # ).values.astype(float)
         # animal_ids = df_processed_meta["id"].astype(str).tolist()
 
         process_ml(

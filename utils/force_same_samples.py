@@ -79,7 +79,7 @@ def main(dataset_mrnn=None, dataset_gain=None, dataset_li=None, filename = "heat
         matrix = df.values
         matrix[0][0] = 0 #prevent plotly axis bug when matrix only contains nan
         trace = go.Heatmap(
-            z=np.log(anscombe(matrix)).astype(np.float16),
+            z=np.log(anscombe(matrix)).astype(float),
             x=xaxix_label,
             y=yaxis_label,
             #colorbar=dict(x=1 + i / 30, title=f"fig:{i}"),

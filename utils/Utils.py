@@ -292,8 +292,8 @@ def reduce_mem_usage(df, int_cast=False, obj_to_category=False, subset=None):
                 elif c_min > np.iinfo(np.uint64).min and c_max < np.iinfo(np.uint64).max:
                     df[col] = df[col].astype(np.uint64)
             else:
-                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-                    df[col] = df[col].astype(np.float16)
+                if c_min > np.finfo(float).min and c_max < np.finfo(float).max:
+                    df[col] = df[col].astype(float)
                 elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
                     df[col] = df[col].astype(np.float32)
                 else:

@@ -487,7 +487,7 @@ class mrnn ():
       # Fill 0 to the missing values
       x = np.nan_to_num(x, 0)
 
-      x_test = np.zeros(self.x_train_shape, dtype=np.float16)
+      x_test = np.zeros(self.x_train_shape, dtype=float)
       m_test = x_test.copy()
       t_test_ = initialise_time_matrix(np.empty(self.x_train_shape))
       t_test = t_test_.copy()

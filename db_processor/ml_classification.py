@@ -2256,7 +2256,7 @@ def find_type_for_mem_opt(df):
     type_dict = {}
     for n, i in enumerate(range(0, data_col_n)):
         if n < (data_col_n - META_DATA_LENGTH):
-            type_dict[str(i)] = np.float16
+            type_dict[str(i)] = float
         else:
             type_dict[str(i)] = np.str
     del df

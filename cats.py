@@ -9,13 +9,13 @@ from utils.Utils import purge_hpc_file
 
 
 def main(
-    out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev2",
-    dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
-    # out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
-    # dataset_parent: str = "E:/Cats/build_permutations_final",
-    export_hpc_string: bool = True,
+    # out_parent: str = "/user/work/fo18103/Cats/ml_build_permutations_thesis_rev2",
+    # dataset_parent: str = "/user/work/fo18103/Cats/build_permutations_final",
+    out_parent: str = "E:/Cats/ml_build_permutations_thesis_rev",
+    dataset_parent: str = "E:/Cats/build_permutations_final",
+    export_hpc_string: bool = False,
     biospi_run: bool = False,
-    n_job: int = 28,
+    n_job: int = 4,
 ):
     """Thesis script runs the cats study
     Args:\n
@@ -46,7 +46,7 @@ def main(
             folders = [x for x in folders if "visu" not in str(x)]
             # folders = ["800__001__0_00100__120" "1000__002__0_00100__120", "1000__003__0_00100__120", "5000__004__0_00100__120"]
             folders = [
-                # "1000__001__0_00100__030",
+                "1000__001__0_00100__030",
                 # "1000__002__0_00100__030",
                 # "1000__003__0_00100__030",
                 # "1000__004__0_00100__030",
@@ -58,12 +58,12 @@ def main(
                 # "1000__004__0_00100__060",
                 # "1000__005__0_00100__060",
                 # "1000__006__0_00100__060",
-                "1000__001__0_00100__120",
-                "1000__002__0_00100__120",
-                "1000__003__0_00100__120",
-                "1000__004__0_00100__120",
-                "1000__005__0_00100__120",
-                "1000__006__0_00100__120",
+                # "1000__001__0_00100__120",
+                # "1000__002__0_00100__120",
+                # "1000__003__0_00100__120",
+                # "1000__004__0_00100__120",
+                # "1000__005__0_00100__120",
+                # "1000__006__0_00100__120",
             ]
             #folders = ["800__001__0_00100__120"]
             # folders = [

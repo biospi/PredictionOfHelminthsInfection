@@ -385,9 +385,6 @@ class BootstrapCustom_:
             )
         )
 
-        # df.to_csv("F:/Data2/test.csv")
-        # df = pd.read_csv("F:/Data2/test.csv", index_col=False)
-        # df = df.apply(pd.to_numeric, downcast="integer")
         df.columns = ["target", "animal_id"]
         df["sample_idx"] = df.index
         # if self.individual_to_test is not None and len(self.individual_to_test) > 0:

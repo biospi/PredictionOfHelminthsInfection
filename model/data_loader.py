@@ -72,7 +72,7 @@ def load_activity_data(
     # # todo remove
 
     data_frame = data_frame.astype(
-        dtype=np.float16, errors="ignore"
+        dtype=float, errors="ignore"
     )  # cast numeric values as float
     data_point_count = data_frame.shape[1]
     hearder = [str(n) for n in range(0, data_point_count)]
@@ -119,11 +119,11 @@ def load_activity_data(
         data_frame = data_frame[~np.isnan(data_frame["imputed_days"])]
         data_frame = data_frame[data_frame["imputed_days"] <= imputed_days]
 
-    #data_frame = data_frame[data_frame.nunique(1) > 10]
+    data_frame = data_frame[data_frame.nunique(1) > 10]
     data_frame = data_frame.dropna(
         subset=data_frame.columns[: -len(meta_columns)], how="all"
     )
-    data_frame = data_frame.fillna(999999)
+    #data_frame = data_frame.fillna(999999)
     #if imputed_days > 0:
     if len(preprocessing_steps) > 0:
         if "ZEROPAD" in preprocessing_steps[0]:
@@ -132,17 +132,17 @@ def load_activity_data(
         if "LINEAR" in preprocessing_steps[0]:
             data_frame.iloc[:, : -len(meta_columns)] = data_frame.iloc[
                 :, : -len(meta_columns)
-            ].astype(np.float16).interpolate(axis=1, limit_direction="both")
+            ].astype(float).interpolate(axis=1, limit_direction="both")
 
     data_frame = data_frame.dropna()
 
-    data_frame['id'] = data_frame['id'].astype(np.float16)
+    data_frame['id'] = data_frame['id'].astype(float)
     #data_frame = data_frame[data_frame['id'] != 40]
 
     # clip negative values
     data_frame[data_frame.columns.values[: -len(meta_columns)]] = data_frame[
         data_frame.columns.values[: -len(meta_columns)]
-    ].astype(np.float16).clip(lower=0)
+    ].astype(float).clip(lower=0)
 
     data_frame["target"] = data_frame["target"].astype(int)
     data_frame["imputed_days"] = data_frame["imputed_days"].astype(int)
@@ -216,46 +216,46 @@ def load_activity_data(
     meta_data_short = np.array(meta_data_short)
     print(data_frame)
 
-    values = data_frame.iloc[:,:-len(meta_columns)].values
-    groups = []
-    for i in range(0, values.shape[1], 1440):
-        start = i
-        end = start+1440
-        print(start, end)
-        d_ = values[:, start: end]
-        print(d_)
-        d_[d_==999999] = np.nan
-        # groups.append(d_)
-
-        hour_nan_rate = []
-        for j in range(0, d_.shape[1], 60):
-            start = j
-            end = start + 60
-            df = np.isnan(d_[:, start:end])
-            nan_rate = np.sum(df==True)/df.size
-            hour_nan_rate.append(nan_rate)
-        groups.append(np.array(hour_nan_rate))
-        sample_nan_info = np.vstack(groups)
-
-    fig, ax = plt.subplots()
-    im = ax.imshow(sample_nan_info, interpolation='nearest')
-    # im = ax.imshow(scores, interpolation='nearest',
-    #            norm=MidpointNormalize(vmin=-.2, midpoint=0.5))
-    ax.set_xlabel('Time (Hour of day)')
-    ax.set_ylabel('Day')
-    fig.colorbar(im)
-    # ax.set_xticks(np.arange(len(df["gamma"].unique())),
-    #            [np.format_float_scientific(i, 1) for i in df["gamma"].unique()], rotation=45)
-    # ax.set_yticks(np.arange(len(df["C"].unique()))[::-1],
-    #            [np.format_float_scientific(i, ) for i in df["C"].unique()])
-    ax.set_title(f'Rate Of Missingness (ratio of NaN)\n Per Hour Across Activity Samples')
-    fig.tight_layout()
-    fig.show()
-    out_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"heatmap_sample_nan.png"
-    filepath = out_dir / filename
-    print(filepath)
-    fig.savefig(filepath)
+    # values = data_frame.iloc[:,:-len(meta_columns)].values
+    # groups = []
+    # for i in range(0, values.shape[1], 1440):
+    #     start = i
+    #     end = start+1440
+    #     print(start, end)
+    #     d_ = values[:, start: end]
+    #     print(d_)
+    #     d_[d_==999999] = np.nan
+    #     # groups.append(d_)
+    #
+    #     hour_nan_rate = []
+    #     for j in range(0, d_.shape[1], 60):
+    #         start = j
+    #         end = start + 60
+    #         df = np.isnan(d_[:, start:end])
+    #         nan_rate = np.sum(df==True)/df.size
+    #         hour_nan_rate.append(nan_rate)
+    #     groups.append(np.array(hour_nan_rate))
+    #     sample_nan_info = np.vstack(groups)
+    #
+    # fig, ax = plt.subplots()
+    # im = ax.imshow(sample_nan_info, interpolation='nearest')
+    # # im = ax.imshow(scores, interpolation='nearest',
+    # #            norm=MidpointNormalize(vmin=-.2, midpoint=0.5))
+    # ax.set_xlabel('Time (Hour of day)')
+    # ax.set_ylabel('Day')
+    # fig.colorbar(im)
+    # # ax.set_xticks(np.arange(len(df["gamma"].unique())),
+    # #            [np.format_float_scientific(i, 1) for i in df["gamma"].unique()], rotation=45)
+    # # ax.set_yticks(np.arange(len(df["C"].unique()))[::-1],
+    # #            [np.format_float_scientific(i, ) for i in df["C"].unique()])
+    # ax.set_title(f'Rate Of Missingness (ratio of NaN)\n Per Hour Across Activity Samples')
+    # fig.tight_layout()
+    # fig.show()
+    # out_dir.mkdir(parents=True, exist_ok=True)
+    # filename = f"heatmap_sample_nan.png"
+    # filepath = out_dir / filename
+    # print(filepath)
+    # fig.savefig(filepath)
 
     return (
         data_frame,
